@@ -1,6 +1,9 @@
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.graphstate import GraphState
 
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
 allowed_parities = [(0, 0, 0), (1, 1, 0), (1, 0, 1), (0, 1, 0), (0, 0, 1), (1, 1, 1)]
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -53,13 +56,67 @@ def create_rhg(
 
     return gs, coord2node
 
+def visualize_rhg(
+    lattice_state: GraphState,
+    coord2node: dict[tuple[int,int,int], int],
+    allowed_parities: list[tuple[int, int, int]] = allowed_parities
+) -> None:
+    """
+    Visualizes the Raussendorf lattice with nodes colored based on their parity.
+    Nodes with allowed parities are colored white, others are red.
+    Physical edges are drawn in gray.
 
+    Parameters:
+    - lattice_state: GraphState
+        The Raussendorf lattice state to visualize.
+    - coord2node: dict[tuple[int,int,int], int]
+        Mapping from coordinates to node indices.
+    - allowed_parities: list[tuple[int, int, int]]
+        List of allowed parity patterns for nodes.
+    """
+    
+    node2coord: dict[int, tuple[int,int,int]] = {node: coord for coord, node in coord2node.items()}
+    
+    fig = plt.figure(figsize=(6,6))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_box_aspect((1,1,1))  # Set aspect ratio to be equal
+    ax.grid(False)
+    ax.set_axis_off()
+    
+    xs, ys, zs = [], [], []
+    colors = []
+    for node, (x,y,z) in node2coord.items():
+        xs.append(x)
+        ys.append(y)
+        zs.append(z)
+
+        parity = (x % 2, y % 2, z % 2)
+        if parity in allowed_parities[:3]: 
+            colors.append('white') 
+        else:
+            colors.append('red')
+            
+    ax.scatter(xs, ys, zs, c=colors, edgecolors='black', s=50, depthshade=True, label='nodes') 
+    for (u, v) in lattice_state.physical_edges:
+        # Extract coordinates from coord2node
+        x1, y1, z1 = node2coord[u]
+        x2, y2, z2 = node2coord[v]
+        ax.plot([x1, x2], [y1, y2], [z1, z2], c='gray', linewidth=1, alpha=0.5)
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_title('Raussendorf lattice (allowed parity nodes)')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+    
+    
 """
 Usage
 
 Lx, Ly, Lz = 6, 6, 6
 
-lattice_state, coord2node = create_raussendorf_by_parity(Lx, Ly, Lz)
+lattice_state, coord2node = create_rhg(Lx, Ly, Lz)
 
 
 node2coord: dict[int, tuple[int,int,int]] = {node: coord for coord, node in coord2node.items()}
