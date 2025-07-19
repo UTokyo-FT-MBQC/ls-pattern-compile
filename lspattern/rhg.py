@@ -17,8 +17,8 @@ def create_rhg(
 ) -> tuple[
     GraphState,
     dict[tuple[int, int, int], int],
-    list[tuple[int, int]],
-    list[tuple[int, int]],
+    list[int | tuple[int, int]],  # this should be generalized in the future development
+    list[int | tuple[int, int]],
 ]:
     """Create a Raussendorf lattice (RHG) with the specified distance `d`.
 
@@ -33,7 +33,7 @@ def create_rhg(
 
     Returns
     -------
-    tuple[ GraphState, dict[tuple[int, int, int], int], list[tuple[int, int]], list[tuple[int, int]], ]
+    tuple[ GraphState, dict[tuple[int, int, int], int], list[int | tuple[int, int]], list[int | tuple[int, int]], ]
         The created RHG lattice and its associated data.
     """
     length_xy = 2 * d - 1
@@ -51,8 +51,8 @@ def _create_rhg(
 ) -> tuple[
     GraphState,
     dict[tuple[int, int, int], int],
-    list[tuple[int, int]],
-    list[tuple[int, int]],
+    list[int | tuple[int, int]],
+    list[int | tuple[int, int]],
 ]:
     """
     Places a node only if the parity pattern (x % 2, y % 2, z % 2) of the integer coordinates (x, y, z)
@@ -71,8 +71,10 @@ def _create_rhg(
 
     gs = GraphState()
     coord2node: dict[tuple[int, int, int], int] = {}
-    x_parity_check_groups: list[tuple[int, int]] = []  # tuple means a directed edge
-    z_parity_check_groups: list[tuple[int, int]] = []
+    x_parity_check_groups: list[
+        int | tuple[int, int]
+    ] = []  # tuple means a directed edge
+    z_parity_check_groups: list[int | tuple[int, int]] = []
 
     coord2qindex: dict[tuple[int, int], int] = {}
 
@@ -110,6 +112,12 @@ def _create_rhg(
                     gs.add_physical_edge(u, v)
                 except ValueError:
                     pass
+        if z == 0:
+            parity = (x % 2, y % 2, z % 2)
+            if parity == ancilla_x_check_parity:
+                x_parity_check_groups.append(u)
+            elif parity == ancilla_z_check_parity:
+                z_parity_check_groups.append(u)
         next_ancilla = coord2node.get((x, y, z + 2), None)
         if next_ancilla is not None:
             parity = (x % 2, y % 2, z % 2)
