@@ -9,7 +9,7 @@ from lspattern.rhg import create_rhg, visualize_rhg
 from lspattern.ops import memory
 
 # %%
-d = 3
+d = 5
 rhg_lattice, coord2node, x, z = create_rhg(d, d, d)
 visualize_rhg(rhg_lattice, coord2node)
 
