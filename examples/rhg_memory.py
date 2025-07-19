@@ -19,7 +19,9 @@ print_pattern(pattern)
 
 # %%
 # compile to stim
-stim_str = stim_compile(pattern)
+stim_str = stim_compile(
+    pattern, after_clifford_depolarization=0.001, before_measure_flip_probability=0.01
+)
 print(stim_str)
 
 # %%
