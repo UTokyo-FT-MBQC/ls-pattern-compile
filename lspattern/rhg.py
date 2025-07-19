@@ -19,8 +19,22 @@ def create_rhg(
     list[tuple[int, int]],
     list[tuple[int, int]],
 ]:
-    l = 2 * d - 1
-    return _create_rhg(l, l, l, allowed_parities=allowed_parities)
+    """Create a Raussendorf lattice (RHG) with the specified distance `d`.
+
+    Parameters
+    ----------
+    d : int
+        The distance of the RHG lattice.
+    allowed_parities : list[tuple[int, int, int]], optional
+        The allowed parity patterns, by default allowed_parities
+
+    Returns
+    -------
+    tuple[ GraphState, dict[tuple[int, int, int], int], list[tuple[int, int]], list[tuple[int, int]], ]
+        The created RHG lattice and its associated data.
+    """
+    length = 2 * d - 1
+    return _create_rhg(length, length, length, allowed_parities=allowed_parities)
 
 
 def _create_rhg(
