@@ -11,6 +11,19 @@ ancilla_z_check_parity = (1, 0, 1)
 
 
 def create_rhg(
+    d: int,
+    allowed_parities: list[tuple[int, int, int]] = allowed_parities,
+) -> tuple[
+    GraphState,
+    dict[tuple[int, int, int], int],
+    list[tuple[int, int]],
+    list[tuple[int, int]],
+]:
+    l = 2 * d - 1
+    return _create_rhg(l, l, l, allowed_parities=allowed_parities)
+
+
+def _create_rhg(
     Lx: int,
     Ly: int,
     Lz: int,
