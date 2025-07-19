@@ -17,10 +17,9 @@ def memory(Lx, Ly, Lz):
     f = dict()
     for node1 in lattice_state.physical_nodes:
         x1, y1, z1 = node2coord[node1]
-        for node2 in lattice_state.physical_nodes:
-            x2, y2, z2 = node2coord[node2]
-            if (x1, y1, z1) == (x2, y2, z2 - 1):
-                f[node1] = {node2}
+        node2 = coord2node.get((x1, y1, z1 + 1), None)
+        if node2 is not None:
+            f[node1] = {node2}
 
     pattern = qompiler.qompile(
         lattice_state,
