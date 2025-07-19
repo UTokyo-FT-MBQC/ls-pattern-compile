@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 allowed_parities = [(0, 0, 0), (1, 1, 0), (1, 0, 1), (0, 1, 0), (0, 0, 1), (1, 1, 1)]
+data_parities = [(0, 0, 0), (1, 1, 0), (0, 0, 1), (1, 1, 1)]
 ancilla_x_check_parity = (0, 1, 0)
 ancilla_z_check_parity = (1, 0, 1)
 
@@ -40,6 +41,8 @@ def create_rhg(
     x_parity_check_groups: list[tuple[int, int]] = []  # tuple means a directed edge
     z_parity_check_groups: list[tuple[int, int]] = []
 
+    coord2qindex: dict[tuple[int, int], int] = {}
+
     for x in range(Lx):
         for y in range(Ly):
             for z in range(Lz):
@@ -49,7 +52,13 @@ def create_rhg(
 
                 node_idx = gs.add_physical_node()
                 coord2node[(x, y, z)] = node_idx
-                gs.assign_meas_basis(node_idx, PlannerMeasBasis(Plane.XY, 0.0))
+                if z == Lz - 1:  # output layer
+                    gs.register_output(node_idx, coord2qindex[(x, y)])
+                else:
+                    if z == 0:  # input layer
+                        q_index = gs.register_input(node_idx)
+                        coord2qindex[(x, y)] = q_index
+                    gs.assign_meas_basis(node_idx, PlannerMeasBasis(Plane.XY, 0.0))
 
     # add edges
     for (x, y, z), u in coord2node.items():
