@@ -12,6 +12,7 @@ ancilla_z_check_parity = (1, 0, 1)
 
 def create_rhg(
     d: int,
+    rounds: int,
     allowed_parities: list[tuple[int, int, int]] = allowed_parities,
 ) -> tuple[
     GraphState,
@@ -25,6 +26,8 @@ def create_rhg(
     ----------
     d : int
         The distance of the RHG lattice.
+    rounds : int
+        The number of rounds for the RHG lattice.
     allowed_parities : list[tuple[int, int, int]], optional
         The allowed parity patterns, by default allowed_parities
 
@@ -33,8 +36,11 @@ def create_rhg(
     tuple[ GraphState, dict[tuple[int, int, int], int], list[tuple[int, int]], list[tuple[int, int]], ]
         The created RHG lattice and its associated data.
     """
-    length = 2 * d - 1
-    return _create_rhg(length, length, length, allowed_parities=allowed_parities)
+    length_xy = 2 * d - 1
+    length_z = 2 * rounds - 1
+    return _create_rhg(
+        length_xy, length_xy, length_z, allowed_parities=allowed_parities
+    )
 
 
 def _create_rhg(

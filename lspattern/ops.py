@@ -9,7 +9,7 @@ def memory(d: int):
     """
 
     lattice_state, coord2node, x_parity_check_groups, z_parity_check_groups = (
-        create_rhg(d)
+        create_rhg(d, d)
     )
     node2coord: dict[int, tuple[int, int, int]] = {
         node: coord for coord, node in coord2node.items()

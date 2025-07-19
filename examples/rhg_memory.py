@@ -2,7 +2,6 @@
 
 # %%
 
-from operator import le
 from graphix_zx.pattern import print_pattern
 from graphix_zx.stim_compiler import stim_compile
 
@@ -11,7 +10,8 @@ from lspattern.ops import memory
 
 # %%
 d = 3
-rhg_lattice, coord2node, x, z = create_rhg(d)
+r = d
+rhg_lattice, coord2node, x, z = create_rhg(d, r)
 visualize_rhg(rhg_lattice, coord2node)
 
 length = 2 * d - 1
