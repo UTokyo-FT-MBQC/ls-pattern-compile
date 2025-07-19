@@ -22,7 +22,7 @@ print(f"logical Z: {logical_z}")
 logical_observables = {0: logical_x, 1: logical_z}
 
 # %%
-pattern = memory(d)
+pattern = memory(d, r)
 print_pattern(pattern)
 
 # %%

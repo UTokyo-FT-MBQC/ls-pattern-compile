@@ -3,13 +3,13 @@ from graphix_zx import qompiler
 from lspattern.rhg import create_rhg
 
 
-def memory(d: int):
+def memory(d: int, r: int):
     """
     Return a pattern for a memory operation.
     """
 
     lattice_state, coord2node, x_parity_check_groups, z_parity_check_groups = (
-        create_rhg(d, d)
+        create_rhg(d, r)
     )
     node2coord: dict[int, tuple[int, int, int]] = {
         node: coord for coord, node in coord2node.items()
