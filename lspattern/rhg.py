@@ -66,12 +66,13 @@ def create_rhg(
                 v = coord2node[(nx, ny, nz)]
                 try:
                     gs.add_physical_edge(u, v)
-                    if dz == 1:  # parity group
-                        parity = (x % 2, y % 2, z % 2)
+                    parity = (x % 2, y % 2, z % 2)
+                    next_ancilla = coord2node.get((nx, ny, nz + 2), None)
+                    if next_ancilla is not None:
                         if parity == ancilla_x_check_parity:
-                            x_parity_check_groups.append((u, v))
+                            x_parity_check_groups.append((u, next_ancilla))
                         elif parity == ancilla_z_check_parity:
-                            z_parity_check_groups.append((u, v))
+                            z_parity_check_groups.append((u, next_ancilla))
                 except ValueError:
                     pass
 
