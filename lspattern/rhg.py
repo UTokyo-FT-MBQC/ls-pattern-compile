@@ -78,9 +78,9 @@ def _create_rhg(
 
     coord2qindex: dict[tuple[int, int], int] = {}
 
-    for x in range(Lx):
+    for z in range(Lz):
         for y in range(Ly):
-            for z in range(Lz):
+            for x in range(Lx):
                 parity = (x % 2, y % 2, z % 2)
                 if parity not in allowed_parities:
                     continue
@@ -116,8 +116,6 @@ def _create_rhg(
             parity = (x % 2, y % 2, z % 2)
             if parity == ancilla_x_check_parity:
                 x_parity_check_groups.append(u)
-            elif parity == ancilla_z_check_parity:
-                z_parity_check_groups.append(u)
         next_ancilla = coord2node.get((x, y, z + 2), None)
         if next_ancilla is not None:
             parity = (x % 2, y % 2, z % 2)
