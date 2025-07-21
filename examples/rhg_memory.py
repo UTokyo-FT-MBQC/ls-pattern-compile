@@ -21,11 +21,9 @@ rhg_lattice, coord2node, x, z = create_rhg(d, r)
 visualize_rhg(rhg_lattice, coord2node)
 
 length = 2 * d - 1
-logical_x = set(range(d))
-logical_z = set(length * i for i in range(d))
-print(f"logical X: {logical_x}")
-print(f"logical Z: {logical_z}")
-logical_observables = {0: logical_x, 1: logical_z}
+logical = set(range(d**2 + (d - 1) ** 2))
+print(f"logical Z: {logical}")
+logical_observables = {0: logical}
 
 # %%
 pattern = memory(d, r)
