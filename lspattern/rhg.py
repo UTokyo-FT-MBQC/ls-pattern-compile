@@ -87,11 +87,15 @@ def _create_rhg(
                 node_idx = gs.add_physical_node()
                 coord2node[(x, y, z)] = node_idx
                 if z == Lz - 1:  # output layer
-                    gs.register_output(node_idx, coord2qindex[(x, y)])
+                    if parity in data_parities:
+                        gs.register_output(node_idx, coord2qindex[(x, y)])
+                    else:
+                        gs.assign_meas_basis(node_idx, PlannerMeasBasis(Plane.XY, 0.0))
                 else:
                     if z == 0:  # input layer
-                        q_index = gs.register_input(node_idx)
-                        coord2qindex[(x, y)] = q_index
+                        if parity in data_parities:
+                            q_index = gs.register_input(node_idx)
+                            coord2qindex[(x, y)] = q_index
                     gs.assign_meas_basis(node_idx, PlannerMeasBasis(Plane.XY, 0.0))
 
     # add edges
@@ -111,10 +115,6 @@ def _create_rhg(
                     gs.add_physical_edge(u, v)
                 except ValueError:
                     pass
-        if z == 0:
-            parity = (x % 2, y % 2, z % 2)
-            if parity == ancilla_x_check_parity:
-                x_parity_check_groups.append(u)
         next_ancilla = coord2node.get((x, y, z + 2), None)
         if next_ancilla is not None:
             parity = (x % 2, y % 2, z % 2)
