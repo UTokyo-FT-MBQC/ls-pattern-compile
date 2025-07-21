@@ -1,7 +1,6 @@
 """RHG memory simulation example."""
 
 # %%
-import os
 
 import numpy as np
 import scipy.stats
