@@ -58,58 +58,59 @@ def create_circuit(d: int, rounds: int, noise: float) -> stim.Circuit:
     return stim.Circuit(stim_str)
 
 
-rhg_code_tasks = [
-    sinter.Task(
-        circuit=create_circuit(d, d, noise),
-        json_metadata={"d": d, "r": d, "noise": noise},
+if __name__ == "__main__":
+    rhg_code_tasks = [
+        sinter.Task(
+            circuit=create_circuit(d, d, noise),
+            json_metadata={"d": d, "r": d, "noise": noise},
+        )
+        for d in [3, 5, 7, 9]
+    ]
+
+    collected_rhg_code_stats: list[sinter.TaskStats] = sinter.collect(
+        num_workers=1,
+        tasks=rhg_code_tasks,
+        decoders=["pymatching"],
+        max_shots=5_000_000,
+        max_errors=100,
+        print_progress=True,
     )
-    for d in [3, 5, 7, 9]
-]
 
-collected_rhg_code_stats: list[sinter.TaskStats] = sinter.collect(
-    num_workers=os.cpu_count(),
-    tasks=rhg_code_tasks,
-    decoders=["pymatching"],
-    max_shots=5_000_000,
-    max_errors=100,
-    print_progress=True,
-)
+    # %%
+    # Compute the line fit.
+    xs = []
+    ys = []
+    log_ys = []
+    for stats in collected_rhg_code_stats:
+        d = stats.json_metadata["d"]
+        if not stats.errors:
+            print(f"Didn't see any errors for d={d}")
+            continue
+        per_shot = stats.errors / stats.shots
+        per_round = sinter.shot_error_rate_to_piece_error_rate(
+            per_shot, pieces=stats.json_metadata["r"]
+        )
+        xs.append(d)
+        ys.append(per_round)
+        log_ys.append(np.log(per_round))
+    fit = scipy.stats.linregress(xs, log_ys)
+    print(fit)
 
-# %%
-# Compute the line fit.
-xs = []
-ys = []
-log_ys = []
-for stats in collected_rhg_code_stats:
-    d = stats.json_metadata["d"]
-    if not stats.errors:
-        print(f"Didn't see any errors for d={d}")
-        continue
-    per_shot = stats.errors / stats.shots
-    per_round = sinter.shot_error_rate_to_piece_error_rate(
-        per_shot, pieces=stats.json_metadata["r"]
+    fig, ax = plt.subplots(1, 1)
+    ax.scatter(xs, ys, label=f"sampled logical error rate at p={noise}")
+    ax.plot(
+        [0, 25],
+        [np.exp(fit.intercept), np.exp(fit.intercept + fit.slope * 25)],
+        linestyle="--",
+        label="least squares line fit",
     )
-    xs.append(d)
-    ys.append(per_round)
-    log_ys.append(np.log(per_round))
-fit = scipy.stats.linregress(xs, log_ys)
-print(fit)
-
-fig, ax = plt.subplots(1, 1)
-ax.scatter(xs, ys, label=f"sampled logical error rate at p={noise}")
-ax.plot(
-    [0, 25],
-    [np.exp(fit.intercept), np.exp(fit.intercept + fit.slope * 25)],
-    linestyle="--",
-    label="least squares line fit",
-)
-ax.set_ylim(1e-12, 1e-0)
-ax.set_xlim(0, 25)
-ax.semilogy()
-ax.set_title("Projecting distance needed to survive a trillion rounds")
-ax.set_xlabel("Code Distance")
-ax.set_ylabel("Logical Error Rate per Round")
-ax.grid(which="major")
-ax.grid(which="minor")
-ax.legend()
-fig.set_dpi(120)  # Show it bigger
+    ax.set_ylim(1e-12, 1e-0)
+    ax.set_xlim(0, 25)
+    ax.semilogy()
+    ax.set_title("Projecting distance needed to survive a trillion rounds")
+    ax.set_xlabel("Code Distance")
+    ax.set_ylabel("Logical Error Rate per Round")
+    ax.grid(which="major")
+    ax.grid(which="minor")
+    ax.legend()
+    fig.set_dpi(120)  # Show it bigger
