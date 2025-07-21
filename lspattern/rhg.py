@@ -36,7 +36,7 @@ def create_rhg(
         The created RHG lattice and its associated data.
     """
     length_xy = 2 * d - 1
-    length_z = 2 * rounds - 1
+    length_z = 2 * rounds
     return _create_rhg(
         length_xy, length_xy, length_z, allowed_parities=allowed_parities
     )
