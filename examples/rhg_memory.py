@@ -16,14 +16,16 @@ from lspattern.ops import memory
 
 # %%
 d = 3
-r = d
+r = 1
 rhg_lattice, coord2node, x, z = create_rhg(d, r)
 visualize_rhg(rhg_lattice, coord2node)
 
 length = 2 * d - 1
-logical = set(range(d**2 + (d - 1) ** 2))
+logical = set(range(d))
+# logical = set(length * i for i in range(d))
 print(f"logical Z: {logical}")
 logical_observables = {0: logical}
+# logical_observables = {}
 
 # %%
 pattern = memory(d, r)
@@ -34,8 +36,8 @@ print_pattern(pattern)
 stim_str = stim_compile(
     pattern,
     logical_observables,
-    after_clifford_depolarization=0.001,
-    before_measure_flip_probability=0.01,
+    after_clifford_depolarization=0,
+    before_measure_flip_probability=0,
 )
 print(stim_str)
 

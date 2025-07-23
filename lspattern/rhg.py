@@ -36,7 +36,7 @@ def create_rhg(
         The created RHG lattice and its associated data.
     """
     length_xy = 2 * d - 1
-    length_z = 2 * rounds
+    length_z = 2 * rounds + 1
     return _create_rhg(
         length_xy, length_xy, length_z, allowed_parities=allowed_parities
     )
@@ -84,6 +84,9 @@ def _create_rhg(
                 if parity not in allowed_parities:
                     continue
 
+                if (z == Lz - 1) and parity not in data_parities:
+                    # skip output layer if not in data_parities
+                    continue
                 node_idx = gs.add_physical_node()
                 coord2node[(x, y, z)] = node_idx
                 if z == Lz - 1:  # output layer
