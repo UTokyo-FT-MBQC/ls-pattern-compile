@@ -29,8 +29,21 @@ def memory(d: int, r: int):
     # scheduler
     scheduler = Scheduler(lattice_state)
 
+    prep_time = dict.fromkeys(
+        lattice_state.physical_nodes - set(lattice_state.input_node_indices), 0
+    )
+    meas_time: dict[int, int] = dict.fromkeys(set(lattice_state.input_node_indices), 1)
+    time_index = 2
+    for group in grouping:
+        for node in group:
+            meas_time[node] = time_index
+        time_index += 1
+
     # schedule based on grouping
-    scheduler.on_the_fly_from_grouping(grouping)
+    scheduler.from_manual_design(
+        prepare_time=prep_time,
+        measure_time=meas_time,
+    )
 
     pattern = qompile(
         lattice_state,
