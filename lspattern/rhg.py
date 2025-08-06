@@ -18,6 +18,7 @@ def create_rhg(
     dict[tuple[int, int, int], int],
     list[int | tuple[int, int]],  # this should be generalized in the future development
     list[int | tuple[int, int]],
+    list[set[int]],
 ]:
     """Create a Raussendorf lattice (RHG) with the specified distance `d`.
 
@@ -32,7 +33,7 @@ def create_rhg(
 
     Returns
     -------
-    tuple[ GraphState, dict[tuple[int, int, int], int], list[int | tuple[int, int]], list[int | tuple[int, int]], ]
+    tuple[ GraphState, dict[tuple[int, int, int], int], list[int | tuple[int, int]], list[int | tuple[int, int]], list[set[int]]]
         The created RHG lattice and its associated data.
     """
     length_xy = 2 * d - 1
@@ -52,6 +53,7 @@ def _create_rhg(
     dict[tuple[int, int, int], int],
     list[int | tuple[int, int]],
     list[int | tuple[int, int]],
+    list[set[int]],
 ]:
     """
     Places a node only if the parity pattern (x % 2, y % 2, z % 2) of the integer coordinates (x, y, z)
@@ -66,6 +68,8 @@ def _create_rhg(
         List of tuples of nodes that form X parity check groups.
     - z_parity_check_groups: list[tuple[int, int]]
         List of tuples of nodes that form Z parity check groups.
+    - grouping: list[set[int]]
+        The measurement order grouping, where each set contains nodes that can be measured together.
     """
 
     gs = GraphState()
@@ -77,7 +81,11 @@ def _create_rhg(
 
     coord2qindex: dict[tuple[int, int], int] = {}
 
+    grouping: list[set[int]] = []
+
     for z in range(Lz):
+        data_qubits = set()
+        ancilla_qubits = set()
         for y in range(Ly):
             for x in range(Lx):
                 parity = (x % 2, y % 2, z % 2)
@@ -100,6 +108,13 @@ def _create_rhg(
                             q_index = gs.register_input(node_idx)
                             coord2qindex[(x, y)] = q_index
                     gs.assign_meas_basis(node_idx, PlannerMeasBasis(Plane.XY, 0.0))
+
+                if parity in data_parities:
+                    data_qubits.add(node_idx)
+                else:
+                    ancilla_qubits.add(node_idx)
+        grouping.append(ancilla_qubits)
+        grouping.append(data_qubits)
 
     # add edges
     for (x, y, z), u in coord2node.items():
@@ -126,7 +141,7 @@ def _create_rhg(
             elif parity == ancilla_z_check_parity:
                 z_parity_check_groups.append((u, next_ancilla))
 
-    return gs, coord2node, x_parity_check_groups, z_parity_check_groups
+    return gs, coord2node, x_parity_check_groups, z_parity_check_groups, grouping
 
 
 def visualize_rhg(
