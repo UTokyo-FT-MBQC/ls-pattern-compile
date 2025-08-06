@@ -20,6 +20,9 @@ r = 1
 rhg_lattice, coord2node, x, z, grouping = create_rhg(d, r)
 visualize_rhg(rhg_lattice, coord2node)
 
+for group in grouping:
+    print(f"group: {group}")
+
 length = 2 * d - 1
 logical = set(range(d))
 # logical = set(length * i for i in range(d))
