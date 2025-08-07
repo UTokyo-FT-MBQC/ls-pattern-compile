@@ -1,4 +1,3 @@
-from sympy import group
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.graphstate import GraphState
 
