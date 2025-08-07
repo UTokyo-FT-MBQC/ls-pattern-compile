@@ -63,5 +63,5 @@ if __name__ == "__main__":
     ax.grid(which="minor")
     ax.legend()
     fig.set_dpi(120)
-    fig.savefig("rhg_memory_noise_sweep.png", bbox_inches="tight")
+    fig.savefig("figures/memory_sim.png", bbox_inches="tight")
     plt.show()
