@@ -2,6 +2,7 @@
 
 # %%
 
+import os
 import numpy as np
 import scipy.stats
 import scipy
@@ -46,82 +47,84 @@ print(stim_str)
 
 # %%
 
-noise = 0.001
-
 
 def create_circuit(d: int, rounds: int, noise: float) -> stim.Circuit:
     pattern = memory(d, rounds)
+    length = 2 * d - 1
+    logical_observables = {0: {length * i for i in range(d)}}
     stim_str = stim_compile(
         pattern,
         logical_observables,
         after_clifford_depolarization=noise,
-        before_measure_flip_probability=noise,
+        before_measure_flip_probability=0,
     )
     return stim.Circuit(stim_str)
 
 
-circuit = create_circuit(d, r, noise)
-# circuit.diagram("detslice-with-ops-svg", filter_coords=["L0"])
-print(f"num_qubits: {circuit.num_qubits}")
+# noise = 0.001
+# circuit = create_circuit(d, r, noise)
+# print(f"num_qubits: {circuit.num_qubits}")
 
-dem = circuit.detector_error_model()
-print(dem)
+# dem = circuit.detector_error_model()
+# print(dem)
 
 # %%
 
-# if __name__ == "__main__":
-#     rhg_code_tasks = [
-#         sinter.Task(
-#             circuit=create_circuit(d, d, noise),
-#             json_metadata={"d": d, "r": d, "noise": noise},
-#         )
-#         for d in [3, 5, 7, 9]
-#     ]
+if __name__ == "__main__":
+    noise = 0.001
+    rhg_code_tasks = [
+        sinter.Task(
+            circuit=create_circuit(d, d, noise),
+            json_metadata={"d": d, "r": d, "noise": noise},
+        )
+        for d in [3, 7, 11, 15]
+    ]
 
-#     collected_rhg_code_stats: list[sinter.TaskStats] = sinter.collect(
-#         num_workers=1,
-#         tasks=rhg_code_tasks,
-#         decoders=["pymatching"],
-#         max_shots=5_000_000,
-#         max_errors=100,
-#         print_progress=True,
-#     )
+    collected_rhg_code_stats: list[sinter.TaskStats] = sinter.collect(
+        num_workers=os.cpu_count(),
+        tasks=rhg_code_tasks,
+        decoders=["pymatching"],
+        max_shots=5_000_000,
+        max_errors=100,
+        print_progress=True,
+    )
 
-#     # %%
-#     # Compute the line fit.
-#     xs = []
-#     ys = []
-#     log_ys = []
-#     for stats in collected_rhg_code_stats:
-#         d = stats.json_metadata["d"]
-#         if not stats.errors:
-#             print(f"Didn't see any errors for d={d}")
-#             continue
-#         per_shot = stats.errors / stats.shots
-#         per_round = sinter.shot_error_rate_to_piece_error_rate(
-#             per_shot, pieces=stats.json_metadata["r"]
-#         )
-#         xs.append(d)
-#         ys.append(per_round)
-#         log_ys.append(np.log(per_round))
-#     fit = scipy.stats.linregress(xs, log_ys)
-#     print(fit)
+    # %%
+    # Compute the line fit.
+    xs = []
+    ys = []
+    log_ys = []
+    for stats in collected_rhg_code_stats:
+        d = stats.json_metadata["d"]
+        if not stats.errors:
+            print(f"Didn't see any errors for d={d}")
+            continue
+        per_shot = stats.errors / stats.shots
+        per_round = sinter.shot_error_rate_to_piece_error_rate(
+            per_shot, pieces=stats.json_metadata["r"]
+        )
+        xs.append(d)
+        ys.append(per_round)
+        log_ys.append(np.log(per_round))
+    fit = scipy.stats.linregress(xs, log_ys)
+    print(fit)
 
-#     fig, ax = plt.subplots(1, 1)
-#     ax.scatter(xs, ys, label=f"sampled logical error rate at p={noise}")
-#     ax.plot(
-#         [0, 25],
-#         [np.exp(fit.intercept), np.exp(fit.intercept + fit.slope * 25)],
-#         linestyle="--",
-#         label="least squares line fit",
-#     )
-#     ax.set_ylim(1e-12, 1e-0)
-#     ax.set_xlim(0, 25)
-#     ax.semilogy()
-#     ax.set_title("Projecting distance needed to survive a trillion rounds")
-#     ax.set_xlabel("Code Distance")
-#     ax.set_ylabel("Logical Error Rate per Round")
-#     ax.grid(which="major")
-#     ax.grid(which="minor")
-#     ax.legend()
-#     fig.set_dpi(120)  # Show it bigger
+    fig, ax = plt.subplots(1, 1)
+    ax.scatter(xs, ys, label=f"sampled logical error rate at p={noise}")
+    ax.plot(
+        [0, 25],
+        [np.exp(fit.intercept), np.exp(fit.intercept + fit.slope * 25)],
+        linestyle="--",
+        label="least squares line fit",
+    )
+    ax.set_ylim(1e-12, 1e-0)
+    ax.set_xlim(0, 25)
+    ax.semilogy()
+    ax.set_title("Projecting distance needed to survive a trillion rounds")
+    ax.set_xlabel("Code Distance")
+    ax.set_ylabel("Logical Error Rate per Round")
+    ax.grid(which="major")
+    ax.grid(which="minor")
+    ax.legend()
+    fig.set_dpi(120)  # Show it bigger
+    fig.savefig("rhg_memory.png", bbox_inches="tight")
