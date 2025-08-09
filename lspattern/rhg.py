@@ -51,8 +51,8 @@ def _create_rhg(
 ) -> tuple[
     GraphState,
     dict[tuple[int, int, int], int],
-    list[int | tuple[int, int]],
-    list[int | tuple[int, int]],
+    list[set[int]],
+    list[set[int]],
     list[set[int]],
 ]:
     """
@@ -64,20 +64,18 @@ def _create_rhg(
         RHG graphstate
     - coord2node: dict[tuple[int,int,int], int]
         { (x, y, z): node_index }
-    - x_parity_check_groups: list[tuple[int, int]]
-        List of tuples of nodes that form X parity check groups.
-    - z_parity_check_groups: list[tuple[int, int]]
-        List of tuples of nodes that form Z parity check groups.
+    - x_parity_check_groups: list[set[int]]
+        List of sets of nodes that form X parity check groups.
+    - z_parity_check_groups: list[set[int]]
+        List of sets of nodes that form Z parity check groups.
     - grouping: list[set[int]]
         The measurement order grouping, where each set contains nodes that can be measured together.
     """
 
     gs = GraphState()
     coord2node: dict[tuple[int, int, int], int] = {}
-    x_parity_check_groups: list[
-        int | tuple[int, int]
-    ] = []  # tuple means a directed edge
-    z_parity_check_groups: list[int | tuple[int, int]] = []
+    x_parity_check_groups: list[set[int]] = []  # tuple means a directed edge
+    z_parity_check_groups: list[set[int]] = []
 
     coord2qindex: dict[tuple[int, int], int] = {}
 
@@ -137,14 +135,14 @@ def _create_rhg(
         if next_ancilla is not None:
             parity = (x % 2, y % 2, z % 2)
             if parity == ancilla_x_check_parity:
-                x_parity_check_groups.append((u, next_ancilla))
+                x_parity_check_groups.append({u, next_ancilla})
             elif parity == ancilla_z_check_parity:
-                z_parity_check_groups.append((u, next_ancilla))
+                z_parity_check_groups.append({u, next_ancilla})
 
     # add data qubit stabilizers
     for i in range((Lx + 1) // 2):
         for j in range((Ly - 1) // 2):
-            group = set()
+            group: set[int] = set()
             pos0 = (2 * i - 1, 2 * j + 1, Lz - 1)
             pos1 = (2 * i, 2 * j, Lz - 1)
             pos2 = (2 * i + 1, 2 * j + 1, Lz - 1)
