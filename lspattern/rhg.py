@@ -140,13 +140,13 @@ def _create_rhg(
                 z_parity_check_groups.append({u, next_ancilla})
 
     # add data qubit stabilizers
-    for i in range((Lx + 1) // 2):
-        for j in range((Ly - 1) // 2):
+    for i in range((Lx - 1) // 2):
+        for j in range((Ly + 1) // 2):
             group: set[int] = set()
-            pos0 = (2 * i - 1, 2 * j + 1, Lz - 1)
-            pos1 = (2 * i, 2 * j, Lz - 1)
-            pos2 = (2 * i + 1, 2 * j + 1, Lz - 1)
-            pos3 = (2 * i, 2 * j + 2, Lz - 1)
+            pos0 = (2 * i, 2 * j, Lz - 1)
+            pos1 = (2 * i + 1, 2 * j - 1, Lz - 1)
+            pos2 = (2 * i + 2, 2 * j, Lz - 1)
+            pos3 = (2 * i + 1, 2 * j + 1, Lz - 1)
             if node0 := coord2node.get(pos0, None):
                 group.add(node0)
             if node1 := coord2node.get(pos1, None):
@@ -157,7 +157,7 @@ def _create_rhg(
                 group.add(node3)
 
             # add the previous stabilizer measurement
-            group.add(coord2node[2 * i, 2 * j + 1, Lz - 3])
+            group.add(coord2node[2 * i + 1, 2 * j, Lz - 2])
             x_parity_check_groups.append(group)
 
     return gs, coord2node, x_parity_check_groups, z_parity_check_groups, grouping
