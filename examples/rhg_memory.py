@@ -48,7 +48,7 @@ def create_circuit(d: int, rounds: int, noise: float) -> stim.Circuit:
         pattern,
         logical_observables,
         after_clifford_depolarization=noise,
-        before_measure_flip_probability=0,
+        before_measure_flip_probability=noise,
     )
     return stim.Circuit(stim_str)
 
