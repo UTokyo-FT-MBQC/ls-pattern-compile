@@ -16,8 +16,8 @@ def create_rhg(
 ) -> tuple[
     GraphState,
     dict[tuple[int, int, int], int],
-    list[int | tuple[int, int]],  # this should be generalized in the future development
-    list[int | tuple[int, int]],
+    list[set[int]],  # this should be generalized in the future development
+    list[set[int]],
     list[set[int]],
 ]:
     """Create a Raussendorf lattice (RHG) with the specified distance `d`.
@@ -33,7 +33,7 @@ def create_rhg(
 
     Returns
     -------
-    tuple[ GraphState, dict[tuple[int, int, int], int], list[int | tuple[int, int]], list[int | tuple[int, int]], list[set[int]]]
+    tuple[ GraphState, dict[tuple[int, int, int], int], list[set[int]], list[set[int]], list[set[int]]]
         The created RHG lattice and its associated data.
     """
     length_xy = 2 * d - 1
