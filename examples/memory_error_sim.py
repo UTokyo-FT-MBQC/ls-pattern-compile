@@ -18,7 +18,7 @@ def create_circuit(d: int, rounds: int, noise: float) -> stim.Circuit:
         pattern,
         logical_observables,
         after_clifford_depolarization=noise,
-        before_measure_flip_probability=0,
+        before_measure_flip_probability=noise,
     )
     return stim.Circuit(stim_str)
 
@@ -30,8 +30,8 @@ if __name__ == "__main__":
             circuit=create_circuit(d, d * 3, noise),
             json_metadata={"d": d, "r": d * 3, "p": noise},
         )
-        for d in [3, 5, 7]
-        for noise in [0.001, 0.004, 0.008, 0.012, 0.016]
+        for d in [3, 7, 11]
+        for noise in [1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2]
     ]
 
     # Collect statistics
