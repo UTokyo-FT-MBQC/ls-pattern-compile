@@ -131,12 +131,13 @@ def _create_rhg(
                     gs.add_physical_edge(u, v)
                 except ValueError:
                     pass
+        parity = (x % 2, y % 2, z % 2)
         next_ancilla = coord2node.get((x, y, z + 2), None)
-        if next_ancilla is not None:
-            parity = (x % 2, y % 2, z % 2)
-            if parity == ancilla_x_check_parity:
+        if parity == ancilla_x_check_parity:
+            if next_ancilla:
                 x_parity_check_groups.append({u, next_ancilla})
-            elif parity == ancilla_z_check_parity:
+        elif parity == ancilla_z_check_parity:
+            if next_ancilla:
                 z_parity_check_groups.append({u, next_ancilla})
 
     # add data qubit stabilizers
