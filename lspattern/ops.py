@@ -5,10 +5,7 @@ from lspattern.rhg import create_rhg
 
 
 def memory(d: int, r: int):
-    """
-    Return a pattern for a memory operation.
-    """
-
+    """Return a pattern for a memory operation."""
     (
         lattice_state,
         coord2node,
@@ -30,7 +27,8 @@ def memory(d: int, r: int):
     scheduler = Scheduler(lattice_state)
 
     prep_time = dict.fromkeys(
-        lattice_state.physical_nodes - set(lattice_state.input_node_indices), 0
+        lattice_state.physical_nodes - set(lattice_state.input_node_indices),
+        0,
     )
     meas_time: dict[int, int] = dict.fromkeys(set(lattice_state.input_node_indices), 1)
     time_index = 2

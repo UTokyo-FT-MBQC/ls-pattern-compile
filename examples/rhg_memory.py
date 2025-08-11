@@ -3,10 +3,12 @@
 # %%
 
 import pathlib
-import stim
+
 import pymatching
+import stim
 from graphix_zx.pattern import print_pattern
 from graphix_zx.stim_compiler import stim_compile
+
 from lspattern.ops import memory
 from lspattern.rhg import create_rhg, visualize_rhg
 

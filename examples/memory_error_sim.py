@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import sinter
 import stim
 from graphix_zx.stim_compiler import stim_compile
+
 from lspattern.ops import memory
 
 
