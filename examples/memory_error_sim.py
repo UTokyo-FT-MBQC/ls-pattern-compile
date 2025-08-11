@@ -27,11 +27,11 @@ if __name__ == "__main__":
     # Create tasks for different distances and noise levels
     rhg_code_tasks = [
         sinter.Task(
-            circuit=create_circuit(d, d * 3, noise),
-            json_metadata={"d": d, "r": d * 3, "p": noise},
+            circuit=create_circuit(d, d, noise),
+            json_metadata={"d": d, "r": d, "p": noise},
         )
-        for d in [3, 7, 11]
-        for noise in [1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2]
+        for d in [3, 5, 7]
+        for noise in [1e-3, 5e-3, 1e-2, 5e-2, 1e-1]
     ]
 
     # Collect statistics
