@@ -139,6 +139,8 @@ def _create_rhg(
         elif parity == ancilla_z_check_parity:
             if next_ancilla:
                 z_parity_check_groups.append({u, next_ancilla})
+            if z == 1:
+                z_parity_check_groups.append({u})
 
     # add data qubit stabilizers
     for i in range((Lx - 1) // 2):
