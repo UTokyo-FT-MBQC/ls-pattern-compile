@@ -11,8 +11,8 @@ from lspattern.ops import memory
 from lspattern.rhg import create_rhg, visualize_rhg
 
 # %%
-d = 3
-r = 1
+d = 5
+r = 5
 rhg_lattice, coord2node, x, z, grouping = create_rhg(d, r)
 visualize_rhg(rhg_lattice, coord2node)
 
@@ -50,7 +50,7 @@ def create_circuit(d: int, rounds: int, noise: float) -> stim.Circuit:
         pattern,
         logical_observables,
         after_clifford_depolarization=noise,
-        before_measure_flip_probability=0,
+        before_measure_flip_probability=noise,
     )
     return stim.Circuit(stim_str)
 
@@ -78,6 +78,6 @@ print(err)
 
 # %%
 svg = dem.diagram(type="match-graph-svg")
-pathlib.Path("dem.svg").write_text(str(svg), encoding="utf-8")
+pathlib.Path("figures/rhg_memory_dem.svg").write_text(str(svg), encoding="utf-8")
 
 # %%
