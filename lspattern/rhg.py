@@ -1,3 +1,5 @@
+from typing import NamedTuple
+
 import matplotlib.pyplot as plt
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.graphstate import GraphState
@@ -8,17 +10,38 @@ ancilla_x_check_parity = (0, 1, 0)
 ancilla_z_check_parity = (1, 0, 1)
 
 
+class RHGResult(NamedTuple):
+    """Result of RHG lattice creation.
+
+    Attributes
+    ----------
+    graph_state : GraphState
+        The RHG graph state.
+    coord_to_node : dict[tuple[int, int, int], int]
+        Mapping from (x, y, z) coordinates to node indices.
+    x_parity_checks : list[set[int]]
+        List of X parity check groups, where each set contains node indices
+        that form an X parity check.
+    z_parity_checks : list[set[int]]
+        List of Z parity check groups, where each set contains node indices
+        that form a Z parity check.
+    measurement_groups : list[set[int]]
+        Measurement order grouping, where each set contains nodes that can
+        be measured together (alternating between ancilla and data qubits).
+    """
+
+    graph_state: GraphState
+    coord_to_node: dict[tuple[int, int, int], int]
+    x_parity_checks: list[set[int]]
+    z_parity_checks: list[set[int]]
+    measurement_groups: list[set[int]]
+
+
 def create_rhg(
     d: int,
     rounds: int,
     allowed_parities: list[tuple[int, int, int]] = allowed_parities,
-) -> tuple[
-    GraphState,
-    dict[tuple[int, int, int], int],
-    list[set[int]],  # this should be generalized in the future development
-    list[set[int]],
-    list[set[int]],
-]:
+) -> RHGResult:
     """Create a Raussendorf lattice (RHG) with the specified distance `d`.
 
     Parameters
@@ -32,17 +55,24 @@ def create_rhg(
 
     Returns
     -------
-    tuple[ GraphState, dict[tuple[int, int, int], int], list[set[int]], list[set[int]], list[set[int]]]
+    RHGResult
         The created RHG lattice and its associated data.
 
     """
     length_xy = 2 * d - 1
     length_z = 2 * rounds + 1
-    return _create_rhg(
+    gs, coord2node, x_checks, z_checks, grouping = _create_rhg(
         length_xy,
         length_xy,
         length_z,
         allowed_parities=allowed_parities,
+    )
+    return RHGResult(
+        graph_state=gs,
+        coord_to_node=coord2node,
+        x_parity_checks=x_checks,
+        z_parity_checks=z_checks,
+        measurement_groups=grouping,
     )
 
 
@@ -61,17 +91,15 @@ def _create_rhg(
     """Places a node only if the parity pattern (x % 2, y % 2, z % 2) of the integer coordinates (x, y, z)
     is included in `allowed_parities`, and returns the corresponding GraphState and a coordinate-to-node-index mapping.
 
-    Returns:
-    - graphstate: GraphState
-        RHG graphstate
-    - coord2node: dict[tuple[int,int,int], int]
-        { (x, y, z): node_index }
-    - x_parity_check_groups: list[set[int]]
-        List of sets of nodes that form X parity check groups.
-    - z_parity_check_groups: list[set[int]]
-        List of sets of nodes that form Z parity check groups.
-    - grouping: list[set[int]]
-        The measurement order grouping, where each set contains nodes that can be measured together.
+    Returns
+    -------
+    tuple[GraphState, dict[tuple[int, int, int], int], list[set[int]], list[set[int]], list[set[int]]]
+        A tuple containing:
+        - graphstate: RHG graphstate
+        - coord2node: Mapping from (x, y, z) to node_index
+        - x_parity_check_groups: X parity check groups
+        - z_parity_check_groups: Z parity check groups
+        - grouping: Measurement order grouping
 
     """
     gs = GraphState()
@@ -199,7 +227,7 @@ def visualize_rhg(
 
     xs, ys, zs = [], [], []
     colors = []
-    for node, (x, y, z) in node2coord.items():
+    for _node, (x, y, z) in node2coord.items():
         xs.append(x)
         ys.append(y)
         zs.append(z)
