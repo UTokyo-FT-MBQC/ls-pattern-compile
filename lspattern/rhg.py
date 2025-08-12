@@ -352,7 +352,7 @@ def visualize_rhg(
 
     xs, ys, zs = [], [], []
     colors = []
-    for _node, (x, y, z) in node2coord.items():
+    for _, (x, y, z) in node2coord.items():
         xs.append(x)
         ys.append(y)
         zs.append(z)
