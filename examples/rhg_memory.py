@@ -15,10 +15,15 @@ from lspattern.rhg import create_rhg, visualize_rhg
 # %%
 d = 5
 r = 5
-rhg_lattice, coord2node, x, z, grouping = create_rhg(d, r)
-visualize_rhg(rhg_lattice, coord2node)
+rhg_result = create_rhg(d, d, r)
+visualize_rhg(
+    rhg_result.graph_state,
+    rhg_result.coord_to_node,
+    save_path="figures/rhg_lattice.png",
+    show=True,  # Don't show in terminal environment
+)
 
-for group in grouping:
+for group in rhg_result.measurement_groups:
     print(f"group: {group}")
 
 length = 2 * d - 1
