@@ -38,7 +38,8 @@ class RHGResult(NamedTuple):
 
 
 def create_rhg(
-    d: int,
+    dx: int,
+    dy: int,
     rounds: int,
     allowed_parities: list[tuple[int, int, int]] = allowed_parities,
 ) -> RHGResult:
@@ -46,8 +47,10 @@ def create_rhg(
 
     Parameters
     ----------
-    d : int
-        The distance of the RHG lattice.
+    dx : int
+        The code distance of the RHG lattice in the x direction.
+    dy : int
+        The code distance of the RHG lattice in the y direction.
     rounds : int
         The number of rounds for the RHG lattice.
     allowed_parities : list[tuple[int, int, int]], optional
@@ -59,11 +62,12 @@ def create_rhg(
         The created RHG lattice and its associated data.
 
     """
-    length_xy = 2 * d - 1
+    length_x = 2 * dx + 1
+    length_y = 2 * dy + 1
     length_z = 2 * rounds + 1
     gs, coord2node, x_checks, z_checks, grouping = _create_rhg(
-        length_xy,
-        length_xy,
+        length_x,
+        length_y,
         length_z,
         allowed_parities=allowed_parities,
     )

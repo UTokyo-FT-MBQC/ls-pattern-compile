@@ -6,7 +6,7 @@ from lspattern.rhg import create_rhg
 
 def memory(d: int, r: int):
     """Return a pattern for a memory operation."""
-    rhg_result = create_rhg(d, r)
+    rhg_result = create_rhg(d, d, r)
     lattice_state = rhg_result.graph_state
     coord2node = rhg_result.coord_to_node
     x_parity_check_groups = rhg_result.x_parity_checks
