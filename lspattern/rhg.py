@@ -62,8 +62,8 @@ def create_rhg(
         The created RHG lattice and its associated data.
 
     """
-    length_x = 2 * dx + 1
-    length_y = 2 * dy + 1
+    length_x = 2 * dx - 1
+    length_y = 2 * dy - 1
     length_z = 2 * rounds + 1
     gs, coord2node, x_checks, z_checks, grouping = _create_rhg(
         length_x,
