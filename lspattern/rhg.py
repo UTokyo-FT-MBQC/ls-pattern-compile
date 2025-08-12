@@ -1,4 +1,5 @@
-from typing import NamedTuple
+import os
+from typing import NamedTuple, Optional
 
 import matplotlib.pyplot as plt
 from graphix_zx.common import Plane, PlannerMeasBasis
@@ -204,6 +205,10 @@ def visualize_rhg(
     lattice_state: GraphState,
     coord2node: dict[tuple[int, int, int], int],
     allowed_parities: list[tuple[int, int, int]] = allowed_parities,
+    save_path: Optional[str] = None,
+    show: bool = True,
+    figsize: tuple[int, int] = (6, 6),
+    dpi: int = 120,
 ) -> None:
     """Visualizes the Raussendorf lattice with nodes colored based on their parity.
     Nodes with allowed parities are colored white, others are red.
@@ -211,19 +216,29 @@ def visualize_rhg(
 
     Parameters
     ----------
-    - lattice_state: GraphState
+    lattice_state : GraphState
         The Raussendorf lattice state to visualize.
-    - coord2node: dict[tuple[int,int,int], int]
+    coord2node : dict[tuple[int, int, int], int]
         Mapping from coordinates to node indices.
-    - allowed_parities: list[tuple[int, int, int]]
-        List of allowed parity patterns for nodes.
+    allowed_parities : list[tuple[int, int, int]], optional
+        List of allowed parity patterns for nodes, by default allowed_parities
+    save_path : Optional[str], optional
+        Path to save the figure. If None, the figure is not saved.
+        Directory will be created if it doesn't exist, by default None
+    show : bool, optional
+        Whether to display the figure. Set to False for non-interactive environments
+        or when only saving is desired, by default True
+    figsize : tuple[int, int], optional
+        Figure size in inches (width, height), by default (6, 6)
+    dpi : int, optional
+        Figure resolution in dots per inch, by default 120
 
     """
     node2coord: dict[int, tuple[int, int, int]] = {
         node: coord for coord, node in coord2node.items()
     }
 
-    fig = plt.figure(figsize=(6, 6))
+    fig = plt.figure(figsize=figsize, dpi=dpi)
     ax = fig.add_subplot(111, projection="3d")
     ax.set_box_aspect((1, 1, 1))  # Set aspect ratio to be equal
     ax.grid(False)
@@ -263,4 +278,30 @@ def visualize_rhg(
     ax.set_title("Raussendorf lattice (allowed parity nodes)")
     plt.legend()
     plt.tight_layout()
-    plt.show()
+
+    # Save figure if path is provided
+    if save_path is not None:
+        # Create directory if it doesn't exist
+        save_dir = os.path.dirname(save_path)
+        if save_dir and not os.path.exists(save_dir):
+            os.makedirs(save_dir, exist_ok=True)
+        fig.savefig(save_path, bbox_inches="tight", dpi=dpi)
+        print(f"Figure saved to: {save_path}")
+
+    # Show figure if requested and in interactive mode
+    if show:
+        # Check if we're in a Jupyter notebook
+        try:
+            get_ipython()  # type: ignore
+            # In Jupyter, just display the plot
+            plt.show()
+        except NameError:
+            # Not in Jupyter, check if display is available
+            if os.environ.get("DISPLAY") or os.name == "nt":
+                plt.show()
+            else:
+                print(
+                    "Display not available. Use save_path parameter to save the figure."
+                )
+    else:
+        plt.close(fig)
