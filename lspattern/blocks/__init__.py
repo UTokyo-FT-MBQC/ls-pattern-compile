@@ -1,5 +1,5 @@
-from .init_plus import InitPlus
+from .initialize import InitPlus
 from .memory import Memory
-from .measure import MeasureX, MeasureZ
+from .measure import MeasureX
 
-__all__ = ['InitPlus', 'Memory', 'MeasureX', 'MeasureZ']
+__all__ = ['InitPlus', 'Memory', 'MeasureX']

@@ -1,81 +1,99 @@
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Set, Tuple, Optional, Iterable, Mapping, Any, List
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Set, Tuple
 
 # graphix_zx pieces
-from graphix_zx.graphstate import BaseGraphState, GraphState, compose_sequentially
+from graphix_zx.graphstate import BaseGraphState, compose_sequentially
 
-from lspattern.blocks.base import BlockDelta, RHGBlock, choose_port_node
+from lspattern.blocks.base import BlockDelta, RHGBlock
 from lspattern.compile import compile_canvas
 from lspattern.geom.tiler import PatchTiler
 
 
 # ----------------------------
-# small helpers
+# Small helpers
 # ----------------------------
-def _remap_set(nodes: Iterable[int], node_map: Mapping[int, int]) -> set[int]:
-    return { node_map[n] for n in nodes }
+def _remap_set(nodes: Iterable[int], node_map: Mapping[int, int]) -> Set[int]:
+    """Remap a set of LOCAL node ids to GLOBAL ids via node_map."""
+    return {node_map[n] for n in nodes}
 
-def _remap_list_of_sets(sets: Iterable[Iterable[int]], node_map: Mapping[int, int]) -> list[set[int]]:
-    return [ _remap_set(s, node_map) for s in sets ]
 
+def _remap_list_of_sets(
+    sets: Iterable[Iterable[int]], node_map: Mapping[int, int]
+) -> List[Set[int]]:
+    """Remap a list of LOCAL node-id sets to GLOBAL ids via node_map."""
+    return [_remap_set(s, node_map) for s in sets]
+
+
+# ----------------------------
+# Parity-layer tracking
+# ----------------------------
 @dataclass
 class ParityLast:
+    """A record of the latest parity layer for a given logical index."""
     z: int
-    by_xy: Dict[Tuple[int,int], int]   # (x,y) -> GLOBAL node id
+    by_xy: Dict[Tuple[int, int], int]  # (x, y) -> GLOBAL node id
+
 
 @dataclass
 class ParityLayerRegistry:
-    last_x: Dict[int, ParityLast] = field(default_factory=dict)  # logical -> last X layer
-    last_z: Dict[int, ParityLast] = field(default_factory=dict)  # logical -> last Z layer
+    """Keeps only the *last* X/Z parity layers per logical index."""
+    last_x: Dict[int, ParityLast] = field(default_factory=dict)
+    last_z: Dict[int, ParityLast] = field(default_factory=dict)
 
     def get_last(self, logical: int, kind: str) -> Optional[ParityLast]:
-        kind = kind.upper()
-        return (self.last_x if kind == 'X' else self.last_z).get(logical)
+        """Return the last parity layer of the given kind ('X' or 'Z') for a logical index."""
+        return (self.last_x if kind.upper() == "X" else self.last_z).get(logical)
 
     def update_last_from_seams(
         self,
         logical: int,
-        seam_last_x_g: Dict[Tuple[int,int], int],
-        seam_last_z_g: Dict[Tuple[int,int], int],
-        coord_to_node: Dict[Tuple[int,int,int], int],
+        seam_last_x_g: Dict[Tuple[int, int], int],
+        seam_last_z_g: Dict[Tuple[int, int], int],
+        coord_to_node: Dict[Tuple[int, int, int], int],
     ) -> None:
-        # node -> coord を一時生成して z を得る
-        rev = { nid: coord for coord, nid in coord_to_node.items() }
+        """Update the last X/Z layers from seam-last dicts (already GLOBAL ids)."""
+        # Build a reverse map: GLOBAL node -> (x, y, z)
+        node_to_coord: Dict[int, Tuple[int, int, int]] = {nid: coord for coord, nid in coord_to_node.items()}
+
         if seam_last_x_g:
-            any_n = next(iter(seam_last_x_g.values()))
-            z = rev[any_n][2]
+            any_node = next(iter(seam_last_x_g.values()))
+            z = node_to_coord[any_node][2]
             self.last_x[logical] = ParityLast(z=z, by_xy=dict(seam_last_x_g))
+
         if seam_last_z_g:
-            any_n = next(iter(seam_last_z_g.values()))
-            z = rev[any_n][2]
+            any_node = next(iter(seam_last_z_g.values()))
+            z = node_to_coord[any_node][2]
             self.last_z[logical] = ParityLast(z=z, by_xy=dict(seam_last_z_g))
+
 
 # ----------------------------
 # Registries / Accumulators
 # ----------------------------
 @dataclass
 class LogicalRegistry:
-    boundary_qidx: Dict[int, Dict[int, int]] = field(default_factory=dict)  # logical -> { GLOBAL node -> q_index }
+    """Tracks the logical boundary as a mapping: logical -> {GLOBAL node -> q_index}."""
+    boundary_qidx: Dict[int, Dict[int, int]] = field(default_factory=dict)
 
     def remap_all(self, node_map: Mapping[int, int]) -> None:
+        """Remap all stored GLOBAL node ids via node_map (compose_sequentially's node_map1)."""
         self.boundary_qidx = {
-            li: { node_map.get(n, n): q for n, q in qmap.items() }
-            for li, qmap in self.boundary_qidx.items()
+            li: {node_map.get(n, n): q for n, q in qmap.items()} for li, qmap in self.boundary_qidx.items()
         }
 
-    def set_boundary(self, logical: int, nodes: Set[int], qidx_map: Optional[Dict[int,int]] = None) -> None:
+    def set_boundary(self, logical: int, nodes: Set[int], qidx_map: Optional[Dict[int, int]] = None) -> None:
+        """Set logical boundary nodes with an optional explicit q_index map."""
         if qidx_map is None:
-            qidx_map = { n: i for i, n in enumerate(sorted(nodes)) }
+            qidx_map = {n: i for i, n in enumerate(sorted(nodes))}
         self.boundary_qidx[logical] = dict(qidx_map)
-        
+
     def get_boundary_nodes(self, logical: int) -> Set[int]:
-        qmap = self.boundary_qidx.get(logical, {})
-        return set(qmap.keys())
+        """Return the set of boundary GLOBAL nodes for the logical index (empty set if absent)."""
+        return set(self.boundary_qidx.get(logical, {}).keys())
 
     def require_boundary(self, logical: int) -> Set[int]:
+        """Return boundary nodes or raise if not present."""
         nodes = self.get_boundary_nodes(logical)
         if not nodes:
             raise ValueError(f"No boundary registered for logical {logical}.")
@@ -84,94 +102,85 @@ class LogicalRegistry:
 
 @dataclass
 class ParityAccumulator:
-    x_groups: list[set[int]] = field(default_factory=list)
-    z_groups: list[set[int]] = field(default_factory=list)
+    """Collects X/Z parity-check groups (GLOBAL node-id sets)."""
+    x_groups: List[Set[int]] = field(default_factory=list)
+    z_groups: List[Set[int]] = field(default_factory=list)
 
     def remap_all(self, node_map: Mapping[int, int]) -> None:
         self.x_groups = _remap_list_of_sets(self.x_groups, node_map)
         self.z_groups = _remap_list_of_sets(self.z_groups, node_map)
 
     def extend_from_delta(self, delta: BlockDelta, node_map2: Mapping[int, int]) -> None:
+        """Append the block-local parity groups remapped to GLOBAL ids."""
         self.x_groups.extend(_remap_list_of_sets(delta.x_checks, node_map2))
         self.z_groups.extend(_remap_list_of_sets(delta.z_checks, node_map2))
 
 
 @dataclass
 class FlowAccumulator:
+    """Collects (currently) X-flow as a dict[GLOBAL node] -> set[GLOBAL nodes]."""
     xflow: Dict[int, Set[int]] = field(default_factory=dict)
 
     def remap_all(self, node_map: Mapping[int, int]) -> None:
-        self.xflow = { node_map.get(k, k): { node_map.get(v, v) for v in vs } for k, vs in self.xflow.items() }
+        self.xflow = {node_map.get(k, k): {node_map.get(v, v) for v in vs} for k, vs in self.xflow.items()}
 
     def apply_delta(self, delta: BlockDelta, node_map2: Mapping[int, int]) -> None:
+        """Add block-local flow entries remapped via node_map2 (LOCAL -> GLOBAL)."""
         for src_local, corr_locals in delta.flow_local.items():
             src = node_map2[src_local]
-            tgts = { node_map2[v] for v in corr_locals }
+            tgts = {node_map2[v] for v in corr_locals}
             self.xflow.setdefault(src, set()).update(tgts)
 
 
 @dataclass
 class ScheduleAccumulator:
     """
-    グローバル timeslice の累積管理。
-    各 Block は BlockDelta.schedule_tuples = [(t_local, {local_nodes}), ...] を 0始まりで返す。
-    Canvas 側で base_time（グローバルの先端）を足して取り込む。
+    Global time-slice accumulation.
+    Each Block returns BlockDelta.schedule_tuples = [(t_local, {local_nodes}), ...] starting at 0.
+    The canvas shifts them by base_time (global head) and merges by t_global.
     """
-    # 内部: t_global -> ノード集合
-    _timeline: Dict[int, Set[int]] = field(default_factory=dict)
-    # 公開: as_scheduler が使う時系列のグループ（t_global 昇順）
-    measure_groups: List[Set[int]] = field(default_factory=list)
+    _timeline: Dict[int, Set[int]] = field(default_factory=dict)  # t_global -> GLOBAL node set
+    measure_groups: List[Set[int]] = field(default_factory=list)  # exposed (sorted by t_global)
 
     def _rebuild_groups(self) -> None:
-        """_timeline を t_global 昇順で並べ替え、公開用 measure_groups を再構築。"""
+        """Rebuild 'measure_groups' as a list sorted by t_global."""
         self.measure_groups = [self._timeline[t] for t in sorted(self._timeline)]
 
     def remap_all(self, node_map: Mapping[int, int]) -> None:
-        """
-        既存のスケジュールを GLOBAL id の再マッピングに追従させる。
-        （compose_sequentially の node_map1 を適用）
-        """
-        self._timeline = {
-            t: {node_map.get(n, n) for n in nodes}
-            for t, nodes in self._timeline.items()
-        }
+        """Apply a GLOBAL id remap to the entire existing timeline."""
+        self._timeline = {t: {node_map.get(n, n) for n in nodes} for t, nodes in self._timeline.items()}
         self._rebuild_groups()
 
-    def extend_from_delta_timed(self, delta: "BlockDelta", node_map2: Mapping[int, int], *, base_time: int) -> None:
-        """
-        delta.schedule_tuples = [(t_local, {local_nodes}), ...] を
-        t_global = base_time + t_local にシフトして取り込む。
-        """
-        if not getattr(delta, "schedule_tuples", None):
-            # このブロックに測定が無ければ何もしない
+    def extend_from_delta_timed(
+        self, delta: BlockDelta, node_map2: Mapping[int, int], *, base_time: int
+    ) -> None:
+        """Shift (t_local, LOCAL nodes) by base_time and merge into the timeline."""
+        if not delta.schedule_tuples:
             return
 
-        # ローカル -> グローバルへ写像しつつ、同一 t_global にマージ
         for t_local, group_local in delta.schedule_tuples:
             if not group_local:
                 continue
             t_global = base_time + int(t_local)
             group_global = {node_map2[n] for n in group_local if n in node_map2}
-            if not group_global:
-                continue
-            self._timeline.setdefault(t_global, set()).update(group_global)
+            if group_global:
+                self._timeline.setdefault(t_global, set()).update(group_global)
 
         self._rebuild_groups()
 
-    def as_scheduler(self, graph: "BaseGraphState"):
+    def as_scheduler(self, graph: BaseGraphState):
         """
-        - 準備(prepare): 入力ノード以外を time=0
-        - 測定(measure): _timeline の t_global をそのまま使用
-          入力ノードは最小の t_global（存在しなければ 1）に割当て
-        戻り値: graphix_zx.scheduler.Scheduler（利用不可なら dict を返す）
+        Build a graphix_zx scheduler (or a dict fallback) with:
+          * prepare_time: all non-input nodes at time 0
+          * measure_time: timeline's t_global as is; input nodes at min(t_global) or 1 if empty
         """
         all_nodes = set(getattr(graph, "physical_nodes", set()))
         input_nodes = set(getattr(graph, "input_node_indices", {}).keys())
 
-        # prepare は 0
+        # Prepare at time 0 (non-input nodes).
         prep_time = {n: 0 for n in (all_nodes - input_nodes)}
 
-        # measure は _timeline のキーに従う
+        # Measurements follow timeline keys; input nodes go to the earliest measurement time.
         t0 = min(self._timeline) if self._timeline else 1
         meas_time: Dict[int, int] = {n: t0 for n in input_nodes}
         for t in sorted(self._timeline):
@@ -184,17 +193,21 @@ class ScheduleAccumulator:
             sched.from_manual_design(prepare_time=prep_time, measure_time=meas_time)
             return sched
         except Exception:
-            # フォールバック（デバッグやテスト用）
+            # Fallback for environments without graphix_zx.scheduler.
             return {"prepare_time": prep_time, "measure_time": meas_time}
+
 
 # ----------------------------
 # Canvas
 # ----------------------------
 @dataclass
 class RHGCanvas:
-    """Growing RHG canvas. Each block contributes a BlockDelta that's merged in-place."""
+    """
+    Growing RHG canvas. Each block contributes a BlockDelta that's merged in-place.
+    Geometry/ports/flows/parity/schedule are accumulated and later compiled.
+    """
     graph: Optional[BaseGraphState] = None
-    coord_to_node: Dict[tuple[int, int, int], int] = field(default_factory=dict)
+    coord_to_node: Dict[Tuple[int, int, int], int] = field(default_factory=dict)
 
     logical_registry: LogicalRegistry = field(default_factory=LogicalRegistry)
     parity_accum: ParityAccumulator = field(default_factory=ParityAccumulator)
@@ -205,11 +218,13 @@ class RHGCanvas:
 
     tiler: PatchTiler = field(default_factory=PatchTiler)
     z_top: int = 0
-    
+
+    # Global time-slice cursor (0 is reserved for prepare; measurements start at 1).
     _time_cursor: int = 1
 
-    # ---- API ----
+    # ---- Public API ----
     def append(self, block: RHGBlock) -> "RHGCanvas":
+        """Emit a delta from the block and merge it into the canvas."""
         delta = block.emit(self)
         if self.graph is None:
             self._adopt_initial_delta(delta)
@@ -218,6 +233,7 @@ class RHGCanvas:
         return self
 
     def compile(self):
+        """Finalize and return the compiled artifacts via compile_canvas."""
         if self.graph is None:
             raise ValueError("Nothing to compile: canvas is empty.")
         return compile_canvas(
@@ -228,87 +244,92 @@ class RHGCanvas:
             scheduler=self.schedule_accum.as_scheduler(self.graph),
         )
 
-    # ---- internals ----
-
+    # ---- Internals ----
     def _adopt_initial_delta(self, delta: BlockDelta) -> None:
-            self.graph = delta.local_graph
+        """Adopt the very first block delta into an empty canvas."""
+        self.graph = delta.local_graph
 
-            # coords
-            for n_local, coord in delta.node_coords.items():
-                self.coord_to_node[coord] = n_local
+        # Record coordinates (LOCAL ids at this point).
+        for n_local, coord in delta.node_coords.items():
+            self.coord_to_node[coord] = n_local
 
-            # identity remap for initial graph
-            initial_nodes = getattr(self.graph, "physical_nodes", set())
-            id_map = { n: n for n in initial_nodes }
+        # Identity remap for the initial graph.
+        initial_nodes = getattr(self.graph, "physical_nodes", set())
+        id_map = {n: n for n in initial_nodes}
 
-            # accumulators
-            self.parity_accum.extend_from_delta(delta, id_map)
-            self.flow_accum.apply_delta(delta, id_map)
-            self.schedule_accum.extend_from_delta_timed(delta, id_map, base_time=self._time_cursor)
-            local_max = max((t for t, _ in delta.schedule_tuples), default=-1)
-            
-            if local_max >= 0:
-                self._time_cursor += local_max + 1
+        # Accumulators.
+        self.parity_accum.extend_from_delta(delta, id_map)
+        self.flow_accum.apply_delta(delta, id_map)
 
-            # logical boundary
-            for lidx, out_nodes_local in delta.out_ports.items():
-                qmap = delta.out_qmap.get(lidx)
-                self.logical_registry.set_boundary(lidx, set(out_nodes_local), qidx_map=qmap)
+        # Schedule (shift local time-slices by the current global cursor).
+        self.schedule_accum.extend_from_delta_timed(delta, id_map, base_time=self._time_cursor)
+        local_max = max((t for t, _ in (delta.schedule_tuples or [])), default=-1)
+        if local_max >= 0:
+            self._time_cursor += local_max + 1
 
-            # z_top heuristic
-            if delta.node_coords:
-                self.z_top = max(z for (_, _, z) in delta.node_coords.values())
+        # Logical boundary.
+        for lidx, out_nodes_local in delta.out_ports.items():
+            qmap = delta.out_qmap.get(lidx)
+            self.logical_registry.set_boundary(lidx, set(out_nodes_local), qidx_map=qmap)
+
+        # Update z_top heuristic.
+        if delta.node_coords:
+            self.z_top = max(z for (_, _, z) in delta.node_coords.values())
 
     def _merge_delta(self, delta: BlockDelta) -> None:
+        """Merge a subsequent block delta into the existing canvas."""
         assert self.graph is not None
-        # compose; expect (composed, node_map1, node_map2)
+
+        # Compose existing graph with the new local graph.
         composed, node_map1, node_map2 = compose_sequentially(self.graph, delta.local_graph)
 
-        # remap existing state to composed ids
+        # Remap existing GLOBAL state into the composed graph's ids (via node_map1).
         self.logical_registry.remap_all(node_map1)
         self.parity_accum.remap_all(node_map1)
         self.flow_accum.remap_all(node_map1)
         self.schedule_accum.remap_all(node_map1)
-        self.coord_to_node = { coord: node_map1.get(n, n) for coord, n in self.coord_to_node.items() }
-        
+        self.coord_to_node = {coord: node_map1.get(n, n) for coord, n in self.coord_to_node.items()}
+
+        # Ingest new coordinates (LOCAL -> GLOBAL).
         for n_local, coord in delta.node_coords.items():
             self.coord_to_node[coord] = node_map2[n_local]
-            
+
+        # Ingest parity/flow (LOCAL -> GLOBAL).
         self.parity_accum.extend_from_delta(delta, node_map2)
         self.flow_accum.apply_delta(delta, node_map2)
 
+        # Ingest schedule (LOCAL -> GLOBAL; shift by the global time cursor).
         self.schedule_accum.extend_from_delta_timed(delta, node_map2, base_time=self._time_cursor)
-        local_max = max((t for t, _ in delta.schedule_tuples), default=-1)
-        
+        local_max = max((t for t, _ in (delta.schedule_tuples or [])), default=-1)
         if local_max >= 0:
             self._time_cursor += local_max + 1
-        
+
+        # Apply unified parity additions (pairs/caps) specified by the block:
+        # entries are (prev_global_center, [curr_local_nodes...]).
         for center_g, locals_list in delta.parity_x_prev_global_curr_local:
-            group = {center_g}
-            group.update(node_map2[l] for l in locals_list if l in node_map2)
+            group = {center_g, *[node_map2[l] for l in locals_list if l in node_map2]}
             if len(group) >= 2:
                 self.parity_accum.x_groups.append(group)
 
         for center_g, locals_list in delta.parity_z_prev_global_curr_local:
-            group = {center_g}
-            group.update(node_map2[l] for l in locals_list if l in node_map2)
+            group = {center_g, *[node_map2[l] for l in locals_list if l in node_map2]}
             if len(group) >= 2:
                 self.parity_accum.z_groups.append(group)
 
-        # 6) parity_layers を「最後の層」で更新（次ブロックが参照するため）
-        #    seam_first_* は不要。seam_last_* のみ GLOBAL 化して反映する。
+        # Update last parity layers (for subsequent blocks to reference).
         def _seam_global(seam_local_xy2nid: Dict[Tuple[int, int], int]) -> Dict[Tuple[int, int], int]:
             return {xy: node_map2[nid] for xy, nid in seam_local_xy2nid.items() if nid in node_map2}
 
         seam_last_x_g = _seam_global(delta.seam_last_x)
         seam_last_z_g = _seam_global(delta.seam_last_z)
 
-        # 論理 index は out_ports 優先・無ければ in_ports から推定
+        # Determine the logical index to update (prefer outputs; otherwise inputs).
         lidx: Optional[int] = None
         if delta.out_ports:
             lidx = next(iter(delta.out_ports.keys()))
         elif delta.in_ports:
             lidx = next(iter(delta.in_ports.keys()))
+
         if lidx is not None:
             self.parity_layers.update_last_from_seams(
                 logical=lidx,
@@ -317,24 +338,23 @@ class RHGCanvas:
                 coord_to_node=self.coord_to_node,
             )
 
-        # 7) 論理 boundary の更新（out_ports があれば上書き）
+        # Update logical boundary if out_ports are provided.
         for lidx2, out_nodes_local in delta.out_ports.items():
             out_nodes_global = _remap_set(out_nodes_local, node_map2)
             qmap_local = delta.out_qmap.get(lidx2)
-            qmap_global = None
-            if qmap_local:
-                qmap_global = {node_map2[n]: q for n, q in qmap_local.items() if n in node_map2}
+            qmap_global = {node_map2[n]: q for n, q in qmap_local.items()} if qmap_local else None
             self.logical_registry.set_boundary(lidx2, out_nodes_global, qidx_map=qmap_global)
 
-        # 8) 論理の消費（in_ports にはいるが out_ports に残らない論理を boundary から削除）
+        # Remove logicals that were consumed (present in inputs but absent in outputs).
         consumed = set(delta.in_ports.keys()) - set(delta.out_ports.keys())
         for l in consumed:
             self.logical_registry.boundary_qidx.pop(l, None)
 
-        # 9) z_top の更新
+        # Update z_top heuristic.
         if delta.node_coords:
             z_max_delta = max(z for (_, _, z) in delta.node_coords.values())
             if z_max_delta > self.z_top:
                 self.z_top = z_max_delta
-                
+
+        # Switch to the composed graph.
         self.graph = composed

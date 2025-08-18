@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from typing import Optional, Tuple, Dict, Any, List
@@ -21,10 +20,25 @@ def visualize_canvas(
     figsize: tuple[int, int] = (6, 6),
     dpi: int = 120,
 ):
-    """Quick visualization of an RHGCanvas with parity-aware node types.
+    """Visualizes the Raussendorf lattice with nodes colored based on their parity.
+    Nodes with allowed parities are colored white, others are red.
+    Physical edges are drawn in gray.
 
-    - Data nodes and ancilla (X/Z) nodes are drawn with different markers.
-    - Colors are *not* specified (uses matplotlib defaults).
+    Parameters
+    ----------
+    canvas : RHGCanvas
+        The canvas describing MBQC on the Raussendorf lattice.
+    save_path : Optional[str], optional
+        Path to save the figure. If None, the figure is not saved.
+        Directory will be created if it doesn't exist, by default None
+    show : bool, optional
+        Whether to display the figure. Set to False for non-interactive environments
+        or when only saving is desired, by default True
+    figsize : tuple[int, int], optional
+        Figure size in inches (width, height), by default (6, 6)
+    dpi : int, optional
+        Figure resolution in dots per inch, by default 120
+
     """
 
     node2coord = _node_to_coord(canvas)
