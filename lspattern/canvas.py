@@ -2,14 +2,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Set, Tuple, Optional, Iterable, Mapping, Any
+from typing import Dict, Set, Tuple, Optional, Iterable, Mapping, Any, List
 
 # graphix_zx pieces
 from graphix_zx.graphstate import BaseGraphState, GraphState, compose_sequentially
 
-from .blocks.base import BlockDelta, RHGBlock, choose_port_node
-from .compile import compile_canvas
-from .geom.tiler import PatchTiler
+from lspattern.blocks.base import BlockDelta, RHGBlock, choose_port_node
+from lspattern.compile import compile_canvas
+from lspattern.geom.tiler import PatchTiler
 
 
 # ----------------------------
@@ -112,18 +112,80 @@ class FlowAccumulator:
 
 @dataclass
 class ScheduleAccumulator:
-    measure_groups: list[set[int]] = field(default_factory=list)
+    """
+    グローバル timeslice の累積管理。
+    各 Block は BlockDelta.schedule_tuples = [(t_local, {local_nodes}), ...] を 0始まりで返す。
+    Canvas 側で base_time（グローバルの先端）を足して取り込む。
+    """
+    # 内部: t_global -> ノード集合
+    _timeline: Dict[int, Set[int]] = field(default_factory=dict)
+    # 公開: as_scheduler が使う時系列のグループ（t_global 昇順）
+    measure_groups: List[Set[int]] = field(default_factory=list)
+
+    def _rebuild_groups(self) -> None:
+        """_timeline を t_global 昇順で並べ替え、公開用 measure_groups を再構築。"""
+        self.measure_groups = [self._timeline[t] for t in sorted(self._timeline)]
 
     def remap_all(self, node_map: Mapping[int, int]) -> None:
-        self.measure_groups = _remap_list_of_sets(self.measure_groups, node_map)
+        """
+        既存のスケジュールを GLOBAL id の再マッピングに追従させる。
+        （compose_sequentially の node_map1 を適用）
+        """
+        self._timeline = {
+            t: {node_map.get(n, n) for n in nodes}
+            for t, nodes in self._timeline.items()
+        }
+        self._rebuild_groups()
 
-    def extend_from_delta(self, delta: BlockDelta, node_map2: Mapping[int, int]) -> None:
-        self.measure_groups.extend(_remap_list_of_sets(delta.measure_groups, node_map2))
+    def extend_from_delta_timed(self, delta: "BlockDelta", node_map2: Mapping[int, int], *, base_time: int) -> None:
+        """
+        delta.schedule_tuples = [(t_local, {local_nodes}), ...] を
+        t_global = base_time + t_local にシフトして取り込む。
+        """
+        if not getattr(delta, "schedule_tuples", None):
+            # このブロックに測定が無ければ何もしない
+            return
 
-    def as_scheduler(self, graph: BaseGraphState):
-        # TODO: integrate graphix_zx.scheduler if desired
-        return None
+        # ローカル -> グローバルへ写像しつつ、同一 t_global にマージ
+        for t_local, group_local in delta.schedule_tuples:
+            if not group_local:
+                continue
+            t_global = base_time + int(t_local)
+            group_global = {node_map2[n] for n in group_local if n in node_map2}
+            if not group_global:
+                continue
+            self._timeline.setdefault(t_global, set()).update(group_global)
 
+        self._rebuild_groups()
+
+    def as_scheduler(self, graph: "BaseGraphState"):
+        """
+        - 準備(prepare): 入力ノード以外を time=0
+        - 測定(measure): _timeline の t_global をそのまま使用
+          入力ノードは最小の t_global（存在しなければ 1）に割当て
+        戻り値: graphix_zx.scheduler.Scheduler（利用不可なら dict を返す）
+        """
+        all_nodes = set(getattr(graph, "physical_nodes", set()))
+        input_nodes = set(getattr(graph, "input_node_indices", {}).keys())
+
+        # prepare は 0
+        prep_time = {n: 0 for n in (all_nodes - input_nodes)}
+
+        # measure は _timeline のキーに従う
+        t0 = min(self._timeline) if self._timeline else 1
+        meas_time: Dict[int, int] = {n: t0 for n in input_nodes}
+        for t in sorted(self._timeline):
+            for n in self._timeline[t]:
+                meas_time[n] = t
+
+        try:
+            from graphix_zx.scheduler import Scheduler  # type: ignore
+            sched = Scheduler(graph)
+            sched.from_manual_design(prepare_time=prep_time, measure_time=meas_time)
+            return sched
+        except Exception:
+            # フォールバック（デバッグやテスト用）
+            return {"prepare_time": prep_time, "measure_time": meas_time}
 
 # ----------------------------
 # Canvas
@@ -143,6 +205,8 @@ class RHGCanvas:
 
     tiler: PatchTiler = field(default_factory=PatchTiler)
     z_top: int = 0
+    
+    _time_cursor: int = 1
 
     # ---- API ----
     def append(self, block: RHGBlock) -> "RHGCanvas":
@@ -159,11 +223,9 @@ class RHGCanvas:
         return compile_canvas(
             graph=self.graph,
             xflow=self.flow_accum.xflow,
-            zflow=None,
-            x_parity=self.parity_accum.x_groups or None,
-            z_parity=self.parity_accum.z_groups or None,
+            x_parity=self.parity_accum.x_groups,
+            z_parity=self.parity_accum.z_groups,
             scheduler=self.schedule_accum.as_scheduler(self.graph),
-            correct_output=True,
         )
 
     # ---- internals ----
@@ -182,7 +244,11 @@ class RHGCanvas:
             # accumulators
             self.parity_accum.extend_from_delta(delta, id_map)
             self.flow_accum.apply_delta(delta, id_map)
-            self.schedule_accum.extend_from_delta(delta, id_map)
+            self.schedule_accum.extend_from_delta_timed(delta, id_map, base_time=self._time_cursor)
+            local_max = max((t for t, _ in delta.schedule_tuples), default=-1)
+            
+            if local_max >= 0:
+                self._time_cursor += local_max + 1
 
             # logical boundary
             for lidx, out_nodes_local in delta.out_ports.items():
@@ -210,7 +276,12 @@ class RHGCanvas:
             
         self.parity_accum.extend_from_delta(delta, node_map2)
         self.flow_accum.apply_delta(delta, node_map2)
-        self.schedule_accum.extend_from_delta(delta, node_map2)  
+
+        self.schedule_accum.extend_from_delta_timed(delta, node_map2, base_time=self._time_cursor)
+        local_max = max((t for t, _ in delta.schedule_tuples), default=-1)
+        
+        if local_max >= 0:
+            self._time_cursor += local_max + 1
         
         for center_g, locals_list in delta.parity_x_prev_global_curr_local:
             group = {center_g}

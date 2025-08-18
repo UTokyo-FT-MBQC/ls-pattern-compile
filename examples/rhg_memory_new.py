@@ -4,70 +4,119 @@
 
 This example builds a single-logical memory line by stacking blocks on a growing canvas.
 
-If graphix_zx (and optionally stim) are installed in your environment, this script will:
-  - compile the canvas into a Pattern via graphix_zx.qompile
-  - (optionally) export to a stim.Circuit if `stim` is available
-Otherwise, it will run in DRY mode and just print the build plan.
-
 Usage:
   python examples/rhg_memory.py
 """
+# %%
+import pathlib
 
-from __future__ import annotations
+import pymatching
+import stim 
+from graphix_zx.stim_compiler import stim_compile
+from graphix_zx.pattern import Pattern, print_pattern
+from lspattern.canvas import RHGCanvas
+from lspattern.blocks import InitPlus, Memory, MeasureX
+from lspattern.visualize import visualize_canvas
 
-import sys
+# %%
+d = 2
+r = 1
 
-try:
-    import graphix_zx  # noqa: F401
-    GRAPHIX_AVAILABLE = True
-except Exception:
-    GRAPHIX_AVAILABLE = False
+canvas = RHGCanvas()
+canvas.append(InitPlus(logical=0, dx=d, dy=d))
+visualize_canvas(
+    canvas,
+    show=True, 
+)
 
-try:
-    import stim  # noqa: F401
-    STIM_AVAILABLE = True
-except Exception:
-    STIM_AVAILABLE = False
+# %%
+canvas = RHGCanvas()
+canvas.append(InitPlus(logical=0, dx=d, dy=d))
+canvas.append(Memory(logical=0, rounds=r))
+visualize_canvas(
+    canvas,
+    save_path="figures/rhg_lattice.png",
+    show=True, 
+)
+
+# %%
+canvas = RHGCanvas()
+canvas.append(InitPlus(logical=0, dx=d, dy=d))
+canvas.append(Memory(logical=0, rounds=r))
+canvas.append(Memory(logical=0, rounds=r))
+canvas.append(MeasureX(logical=0))
+visualize_canvas(
+    canvas,
+    save_path="figures/rhg_lattice.png",
+    show=True, 
+)
+
+# %%
+d = 5
+r = 5
+
+canvas = RHGCanvas()
+canvas.append(InitPlus(logical=0, dx=d, dy=d))
+canvas.append(Memory(logical=0, rounds=r))
+canvas.append(Memory(logical=0, rounds=r))
+canvas.append(MeasureX(logical=0))
+
+for group in canvas.schedule_accum.measure_groups:
+    print(f"group: {group}")
+    
+logical = set(i for i in range(d))
+print(f"logical X: {logical}")
+logical_observables = {0: logical}
+
+# %%
+pattern = canvas.compile()
+print_pattern(pattern)
+
+# %%
+stim_str = stim_compile(
+    pattern,
+    logical_observables,
+    after_clifford_depolarization=0,
+    before_measure_flip_probability=0,
+)
+print(stim_str)
+
+# %%
 
 
-def main():
-    # Lazy imports from our package
-    from lspattern.canvas import RHGCanvas
-    from lspattern.blocks import InitPlus, Memory, MeasureX
-    from lspattern.compile import compile_canvas, pattern_to_stim
+def create_circuit(pattern: Pattern, noise: float) -> stim.Circuit:
+    logical_observables = {0: {i for i in range(d)}}
+    stim_str = stim_compile(
+        pattern,
+        logical_observables,
+        after_clifford_depolarization=noise,
+        before_measure_flip_probability=noise,
+    )
+    return stim.Circuit(stim_str)
 
-    logical = 0
-    dx, dy = 5, 5
-    rounds = 8
+# %%
 
-    canvas = RHGCanvas()
+noise = 0.001
+circuit = create_circuit(pattern, noise)
+print(f"num_qubits: {circuit.num_qubits}")
 
-    # Stack the blocks
-    canvas.append(InitPlus(logical=logical, dx=dx, dy=dy))
-    canvas.append(Memory(logical=logical, rounds=rounds))
-    canvas.append(MeasureX(logical=logical))
+dem = circuit.detector_error_model(decompose_errors=True)
+print(dem)
 
-    if not GRAPHIX_AVAILABLE:
-        print("[DRY] graphix_zx is not available. Built canvas with:")
-        print(f"  - graph: {type(canvas.graph).__name__ if canvas.graph is not None else None}")
-        print(f"  - logical boundaries: {canvas.logical_registry.boundary}")
-        print(f"  - #X checks: {len(canvas.parity_accum.x_groups)}, #Z checks: {len(canvas.parity_accum.z_groups)}")
-        print(f"  - xflow entries: {len(canvas.flow_accum.xflow)}")
-        return 0
+# %%
 
-    # Compile into a Pattern
-    pattern = canvas.compile()
-    print("[OK] Compiled Pattern:", type(pattern).__name__)
-
-    if STIM_AVAILABLE:
-        try:
-            circ = pattern_to_stim(pattern)
-            print("[OK] Converted to stim.Circuit with", len(list(circ)), "operations")
-        except Exception as e:
-            print("[WARN] Failed to convert to stim:", e)
-
-    return 0
+matching = pymatching.Matching.from_detector_error_model(dem)
+print(matching)
+# matching.draw()
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+# %%
+err = dem.shortest_graphlike_error(ignore_ungraphlike_errors=False)
+print(len(err))
+print(err)
+
+# %%
+svg = dem.diagram(type="match-graph-svg")
+pathlib.Path("figures/rhg_memory_dem.svg").write_text(str(svg), encoding="utf-8")
+
+# %%

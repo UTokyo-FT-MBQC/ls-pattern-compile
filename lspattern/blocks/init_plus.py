@@ -3,13 +3,10 @@ from __future__ import annotations
 
 from typing import Dict, Set, Tuple, Optional, List
 
-try:
-    from graphix_zx.graphstate import GraphState
-except Exception:  # pragma: no cover
-    GraphState = None  # type: ignore
+from graphix_zx.graphstate import GraphState
 
-from .base import BlockDelta, RHGBlock, GraphStateLike
-from ..geom.rhg_parity import is_allowed, is_data, is_ancilla_x, is_ancilla_z
+from lspattern.blocks.base import BlockDelta, RHGBlock, GraphStateLike
+from lspattern.geom.rhg_parity import is_allowed, is_data, is_ancilla_x, is_ancilla_z
 
 
 class InitPlus(RHGBlock):
@@ -76,6 +73,6 @@ class InitPlus(RHGBlock):
             node_coords=node_coords,
             x_checks=[],
             z_checks=[],
-            measure_groups=[ out_set ],  # MBQC inputs/outputs are the same nodes
+            schedule_tuples=[],  # MBQC inputs/outputs are the same nodes
             flow_local={},
         )

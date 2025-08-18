@@ -58,7 +58,7 @@ class BlockDelta:
     z_checks: list[Set[int]] = field(default_factory=list)
 
     # Optional local measurement grouping (LOCAL ids)
-    measure_groups: list[Set[int]] = field(default_factory=list)
+    schedule_tuples: List[Tuple[int, Set[int]]] = field(default_factory=list)
 
     # Flow (LOCAL ids): minimal x-flow mapping (node -> correction target nodes)
     # If you maintain separate X/Z flows, put X here and let the compiler derive Z (or extend later).

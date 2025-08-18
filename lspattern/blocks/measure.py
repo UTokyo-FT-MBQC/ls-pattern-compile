@@ -6,8 +6,8 @@ from typing import Dict, Set, Tuple, List
 from graphix_zx.graphstate import GraphState
 from graphix_zx.common import Plane, PlannerMeasBasis
 
-from .base import BlockDelta, RHGBlock, GraphStateLike
-from ..geom.rhg_parity import is_allowed, is_data, is_ancilla_x, is_ancilla_z
+from lspattern.blocks.base import BlockDelta, RHGBlock, GraphStateLike
+from lspattern.geom.rhg_parity import is_allowed, is_data, is_ancilla_x, is_ancilla_z
 
 
 class _MeasureBase(RHGBlock):
@@ -76,10 +76,10 @@ class _MeasureBase(RHGBlock):
         in_port_nodes: Set[int] = g.physical_nodes
         # out_ports empty -> logical consumed in canvas._merge_delta
         
-        last_z = canvas.parity_layers.get_last(lidx, 'Z')  # X-cap は Z 中心
+        last_x = canvas.parity_layers.get_last(lidx, 'X')
         caps = []
-        if last_z:
-            for (xc, yc), center_global in last_z.by_xy.items():
+        if last_x:
+            for (xc, yc), center_global in last_x.by_xy.items():
                 locals4 = []
                 for dx, dy in [(-1,0),(1,0),(0,-1),(0,1)]:
                     nid = layer_map.get((xc+dx, yc+dy))   # 同じ z0 のローカルデータ
@@ -95,7 +95,7 @@ class _MeasureBase(RHGBlock):
             node_coords=node_coords,
             x_checks=[],
             z_checks=[],
-            measure_groups=[ in_port_nodes ],
+            schedule_tuples=[(0, in_port_nodes)],  # MBQC inputs are the same nodes
             flow_local={},
             parity_x_prev_global_curr_local=caps,
         )

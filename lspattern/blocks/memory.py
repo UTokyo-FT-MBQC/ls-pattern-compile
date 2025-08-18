@@ -6,8 +6,8 @@ from typing import Dict, Set, Tuple, Optional, List
 from graphix_zx.graphstate import GraphState
 from graphix_zx.common import Plane, PlannerMeasBasis
 
-from .base import BlockDelta, RHGBlock, GraphStateLike
-from ..geom.rhg_parity import is_allowed, is_data, is_ancilla_x, is_ancilla_z
+from lspattern.blocks.base import BlockDelta, RHGBlock, GraphStateLike
+from lspattern.geom.rhg_parity import is_allowed, is_data, is_ancilla_x, is_ancilla_z
 
 
 class Memory(RHGBlock):
@@ -50,7 +50,7 @@ class Memory(RHGBlock):
         x_parity_check_groups: List[Set[int]] = []
         z_parity_check_groups: List[Set[int]] = []
         
-        grouping: list[Set[int]] = []
+        schedule_tuples: list[Tuple[int, Set[int]]] = []
 
         # Build layers z0 .. z0+rounds with allowed parities only
         f = dict()
@@ -78,9 +78,9 @@ class Memory(RHGBlock):
                     
             node_at_layer[t] = layer_map
             if group1:
-                grouping.append(group1)
+                schedule_tuples.append((2*t, group1))
             if group2:
-                grouping.append(group2)
+                schedule_tuples.append((2*t+1, group2))
 
             # in-plane edges
             for (X, Y), u in layer_map.items():
@@ -154,16 +154,15 @@ class Memory(RHGBlock):
         if last_z:
             for xy, n_local in first_z_local.items():
                 if xy in last_z.by_xy:
-                    parity_z.append((last_z.by_xy[xy], [n_local]))  # ← 同上
-
-        # 下端の単独 {u}（Z 側）。前回Zが無いときだけ追加（これは通常の parity_check として）
-        if not last_z:
-            for n_local in first_z_local.values():
-                z_parity_check_groups.append({ n_local })
-            
+                    parity_z.append((last_z.by_xy[xy], [n_local]))  # ← 同上        
                     
         x_parity_check_groups: list[set[int]] = []
         z_parity_check_groups: list[set[int]] = []
+        
+        # 下端の単独 {u}（Z 側）。前回Zが無いときだけ追加（これは通常の parity_check として）
+        if not last_x:
+            for n_local in first_x_local.values():
+                x_parity_check_groups.append({ n_local })
         
         coord2node = {(x, y, z): u for u, (x, y, z) in node_coords.items()}
 
@@ -198,7 +197,7 @@ class Memory(RHGBlock):
             node_coords=node_coords,
             x_checks= x_parity_check_groups,
             z_checks= z_parity_check_groups,
-            measure_groups= grouping,
+            schedule_tuples=schedule_tuples,
             flow_local= f,
             parity_x_prev_global_curr_local=parity_x,
             parity_z_prev_global_curr_local=parity_z,
