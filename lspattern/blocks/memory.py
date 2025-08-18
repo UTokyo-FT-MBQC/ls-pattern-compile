@@ -47,6 +47,9 @@ class Memory(RHGBlock):
         node_at_layer: Dict[int, Dict[Tuple[int,int], int]] = {}
         node_coords: Dict[int, Tuple[int,int,int]] = {}
         
+        x_parity_check_groups: List[Set[int]] = []
+        z_parity_check_groups: List[Set[int]] = []
+        
         grouping: list[Set[int]] = []
 
         # Build layers z0 .. z0+rounds with allowed parities only
@@ -199,4 +202,5 @@ class Memory(RHGBlock):
             flow_local= f,
             parity_x_prev_global_curr_local=parity_x,
             parity_z_prev_global_curr_local=parity_z,
+            seam_last_x=seam_last_x,   seam_last_z=seam_last_z,
         )

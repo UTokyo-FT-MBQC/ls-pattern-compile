@@ -64,8 +64,11 @@ class BlockDelta:
     # If you maintain separate X/Z flows, put X here and let the compiler derive Z (or extend later).
     flow_local: Dict[int, Set[int]] = field(default_factory=dict)
     
-    pair_x_prev_global_curr_local: List[Tuple[int, int]] = field(default_factory=list)
-    pair_z_prev_global_curr_local: List[Tuple[int, int]] = field(default_factory=list)
+    parity_x_prev_global_curr_local: List[Tuple[int, int]] = field(default_factory=list)
+    parity_z_prev_global_curr_local: List[Tuple[int, int]] = field(default_factory=list)
+    
+    seam_last_x:  Dict[Tuple[int,int], int] = field(default_factory=dict)
+    seam_last_z:  Dict[Tuple[int,int], int] = field(default_factory=dict)
     
     
 

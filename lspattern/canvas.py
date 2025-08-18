@@ -194,7 +194,6 @@ class RHGCanvas:
                 self.z_top = max(z for (_, _, z) in delta.node_coords.values())
 
     def _merge_delta(self, delta: BlockDelta) -> None:
-        print("cap_top:", delta.cap_top, "frontier_z:", self.anc_frontier_z, "frontier_x:", self.anc_frontier_x)
         assert self.graph is not None
         # compose; expect (composed, node_map1, node_map2)
         composed, node_map1, node_map2 = compose_sequentially(self.graph, delta.local_graph)
