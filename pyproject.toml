@@ -83,10 +83,10 @@ markers = "slow: mark test as slow"
 [tool.mypy]
 strict = true
 ignore_missing_imports = true
-files = ["ls_pattern", "tests", "examples"]
+files = ["lspattern", "tests", "examples"]
 
 [tool.pyright]
-include = ["graphix_zx", "tests", "examples"]
+include = ["lspattern", "tests", "examples"]
 reportUnknownArgumentType = "information"
 reportUnknownLambdaType = "information"
 reportUnknownMemberType = "information"
