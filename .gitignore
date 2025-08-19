@@ -209,3 +209,4 @@ __marimo__/
 # Custom
 *.png
 *.svg
+uv.lock
