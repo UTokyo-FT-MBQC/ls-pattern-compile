@@ -1,4 +1,0 @@
-[submodule "graphix-zx"]
-	path = graphix-zx
-	url = git@github.com:TeamGraphix/graphix-zx.git
-	branch = 67-compiler-from-pattern-to-stim-circuit

@@ -14,7 +14,7 @@ dependencies = [
     "sinter",
     "ortools>=9,<10",
     "typing_extensions",
-    "graphix-zx @ file://./graphix-zx",
+    "graphix-zx @ git+https://github.com/TeamGraphix/graphix-zx.git@67-compiler-from-pattern-to-stim-circuit",
 ]
 optional-dependencies.dev = [
     "ruff",
