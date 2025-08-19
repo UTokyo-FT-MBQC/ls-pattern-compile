@@ -28,7 +28,7 @@ for group in rhg_result.measurement_groups:
 
 length = 2 * d - 1
 # logical = set(range(d)) # logical Z (This is not deterministic with |+> initialization)
-logical = set(length * i for i in range(d))
+logical = {length * i for i in range(d)}
 print(f"logical X: {logical}")
 logical_observables = {0: logical}
 

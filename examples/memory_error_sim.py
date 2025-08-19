@@ -11,7 +11,13 @@ from lspattern.ops import memory
 
 
 def create_circuit(d: int, rounds: int, noise: float) -> stim.Circuit:
-    """Create RHG memory circuit with specified parameters."""
+    """Create RHG memory circuit with specified parameters.
+
+    Returns
+    -------
+    stim.Circuit
+        The compiled memory circuit.
+    """
     pattern = memory(d, rounds)
     length = 2 * d - 1
     logical_observables = {0: {length * i for i in range(d)}}
@@ -37,7 +43,7 @@ if __name__ == "__main__":
 
     # Collect statistics
     collected_rhg_code_stats: list[sinter.TaskStats] = sinter.collect(
-        num_workers=os.cpu_count(),
+        num_workers=os.cpu_count() or 1,
         tasks=rhg_code_tasks,
         decoders=["pymatching"],
         max_shots=1_000_000,
