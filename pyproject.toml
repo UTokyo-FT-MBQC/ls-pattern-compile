@@ -6,13 +6,22 @@ build-backend = "setuptools.build_meta"
 name = "lspattern"
 version = "0.1.0"
 requires-python = ">=3.9, <3.14"
-dynamic = ["dependencies", "optional-dependencies"]
-
-[tool.setuptools.dynamic]
-dependencies = { file = ["requirements.txt"] }
-
-[tool.setuptools.dynamic.optional-dependencies]
-dev = { file = ["requirements-dev.txt"] }
+dependencies = [
+    "numpy>=1.22,<3",
+    "matplotlib",
+    "stim",
+    "pymatching",
+    "sinter",
+    "ortools>=9,<10",
+    "typing_extensions",
+    "graphix-zx @ file://./graphix-zx",
+]
+optional-dependencies.dev = [
+    "ruff",
+    "mypy",
+    "pyright",
+    "pytest",
+]
 
 [tool.ruff]
 target-version = "py311"
