@@ -341,11 +341,13 @@ def visualize_rhg(  # noqa: PLR0913, PLR0917
 
     fig = plt.figure(figsize=figsize, dpi=dpi)
     ax = fig.add_subplot(111, projection="3d")
-    ax.set_box_aspect((1.0, 1.0, 1.0))  # type: ignore[arg-type]
+    ax.set_box_aspect((1.0, 1.0, 1.0))
     ax.grid(False)
     ax.set_axis_off()
 
-    xs, ys, zs = [], [], []
+    xs: list[int] = []
+    ys: list[int] = []
+    zs: list[int] = []
     colors = []
     for x, y, z in node2coord.values():
         xs.append(x)
@@ -361,10 +363,10 @@ def visualize_rhg(  # noqa: PLR0913, PLR0917
     ax.scatter(
         xs,
         ys,
-        zs,
+        zs,  # pyright: ignore[reportArgumentType]
         c=colors,
         edgecolors="black",
-        s=50,  # type: ignore[misc]
+        s=50,
         depthshade=True,
         label="nodes",
     )
@@ -375,7 +377,7 @@ def visualize_rhg(  # noqa: PLR0913, PLR0917
         ax.plot([x1, x2], [y1, y2], [z1, z2], c="gray", linewidth=1, alpha=0.5)
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
-    ax.set_zlabel("Z")  # type: ignore[attr-defined]
+    ax.set_zlabel("Z")
     ax.set_title("Raussendorf lattice (allowed parity nodes)")
     plt.legend()
     plt.tight_layout()
