@@ -1,11 +1,20 @@
+"""Operations module for MBQC pattern compilation."""
+
+from graphix_zx.pattern import Pattern
 from graphix_zx.qompiler import qompile
 from graphix_zx.scheduler import Scheduler
 
 from lspattern.rhg import create_rhg
 
 
-def memory(d: int, r: int):
-    """Return a pattern for a memory operation."""
+def memory(d: int, r: int) -> Pattern:  # noqa: PLR0914
+    """Return a pattern for a memory operation.
+
+    Returns
+    -------
+    Pattern
+        The compiled memory pattern.
+    """
     rhg_result = create_rhg(d, d, r)
     lattice_state = rhg_result.graph_state
     coord2node = rhg_result.coord_to_node
@@ -13,10 +22,8 @@ def memory(d: int, r: int):
     z_parity_check_groups = rhg_result.z_parity_checks
     grouping = rhg_result.measurement_groups
 
-    node2coord: dict[int, tuple[int, int, int]] = {
-        node: coord for coord, node in coord2node.items()
-    }
-    f = dict()
+    node2coord: dict[int, tuple[int, int, int]] = {node: coord for coord, node in coord2node.items()}
+    f: dict[int, set[int]] = {}
     for node1 in lattice_state.physical_nodes:
         x1, y1, z1 = node2coord[node1]
         node2 = coord2node.get((x1, y1, z1 + 1), None)
@@ -43,12 +50,10 @@ def memory(d: int, r: int):
         measure_time=meas_time,
     )
 
-    pattern = qompile(
+    return qompile(
         lattice_state,
         f,
         x_parity_check_group=x_parity_check_groups,
         z_parity_check_group=z_parity_check_groups,
         scheduler=scheduler,
     )
-
-    return pattern

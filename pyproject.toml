@@ -6,4 +6,104 @@ build-backend = "setuptools.build_meta"
 name = "lspattern"
 version = "0.1.0"
 requires-python = ">=3.9, <3.14"
-dynamic = ["dependencies", "optional-dependencies"]
+dependencies = [
+    "numpy>=1.22,<3",
+    "matplotlib",
+    "stim",
+    "pymatching",
+    "sinter",
+    "ortools>=9,<10",
+    "typing_extensions",
+    "graphix-zx @ git+https://github.com/TeamGraphix/graphix-zx.git@67-compiler-from-pattern-to-stim-circuit",
+]
+optional-dependencies.dev = [
+    "ruff",
+    "mypy",
+    "pyright",
+    "pytest",
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+
+[tool.ruff.lint]
+preview = true
+select = ["ALL"]
+ignore = [
+  # Conflicts with ruff format
+  "COM812",
+  "COM819",
+  "D206",
+  "D300",
+  "E111",
+  "E114",
+  "E117",
+  "ISC001",
+  "ISC002",
+  "Q000",
+  "Q001",
+  "Q002",
+  "Q003",
+  "W191",
+
+  # Not necessary for this project
+  "AIR",
+  "ASYNC",
+  "DJ",
+  "PD",
+
+  # Manually disabled
+  "CPY",     # copyright missing
+  "D105",    # undocumented magic method
+  "ERA",     # commented-out code
+  "FBT",     # boolean-trap
+  "FIX",     # fixme
+  "PLR0904", # too-many-public-methods
+]
+
+[tool.ruff.lint.pylint]
+allow-dunder-method-names = [
+  "__array__",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = [
+  "S101",    # `assert` detected
+  "SLF001",  # private method
+  "PLC2701", # private method
+  "PLR2004", # magic value in test(should be removed)
+  "D100",
+  "D103",
+  "D104",
+  "D400",
+]
+"examples/*.py" = [
+  "T201", # print
+  "D",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["lspattern"]
+testpaths = ["tests"]
+filterwarnings = "ignore::DeprecationWarning"
+markers = "slow: mark test as slow"
+
+[tool.mypy]
+strict = true
+ignore_missing_imports = true
+files = ["lspattern", "tests", "examples"]
+
+[tool.pyright]
+include = ["lspattern", "tests", "examples"]
+reportUnknownArgumentType = "information"
+reportUnknownLambdaType = "information"
+reportUnknownMemberType = "information"
+reportUnknownParameterType = "information"
+reportUnknownVariableType = "information"

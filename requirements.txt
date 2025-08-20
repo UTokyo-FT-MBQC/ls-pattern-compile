@@ -1,0 +1,7 @@
+numpy>=1.22,<3
+matplotlib
+stim
+pymatching
+sinter
+ortools>=9,<10
+typing_extensions
