@@ -1,6 +1,20 @@
 from dataclasses import dataclass, field
 
-from lspattern.mytype import TilingConsistentQubitId, TilingCoord2D
+# Allow running this file directly (python lspattern/template/base.py)
+# by adding the project root to sys.path if needed.
+try:
+    from lspattern.mytype import TilingConsistentQubitId, TilingCoord2D
+except ModuleNotFoundError as e:
+    if e.name == "lspattern":
+        import sys
+        from pathlib import Path
+
+        repo_root = Path(__file__).resolve().parents[2]
+        if str(repo_root) not in sys.path:
+            sys.path.insert(0, str(repo_root))
+        from lspattern.mytype import TilingConsistentQubitId, TilingCoord2D
+    else:
+        raise
 
 
 # Prepare outputs as sorted lists for determinism

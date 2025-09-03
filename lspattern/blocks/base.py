@@ -13,7 +13,7 @@ from typing import (
     TYPE_CHECKING,
 )
 
-from graphix_zx.graphstate import BaseGraphState
+from graphix_zx.graphstate import GraphState
 from lspattern.template.base import ScalableTemplate
 from mytype import *
 
@@ -30,11 +30,11 @@ class RHGBlock:
     index: int
     d: int
     origin: Optional[tuple[int, int, int]] = (0, 0, 0)
-    kind: tuple[str, str, str]
-    template: ScalableTemplate
+    kind: tuple[str, str, str] = field(default_factory=lambda: ("X", "X", "Z"))
+    template: ScalableTemplate = field(default=None)
 
     # The graph fragment contributed by the block (LOCAL ids).
-    graph_local: BaseGraphState
+    graph_local: GraphState
     # measurement schedule (int)--> set of measured local nodes
     schedule_local: list[tuple[int, set[NodeIdLocal]]] = field(default_factory=list)
     # Flow (LOCAL ids): minimal X-flow mapping (node -> correction target nodes)
