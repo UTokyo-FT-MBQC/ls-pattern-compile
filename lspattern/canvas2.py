@@ -2,40 +2,49 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Set, Tuple, Union
+import stim
+
 
 # graphix_zx pieces
-from graphix_zx.graphstate import BaseGraphState, compose_sequentially
+from graphix_zx.graphstate import BaseGraphState, compose_sequentially, GraphState
+from graphix_zx.graphstate import compose_in_parallel
 
 from lspattern.blocks.base import BlockDelta, RHGBlock
 from lspattern.compile import compile_canvas
 from lspattern.geom.tiler import PatchTiler
 from lspattern.consts.consts import DIRECTIONS3D
+from lspattern.utils import get_direction
 
-from mytype import PhysCoordGlobal3D, NodeIdGlobal, NodeIdLocal, BlockKindstr
-
-
-def __tuple_sum(l: tuple, r: tuple) -> tuple:
-    assert len(l) == len(r)
-    return tuple(a + b for a, b in zip(l, r))
+from lspattern.mytype import (
+    PhysCoordGlobal3D,
+    PatchCoordGlobal3D,
+    PipeCoordGlobal3D,
+    NodeIdGlobal,
+    NodeIdLocal,
+    BlockKindstr,
+)
+from lspattern.pipes.base import RHGPipe
+from lspattern.utils import __tuple_sum
+from mytype import *
 
 
 class TemporalLayer:
     z: int
     qubit_count: int
-    patches: list[BlockPosition]
-    lines: list[PipePosition]
+    patches: list[PatchCoordGlobal3D]
+    lines: list[PipeCoordGlobal3D]
 
-    in_portset: dict[AbstractPosition, list[int]]
-    out_portset: dict[AbstractPosition, list[int]]
-    cout_portset: dict[AbstractPosition, list[int]]
+    in_portset: dict[PatchCoordGlobal3D, list[NodeIdLocal]]
+    out_portset: dict[PatchCoordGlobal3D, list[NodeIdLocal]]
+    cout_portset: dict[PatchCoordGlobal3D, list[NodeIdLocal]]
 
-    in_ports: list[int]
-    out_ports: list[int]
-    cout_ports: list[int]
+    in_ports: list[NodeIdLocal]
+    out_ports: list[NodeIdLocal]
+    cout_ports: list[NodeIdLocal]
 
-    local_graph: BaseGraphState
-    node2coord: dict[int, PhysicalQubitPosition]
-    coord2node: dict[PhysicalQubitPosition, int]
+    local_graph: GraphState
+    node2coord: dict[NodeIdLocal, PhysCoordGlobal3D]
+    coord2node: dict[PhysCoordGlobal3D, NodeIdLocal]
 
     def __init__(self, z: int):
         self.z = z
@@ -50,7 +59,7 @@ class TemporalLayer:
         self.node2coord = {}
         self.coord2node = {}
 
-    def add_block(self, pos: BlockPosition, block: BlockDelta) -> None:
+    def add_block(self, pos: PatchCoordGlobal3D, block: RHGBlock) -> None:
         # shift qubit ids and coordinate
         block.shift_ids(by=self.qubit_count)
         block.shift_coords(patch_coord=pos)
@@ -66,16 +75,24 @@ class TemporalLayer:
             self.coord2node[coord] = n
 
     def add_pipe(
-        self, start: PipePosition, end: PipePosition, pipe: BlockDelta
+        self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D, pipe: RHGPipe
     ) -> None:
+        """
+        This is the function to add a pipe to the temporal layer.
+        - It adds a pipe between two blocks. Its shift coordinate is given from source and direction derived from source->sink directionality
+        - In addition, it connects two blocks of the same z in PatchCoordGlobal3D (do assert). Accordingly we need to modify
+        - 1.
+
+        """
+        # TODO: Implement add_pipe functionality
         # shift qubit ids and coordinate
         pipe.shift_ids(by=self.qubit_count)
-        pipe.shift_coords(patch_coord=start)
+        pipe.shift_coords(patch_coord=source, direction=get_direction(source, sink))
 
         # Update pipe3d, input/output ports
-        self.lines.append((start, end))
-        self.in_portset[start] = pipe.in_ports
-        self.out_portset[end] = pipe.out_ports
+        self.lines.append((source, sink))
+        self.in_portset[source] = pipe.in_ports
+        self.out_portset[sink] = pipe.out_ports
 
         # update node2coord and coord2node
         for n, coord in pipe.node_coords.items():
@@ -85,20 +102,20 @@ class TemporalLayer:
         # search for new RHG CZ-connection
         for node in pipe.local_graph.physical_nodes:
             for direction in DIRECTIONS3D:
-                u: PhysicalQubitPosition = node
-                v: PhysicalQubitPosition = __tuple_sum(node, direction)
+                u: PhysCoordGlobal3D = node  # type: ignore[assignment]
+                v: PhysCoordGlobal3D = __tuple_sum(node, direction)  # type: ignore[assignment]
 
         # search for new detector groups
         for node in pipe.local_graph.physical_nodes:
             for direction in DIRECTIONS3D:
-                u: PhysicalQubitPosition = node
-                v: PhysicalQubitPosition = __tuple_sum(node, direction)
+                u: PhysCoordGlobal3D = node  # type: ignore[assignment]
+                v: PhysCoordGlobal3D = __tuple_sum(node, direction)  # type: ignore[assignment]
 
-    def add_blocks(self, blocks: dict[BlockPosition, BlockDelta]) -> None:
+    def add_blocks(self, blocks: dict[PatchCoordGlobal3D, BlockDelta]) -> None:
         for pos, block in blocks.items():
             self.add_block(pos, block)
 
-    def add_pipes(self, pipes: dict[PipePosition, BlockDelta]) -> None:
+    def add_pipes(self, pipes: dict[PipeCoordGlobal3D, BlockDelta]) -> None:
         for (start, end), pipe in pipes.items():
             self.add_pipe(start, end, pipe)
 
@@ -108,25 +125,34 @@ class CompiledRHGCanvas:
     layers: list[TemporalLayer]
 
     global_graph: Optional[BaseGraphState] = None
-    coord2node: dict[PhysicalQubitPosition, int] = field(default_factory=dict)
+    coord2node: dict[PhysCoordGlobal3D, int] = field(default_factory=dict)
+
+    in_portset: dict[PatchCoordGlobal3D, list[int]] = field(default_factory=dict)
+    out_portset: dict[PatchCoordGlobal3D, list[int]] = field(default_factory=dict)
+    cout_portset: dict[PatchCoordGlobal3D, list[int]] = field(default_factory=dict)
 
     scheduler: "Scheduler"
     flower: "Flower"
+    z: int = 0
+
+    def generate_stim_circuit(self) -> stim.Circuit:
+        pass
 
 
 @dataclass
 class RHGCanvas2:
     # Graphは持たない
-    block3d: dict[BlockPosition, BlockDelta] = {}  # {(0,0,0): InitPlus(), ...}
-    pipe3d: dict[PipePosition, BlockDelta] = (
+    name: str = "Blank Canvas"
+    block3d: dict[PatchCoordGlobal3D, BlockDelta] = {}  # {(0,0,0): InitPlus(), ...}
+    pipe3d: dict[PipeCoordGlobal3D, BlockDelta] = (
         {}
     )  # {((0,0,0),(1,0,0)): Stabilize(), ((0,0,0), (0,0,1)): Measure(basis=X)}
 
-    def add_block(self, position: BlockPosition, block: BlockDelta) -> None:
+    def add_block(self, position: PatchCoordGlobal3D, block: BlockDelta) -> None:
         self.block3d[position] = block
 
     def add_pipe(
-        self, start: PipePosition, end: PipePosition, pipe: BlockDelta
+        self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: BlockDelta
     ) -> None:
         self.pipe3d[(start, end)] = pipe
 
@@ -140,28 +166,28 @@ class RHGCanvas2:
                 if u[2] == z and v[2] == z
             }
 
-            layer = to_temporal_layer(blocks, pipes)
+            layer = to_temporal_layer(z, blocks, pipes)
             temporal_layers[z] = layer
 
         return temporal_layers
 
-    # def compile(self) -> "CompiledRHG":
-    #     temporal_layers = self.to_temporal_layers()
-    #     cgraph = CompiledRHGCanvas()
-    #     graph = temporal_layers[0]
+    def compile(self) -> CompiledRHGCanvas:
+        temporal_layers = self.to_temporal_layers()
+        cgraph = CompiledRHGCanvas()
 
-    #     for i in range(1, len(temporal_layers)):
-    #         graph = compose_temporal_layers(graph, temporal_layers[i])
-
-    #     return graph
+        for layer in temporal_layers:
+            cgraph = add_temporal_layer(cgraph, layer, pipes)
+        return cgraph
 
 
 def to_temporal_layer(
-    blocks: dict[BlockPosition, BlockDelta], pipes: dict[PipePosition, BlockDelta]
+    z: int,
+    blocks: dict[PatchCoordGlobal3D, RHGBlock],
+    pipes: dict[PipeCoordGlobal3D, RHGPipe],
 ) -> TemporalLayer:
     # The workflow is below
     # 1) Make empty TemporalLayer instance
-    layer = TemporalLayer()
+    layer = TemporalLayer(z)
     # 2) Add blocks
     layer.add_blocks(blocks)
     # 3) Add pipes
@@ -169,24 +195,17 @@ def to_temporal_layer(
     return layer
 
 
-# def compose_temporal_layers(
-#     graph: "ComposedGraph",
-#     layer2: TemporalLayer,
-#     pipes: list[PositionedPipeDelta],
-# ) -> "ComposedGraph":
-#     # Implement temporal composition logic here
-#     out_portset = graph.out_portset
-#     in_portset = layer2.in_portset
+def add_temporal_layer(
+    cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pipes: list[RHGPipe]
+) -> CompiledRHGCanvas:
+    # Implement temporal composition logic here
+    out_portset = cgraph.out_portset
+    in_portset = next_layer.in_portset
 
-#     for pipe in pipes:
-#         u, v = pipe.start, pipe.end
-#         out_ports = graph.out_portset[u]
-#         int_ports = layer2.in_portset[v]
-#         # simply connect the two
-#         graph = compose_sequentially(graph)
-
-
-# def compose_sequentially(graph, graph2):
-#     # compute shifts
-#     qshift = max(graph.physical_qubits)
-#     graph2.shift_ids(by=qshift + 1)
+    for pipe in pipes:
+        source, sink = pipe.source, pipe.sink
+        out_ports = out_portset[source]
+        in_ports = in_portset[sink]
+        # simply connect the two
+        # note that in this case pipe has NO physical qubits. Simply connect via CZ and extra stabilizer network
+        graph = compose_sequentially(graph)

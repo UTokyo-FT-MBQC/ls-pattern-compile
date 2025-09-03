@@ -14,29 +14,140 @@ from typing import (
 )
 
 from graphix_zx.graphstate import BaseGraphState
-
-if TYPE_CHECKING:
-    # Import only for type checking to avoid circular imports at runtime.
-    from ..canvas import RHGCanvas
+from lspattern.template.base import ScalableTemplate
+from mytype import *
 
 
 @dataclass
 class RHGBlockSkeleton:
-    logical: int
+    # サイズとkind(色)情報だけ持っている
     d: int
-    origin: Optional[Tuple[int, int]] = None
+    kind: BlockKindstr
 
 
 @dataclass
 class RHGBlock:
-    logical: int
+    index: int
     d: int
-    origin: Optional[Tuple[int, int]] = None
+    origin: Optional[tuple[int, int, int]] = (0, 0, 0)
     kind: tuple[str, str, str]
-    template: Any
+    template: ScalableTemplate
+
+    # The graph fragment contributed by the block (LOCAL ids).
+    graph_local: BaseGraphState
+    # measurement schedule (int)--> set of measured local nodes
+    schedule_local: list[tuple[int, set[NodeIdLocal]]] = field(default_factory=list)
+    # Flow (LOCAL ids): minimal X-flow mapping (node -> correction target nodes)
+    flow_local: dict[NodeIdLocal, set[NodeIdLocal]] = field(default_factory=dict)
+
+    # MBQC interface (local ids)
+    # logical -> set of input-side boundary nodes
+    in_ports: set[dict[NodeIdLocal, int]] = field(default_factory=set)
+    # logical -> set of output-side boundary nodes
+    out_ports: set[dict[NodeIdLocal, int]] = field(default_factory=set)
+    # classical output ports. One group represents one logical result (to be XORed)
+    cout_ports: list[set[NodeIdLocal]] = field(default_factory=list)
+
+    # Geometry annotations (LOCAL node -> (x, y, z))
+    node2coords: dict[NodeIdLocal, PhysCoordLocal3D] = field(default_factory=dict)
+    coords2node: dict[PhysCoordLocal3D, NodeIdLocal] = field(default_factory=dict)
+    node2role: dict[NodeIdLocal, str] = field(default_factory=dict)
+
+    # Parity checks contributed entirely within the block (LOCAL ids)
+    x_checks: list[set[NodeIdLocal]] = field(default_factory=list)
+    z_checks: list[set[NodeIdLocal]] = field(default_factory=list)
+
+    def shift_ids(self, by: int) -> None:
+        # increase/decrease every nodes denoted by NodeIdLocal
+        if by == 0:
+            return
+
+        # schedule_local: list[(t_local, {nodes...})]
+        if self.schedule_local:
+            self.schedule_local = [
+                (t, {int(n) + by for n in nodes}) for (t, nodes) in self.schedule_local
+            ]
+
+        # flow_local: {node -> {targets...}}
+        if self.flow_local:
+            self.flow_local = {
+                int(src) + by: {int(v) + by for v in tgts}
+                for src, tgts in self.flow_local.items()
+            }
+
+        # ports and cout ports
+        if self.in_ports:
+            self.in_ports = {int(n) + by for n in self.in_ports}
+        if self.out_ports:
+            self.out_ports = {int(n) + by for n in self.out_ports}
+        if self.cout_ports:
+            self.cout_ports = [
+                {int(n) + by for n in group} for group in self.cout_ports
+            ]
+
+        # coords maps
+        if self.node2coords:
+            self.node2coords = {
+                int(n) + by: coord for n, coord in self.node2coords.items()
+            }
+        if self.coords2node:
+            self.coords2node = {
+                coord: int(n) + by for coord, n in self.coords2node.items()
+            }
+
+        # parity checks
+        if self.x_checks:
+            self.x_checks = [{int(n) + by for n in group} for group in self.x_checks]
+        if self.z_checks:
+            self.z_checks = [{int(n) + by for n in group} for group in self.z_checks]
+
+    def shift_coords(self, by: PatchCoordGlobal3D) -> None:
+        # move all the coordinates PhysCoordLocal3D by `by`
+        if by is None:
+            return
+        ox, oy, oz = by
+
+        if self.node2coords:
+            self.node2coords = {
+                n: (coord[0] + ox, coord[1] + oy, coord[2] + oz)
+                for n, coord in self.node2coords.items()
+            }
+
+        if self.coords2node:
+            # rebuild inverse map from updated node2coords for consistency
+            self.coords2node = {coord: n for n, coord in self.node2coords.items()}
+
+        self.origin = by
 
     def materialize(self, skeleton: RHGBlockSkeleton) -> None:
         pass
+
+    def get_boundary_nodes(
+        self, face: str, depth: list[int] = [-1]
+    ) -> dict[str, list[NodeIdLocal]]:
+        # get all the nodes whose X/Y/Z coordinate match the given face and depth condition
+        # -1 means they are on the boundary, -2 means one step inside the bulk
+        # raise error if depth larger than size d
+        # You may assume LocalGraph (maybe shifted/incremented with shfit_ids/coords command)
+        # if X face, choose min X (X-) and max X (X+) if Y, choose min Y (Y-) and max Y (Y+) if Z, choose min Z (Z-) and max Z (Z+)
+        # The return scheme is
+        # ret = {"data": [node indices...], "x_check": [nodeindices...], "z_check": [node ids...]}
+        # You may look for 2D template: C:\Users\qipe\Documents\GitHub\ls-pattern-compile\lspattern\template\base.py for reference. But make sure we will build RHG lattice based on this 2D tiling with r-rounds.
+        # if you have question, just ask me
+        assert face in ["X+", "X-", "Y+", "Y-", "Z+", "Z-"]
+        match face:
+            case "X+":
+                pass
+            case "X-":
+                pass
+            case "Y+":
+                pass
+            case "Y-":
+                pass
+            case "Z+":
+                pass
+            case "Z-":
+                pass
 
 
 class Memory(RHGBlock):
@@ -108,18 +219,92 @@ class BlockDelta:
     seam_last_z: Dict[Tuple[int, int], int] = field(default_factory=dict)
 
     def shift_ids(self, by: int) -> None:
-        # change index of every elements
-        raise NotImplementedError()
+        # change index of every element carrying LOCAL node ids by an offset
+        if by == 0:
+            return
+
+        # in/out ports
+        if self.in_ports:
+            self.in_ports = {
+                li: {int(n) + by for n in nodes} for li, nodes in self.in_ports.items()
+            }
+        if self.out_ports:
+            self.out_ports = {
+                li: {int(n) + by for n in nodes} for li, nodes in self.out_ports.items()
+            }
+
+        # out_qmap: logical -> {LOCAL node -> q_index}
+        if self.out_qmap:
+            self.out_qmap = {
+                li: {int(n) + by: q for n, q in qmap.items()}
+                for li, qmap in self.out_qmap.items()
+            }
+
+        # node_coords: LOCAL node -> coord
+        if self.node_coords:
+            self.node_coords = {
+                int(n) + by: coord for n, coord in self.node_coords.items()
+            }
+
+        # parity checks
+        if self.x_checks:
+            self.x_checks = [{int(n) + by for n in group} for group in self.x_checks]
+        if self.z_checks:
+            self.z_checks = [{int(n) + by for n in group} for group in self.z_checks]
+
+        # schedule
+        if self.schedule_tuples:
+            self.schedule_tuples = [
+                (t, {int(n) + by for n in nodes}) for (t, nodes) in self.schedule_tuples
+            ]
+
+        # flow
+        if self.flow_local:
+            self.flow_local = {
+                int(src) + by: {int(v) + by for v in tgts}
+                for src, tgts in self.flow_local.items()
+            }
+
+        # parity caps (prev global center unchanged; current local nodes shifted)
+        if self.parity_x_prev_global_curr_local:
+            self.parity_x_prev_global_curr_local = [
+                (center, [int(n) + by for n in locals_list])
+                for center, locals_list in self.parity_x_prev_global_curr_local
+            ]
+        if self.parity_z_prev_global_curr_local:
+            self.parity_z_prev_global_curr_local = [
+                (center, [int(n) + by for n in locals_list])
+                for center, locals_list in self.parity_z_prev_global_curr_local
+            ]
+
+        # seam last layers
+        if self.seam_last_x:
+            self.seam_last_x = {xy: int(n) + by for xy, n in self.seam_last_x.items()}
+        if self.seam_last_z:
+            self.seam_last_z = {xy: int(n) + by for xy, n in self.seam_last_z.items()}
 
     def shift_coords(self, patch_coord: Tuple[int, int]) -> None:
-        # change the coordinates of every element
-        raise NotImplementedError()
+        # change the coordinates of every element by translating by patch_coord
+        if not self.node_coords or patch_coord is None:
+            return
+
+        # Support both 2D (x, y) and 3D (x, y, z) inputs gracefully
+        if len(patch_coord) == 2:
+            ox, oy = patch_coord  # type: ignore[misc]
+            oz = 0
+        else:
+            ox, oy, oz = patch_coord  # type: ignore[assignment]
+
+        self.node_coords = {
+            n: (coord[0] + ox, coord[1] + oy, coord[2] + oz)
+            for n, coord in self.node_coords.items()
+        }
 
 
 # ---------------------------------------------------------------------
 # Block protocol
 # ---------------------------------------------------------------------
-class RHGBlock(Protocol):
+class RHGBlock2(Protocol):
     """Protocol for an RHG block (structural typing)."""
 
     logical: int

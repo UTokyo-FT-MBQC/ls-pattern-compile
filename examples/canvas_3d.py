@@ -17,63 +17,36 @@ import sys
 
 sys.path.append(r"C:\Users\qipe\Documents\GitHub\ls-pattern-compile")
 
-from lspattern.canvas import RHGCanvas
+from lspattern.canvas2 import RHGCanvas2, CompiledRHGCanvas
 from lspattern.blocks import InitPlus, Memory, MeasureX
 from lspattern.visualize import visualize_canvas
+from lspattern.mytype import PatchCoordGlobal3D
 
 # %%
 d = 2
 r = 1
 
-canvas = RHGCanvas()
-canvas.append(InitPlus(logical=0, dx=d, dy=d))
-visualize_canvas(
-    canvas,
-    show=True,
+canvas = RHGCanvas2("Memory X")
+
+blocks = [
+    (PatchCoordGlobal3D(0, 0, 0), InitPlus(kind="ZXX")),
+    (PatchCoordGlobal3D(0, 0, 1), MeasureX(kind="ZXX")),
+]
+pipes = [
+    (PatchCoordGlobal3D(0, 0, 0), PatchCoordGlobal3D(0, 0, 1), Memory(kind="ZXO")),
+]
+
+for block in blocks:
+    canvas.add_block(*block)
+for pipe in pipes:
+    canvas.add_pipe(*pipe)
+    
+layers = canvas.to_temporal_layers()
+
+compiled_canvas = CompiledRHGCanvas(
+    layers=layers,
+    
 )
-
-# %%
-canvas = RHGCanvas()
-canvas.append(InitPlus(logical=0, dx=d, dy=d))
-canvas.append(Memory(logical=0, rounds=r))
-visualize_canvas(
-    canvas,
-    save_path="figures/rhg_lattice.png",
-    show=True,
-)
-
-# %%
-canvas = RHGCanvas()
-canvas.append(InitPlus(logical=0, dx=d, dy=d))
-canvas.append(Memory(logical=0, rounds=r))
-canvas.append(Memory(logical=0, rounds=r))
-canvas.append(MeasureX(logical=0))
-visualize_canvas(
-    canvas,
-    save_path="figures/rhg_lattice.png",
-    show=True,
-)
-
-# %%
-d = 5
-r = 5
-
-canvas = RHGCanvas()
-canvas.append(InitPlus(logical=0, dx=d, dy=d))
-canvas.append(Memory(logical=0, rounds=r))
-canvas.append(Memory(logical=0, rounds=r))
-canvas.append(MeasureX(logical=0))
-
-for group in canvas.schedule_accum.measure_groups:
-    print(f"group: {group}")
-
-logical = set(i for i in range(d))
-print(f"logical X: {logical}")
-logical_observables = {0: logical}
-
-# %%
-pattern = canvas.compile()
-print_pattern(pattern)
 
 # %%
 stim_str = stim_compile(

@@ -15,8 +15,8 @@ from typing import (
 )
 
 from graphix_zx.graphstate import BaseGraphState
-from mytype import PatchCoordGlobal3D, BlockKindstr
-
+from lspattern.mytype import PatchCoordGlobal3D, BlockKindstr
+from lspattern.pipes.base import RHGPipe
 
 @dataclass
 class RHGPipeSkeleton:

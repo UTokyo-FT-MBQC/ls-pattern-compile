@@ -1,5 +1,12 @@
 from dataclasses import dataclass, field
 
+from lspattern.mytype import TilingConsistentQubitId, TilingCoord2D
+
+
+# Prepare outputs as sorted lists for determinism
+def sort_xy(points: set[tuple[int, int]]):
+    return sorted(points, key=lambda p: (p[1], p[0]))
+
 
 @dataclass
 class ScalableTemplate:
@@ -7,18 +14,21 @@ class ScalableTemplate:
     kind: tuple[str, str, str]  # (X, Y, Z) faces 3-4 chars
 
     data_coords: list[tuple[int, int]] = field(default_factory=list)
+    data_indices: list[int] = field(default_factory=list)
     x_coords: list[tuple[int, int]] = field(default_factory=list)
     z_coords: list[tuple[int, int]] = field(default_factory=list)
-    
+
     # boundary coords
     # left_coords: list[tuple[int, int]] = field(default_factory=list)
     # right_coords: list[tuple[int, int]] = field(default_factory=list)
     # top_coords: list[tuple[int, int]] = field(default_factory=list)
     # bottom_coords: list[tuple[int, int]] = field(default_factory=list)
 
-    def to_tiling(self) -> dict: ...
+    def to_tiling(self) -> dict[str, list[tuple[int, int]]]: ...
 
-    def visualize_tiling(self, ax=None, show: bool = True, title_suffix: str | None = None) -> None:
+    def visualize_tiling(
+        self, ax=None, show: bool = True, title_suffix: str | None = None
+    ) -> None:
         """Visualize the tiling using matplotlib.
 
         - data qubits: white-filled circles with black edge
@@ -105,7 +115,9 @@ class ScalableTemplate:
         # Axes labels and title
         ax.set_xlabel("x")
         ax.set_ylabel("y")
-        title_core = f"Tiling d={getattr(self, 'd', '?')} kind={getattr(self, 'kind', '?')}"
+        title_core = (
+            f"Tiling d={getattr(self, 'd', '?')} kind={getattr(self, 'kind', '?')}"
+        )
         if title_suffix:
             title_core += f" ({title_suffix})"
         ax.set_title(title_core)
@@ -118,12 +130,13 @@ class ScalableTemplate:
             created_fig.tight_layout()
         if show and created_fig is not None:
             import matplotlib.pyplot as plt  # local import to avoid confusion
+
             plt.show()
 
 
 class RotatedPlanarTemplate(ScalableTemplate):
     # Denote = as X boundary and - as Z boundary
-    def to_tiling(self) -> dict:
+    def to_tiling(self) -> dict[str, list[tuple[int, int]]]:
         d = self.d
         # Local containers (avoid relying on dataclass defaults)
         data_coords: set[tuple[int, int]] = set()
@@ -175,10 +188,6 @@ class RotatedPlanarTemplate(ScalableTemplate):
             for x in range(1, 2 * d - 1, 4):
                 z_coords.add((x, 2 * d - 1))
 
-        # Prepare outputs as sorted lists for determinism
-        def sort_xy(points: set[tuple[int, int]]):
-            return sorted(points, key=lambda p: (p[1], p[0]))
-
         result = {
             "data": sort_xy(data_coords),
             "X": sort_xy(x_coords),
@@ -195,10 +204,15 @@ class RotatedPlanarTemplate(ScalableTemplate):
 
         return result
 
+    def get_data_indices(self) -> dict[TilingCoord2D, TilingConsistentQubitId]:
+        data_index = {coor: i for i, coor in enumerate(sort_xy(self.data_coords))}
+        return data_index
+
 
 # simple testing (manual)
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
+
     d = 3
     kinds = [("X", "X", "*"), ("X", "Z", "*"), ("Z", "X", "*"), ("Z", "Z", "*")]
     labels = ["XX", "XZ", "ZX", "ZZ"]

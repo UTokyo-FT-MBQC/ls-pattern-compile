@@ -28,21 +28,26 @@ QubitIndex = NewType("QubitIndex", int)
 # ---------------------------------------------------------------------
 # Coordinates
 # ---------------------------------------------------------------------
+# Tiling coordinate
+
+TilingCoord2D = NewType("TilingCoord2D", Tuple[int, int])
+TilingConsistentQubitId = NewType("TilingConsistentQubitId", int)
+
 # Patch coordinates are 2D integer anchors (x0, y0).
-PatchCoordLocal2D = Tuple[int, int]
-PatchCoordGlobal3D = Tuple[int, int, int]
-PipeCoordGlobal3D = Tuple[PatchCoordGlobal3D, PatchCoordGlobal3D]
+PatchCoordLocal2D = NewType("PatchCoordLocal2D", Tuple[int, int])
+PatchCoordGlobal3D = NewType("PatchCoordGlobal3D", Tuple[int, int, int])
+PipeCoordGlobal3D = NewType(
+    "PipeCoordGlobal3D", Tuple[Tuple[int, int, int], Tuple[int, int, int]]
+)
 
 # Physical qubit coordinates are 3D integer positions (x, y, z).
-PhysCoordLocal3D = Tuple[int, int, int]
-PhysCoordGlobal3D = Tuple[int, int, int]
+PhysCoordLocal2D = NewType("PhysCoordLocal2D", Tuple[int, int])  # (x, y)
+PhysCoordLocal3D = NewType("PhysCoordLocal3D", Tuple[int, int, int])  # (x, y, z)
+PhysCoordGlobal3D = NewType("PhysCoordGlobal3D", Tuple[int, int, int])
 
 # Convenience aliases for collections
 NodeSetLocal = Set[NodeIdLocal]
 NodeSetGlobal = Set[NodeIdGlobal]
-
-NodeCoordMapLocal = Dict[NodeIdLocal, PhysCoordLocal3D]
-NodeCoordMapGlobal = Dict[NodeIdGlobal, PhysCoordGlobal3D]
 
 # Ports and q-index mappings (LOCAL frame on blocks)
 InPortsLocal = Dict[LogicalIndex, NodeSetLocal]
@@ -60,6 +65,7 @@ ParityCapsLocal = List[Tuple[NodeIdGlobal, List[NodeIdLocal]]]
 # Block kind
 BlockKindstr = tuple[str, str, str]
 
+
 __all__ = [
     # ids
     "NodeIdLocal",
@@ -67,10 +73,11 @@ __all__ = [
     "LogicalIndex",
     "QubitIndex",
     # coords
-    "PatchCoordLocal",
-    "PatchCoordGlobal",
-    "PhysCoordLocal",
-    "PhysCoordGlobal",
+    "PatchCoordLocal2D",
+    "PatchCoordGlobal3D",
+    "PipeCoordGlobal3D",
+    "PhysCoordLocal3D",
+    "PhysCoordGlobal3D",
     # sets/maps
     "NodeSetLocal",
     "NodeSetGlobal",
@@ -86,4 +93,8 @@ __all__ = [
     "FlowLocal",
     # parity
     "ParityCapsLocal",
+    # kinds
+    "BlockKindstr",
+    # directions
+    "direction2D",
 ]

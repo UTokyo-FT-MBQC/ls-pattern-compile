@@ -1,6 +1,9 @@
 # This class stores some constants
 
 # 2D spatial orientations
+import enum
+
+
 DIRECTIONS2D: list[tuple[int, int]] = [
     (-1, -1),  # down left
     (-1, +1),  # down right
@@ -22,3 +25,11 @@ DIRECTIONS3D: list[tuple[int, int, int]] = [
     (-1, -1, 0),  # diagonal downleft
 ]
 
+
+class PIPEDIRECTION(enum.Enum):
+    LEFT: int = 0
+    TOP: int = 1
+    RIGHT: int = 2
+    BOTTOM: int = 3
+    UP: int = 4
+    DOWN: int = 5
