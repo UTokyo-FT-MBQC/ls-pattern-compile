@@ -3,9 +3,9 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 from graphix_zx.common import Plane, PlannerMeasBasis
-from graphix_zx.graphstate import GraphState
+from graphix_zx.graphstate import BaseGraphState, GraphState
 
-from lspattern.blocks.base import BlockDelta, GraphStateLike, RHGBlock
+from lspattern.blocks.base import BlockDelta, RHGBlock
 from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z, is_data
 
 if TYPE_CHECKING:
@@ -52,13 +52,15 @@ class Memory(RHGBlock):
                 ys.append(y)
                 zs.append(z)
         if not xs:
-            raise ValueError("Memory.emit: could not find coordinates for boundary nodes.")
+            raise ValueError(
+                "Memory.emit: could not find coordinates for boundary nodes."
+            )
 
         x_min, x_max = min(xs), max(xs)
         y_min, y_max = min(ys), max(ys)
         z0 = max(zs)  # continue upward from the last data layer
 
-        g: GraphStateLike = GraphState()
+        g: BaseGraphState = GraphState()
         node_at_layer: Dict[int, Dict[Tuple[int, int], int]] = {}
         node_coords: Dict[int, Tuple[int, int, int]] = {}
 
@@ -89,7 +91,9 @@ class Memory(RHGBlock):
                         layer_map[(X, Y)] = n
                         node_coords[n] = (X, Y, z)
                     elif is_ancilla_x(X, Y, z) or is_ancilla_z(X, Y, z):
-                        if t != 2 * self.rounds:  # no ancillas on the very last (pure DATA) slice
+                        if (
+                            t != 2 * self.rounds
+                        ):  # no ancillas on the very last (pure DATA) slice
                             n = g.add_physical_node()
                             g.assign_meas_basis(n, PlannerMeasBasis(Plane.XY, 0.0))
                             layer_map[(X, Y)] = n
@@ -125,7 +129,9 @@ class Memory(RHGBlock):
             first_map = node_at_layer[0]
             prev_qmap = canvas.logical_registry.boundary_qidx.get(lidx, {})
             if not prev_qmap:
-                raise ValueError(f"Memory.emit: boundary_qidx is missing for logical {lidx}")
+                raise ValueError(
+                    f"Memory.emit: boundary_qidx is missing for logical {lidx}"
+                )
             inv_coord = {nid: coord for coord, nid in canvas.coord_to_node.items()}
             prev_xy_order: List[Tuple[int, int]] = []
             for nid, _q in sorted(prev_qmap.items(), key=lambda kv: kv[1]):
@@ -141,28 +147,56 @@ class Memory(RHGBlock):
 
         # Determine the first ancilla layer (X/Z) to stitch with previous block, if any.
         first_layer = node_at_layer[0]
-        first_x_local = {(X, Y): n for (X, Y), n in first_layer.items() if is_ancilla_x(X, Y, z0)}
-        first_z_local = {(X, Y): n for (X, Y), n in first_layer.items() if is_ancilla_z(X, Y, z0)}
+        first_x_local = {
+            (X, Y): n for (X, Y), n in first_layer.items() if is_ancilla_x(X, Y, z0)
+        }
+        first_z_local = {
+            (X, Y): n for (X, Y), n in first_layer.items() if is_ancilla_z(X, Y, z0)
+        }
         if not first_x_local:
             second_layer = node_at_layer[1]
-            first_x_local = {(X, Y): n for (X, Y), n in second_layer.items() if is_ancilla_x(X, Y, z0 + 1)}
+            first_x_local = {
+                (X, Y): n
+                for (X, Y), n in second_layer.items()
+                if is_ancilla_x(X, Y, z0 + 1)
+            }
         if not first_z_local:
             second_layer = node_at_layer[1]
-            first_z_local = {(X, Y): n for (X, Y), n in second_layer.items() if is_ancilla_z(X, Y, z0 + 1)}
+            first_z_local = {
+                (X, Y): n
+                for (X, Y), n in second_layer.items()
+                if is_ancilla_z(X, Y, z0 + 1)
+            }
 
         # Determine the last ancilla layer to expose as seam_last_*.
         last_anc_t = 2 * self.rounds - 1
         last_layer = node_at_layer[last_anc_t]
-        seam_last_x = {(X, Y): n for (X, Y), n in last_layer.items() if is_ancilla_x(X, Y, z0 + last_anc_t)}
-        seam_last_z = {(X, Y): n for (X, Y), n in last_layer.items() if is_ancilla_z(X, Y, z0 + last_anc_t)}
+        seam_last_x = {
+            (X, Y): n
+            for (X, Y), n in last_layer.items()
+            if is_ancilla_x(X, Y, z0 + last_anc_t)
+        }
+        seam_last_z = {
+            (X, Y): n
+            for (X, Y), n in last_layer.items()
+            if is_ancilla_z(X, Y, z0 + last_anc_t)
+        }
         if not seam_last_x:
             last_anc_t = 2 * self.rounds - 2
             last_layer = node_at_layer[last_anc_t]
-            seam_last_x = {(X, Y): n for (X, Y), n in last_layer.items() if is_ancilla_x(X, Y, z0 + last_anc_t)}
+            seam_last_x = {
+                (X, Y): n
+                for (X, Y), n in last_layer.items()
+                if is_ancilla_x(X, Y, z0 + last_anc_t)
+            }
         if not seam_last_z:
             last_anc_t = 2 * self.rounds - 2
             last_layer = node_at_layer[last_anc_t]
-            seam_last_z = {(X, Y): n for (X, Y), n in last_layer.items() if is_ancilla_z(X, Y, z0 + last_anc_t)}
+            seam_last_z = {
+                (X, Y): n
+                for (X, Y), n in last_layer.items()
+                if is_ancilla_z(X, Y, z0 + last_anc_t)
+            }
 
         # Build parity directives that pair previous GLOBAL centers with current LOCAL nodes.
         last_x = canvas.parity_layers.get_last(lidx, "X")
@@ -208,9 +242,15 @@ class Memory(RHGBlock):
         in_ports: Dict[int, Set[int]] = {}
         if self.rounds >= 1:
             # NOTE: Keep the original logic intact.
-            first_map_for_ports = node_at_layer[z0]  # noqa: F841  (intentional: matches the existing logic)
+            first_map_for_ports = node_at_layer[
+                z0
+            ]  # noqa: F841  (intentional: matches the existing logic)
             in_ports = {
-                lidx: {first_map_for_ports[xy] for xy in first_map_for_ports if is_data(xy[0], xy[1], z0 + 1)}
+                lidx: {
+                    first_map_for_ports[xy]
+                    for xy in first_map_for_ports
+                    if is_data(xy[0], xy[1], z0 + 1)
+                }
             }
 
         return BlockDelta(

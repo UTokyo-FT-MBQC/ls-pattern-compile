@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Dict, Optional, Set, Tuple, TYPE_CHECKING
 
-from graphix_zx.graphstate import GraphState
+from graphix_zx.graphstate import BaseGraphState, compose_sequentially
 
-from lspattern.blocks.base import BlockDelta, GraphStateLike, RHGBlock
+from lspattern.blocks.base import BlockDelta, RHGBlock
 from lspattern.geom.rhg_parity import is_data
 
 if TYPE_CHECKING:
@@ -46,7 +46,7 @@ class InitPlus(RHGBlock):
 
         z = canvas.z_top
 
-        g: GraphStateLike = GraphState()
+        g: BaseGraphState = GraphState()
         node_at: Dict[Tuple[int, int], int] = {}
         node_coords: Dict[int, Tuple[int, int, int]] = {}
 

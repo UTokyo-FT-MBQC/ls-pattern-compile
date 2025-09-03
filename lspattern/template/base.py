@@ -1,0 +1,215 @@
+from dataclasses import dataclass, field
+
+
+@dataclass
+class ScalableTemplate:
+    d: int
+    kind: tuple[str, str, str]  # (X, Y, Z) faces 3-4 chars
+
+    data_coords: list[tuple[int, int]] = field(default_factory=list)
+    x_coords: list[tuple[int, int]] = field(default_factory=list)
+    z_coords: list[tuple[int, int]] = field(default_factory=list)
+    
+    # boundary coords
+    # left_coords: list[tuple[int, int]] = field(default_factory=list)
+    # right_coords: list[tuple[int, int]] = field(default_factory=list)
+    # top_coords: list[tuple[int, int]] = field(default_factory=list)
+    # bottom_coords: list[tuple[int, int]] = field(default_factory=list)
+
+    def to_tiling(self) -> dict: ...
+
+    def visualize_tiling(self, ax=None, show: bool = True, title_suffix: str | None = None) -> None:
+        """Visualize the tiling using matplotlib.
+
+        - data qubits: white-filled circles with black edge
+        - X faces: green circles
+        - Z faces: blue circles
+
+        Adds x/y ticks and grid; title shows d and kind.
+        """
+        import matplotlib.pyplot as plt
+
+        # Prepare coordinate arrays (robust to None/empties)
+        data = list(getattr(self, "data_coords", []) or [])
+        xs = list(getattr(self, "x_coords", []) or [])
+        zs = list(getattr(self, "z_coords", []) or [])
+
+        # Build figure/axes
+        created_fig = None
+        if ax is None:
+            created_fig, ax = plt.subplots(figsize=(6, 6))
+
+        # Helper to unpack list[(x,y)] -> two lists
+        def unpack(coords: list[tuple[int, int]]):
+            if not coords:
+                return [], []
+            x_vals, y_vals = zip(*coords)
+            return list(x_vals), list(y_vals)
+
+        # Plot points
+        dx, dy = unpack(data)
+        xx, xy = unpack(xs)
+        zx, zy = unpack(zs)
+
+        if dx:
+            ax.scatter(
+                dx,
+                dy,
+                s=120,
+                facecolors="white",
+                edgecolors="black",
+                linewidths=1.8,
+                label="data",
+            )
+        if xx:
+            ax.scatter(
+                xx,
+                xy,
+                s=90,
+                color="#2ecc71",
+                edgecolors="#1e8449",
+                linewidths=1.0,
+                label="X",
+            )
+        if zx:
+            ax.scatter(
+                zx,
+                zy,
+                s=90,
+                color="#3498db",
+                edgecolors="#1f618d",
+                linewidths=1.0,
+                label="Z",
+            )
+
+        # Axis limits: pad by 1 around all shown points
+        all_x = (dx or []) + (xx or []) + (zx or [])
+        all_y = (dy or []) + (xy or []) + (zy or [])
+        if all_x and all_y:
+            xmin, xmax = min(all_x), max(all_x)
+            ymin, ymax = min(all_y), max(all_y)
+            pad = 1
+            ax.set_xlim(xmin - pad, xmax + pad)
+            ax.set_ylim(ymin - pad, ymax + pad)
+
+            # Ticks at integer grid points within limits
+            xticks = list(range(int(xmin) - pad, int(xmax) + pad + 1))
+            yticks = list(range(int(ymin) - pad, int(ymax) + pad + 1))
+            ax.set_xticks(xticks)
+            ax.set_yticks(yticks)
+
+        # Grid and aspect
+        ax.grid(True, which="major", linestyle="--", linewidth=0.6, alpha=0.7)
+        ax.set_aspect("equal", adjustable="box")
+
+        # Axes labels and title
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        title_core = f"Tiling d={getattr(self, 'd', '?')} kind={getattr(self, 'kind', '?')}"
+        if title_suffix:
+            title_core += f" ({title_suffix})"
+        ax.set_title(title_core)
+
+        # Legend only if something is plotted
+        if any((dx, xx, zx)):
+            ax.legend(loc="upper right", frameon=True)
+
+        if created_fig is not None:
+            created_fig.tight_layout()
+        if show and created_fig is not None:
+            import matplotlib.pyplot as plt  # local import to avoid confusion
+            plt.show()
+
+
+class RotatedPlanarTemplate(ScalableTemplate):
+    # Denote = as X boundary and - as Z boundary
+    def to_tiling(self) -> dict:
+        d = self.d
+        # Local containers (avoid relying on dataclass defaults)
+        data_coords: set[tuple[int, int]] = set()
+        x_coords: set[tuple[int, int]] = set()
+        z_coords: set[tuple[int, int]] = set()
+
+        # 1) Data qubits at even-even coordinates within [0, 2d-2]
+        data_coords = {(2 * i, 2 * j) for i in range(d) for j in range(d)}
+
+        # 2) Bulk checks (odd-odd), two interleaving lattices per type
+        # X bulk seeds: (1,3) and (3,1)
+        for x0, y0 in ((1, 3), (3, 1)):
+            for x in range(x0, 2 * d - 1, 4):
+                for y in range(y0, 2 * d - 1, 4):
+                    x_coords.add((x, y))
+        # Z bulk seeds: (1,1) and (3,3)
+        for x0, y0 in ((1, 1), (3, 3)):
+            for x in range(x0, 2 * d - 1, 4):
+                for y in range(y0, 2 * d - 1, 4):
+                    z_coords.add((x, y))
+
+        # 3) X faces (left/right boundaries along x)
+        # kind[0] chooses which type lives on vertical boundaries
+        if self.kind[0] == "X":
+            # left: x=-1 at y=1,5,9,...; right: x=2d-1 at y=2d-3,2d-7,...
+            for y in range(1, 2 * d - 1, 4):
+                x_coords.add((-1, y))
+            for y in range(2 * d - 3, -1, -4):
+                x_coords.add((2 * d - 1, y))
+        elif self.kind[0] == "Z":
+            # left: Z at high-first sequence; right: Z at low-first sequence
+            for y in range(2 * d - 3, -1, -4):
+                z_coords.add((-1, y))
+            for y in range(1, 2 * d - 1, 4):
+                z_coords.add((2 * d - 1, y))
+
+        # 4) Y faces (top/bottom boundaries along y)
+        # kind[1] chooses which type lives on horizontal boundaries
+        if self.kind[1] == "X":
+            # bottom: y=-1 at x=1,5,9,...; top: y=2d-1 at x=2d-3,2d-7,...
+            for x in range(1, 2 * d - 1, 4):
+                x_coords.add((x, -1))
+            for x in range(2 * d - 3, -1, -4):
+                x_coords.add((x, 2 * d - 1))
+        elif self.kind[1] == "Z":
+            # bottom: Z at high-first sequence; top: Z at low-first sequence
+            for x in range(2 * d - 3, -1, -4):
+                z_coords.add((x, -1))
+            for x in range(1, 2 * d - 1, 4):
+                z_coords.add((x, 2 * d - 1))
+
+        # Prepare outputs as sorted lists for determinism
+        def sort_xy(points: set[tuple[int, int]]):
+            return sorted(points, key=lambda p: (p[1], p[0]))
+
+        result = {
+            "data": sort_xy(data_coords),
+            "X": sort_xy(x_coords),
+            "Z": sort_xy(z_coords),
+        }
+
+        # Also populate instance attrs if present (optional for visualization)
+        try:
+            self.data_coords = result["data"]  # type: ignore[attr-defined]
+            self.x_coords = result["X"]  # type: ignore[attr-defined]
+            self.z_coords = result["Z"]  # type: ignore[attr-defined]
+        except Exception:
+            pass
+
+        return result
+
+
+# simple testing (manual)
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+    d = 3
+    kinds = [("X", "X", "*"), ("X", "Z", "*"), ("Z", "X", "*"), ("Z", "Z", "*")]
+    labels = ["XX", "XZ", "ZX", "ZZ"]
+
+    fig, axes = plt.subplots(2, 2, figsize=(10, 10))
+    for (kx, ky, kz), label, ax in zip(kinds, labels, axes.ravel()):
+        template = RotatedPlanarTemplate(d=d, kind=(kx, ky, kz))
+        tiling = template.to_tiling()
+        print(label, {k: len(v) for k, v in tiling.items()})
+        template.visualize_tiling(ax=ax, show=False, title_suffix=label)
+
+    fig.suptitle(f"Rotated Planar XY Faces (d={d})")
+    fig.tight_layout()
+    plt.show()

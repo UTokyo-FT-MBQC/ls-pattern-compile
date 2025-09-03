@@ -1,41 +1,54 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Mapping, Optional, Protocol, Set, Tuple, TYPE_CHECKING
+from typing import (
+    Any,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Protocol,
+    Set,
+    Tuple,
+    TYPE_CHECKING,
+)
+
+from graphix_zx.graphstate import BaseGraphState
 
 if TYPE_CHECKING:
     # Import only for type checking to avoid circular imports at runtime.
     from ..canvas import RHGCanvas
 
 
-# ---------------------------------------------------------------------
-# Minimal GraphState protocol (to keep blocks/canvas decoupled from graphix_zx)
-# ---------------------------------------------------------------------
-class GraphStateLike(Protocol):
-    """Subset of `graphix_zx.graphstate.BaseGraphState` used by blocks/canvas."""
+@dataclass
+class RHGBlockSkeleton:
+    logical: int
+    d: int
+    origin: Optional[Tuple[int, int]] = None
 
-    # --- node/edge book-keeping ---
-    @property
-    def physical_nodes(self) -> Set[int]: ...
-    @property
-    def physical_edges(self) -> Set[Tuple[int, int]]: ...
-    def neighbors(self, node: int) -> Set[int]: ...
-    def add_physical_node(self) -> int: ...
-    def add_physical_edge(self, u: int, v: int) -> None: ...
 
-    # --- I/O port labeling for composition ---
-    @property
-    def input_node_indices(self) -> Dict[int, int]: ...
-    @property
-    def output_node_indices(self) -> Dict[int, int]: ...
-    def register_input(self, node: int) -> int: ...
-    def register_output(self, node: int, q_index: int) -> None: ...
+@dataclass
+class RHGBlock:
+    logical: int
+    d: int
+    origin: Optional[Tuple[int, int]] = None
+    kind: tuple[str, str, str]
+    template: Any
 
-    # --- measurement basis assignment (plane & angle live elsewhere) ---
-    def assign_meas_basis(self, node: int, meas_basis: Any) -> None: ...
+    def materialize(self, skeleton: RHGBlockSkeleton) -> None:
+        pass
 
-    # --- validation ---
-    def is_canonical_form(self) -> bool: ...
+
+class Memory(RHGBlock):
+    pass
+
+
+class InitPlus(RHGBlock):
+    pass
+
+
+class MeasureX(RHGBlock):
+    pass
 
 
 # ---------------------------------------------------------------------
@@ -56,12 +69,18 @@ class BlockDelta:
     """
 
     # The graph fragment contributed by the block (LOCAL ids).
-    local_graph: GraphStateLike
+    local_graph: BaseGraphState
 
     # MBQC interface (LOCAL ids)
-    in_ports: Dict[int, Set[int]] = field(default_factory=dict)   # logical -> set of input-side boundary nodes
-    out_ports: Dict[int, Set[int]] = field(default_factory=dict)  # logical -> set of output-side boundary nodes
-    out_qmap: Dict[int, Dict[int, int]] = field(default_factory=dict)  # logical -> {LOCAL node -> q_index}
+    in_ports: Dict[int, Set[int]] = field(
+        default_factory=dict
+    )  # logical -> set of input-side boundary nodes
+    out_ports: Dict[int, Set[int]] = field(
+        default_factory=dict
+    )  # logical -> set of output-side boundary nodes
+    out_qmap: Dict[int, Dict[int, int]] = field(
+        default_factory=dict
+    )  # logical -> {LOCAL node -> q_index}
 
     # Geometry annotations (LOCAL node -> (x, y, z))
     node_coords: Dict[int, Tuple[int, int, int]] = field(default_factory=dict)
@@ -77,12 +96,24 @@ class BlockDelta:
     flow_local: Dict[int, Set[int]] = field(default_factory=dict)
 
     # Unified parity directives that pair previous GLOBAL centers with current LOCAL nodes
-    parity_x_prev_global_curr_local: List[Tuple[int, List[int]]] = field(default_factory=list)
-    parity_z_prev_global_curr_local: List[Tuple[int, List[int]]] = field(default_factory=list)
+    parity_x_prev_global_curr_local: List[Tuple[int, List[int]]] = field(
+        default_factory=list
+    )
+    parity_z_prev_global_curr_local: List[Tuple[int, List[int]]] = field(
+        default_factory=list
+    )
 
     # Last ancilla layers (LOCAL) keyed by (x, y) -> LOCAL node id, for seam stitching
     seam_last_x: Dict[Tuple[int, int], int] = field(default_factory=dict)
     seam_last_z: Dict[Tuple[int, int], int] = field(default_factory=dict)
+
+    def shift_ids(self, by: int) -> None:
+        # change index of every elements
+        raise NotImplementedError()
+
+    def shift_coords(self, patch_coord: Tuple[int, int]) -> None:
+        # change the coordinates of every element
+        raise NotImplementedError()
 
 
 # ---------------------------------------------------------------------
@@ -92,6 +123,7 @@ class RHGBlock(Protocol):
     """Protocol for an RHG block (structural typing)."""
 
     logical: int
+    d: int
 
     def emit(self, canvas: "RHGCanvas") -> BlockDelta: ...
 

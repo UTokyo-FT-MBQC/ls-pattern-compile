@@ -3,9 +3,9 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 from graphix_zx.common import Plane, PlannerMeasBasis
-from graphix_zx.graphstate import GraphState
+from graphix_zx.graphstate import BaseGraphState, GraphState
 
-from lspattern.blocks.base import BlockDelta, GraphStateLike, RHGBlock
+from lspattern.blocks.base import BlockDelta, RHGBlock
 from lspattern.geom.rhg_parity import is_data
 
 if TYPE_CHECKING:
@@ -26,7 +26,11 @@ class _MeasureBase(RHGBlock):
 
     def __init__(self, logical: int, basis: str) -> None:
         self.logical = logical
-        self.basis = PlannerMeasBasis(Plane.XY, 0.0) if basis == "X" else PlannerMeasBasis(Plane.ZX, 0.0)
+        self.basis = (
+            PlannerMeasBasis(Plane.XY, 0.0)
+            if basis == "X"
+            else PlannerMeasBasis(Plane.ZX, 0.0)
+        )
 
     def emit(self, canvas: "RHGCanvas") -> BlockDelta:
         lidx = self.logical
@@ -42,13 +46,15 @@ class _MeasureBase(RHGBlock):
                 ys.append(y)
                 zs.append(z)
         if not xs:
-            raise ValueError("Measure.emit: could not find coordinates for boundary nodes.")
+            raise ValueError(
+                "Measure.emit: could not find coordinates for boundary nodes."
+            )
 
         x_min, x_max = min(xs), max(xs)
         y_min, y_max = min(ys), max(ys)
         z0 = max(zs)  # measure on the latest DATA layer
 
-        g: GraphStateLike = GraphState()
+        g: BaseGraphState = GraphState()
         layer_map: Dict[Tuple[int, int], int] = {}
         node_coords: Dict[int, Tuple[int, int, int]] = {}
 
@@ -64,7 +70,9 @@ class _MeasureBase(RHGBlock):
         # Preserve q_index order using the previous boundary's q_map.
         prev_qmap = canvas.logical_registry.boundary_qidx.get(lidx, {})
         if not prev_qmap:
-            raise ValueError(f"Measure.emit: boundary_qidx is missing for logical {lidx}")
+            raise ValueError(
+                f"Measure.emit: boundary_qidx is missing for logical {lidx}"
+            )
 
         inv_coord = {nid: coord for coord, nid in canvas.coord_to_node.items()}
         prev_xy_order: List[Tuple[int, int]] = []
@@ -107,5 +115,6 @@ class _MeasureBase(RHGBlock):
 
 class MeasureX(_MeasureBase):
     """Measure a logical block in the X basis."""
+
     def __init__(self, logical: int) -> None:
         super().__init__(logical, "X")
