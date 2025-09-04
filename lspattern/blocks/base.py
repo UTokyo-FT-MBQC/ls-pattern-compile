@@ -239,18 +239,6 @@ class RHGBlock:
         return {"data": data_nodes, "x_check": xcheck_nodes, "z_check": zcheck_nodes}
 
 
-class Memory(RHGBlock):
-    pass
-
-
-class InitPlus(RHGBlock):
-    pass
-
-
-class MeasureX(RHGBlock):
-    pass
-
-
 # ---------------------------------------------------------------------
 # Block delta (the unit of mutation produced by each block)
 # ---------------------------------------------------------------------

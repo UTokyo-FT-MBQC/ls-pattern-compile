@@ -1,13 +1,27 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=66", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "lspattern"
-version = "0.1.0"
-requires-python = ">=3.10, <3.14"
-dynamic = ["dependencies", "optional-dependencies"]
+version = "0.0.1"
+description = "MBQC lattice-surgery compiler experiments (RHG blocks/pipes)"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Internal", email = "devnull@example.com" }
+]
+dependencies = []
 
-[tool.ruff]
-# Align Ruff parser with Python 3.12 so modern syntax (match/case) parses.
-target-version = "py312"
+[tool.setuptools]
+packages = [
+  "lspattern",
+  "graphix_zx",
+  "tqec",
+]
+
+[tool.setuptools.package-dir]
+lspattern = "lspattern"
+graphix_zx = "src/graphix-zx/graphix_zx"
+tqec = "src/tqec/src/tqec"
+

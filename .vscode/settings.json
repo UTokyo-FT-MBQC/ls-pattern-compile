@@ -1,11 +1,17 @@
 {
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  "python.envFile": "${workspaceFolder}/.env",
   "python.analysis.typeCheckingMode": "basic",
   "python.analysis.extraPaths": [
+    "${workspaceFolder}",
+    "lspattern",
     "src",
     "src/graphix-zx",
     "src/tqec/src"
   ],
+  "terminal.integrated.env.windows": {
+    "PYTHONPATH": "${workspaceFolder}"
+  },
   "ruff.lint.run": "onSave",
   "ruff.fixOnSave": true,
   "editor.codeActionsOnSave": {
@@ -17,4 +23,3 @@
     ".venv": false
   }
 }
-

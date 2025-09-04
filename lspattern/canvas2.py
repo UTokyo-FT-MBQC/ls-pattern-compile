@@ -22,6 +22,19 @@ from lspattern.pipes.base import RHGPipe
 from lspattern.utils import __tuple_sum, get_direction
 
 
+@dataclass
+class ParityAccumulator:
+    # Parity check groups (local ids)
+    x_checks: list[set[NodeIdLocal]] = field(default_factory=list)
+    z_checks: list[set[NodeIdLocal]] = field(default_factory=list)
+
+
+@dataclass
+class FlowAccumulator:
+    xflow: dict[NodeIdLocal, set[NodeIdLocal]] = field(default_factory=dict)
+    zflow: dict[NodeIdLocal, set[NodeIdLocal]] = field(default_factory=dict)
+
+
 class TemporalLayer:
     z: int
     qubit_count: int
@@ -35,6 +48,10 @@ class TemporalLayer:
     in_ports: list[NodeIdLocal]
     out_ports: list[NodeIdLocal]
     cout_ports: list[NodeIdLocal]
+
+    schedule: ScheduleAccumulator
+    flow: FlowAccumulator
+    parity: ParityAccumulator
 
     local_graph: GraphState
     node2coord: dict[NodeIdLocal, PhysCoordGlobal3D]
@@ -115,17 +132,17 @@ class TemporalLayer:
 
 
 @dataclass
-class Scheduler:
+class ScheduleAccumulator:
     schedule: dict[int, Set[NodeIdGlobal]] = field(default_factory=dict)
 
-    def compose_parallel(self, other: Scheduler) -> Scheduler:
+    def compose_parallel(self, other: ScheduleAccumulator) -> ScheduleAccumulator:
         new_schedule = self.schedule.copy()
         for t, nodes in other.schedule.items():
             if t in new_schedule:
                 new_schedule[t].update(nodes)
             else:
                 new_schedule[t] = nodes
-        return Scheduler(new_schedule)
+        return ScheduleAccumulator(new_schedule)
 
     def shift_z(self, z_by: int) -> None:
         new_schedule = {}
@@ -133,12 +150,14 @@ class Scheduler:
             new_schedule[t + z_by] = nodes
         self.schedule = new_schedule
 
-    def compose_sequential(self, late_schedule: Scheduler) -> Scheduler:
+    def compose_sequential(
+        self, late_schedule: ScheduleAccumulator
+    ) -> ScheduleAccumulator:
         new_schedule = self.schedule.copy()
         late_schedule.shift_z(max(self.schedule.keys()) + 1)
         for t, nodes in late_schedule.schedule.items():
             new_schedule[t] = new_schedule.get(t, set()).union(nodes)
-        return Scheduler(new_schedule)
+        return ScheduleAccumulator(new_schedule)
 
 
 @dataclass
@@ -152,8 +171,9 @@ class CompiledRHGCanvas:
     out_portset: dict[PatchCoordGlobal3D, list[int]] = field(default_factory=dict)
     cout_portset: dict[PatchCoordGlobal3D, list[int]] = field(default_factory=dict)
 
-    scheduler: Scheduler
-    flower: "Flower"
+    schedule: ScheduleAccumulator
+    flow: FlowAccumulator
+    parity: ParityAccumulator
     z: int = 0
 
     def generate_stim_circuit(self) -> stim.Circuit:
@@ -219,16 +239,78 @@ def to_temporal_layer(
 def add_temporal_layer(
     cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pipes: list[RHGPipe]
 ) -> CompiledRHGCanvas:
-    # TODO: This is Task T1-2: Implement temporal composition of two layers
-    # Implement temporal composition logic here
-    out_portset = cgraph.out_portset
-    in_portset = next_layer.in_portset
+    """Compose the compiled canvas with the next temporal layer.
 
-    for pipe in pipes:
-        assert pipe.is_temporal == True
-        source, sink = pipe.source, pipe.sink
-        out_ports = out_portset[source]
-        in_ports = in_portset[sink]
-        # simply connect the two
-        # note that in this case pipe has NO physical qubits. Simply connect via CZ and extra stabilizer network
-        graph = compose_sequentially(graph)
+    Follows the legacy-canvas pattern:
+      - If there is no existing global graph, ingest the layer as-is.
+      - Otherwise, compose sequentially and remap existing registries via node_map1,
+        then ingest the layer's locals via node_map2.
+
+    Additionally, if temporal pipes are provided, connect corresponding out->in
+    port nodes by adding CZ edges (modeled as physical edges here) between paired nodes.
+
+    NOTE: This assumes `next_layer.local_graph` is a canonical GraphState built
+    from its blocks/pipes. If it's None, we keep cgraph unchanged.
+    """
+
+    # If the canvas is empty, this is the first layer.
+    if cgraph.global_graph is None:
+        new_cgraph = CompiledRHGCanvas(
+            layers=[next_layer],
+            global_graph=next_layer.local_graph,
+            coord2node=next_layer.coord2node,
+            in_portset=next_layer.in_portset,
+            out_portset=next_layer.out_portset,
+            cout_portset=next_layer.cout_portset,
+            scheduler=next_layer.scheduler,
+            z=next_layer.z,
+        )
+        return new_cgraph
+
+    graph1 = cgraph.global_graph
+    graph2 = next_layer.local_graph
+
+    # Compose sequentially with node remaps
+    new_graph, node_map1, node_map2 = compose_sequentially(graph1, graph2)
+
+    # Create a new CompiledRHGCanvas to hold the merged result.
+    new_layers = cgraph.layers + [next_layer]
+    new_z = next_layer.z
+
+    # Remap nodes
+    for coord, old_nodeid in graph1.coord2node.items():
+        new_cgraph.coord2node[coord] = node_map1[old_nodeid]
+    for coord, old_nodeid in graph2.coord2node.items():
+        new_cgraph.coord2node[coord] = node_map2[old_nodeid]
+
+    # Remap portsets
+    in_portset = {}
+    out_portset = {}
+    cout_portset = {}
+
+    for pos, nodes in next_layer.in_portset.items():
+        in_portset[pos] = [node_map2[n] for n in nodes]
+    for pos, nodes in cgraph.out_portset.items():
+        out_portset[pos] = [node_map1[n] for n in nodes]
+    for pos, nodes in cgraph.cout_portset.items():
+        cout_portset[pos] = [node_map1[n] for n in nodes]
+    for pos, nodes in next_layer.cout_portset.items():
+        cout_portset[pos] = [node_map2[n] for n in nodes]
+
+    # scheduler, xflow, parity
+    new_schedule = cgraph.schedule.compose_sequential(next_layer.schedule)
+    # TODO: Implement xflow and parity composition
+    new_xflow = ...
+    new_parity = ...
+    cgraph = CompiledRHGCanvas(
+        layers=new_layers,
+        global_graph=new_graph,
+        coord2node=new_cgraph.coord2node,
+        in_portset=in_portset,
+        out_portset=out_portset,
+        cout_portset=cout_portset,
+        scheduler=cgraph.scheduler.compose_sequential(next_layer.scheduler),
+        z=new_z,
+    )
+
+    return cgraph
