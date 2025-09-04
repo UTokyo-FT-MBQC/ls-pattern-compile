@@ -116,7 +116,7 @@ EdgeSpecValue = Literal["X", "Z", "O"]
 
 
 class _EdgeSpecMeta(type):
-    _allowed_keys = {"TOP", "BOTTOM", "LEFT", "RIGHT"}
+    _allowed_keys = {"TOP", "BOTTOM", "LEFT", "RIGHT", "UP", "DOWN"}
     _allowed_vals = {"X", "Z", "O"}
     _values: Dict[str, str] = {k: "O" for k in _allowed_keys}
 
@@ -150,7 +150,7 @@ class EdgeSpec(metaclass=_EdgeSpecMeta):
     - Set per-side spec:  EdgeSpec.TOP = "X"
     - Read current spec:  EdgeSpec.TOP  -> "X"
     - Allowed values: "X", "Z", "O" only.
-    - Sides handled: TOP, BOTTOM, LEFT, RIGHT.
+    - Sides handled: TOP, BOTTOM, LEFT, RIGHT, UP, DOWN.
 
     Helper methods
     --------------

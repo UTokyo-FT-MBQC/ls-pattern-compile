@@ -6,6 +6,7 @@ from typing import Optional, Set
 # import stim
 # graphix_zx pieces
 from graphix_zx.graphstate import GraphState, compose_in_parallel, compose_sequentially
+
 from lspattern.accumulator import (
     FlowAccumulator,
     ParityAccumulator,
@@ -347,6 +348,7 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
 @dataclass
 class RHGCanvas2:  # TopologicalComputationGraph in tqec
     name: str = "Blank Canvas"
+    # blocks pipesは最後までmateiralizeされることはない。してもいいけど。tilingはmaterializeできる
     blocks_: dict[PatchCoordGlobal3D, RHGBlockSkeleton] = field(default_factory=dict)
     pipes_: dict[PipeCoordGlobal3D, RHGPipeSkeleton] = field(default_factory=dict)
     layers: Optional[list[TemporalLayer]] = None
