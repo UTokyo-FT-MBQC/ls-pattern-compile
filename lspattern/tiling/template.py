@@ -5,7 +5,7 @@ from lspattern.tiling.base import Tiling
 from lspattern.utils import sort_xy
 
 
-# TODO: remove kind. Use edgespec
+
 @dataclass(kw_only=True)
 class ScalableTemplate(Tiling):
     d: int
@@ -166,7 +166,7 @@ class ScalableTemplate(Tiling):
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         title_core = (
-            f"Tiling d={getattr(self, 'd', '?')} kind={getattr(self, 'kind', '?')}"
+            f"Tiling d={getattr(self, 'd', '?')} edgespec={getattr(self, 'edgespec', '?')}"
         )
         if title_suffix:
             title_core += f" ({title_suffix})"
@@ -185,7 +185,6 @@ class ScalableTemplate(Tiling):
 
 
 class RotatedPlanarTemplate(ScalableTemplate):
-    # Denote = as X boundary and - as Z boundary
     def to_tiling(self) -> dict[str, list[tuple[int, int]]]:
         d = self.d
         # Local containers (avoid relying on dataclass defaults)
@@ -311,7 +310,51 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                 case "O":
                     pass
 
-        elif self._spec("TOP") == self._spec("BOTTOM") == "O":
+        # kind廃止の際はself.directionがXpm,Ypm, Zpmで取得できるようにする
+        if self._spec("LEFT") == "O" and self._spec("RIGHT") == "O":
+            """
+            if self.kind[0] == "O", which means this pipe is piping along X direction
+
+            The schematic. = shows X boundary and - shows Z boundary
+            ===== KKK =====
+            |   | x x |   |
+            |   | x x |   |
+            ===== KKK =====
+
+            So the tiling has the footprint of (1, d), excluding the ancilla qubits. If we include them it will be (3, d+1)
+            Here K means the boundary designated by kind[1]
+            """
+            # data qubits
+            for y in range(0, 2 * d, 2):
+                data_coords.add((0, y))
+            # x ancillas (bulk)
+            for n in range(d - 2):
+                x = (-1) ** n
+                y = 2 * n + 1
+                x_coords.add((x, y))
+            # z ancillas (bulk)
+            for n in range(d - 2):
+                x = -((-1) ** n)
+                y = 2 * n + 1
+                z_coords.add((x, y))
+
+            match self._spec("TOP"):
+                case "X":
+                    x_coords.add((1, 2 * d + 1))
+                case "Z":
+                    z_coords.add((-1, 2 * d + 1))
+                case "O":
+                    pass
+
+            match self._spec("BOTTOM"):
+                case "X":
+                    x_coords.add((-1, -1))
+                case "Z":
+                    z_coords.add((1, -1))
+                case "O":
+                    pass
+
+        elif self._spec("TOP") == "O" and self._spec("BOTTOM") == "O":
             """
             If `self.kind[1] == "O"`, the pipe runs along the Y direction
             (horizontal faces are open/trimmed). This is the 90-degree-rotated
@@ -389,6 +432,79 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
 # simple testing (manual)
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
+    from lspattern.mytype import EdgeSpec  # use global class-level spec
+
+    def set_edgespec(**kw):
+        # Reset to open by default, then apply overrides
+        EdgeSpec.update({"TOP": "O", "BOTTOM": "O", "LEFT": "O", "RIGHT": "O"})
+        EdgeSpec.update({k.upper(): v for k, v in kw.items()})
+
+    SHOW_BLOCK = False
+    SHOW_PIPE = True
+
+    if SHOW_BLOCK:
+        d = 3
+        configs = [
+            ("L/R=X, T/B=Z", {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}),
+            ("L/R=Z, T/B=X", {"LEFT": "Z", "RIGHT": "Z", "TOP": "X", "BOTTOM": "X"}),
+            ("All X", {"LEFT": "X", "RIGHT": "X", "TOP": "X", "BOTTOM": "X"}),
+            ("All Z", {"LEFT": "Z", "RIGHT": "Z", "TOP": "Z", "BOTTOM": "Z"}),
+        ]
+
+        fig, axes = plt.subplots(2, 2, figsize=(10, 10))
+        for (label, spec), ax in zip(configs, axes.ravel()):
+            set_edgespec(**spec)
+            template = RotatedPlanarTemplate(d=d, edgespec=spec)
+            tiling = template.to_tiling()
+            print(label, {k: len(v) for k, v in tiling.items()})
+            template.visualize_tiling(ax=ax, show=False, title_suffix=label)
+
+        fig.suptitle(f"Rotated Planar (EdgeSpec-driven) d={d}")
+        fig.tight_layout()
+        plt.show()
+
+    if SHOW_PIPE:
+        d = 7
+        pipe_cfgs = [
+            ("Pipe X: TOP=X, BOTTOM=Z", {"TOP": "X", "BOTTOM": "Z"}),
+            ("Pipe X: TOP=Z, BOTTOM=X", {"TOP": "Z", "BOTTOM": "X"}),
+            ("Pipe Y: LEFT=X, RIGHT=Z", {"LEFT": "X", "RIGHT": "Z"}),
+            ("Pipe Y: LEFT=Z, RIGHT=X", {"LEFT": "Z", "RIGHT": "X"}),
+        ]
+
+        fig2, axes2 = plt.subplots(2, 2, figsize=(10, 10))
+        for (label, spec), ax in zip(pipe_cfgs, axes2.ravel()):
+            set_edgespec(**spec)
+            ptemp = RotatedPlanarPipetemplate(d=d, edgespec=spec)
+            tiling = ptemp.to_tiling()
+            print(label, {k: len(v) for k, v in tiling.items()})
+            ptemp.visualize_tiling(ax=ax, show=False, title_suffix=label)
+
+        fig2.suptitle(f"Rotated Planar Pipes (EdgeSpec) d={d}")
+        fig2.tight_layout()
+        plt.show()
+        elif self._spec("UP") == "O" or self._spec("DOWN") == "O":
+            raise NotImplementedError("Temporal pipe not supported yet")
+        else:
+            raise ValueError("This pipe has no connection boundary")
+
+        # Build deterministic result and also populate instance attributes (optional)
+        result = {
+            "data": sort_xy(data_coords),
+            "X": sort_xy(x_coords),
+            "Z": sort_xy(z_coords),
+        }
+
+        self.data_coords = result["data"]  # type: ignore[attr-defined]
+        self.x_coords = result["X"]  # type: ignore[attr-defined]
+        self.z_coords = result["Z"]  # type: ignore[attr-defined]
+
+        return result
+
+
+# simple testing (manual)
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
     from mytype import EdgeSpec  # use global class-level spec
 
     def set_edgespec(**kw):
@@ -423,16 +539,16 @@ if __name__ == "__main__":
     if SHOW_PIPE:
         d = 7
         pipe_cfgs = [
-            ("Pipe X: TOP=X, BOTTOM=Z", ("O", "X", "*"), {"TOP": "X", "BOTTOM": "Z"}),
-            ("Pipe X: TOP=Z, BOTTOM=X", ("O", "Z", "*"), {"TOP": "Z", "BOTTOM": "X"}),
-            ("Pipe Y: LEFT=X, RIGHT=Z", ("X", "O", "*"), {"LEFT": "X", "RIGHT": "Z"}),
-            ("Pipe Y: LEFT=Z, RIGHT=X", ("Z", "O", "*"), {"LEFT": "Z", "RIGHT": "X"}),
+            ("Pipe X: TOP=X, BOTTOM=Z", {"TOP": "X", "BOTTOM": "Z"}),
+            ("Pipe X: TOP=Z, BOTTOM=X", {"TOP": "Z", "BOTTOM": "X"}),
+            ("Pipe Y: LEFT=X, RIGHT=Z", {"LEFT": "X", "RIGHT": "Z"}),
+            ("Pipe Y: LEFT=Z, RIGHT=X", {"LEFT": "Z", "RIGHT": "X"}),
         ]
 
         fig2, axes2 = plt.subplots(2, 2, figsize=(10, 10))
-        for (label, kind, spec), ax in zip(pipe_cfgs, axes2.ravel()):
+        for (label, spec), ax in zip(pipe_cfgs, axes2.ravel()):
             set_edgespec(**spec)
-            ptemp = RotatedPlanarPipetemplate(d=d, edgespec=EdgeSpec)
+            ptemp = RotatedPlanarPipetemplate(d=d, edgespec=spec)
             tiling = ptemp.to_tiling()
             print(label, {k: len(v) for k, v in tiling.items()})
             ptemp.visualize_tiling(ax=ax, show=False, title_suffix=label)

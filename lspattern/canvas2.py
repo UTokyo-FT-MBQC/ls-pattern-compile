@@ -6,13 +6,12 @@ from typing import Optional, Set
 # import stim
 # graphix_zx pieces
 from graphix_zx.graphstate import GraphState, compose_in_parallel, compose_sequentially
-
 from lspattern.accumulator import (
     FlowAccumulator,
     ParityAccumulator,
     ScheduleAccumulator,
 )
-from lspattern.blocks.base import BlockDelta, RHGBlock, RHGBlockSkeleton
+from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import (
     NodeIdGlobal,
@@ -195,11 +194,11 @@ class TemporalLayer:
                 u: PhysCoordGlobal3D = node  # type: ignore[assignment]
                 v: PhysCoordGlobal3D = __tuple_sum(node, direction)  # type: ignore[assignment]
 
-    def add_blocks(self, blocks: dict[PatchCoordGlobal3D, BlockDelta]) -> None:
+    def add_blocks(self, blocks: dict[PatchCoordGlobal3D, RHGBlock]) -> None:
         for pos, block in blocks.items():
             self.add_block(pos, block)
 
-    def add_pipes(self, pipes: dict[PipeCoordGlobal3D, BlockDelta]) -> None:
+    def add_pipes(self, pipes: dict[PipeCoordGlobal3D, RHGBlock]) -> None:
         for (start, end), pipe in pipes.items():
             self.add_pipe(start, end, pipe)
 

@@ -4,10 +4,10 @@ from typing import List, Set
 
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.graphstate import GraphState
-from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
+from lspattern.blocks.base import RHGBlock
+from lspattern.blocks.skeleton import RHGBlockSkeleton
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import (
-    BlockKindstr,
     FlowLocal,
     NodeIdLocal,
     NodeSetLocal,
@@ -21,23 +21,10 @@ from lspattern.template.base import RotatedPlanarTemplate
 
 class InitPlusSkeleton(RHGBlockSkeleton):
     name: str = __qualname__
-    d: int
-    kind: BlockKindstr
 
-
-class InitPlus(RHGBlock):
-    name: str = __qualname__
-
-    def materialize(self):
-        # Build 2d-rotated planar tiling across 2*d time steps plus final data slice.
-        # - Even z: X-ancillas present (except final slice)
-        # - Odd z:  Z-ancillas present (except final slice)
-        # - Every z: DATA present; last slice DATA are outputs and not measured
-        if self.template.kind != self.kind:
-            raise ValueError("Template kind mismatch")
-
-        tiling = self.template.to_tiling()
-        data_indices = self.template.get_data_indices()
+    def to_canvas(self) -> "RHGBlock":
+        tiling = self.tiling.to_tiling()
+        data_indices = self.tiling.get_data_indices()
 
         g = GraphState()
         coord2node: dict[PhysCoordLocal3D, NodeIdLocal] = {}
@@ -152,18 +139,30 @@ class InitPlus(RHGBlock):
             if node2role.get(n) == "data":
                 out_ports.add(n)
 
-        # Bind to block fields
-        self.graph_local = g
-        self.node2coord = node2coord
-        self.coord2node = {coord: nid for nid, coord in node2coord.items()}
-        self.node2role = node2role
-        self.in_ports = set()
-        self.out_ports = out_ports
-        self.cout_ports = []
-        self.x_checks = x_checks
-        self.z_checks = z_checks
-        self.schedule_local = schedule_local
-        self.flow_local = flow_local
+        # Create RHGBlock instance
+        block = RHGBlock(
+            d=self.d,
+            graph_local=g,
+            node2coord=node2coord,
+            coord2node={coord: nid for nid, coord in node2coord.items()},
+            node2role=node2role,
+            in_ports=set(), # Assuming no explicit input ports for InitPlus
+            out_ports=out_ports,
+            cout_ports=[], # Assuming no classical output ports for InitPlus
+            x_checks=x_checks,
+            z_checks=z_checks,
+            schedule_local=schedule_local,
+            flow_local=flow_local,
+            boundary_spec=self.edgespec, # Use edgespec from skeleton
+            template=self.tiling # Pass the tiling as template
+        )
+        return block
+
+
+class InitPlus(RHGBlock):
+    name: str = __qualname__
+
+    
 
 
 if __name__ == "__main__":
@@ -173,17 +172,17 @@ if __name__ == "__main__":
 
     # Hardcoded options (edit here as needed)
     d = 3
-    kind = ("X", "Z", "X")  # e.g., "XZX"
+    edgespec = {"TOP": "X", "BOTTOM": "Z", "LEFT": "X", "RIGHT": "Z"}  # e.g., {"TOP":"X","BOTTOM":"Z",...}
     ANCILLA_MODE = "both"  # "both" | "x" | "z"
     EDGE_WIDTH = 0.5  # thicker black edges
     INTERACTIVE = True  # interactive plot
 
     # Build template and block
-    template = RotatedPlanarTemplate(d=d, kind=kind)
+    template = RotatedPlanarTemplate(d=d, edgespec=edgespec)
     _ = template.to_tiling()  # populate internal coords for indices
 
-    block = InitPlus(d=d, kind=kind, template=template)
-    block.materialize()
+    block = InitPlus(d=d, template=template)
+    # block.materialize()
 
     g = block.graph_local
     node2coord = block.node2coord
@@ -224,7 +223,7 @@ if __name__ == "__main__":
     fig = plt.figure(figsize=(8, 7))
     ax = fig.add_subplot(111, projection="3d")
     ax.set_box_aspect((1, 1, 1))
-    ax.set_title(f"InitPlus RHGBlock d={d} kind={kind}")
+    ax.set_title(f"InitPlus RHGBlock d={d} edgespec={edgespec}")
 
     # Plot nodes by role with template-like colors
     for role, pts in list(groups.items()):

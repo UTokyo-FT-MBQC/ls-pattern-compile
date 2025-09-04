@@ -64,8 +64,7 @@ FlowLocal = Dict[NodeIdLocal, NodeSetLocal]
 ParityCapsLocal = List[Tuple[NodeIdGlobal, List[NodeIdLocal]]]
 
 # Block kind
-BlockKindstr = tuple[str, str, str]
-
+SpatialEdgeSpec = Dict[str, EdgeSpecValue]
 
 __all__ = [
     # ids
@@ -92,30 +91,7 @@ __all__ = [
     "FlowLocal",
     # parity
     "ParityCapsLocal",
-    # kinds
-    "BlockKindstr",
     # directions
-]
-
-# ---------------------------------------------------------------------
-# Boundary enums and types (for per-side face specification)
-# ---------------------------------------------------------------------
-
-
-class BoundarySide(str, Enum):
-    TOP = "TOP"  # +Y
-    BOTTOM = "BOTTOM"  # -Y
-    LEFT = "LEFT"  # -X
-    RIGHT = "RIGHT"  # +X
-    UP = "UP"  # +Z
-    DOWN = "DOWN"  # -Z
-
-
-SpatialEdge = Literal["left", "right", "top", "bottom", "up", "down"]
-EdgeSpecValue = Literal["X", "Z", "O"]
-SpatialEdgeSpec = Dict[SpatialEdge, EdgeSpecValue]
-
-__all__ += [
     "BoundarySide",
     "SpatialEdgeSpec",
 ]
