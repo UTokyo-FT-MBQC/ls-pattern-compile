@@ -2,6 +2,7 @@ import os
 from typing import NamedTuple, Optional
 
 import matplotlib.pyplot as plt
+
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.graphstate import GraphState
 

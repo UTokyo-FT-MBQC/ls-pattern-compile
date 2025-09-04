@@ -9,23 +9,23 @@ Usage:
 
 # %%
 import pathlib
+import sys
 
 import pymatching
 import stim
+
+from graphix_zx.pattern import Pattern
 from graphix_zx.stim_compiler import stim_compile
-from graphix_zx.pattern import Pattern, print_pattern
-import sys
 
 sys.path.append(r"C:\Users\qipe\Documents\GitHub\ls-pattern-compile")
 
-from lspattern.canvas2 import RHGCanvas2, CompiledRHGCanvas
-from lspattern.blocks import InitPlus, Memory, MeasureX
-from lspattern.visualize import visualize_canvas
+from lspattern.blocks import InitPlus, MeasureX, Memory
+from lspattern.canvas2 import CompiledRHGCanvas, RHGCanvas2
 from lspattern.mytype import PatchCoordGlobal3D
 
 # %%
-d = 2
-r = 1
+d = 3
+r = 3
 
 canvas = RHGCanvas2("Memory X")
 
@@ -47,7 +47,7 @@ layers = canvas.to_temporal_layers()
 compiled_canvas = CompiledRHGCanvas(
     layers=layers,
 )
-
+pattern = compiled_canvas.compile()
 # %%
 stim_str = stim_compile(
     pattern,

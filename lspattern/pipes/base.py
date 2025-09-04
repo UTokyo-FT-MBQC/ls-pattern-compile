@@ -1,22 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import (
     Any,
-    Dict,
-    List,
     Literal,
-    Mapping,
     Optional,
-    Protocol,
-    Set,
     Tuple,
-    TYPE_CHECKING,
 )
 
 from graphix_zx.graphstate import BaseGraphState
-from lspattern.mytype import PatchCoordGlobal3D, BlockKindstr
-from lspattern.pipes.base import RHGPipe
+from lspattern.mytype import BlockKindstr, PatchCoordGlobal3D
+
 
 @dataclass
 class RHGPipeSkeleton:

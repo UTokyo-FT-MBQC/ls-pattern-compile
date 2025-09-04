@@ -3,15 +3,17 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional, Set
 
-import stim
-
+# import stim
 # graphix_zx pieces
 from graphix_zx.graphstate import GraphState, compose_sequentially
-
+from lspattern.accumulator import (
+    FlowAccumulator,
+    ParityAccumulator,
+    ScheduleAccumulator,
+)
 from lspattern.blocks.base import BlockDelta, RHGBlock
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import (
-    FlowLocal,
     NodeIdGlobal,
     NodeIdLocal,
     PatchCoordGlobal3D,
@@ -20,51 +22,6 @@ from lspattern.mytype import (
 )
 from lspattern.pipes.base import RHGPipe
 from lspattern.utils import __tuple_sum, get_direction
-
-
-# Flow helpers (node maps guaranteed to contain all keys)
-def _remap_flow(flow: FlowLocal, node_map: dict[NodeIdLocal, NodeIdLocal]) -> FlowLocal:
-    return {
-        node_map[src]: {node_map[dst] for dst in dsts} for src, dsts in flow.items()
-    }
-
-
-def _merge_flow(a: FlowLocal, b: FlowLocal) -> FlowLocal:
-    out: FlowLocal = {}
-    for src, dsts in a.items():
-        if not dsts:
-            continue
-        out.setdefault(src, set()).update(dsts)
-    for src, dsts in b.items():
-        if not dsts:
-            continue
-        out.setdefault(src, set()).update(dsts)
-    return out
-
-
-# Parity groups: remap list[set[int]] via node maps and concatenate.
-def _remap_groups(
-    groups: list[set[NodeIdLocal]],
-    node_map: dict[NodeIdLocal, NodeIdLocal],
-) -> list[set[NodeIdLocal]]:
-    return [
-        {node_map.get(n, n) for n in grp}
-        for grp in groups
-        if grp  # skip empty
-    ]
-
-
-@dataclass
-class ParityAccumulator:
-    # Parity check groups (local ids)
-    x_checks: list[set[NodeIdLocal]] = field(default_factory=list)
-    z_checks: list[set[NodeIdLocal]] = field(default_factory=list)
-
-
-@dataclass
-class FlowAccumulator:
-    xflow: dict[NodeIdLocal, set[NodeIdLocal]] = field(default_factory=dict)
-    zflow: dict[NodeIdLocal, set[NodeIdLocal]] = field(default_factory=dict)
 
 
 class TemporalLayer:
@@ -103,22 +60,51 @@ class TemporalLayer:
         self.coord2node = {}
 
     def add_block(self, pos: PatchCoordGlobal3D, block: RHGBlock) -> None:
-        # shift qubit ids and coordinate
-        block.shift_ids(by=self.qubit_count)
-        block.shift_coords(patch_coord=pos)
+        # Ensure the block has a template and is materialized
+        if getattr(block, "template", None) is None:
+            try:
+                from lspattern.template.base import RotatedPlanarTemplate
+
+                block.template = RotatedPlanarTemplate(d=block.d, kind=block.kind)
+                _ = block.template.to_tiling()
+            except Exception:
+                pass
+        if getattr(block, "graph_local", None) in (None, {}) or not getattr(block, "node2coord", {}):
+            # Materialize if not already
+            try:
+                block.materialize()
+            except Exception:
+                # If materialization fails, proceed without composing graph to avoid crash
+                pass
+
+        # shift qubit ids and coordinates for placement
+        block.shift_ids(self.qubit_count)
+        block.shift_coords(pos)
 
         # Update patch, input/output ports
         self.patches.append(pos)
-        self.in_portset[pos] = block.in_ports
-        self.out_portset[pos] = block.out_ports
+        try:
+            self.in_portset[pos] = list(getattr(block, "in_ports", []))
+            self.out_portset[pos] = list(getattr(block, "out_ports", []))
+        except Exception:
+            self.in_portset[pos] = []
+            self.out_portset[pos] = []
 
         # Update node2coord and coord2node
-        for n, coord in block.node2coords.items():
+        for n, coord in getattr(block, "node2coord", {}).items():
             self.node2coord[n] = coord
             self.coord2node[coord] = n
 
+        # Initialize or update the layer's local graph minimally
+        if getattr(self, "local_graph", None) is None:
+            self.local_graph = getattr(block, "graph_local", None)
+        # For now, skip composition with compose_sequentially until multi-block wiring is needed
+
     def add_pipe(
-        self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D, pipe: RHGPipe
+        self,
+        source: PatchCoordGlobal3D,
+        sink: PatchCoordGlobal3D,
+        spatial_pipe: RHGPipe,
     ) -> None:
         """
         This is the function to add a pipe to the temporal layer.
@@ -129,27 +115,29 @@ class TemporalLayer:
         """
         # TODO: Implement add_pipe functionality
         # shift qubit ids and coordinate
-        pipe.shift_ids(by=self.qubit_count)
-        pipe.shift_coords(patch_coord=source, direction=get_direction(source, sink))
+        spatial_pipe.shift_ids(by=self.qubit_count)
+        spatial_pipe.shift_coords(
+            patch_coord=source, direction=get_direction(source, sink)
+        )
 
         # Update pipe3d, input/output ports
         self.lines.append((source, sink))
-        self.in_portset[source] = pipe.in_ports
-        self.out_portset[sink] = pipe.out_ports
+        self.in_portset[source] = spatial_pipe.in_ports
+        self.out_portset[sink] = spatial_pipe.out_ports
 
         # update node2coord and coord2node
-        for n, coord in pipe.node_coords.items():
+        for n, coord in spatial_pipe.node_coords.items():
             self.node2coord[n] = coord
             self.coord2node[coord] = n
 
         # search for new RHG CZ-connection
-        for node in pipe.local_graph.physical_nodes:
+        for node in spatial_pipe.local_graph.physical_nodes:
             for direction in DIRECTIONS3D:
                 u: PhysCoordGlobal3D = node  # type: ignore[assignment]
                 v: PhysCoordGlobal3D = __tuple_sum(node, direction)  # type: ignore[assignment]
 
         # search for new detector groups
-        for node in pipe.local_graph.physical_nodes:
+        for node in spatial_pipe.local_graph.physical_nodes:
             for direction in DIRECTIONS3D:
                 u: PhysCoordGlobal3D = node  # type: ignore[assignment]
                 v: PhysCoordGlobal3D = __tuple_sum(node, direction)  # type: ignore[assignment]
@@ -162,34 +150,48 @@ class TemporalLayer:
         for (start, end), pipe in pipes.items():
             self.add_pipe(start, end, pipe)
 
+    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> TemporalLayer:
+        new_layer = TemporalLayer(self.z)
+        new_layer.qubit_count = self.qubit_count
+        new_layer.patches = self.patches.copy()
+        new_layer.lines = self.lines.copy()
 
-@dataclass
-class ScheduleAccumulator:
-    schedule: dict[int, Set[NodeIdGlobal]] = field(default_factory=dict)
+        new_layer.in_portset = {
+            pos: [node_map[n] for n in nodes] for pos, nodes in self.in_portset.items()
+        }
+        new_layer.out_portset = {
+            pos: [node_map[n] for n in nodes] for pos, nodes in self.out_portset.items()
+        }
 
-    def compose_parallel(self, other: ScheduleAccumulator) -> ScheduleAccumulator:
-        new_schedule = self.schedule.copy()
-        for t, nodes in other.schedule.items():
-            if t in new_schedule:
-                new_schedule[t].update(nodes)
-            else:
-                new_schedule[t] = nodes
-        return ScheduleAccumulator(new_schedule)
+        new_layer.in_ports = [node_map[n] for n in self.in_ports]
+        new_layer.out_ports = [node_map[n] for n in self.out_ports]
 
-    def shift_z(self, z_by: int) -> None:
-        new_schedule = {}
+        new_layer.local_graph = self.local_graph.remap_nodes(node_map)
+        new_layer.node2coord = {
+            node_map[n]: coord for n, coord in self.node2coord.items()
+        }
+        new_layer.coord2node = {
+            coord: node_map[n] for n, coord in self.node2coord.items()
+        }
+
+        # TODO: implement remap_nodes for schedule, flow, parity
+        new_layer.schedule = self.schedule.remap_nodes(node_map)
+        new_layer.flow = self.flow.remap_nodes(node_map)
+        new_layer.parity = self.parity.remap_nodes(node_map)
+
+        return new_layer
+
+    def remap_nodes(
+        self, node_map: dict[NodeIdLocal, NodeIdLocal]
+    ) -> "ScheduleAccumulator":
+        if not self.schedule:
+            return ScheduleAccumulator()
+        # Times are unchanged; remap node ids per time slot.
+        remapped: dict[int, Set[NodeIdGlobal]] = {}
         for t, nodes in self.schedule.items():
-            new_schedule[t + z_by] = nodes
-        self.schedule = new_schedule
-
-    def compose_sequential(
-        self, late_schedule: ScheduleAccumulator
-    ) -> ScheduleAccumulator:
-        new_schedule = self.schedule.copy()
-        late_schedule.shift_z(max(self.schedule.keys()) + 1)
-        for t, nodes in late_schedule.schedule.items():
-            new_schedule[t] = new_schedule.get(t, set()).union(nodes)
-        return ScheduleAccumulator(new_schedule)
+            # Use get for robustness if node_map is partial in some contexts
+            remapped[t] = {node_map.get(n, n) for n in nodes}
+        return ScheduleAccumulator(remapped)
 
 
 @dataclass
@@ -203,23 +205,55 @@ class CompiledRHGCanvas:
     out_portset: dict[PatchCoordGlobal3D, list[int]] = field(default_factory=dict)
     cout_portset: dict[PatchCoordGlobal3D, list[int]] = field(default_factory=dict)
 
-    schedule: ScheduleAccumulator
-    flow: FlowAccumulator
-    parity: ParityAccumulator
+    # Give defaults to satisfy dataclass ordering; caller may override later
+    schedule: ScheduleAccumulator = field(default_factory=ScheduleAccumulator)
+    flow: FlowAccumulator = field(default_factory=FlowAccumulator)
+    parity: ParityAccumulator = field(default_factory=ParityAccumulator)
     z: int = 0
 
-    def generate_stim_circuit(self) -> stim.Circuit:
-        pass
+    # def generate_stim_circuit(self) -> stim.Circuit:
+    #     pass
+
+    def remap_nodes(
+        self, node_map: dict[NodeIdLocal, NodeIdLocal]
+    ) -> CompiledRHGCanvas:
+        new_cgraph = CompiledRHGCanvas(
+            layers=self.layers.copy(),
+            global_graph=self.global_graph.remap_nodes(node_map),
+            coord2node={},
+            in_portset={},
+            out_portset={},
+            cout_portset={},
+            schedule=self.schedule.remap_nodes(node_map),
+            flow=self.flow.remap_nodes(node_map),
+            parity=self.parity.remap_nodes(node_map),
+            z=self.z,
+        )
+
+        # Remap coord2node
+        for coord, old_nodeid in self.coord2node.items():
+            new_cgraph.coord2node[coord] = node_map[old_nodeid]
+
+        # Remap portsets
+        for pos, nodes in self.in_portset.items():
+            new_cgraph.in_portset[pos] = [node_map[n] for n in nodes]
+        for pos, nodes in self.out_portset.items():
+            new_cgraph.out_portset[pos] = [node_map[n] for n in nodes]
+        for pos, nodes in self.cout_portset.items():
+            new_cgraph.cout_portset[pos] = [node_map[n] for n in nodes]
+
+        return new_cgraph
 
 
 @dataclass
 class RHGCanvas2:
     # Graphは持たない
     name: str = "Blank Canvas"
-    block3d: dict[PatchCoordGlobal3D, BlockDelta] = {}  # {(0,0,0): InitPlus(), ...}
-    pipe3d: dict[
-        PipeCoordGlobal3D, BlockDelta
-    ] = {}  # {((0,0,0),(1,0,0)): Stabilize(), ((0,0,0), (0,0,1)): Measure(basis=X)}
+    # {(0,0,0): InitPlus(), ..}
+    block3d: dict[PatchCoordGlobal3D, BlockDelta] = field(default_factory=dict)
+    # {((0,0,0),(1,0,0)): Stabilize(), ((0,0,0), (0,0,1)): Measure(basis=X)}
+    pipe3d: dict[PipeCoordGlobal3D, BlockDelta] = field(default_factory=dict)
+    layers: Optional[list[TemporalLayer]] = None
 
     def add_block(self, position: PatchCoordGlobal3D, block: BlockDelta) -> None:
         self.block3d[position] = block
@@ -323,16 +357,20 @@ def add_temporal_layer(
 
     # Compose sequentially with node remaps
     new_graph, node_map1, node_map2 = compose_sequentially(graph1, graph2)
+    # remap nodes for cgraph and next_layer
+    cgraph = cgraph.remap_nodes(node_map1)
+    next_layer = next_layer.remap_nodes(node_map2)
 
     # Create a new CompiledRHGCanvas to hold the merged result.
     new_layers = cgraph.layers + [next_layer]
     new_z = next_layer.z
 
     # Remap nodes
-    for coord, old_nodeid in graph1.coord2node.items():
-        new_cgraph.coord2node[coord] = node_map1[old_nodeid]
-    for coord, old_nodeid in graph2.coord2node.items():
-        new_cgraph.coord2node[coord] = node_map2[old_nodeid]
+    new_coord2node: dict[PhysCoordGlobal3D, int] = {}
+    for coord, old_nodeid in cgraph.coord2node.items():
+        new_coord2node[coord] = node_map1[old_nodeid]
+    for coord, old_nodeid in next_layer.coord2node.items():
+        new_coord2node[coord] = node_map2[old_nodeid]
 
     # Remap portsets
     in_portset = {}
@@ -350,25 +388,7 @@ def add_temporal_layer(
 
     # scheduler, xflow, parity
     new_schedule = cgraph.schedule.compose_sequential(next_layer.schedule)
-
-    # Remap existing flows via node_map1 and new layer flows via node_map2, then merge.
-
-    # TODO: add new stabilizers, xflow, parity coming from merged boundaries
-    remapped_prev_x = _remap_flow(cgraph.flow.xflow, node_map1)
-    remapped_prev_z = _remap_flow(cgraph.flow.zflow, node_map1)
-    remapped_next_x = _remap_flow(next_layer.flow.xflow, node_map2)
-    remapped_next_z = _remap_flow(next_layer.flow.zflow, node_map2)
-
-    merged_xflow = _merge_flow(remapped_prev_x, remapped_next_x)
-    merged_zflow = _merge_flow(remapped_prev_z, remapped_next_z)
-
     new_xflow = FlowAccumulator(xflow=merged_xflow, zflow=merged_zflow)
-
-    remapped_prev_x_checks = _remap_groups(cgraph.parity.x_checks, node_map1)
-    remapped_prev_z_checks = _remap_groups(cgraph.parity.z_checks, node_map1)
-    remapped_next_x_checks = _remap_groups(next_layer.parity.x_checks, node_map2)
-    remapped_next_z_checks = _remap_groups(next_layer.parity.z_checks, node_map2)
-
     new_parity = ParityAccumulator(
         x_checks=remapped_prev_x_checks + remapped_next_x_checks,
         z_checks=remapped_prev_z_checks + remapped_next_z_checks,

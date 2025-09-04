@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Set, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Set, Tuple
 
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.graphstate import BaseGraphState, GraphState
-
 from lspattern.blocks.base import BlockDelta, RHGBlock
 from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z, is_data
 
@@ -73,7 +72,7 @@ class Memory(RHGBlock):
         # Local X-flow accumulator (LOCAL ids).
         f: Dict[int, Set[int]] = {}
 
-        # Build layers z0 .. z0 + rounds with allowed parities only.
+        # Build layers z0 . z0 + rounds with allowed parities only.
         for t in range(2 * self.rounds + 1):
             z = z0 + t
             layer_map: Dict[Tuple[int, int], int] = {}

@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Set, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Set, Tuple
 
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.graphstate import BaseGraphState, GraphState
-
 from lspattern.blocks.base import BlockDelta, RHGBlock
 from lspattern.geom.rhg_parity import is_data
 

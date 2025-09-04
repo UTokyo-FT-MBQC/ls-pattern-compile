@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Set, Tuple
+from typing import Dict, Iterable, List, Mapping, Optional, Set, Tuple
 
 # graphix_zx pieces
 from graphix_zx.graphstate import BaseGraphState, compose_sequentially
-
 from lspattern.blocks.base import BlockDelta, RHGBlock
 from lspattern.compile import compile_canvas
 from lspattern.geom.tiler import PatchTiler
@@ -136,7 +135,7 @@ class FlowAccumulator:
 class ScheduleAccumulator:
     """
     Global time-slice accumulation.
-    Each Block returns BlockDelta.schedule_tuples = [(t_local, {local_nodes}), ...] starting at 0.
+    Each Block returns BlockDelta.schedule_tuples = [(t_local, {local_nodes}), ..] starting at 0.
     The canvas shifts them by base_time (global head) and merges by t_global.
     """
     _timeline: Dict[int, Set[int]] = field(default_factory=dict)  # t_global -> GLOBAL node set
@@ -305,7 +304,7 @@ class RHGCanvas:
             self._time_cursor += local_max + 1
 
         # Apply unified parity additions (pairs/caps) specified by the block:
-        # entries are (prev_global_center, [curr_local_nodes...]).
+        # entries are (prev_global_center, [curr_local_nodes..]).
         for center_g, locals_list in delta.parity_x_prev_global_curr_local:
             group = {center_g, *[node_map2[l] for l in locals_list if l in node_map2]}
             if len(group) >= 2:

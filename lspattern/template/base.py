@@ -179,7 +179,7 @@ class RotatedPlanarTemplate(ScalableTemplate):
         # 3) X faces (left/right boundaries along x)
         # kind[0] chooses which type lives on vertical boundaries
         if self.kind[0] == "X":
-            # left: x=-1 at y=1,5,9,...; right: x=2d-1 at y=2d-3,2d-7,...
+            # left: x=-1 at y=1,5,9,..; right: x=2d-1 at y=2d-3,2d-7,..
             for y in range(1, 2 * d - 1, 4):
                 x_coords.add((-1, y))
             for y in range(2 * d - 3, -1, -4):
@@ -194,7 +194,7 @@ class RotatedPlanarTemplate(ScalableTemplate):
         # 4) Y faces (top/bottom boundaries along y)
         # kind[1] chooses which type lives on horizontal boundaries
         if self.kind[1] == "X":
-            # bottom: y=-1 at x=1,5,9,...; top: y=2d-1 at x=2d-3,2d-7,...
+            # bottom: y=-1 at x=1,5,9,..; top: y=2d-1 at x=2d-3,2d-7,..
             for x in range(1, 2 * d - 1, 4):
                 x_coords.add((x, -1))
             for x in range(2 * d - 3, -1, -4):
@@ -289,7 +289,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
             (left/right faces), which decides whether two-body X or Z stabilizers
             are placed at the pipe ends.
             """
-            # data qubits along x (y fixed at 0): (0,0), (2,0), ..., (2d-2, 0)
+            # data qubits along x (y fixed at 0): (0,0), (2,0), .., (2d-2, 0)
             for x in range(0, 2 * d, 2):
                 data_coords.add((x, 0))
 

@@ -11,9 +11,8 @@ from typing import (
 )
 
 from graphix_zx.graphstate import GraphState
-
 from lspattern.mytype import *
-from lspattern.template.base import ScalableTemplate
+from lspattern.template.base import RotatedPlanarTemplate, ScalableTemplate
 
 
 @dataclass
@@ -32,7 +31,9 @@ class RHGBlock:
     origin: Optional[tuple[int, int, int]] = (0, 0, 0)
     kind: BlockKindstr = field(default_factory=lambda: ("X", "X", "Z"))
     boundary_spec: dict[str, str] = field(default_factory=dict)
-    template: Optional[ScalableTemplate] = None
+    template: Optional[ScalableTemplate] = field(
+        default_factory=lambda: RotatedPlanarTemplate(d=3, kind=("X", "X", "Z"))
+    )
 
     # 各境界の仕様（X/Z/O=Open/Trimmed）。未設定(None/欠損)は Open(O) とみなす。
     boundary_spec: Optional[BoundarySpec] = None
@@ -63,13 +64,13 @@ class RHGBlock:
         if by == 0:
             return
 
-        # schedule_local: list[(t_local, {nodes...})]
+        # schedule_local: list[(t_local, {nodes..})]
         if self.schedule_local:
             self.schedule_local = [
                 (t, {int(n) + by for n in nodes}) for (t, nodes) in self.schedule_local
             ]
 
-        # flow_local: {node -> {targets...}}
+        # flow_local: {node -> {targets..}}
         if self.flow_local:
             self.flow_local = {
                 int(src) + by: {int(v) + by for v in tgts}
@@ -115,7 +116,7 @@ class RHGBlock:
             }
 
         if self.coord2node:
-            # rebuild inverse map from updated node2coords for consistency
+            # rebuild inverse map from updated node2coord for consistency
             self.coord2node = {coord: n for n, coord in self.node2coord.items()}
 
         self.origin = by
@@ -167,7 +168,7 @@ class RHGBlock:
 
         # Precompute extrema
         if not self.node2coord:
-            raise ValueError("Block not materialized: node2coords is empty")
+            raise ValueError("Block not materialized: node2coord is empty")
 
         xs, ys, zs = zip(*self.node2coord.values())
         xmin, xmax = min(xs), max(xs)
@@ -236,7 +237,7 @@ class BlockDelta:
     * `in_ports`/`out_ports` use LOCAL ids. `out_qmap` provides LOCAL node -> q_index.
     * `schedule_tuples` is a list of (t_local, LOCAL-node-set). Each block starts at t_local=0.
     * `parity_*_prev_global_curr_local` are unified parity directives:
-         (prev_global_center, [curr_local_nodes...]).
+         (prev_global_center, [curr_local_nodes..]).
     """
 
     # The graph fragment contributed by the block (LOCAL ids).
