@@ -1,31 +1,25 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Set, Tuple, Union
+from typing import Optional, Set
+
 import stim
 
-
 # graphix_zx pieces
-from graphix_zx.graphstate import BaseGraphState, compose_sequentially, GraphState
-from graphix_zx.graphstate import compose_in_parallel
+from graphix_zx.graphstate import GraphState, compose_sequentially
+from mytype import *
 
 from lspattern.blocks.base import BlockDelta, RHGBlock
-from lspattern.compile import compile_canvas
-from lspattern.geom.tiler import PatchTiler
 from lspattern.consts.consts import DIRECTIONS3D
-from lspattern.utils import get_direction
-
 from lspattern.mytype import (
-    PhysCoordGlobal3D,
-    PatchCoordGlobal3D,
-    PipeCoordGlobal3D,
     NodeIdGlobal,
     NodeIdLocal,
-    BlockKindstr,
+    PatchCoordGlobal3D,
+    PhysCoordGlobal3D,
+    PipeCoordGlobal3D,
 )
 from lspattern.pipes.base import RHGPipe
-from lspattern.utils import __tuple_sum
-from mytype import *
+from lspattern.utils import __tuple_sum, get_direction
 
 
 class TemporalLayer:
@@ -225,11 +219,13 @@ def to_temporal_layer(
 def add_temporal_layer(
     cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pipes: list[RHGPipe]
 ) -> CompiledRHGCanvas:
+    # TODO: This is Task T1-2: Implement temporal composition of two layers
     # Implement temporal composition logic here
     out_portset = cgraph.out_portset
     in_portset = next_layer.in_portset
 
     for pipe in pipes:
+        assert pipe.is_temporal == True
         source, sink = pipe.source, pipe.sink
         out_ports = out_portset[source]
         in_ports = in_portset[sink]

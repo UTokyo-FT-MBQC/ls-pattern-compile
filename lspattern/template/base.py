@@ -40,6 +40,10 @@ class ScalableTemplate:
 
     def to_tiling(self) -> dict[str, list[tuple[int, int]]]: ...
 
+    def get_data_indices(self) -> dict[TilingCoord2D, TilingConsistentQubitId]:
+        data_index = {coor: i for i, coor in enumerate(sort_xy(self.data_coords))}
+        return data_index
+
     def visualize_tiling(
         self, ax=None, show: bool = True, title_suffix: str | None = None
     ) -> None:
@@ -218,26 +222,157 @@ class RotatedPlanarTemplate(ScalableTemplate):
 
         return result
 
-    def get_data_indices(self) -> dict[TilingCoord2D, TilingConsistentQubitId]:
-        data_index = {coor: i for i, coor in enumerate(sort_xy(self.data_coords))}
-        return data_index
+
+class RotatedPlanarPipetemplate(ScalableTemplate):
+    def to_tiling(self):
+        d = self.d
+        # Local containers (avoid relying on dataclass defaults)
+        data_coords: set[tuple[int, int]] = set()
+        x_coords: set[tuple[int, int]] = set()
+        z_coords: set[tuple[int, int]] = set()
+
+        if self.kind[0] == "O":
+            """
+            if self.kind[0] == "O", which means this pipe is piping along X direction
+
+            The schematic. = shows X boundary and - shows Z boundary
+            ===== KKK =====
+            |   | x x |   |
+            |   | x x |   |
+            ===== KKK =====
+
+            So the tiling has the footprint of (1, d), excluding the ancilla qubits. If we include them it will be (3, d+1)
+            Here K means the boundary designated by kind[1]
+            """
+            # data qubits
+            for y in range(0, 2 * d, 2):
+                data_coords.add((0, y))
+            # x ancillas
+            for x0, y0 in ((-1, 3), (1, 1)):
+                for iy in range(d // 2):
+                    x_coords.add((x0, y0 + 4 * iy))
+            # z ancillas
+            for x0, y0 in ((-1, 1), (1, 3)):
+                for iy in range(d // 2):
+                    z_coords.add((x0, y0 + 4 * iy))
+
+            if self.kind[1] == "X":
+                # insert two-body X stabilizer at (-1, -1) and (1, 2d-1)
+                x_coords.add((-1, -1))
+                x_coords.add((1, 2 * d - 1))
+            elif self.kind[1] == "Z":
+                # insert two-body Z stabilizer at (1, -1) and (-1, 2d-1)
+                z_coords.add((1, -1))
+                z_coords.add((-1, 2 * d - 1))
+        elif self.kind[1] == "O":
+            """
+            If `self.kind[1] == "O"`, the pipe runs along the Y direction
+            (horizontal faces are open/trimmed). This is the 90-degree-rotated
+            counterpart of the X-direction pipe above.
+
+            Schematic (now piping along Y). "=" shows X boundary, "-" shows Z boundary.
+            
+            =====
+            |   |
+            |   |
+            =====
+            KxxxK
+            K   K
+            KxxxK    
+            =====
+            |   |
+            |   |
+            =====
+
+            Footprint (excluding ancilla qubits): (d, 1). Including ancilla:
+            approximately (d+1, 3). Here K means the boundary designated by kind[0]
+            (left/right faces), which decides whether two-body X or Z stabilizers
+            are placed at the pipe ends.
+            """
+            # data qubits along x (y fixed at 0): (0,0), (2,0), ..., (2d-2, 0)
+            for x in range(0, 2 * d, 2):
+                data_coords.add((x, 0))
+
+            # X ancillas (rotated from the X-direction case): seed at (3,0) and (1,1)
+            for x0, y0 in ((3, -1), (1, 1)):
+                for ix in range(d // 2):
+                    x_coords.add((x0 + 4 * ix, y0))
+
+            # Z ancillas (rotated from the X-direction case): seed at (1,-1) and (3,1)
+            for x0, y0 in ((1, -1), (3, 1)):
+                for ix in range(d // 2):
+                    z_coords.add((x0 + 4 * ix, y0))
+
+            # Two-body stabilizers at left/right ends decided by kind[0]
+            if self.kind[0] == "X":
+                # Insert two-body X stabilizers near x=-1 and x=2d-1
+                x_coords.add((-1, -1))
+                x_coords.add((2 * d - 1, 1))
+            elif self.kind[0] == "Z":
+                # Insert two-body Z stabilizers near x=-1 and x=2d-1
+                z_coords.add((-1, 1))
+                z_coords.add((2 * d - 1, -1))
+        elif self.kind[2] == "O":
+            raise NotImplementedError("Temporal pipe not supported yet")
+        else:
+            raise ValueError("This pipe has no connection boundary")
+
+        # Build deterministic result and also populate instance attributes (optional)
+        result = {
+            "data": sort_xy(data_coords),
+            "X": sort_xy(x_coords),
+            "Z": sort_xy(z_coords),
+        }
+
+        try:
+            self.data_coords = result["data"]  # type: ignore[attr-defined]
+            self.x_coords = result["X"]  # type: ignore[attr-defined]
+            self.z_coords = result["Z"]  # type: ignore[attr-defined]
+        except Exception:
+            pass
+
+        return result
 
 
 # simple testing (manual)
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
-    d = 3
-    kinds = [("X", "X", "*"), ("X", "Z", "*"), ("Z", "X", "*"), ("Z", "Z", "*")]
-    labels = ["XX", "XZ", "ZX", "ZZ"]
+    SHOW_BLOCK = False
+    SHOW_PIPE = True
+    if SHOW_BLOCK:
+        d = 3
+        kinds = [("X", "X", "*"), ("X", "Z", "*"), ("Z", "X", "*"), ("Z", "Z", "*")]
+        labels = ["XX", "XZ", "ZX", "ZZ"]
 
-    fig, axes = plt.subplots(2, 2, figsize=(10, 10))
-    for (kx, ky, kz), label, ax in zip(kinds, labels, axes.ravel()):
-        template = RotatedPlanarTemplate(d=d, kind=(kx, ky, kz))
-        tiling = template.to_tiling()
-        print(label, {k: len(v) for k, v in tiling.items()})
-        template.visualize_tiling(ax=ax, show=False, title_suffix=label)
+        fig, axes = plt.subplots(2, 2, figsize=(10, 10))
+        for (kx, ky, kz), label, ax in zip(kinds, labels, axes.ravel()):
+            template = RotatedPlanarTemplate(d=d, kind=(kx, ky, kz))
+            tiling = template.to_tiling()
+            print(label, {k: len(v) for k, v in tiling.items()})
+            template.visualize_tiling(ax=ax, show=False, title_suffix=label)
 
-    fig.suptitle(f"Rotated Planar XY Faces (d={d})")
-    fig.tight_layout()
-    plt.show()
+        fig.suptitle(f"Rotated Planar XY Faces (d={d})")
+        fig.tight_layout()
+        plt.show()
+
+    if SHOW_PIPE:
+        d = 7
+        pipe_kinds = [
+            ("O", "X", "*"),  # pipe along X, horizontal faces X
+            ("O", "Z", "*"),  # pipe along X, horizontal faces Z
+            ("X", "O", "*"),  # pipe along Y, vertical faces X
+            ("Z", "O", "*"),  # pipe along Y, vertical faces Z
+        ]
+        labels = ["Pipe OX", "Pipe OZ", "Pipe XO", "Pipe ZO"]
+
+        fig2, axes2 = plt.subplots(2, 2, figsize=(10, 10))
+        for kind, label, ax in zip(pipe_kinds, labels, axes2.ravel()):
+            ptemp = RotatedPlanarPipetemplate(d=d, kind=kind)
+            tiling = ptemp.to_tiling()
+            print(label, {k: len(v) for k, v in tiling.items()})
+            ptemp.visualize_tiling(ax=ax, show=False, title_suffix=label)
+
+        fig2.suptitle(f"Rotated Planar Pipes (d={d})")
+        fig2.tight_layout()
+        plt.show()
