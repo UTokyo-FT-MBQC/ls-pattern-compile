@@ -69,6 +69,10 @@ def visualize_temporal_layer_plotly(
             return "ancilla_z"
         return "data"
 
+    # 役割は優先して TemporalLayer.node2role から取得（引数未指定時）
+    if node_roles is None:
+        node_roles = getattr(layer, "node2role", {}) or None
+
     for n, coord in node2coord.items():
         role = node_roles.get(n) if node_roles else None
         if role not in ("data", "ancilla_x", "ancilla_z"):
@@ -195,4 +199,3 @@ def visualize_temporal_layer_plotly(
     )
 
     return fig
-

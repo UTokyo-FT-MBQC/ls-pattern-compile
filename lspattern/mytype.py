@@ -14,8 +14,8 @@ changing runtime representations.
 
 from __future__ import annotations
 
-from typing import Dict, List, Mapping, MutableMapping, NewType, Set, Tuple
 from enum import Enum
+from typing import Dict, List, Literal, Mapping, NewType, Set, Tuple
 
 # ---------------------------------------------------------------------
 # Core scalar ids (NewType for static distinction)
@@ -101,27 +101,85 @@ __all__ = [
 # Boundary enums and types (for per-side face specification)
 # ---------------------------------------------------------------------
 
+
 class BoundarySide(str, Enum):
-    TOP = "TOP"        # +Y
+    TOP = "TOP"  # +Y
     BOTTOM = "BOTTOM"  # -Y
-    LEFT = "LEFT"      # -X
-    RIGHT = "RIGHT"    # +X
-    UP = "UP"          # +Z
-    DOWN = "DOWN"      # -Z
+    LEFT = "LEFT"  # -X
+    RIGHT = "RIGHT"  # +X
+    UP = "UP"  # +Z
+    DOWN = "DOWN"  # -Z
 
 
-class EdgeSpec(str, Enum):
-    # X: X-type boundary, Z: Z-type boundary, O: Open/Trimmed
-    X = "X"
-    Z = "Z"
-    O = "O"
+# Allowed edge boundary value type and helper set
+EdgeSpecValue = Literal["X", "Z", "O"]
+
+
+class _EdgeSpecMeta(type):
+    _allowed_keys = {"TOP", "BOTTOM", "LEFT", "RIGHT"}
+    _allowed_vals = {"X", "Z", "O"}
+    _values: Dict[str, str] = {k: "O" for k in _allowed_keys}
+
+    def __getattr__(cls, name: str) -> str:  # type: ignore[override]
+        if name in cls._allowed_keys:
+            return cls._values[name]
+        raise AttributeError(name)
+
+    def __setattr__(cls, name: str, value) -> None:  # type: ignore[override]
+        # Intercept assignment to the four sides and validate
+        if name in ("_allowed_keys", "_allowed_vals", "_values"):
+            return super().__setattr__(name, value)
+        if name in cls._allowed_keys:
+            if isinstance(value, str):
+                v = value.upper()
+            else:
+                raise TypeError("EdgeSpec values must be 'X', 'Z', or 'O' (str)")
+            if v not in cls._allowed_vals:
+                raise ValueError("EdgeSpec value must be one of 'X', 'Z', 'O'")
+            cls._values[name] = v
+            return
+        # Fallback to regular class attribute set
+        return super().__setattr__(name, value)
+
+
+class EdgeSpec(metaclass=_EdgeSpecMeta):
+    """Class-level container for per-side edge specifications.
+
+    Usage
+    -----
+    - Set per-side spec:  EdgeSpec.TOP = "X"
+    - Read current spec:  EdgeSpec.TOP  -> "X"
+    - Allowed values: "X", "Z", "O" only.
+    - Sides handled: TOP, BOTTOM, LEFT, RIGHT.
+
+    Helper methods
+    --------------
+    - EdgeSpec.as_dict() -> dict[str, EdgeSpecValue]
+    - EdgeSpec.update({...}) to set multiple at once.
+    """
+
+    # Provide annotations for better IDE/type hints
+    TOP: str
+    BOTTOM: str
+    LEFT: str
+    RIGHT: str
+
+    @classmethod
+    def as_dict(cls) -> Dict[str, EdgeSpecValue]:
+        return cls._values.copy()  # type: ignore[return-value]
+
+    @classmethod
+    def update(cls, mapping: Mapping[str, str]) -> None:
+        for k, v in mapping.items():
+            setattr(cls, k, v)
 
 
 # Mapping from side to boundary spec
-BoundarySpec = Dict[BoundarySide, EdgeSpec]
+BoundarySpec = Dict[BoundarySide, EdgeSpecValue]
 
 __all__ += [
     "BoundarySide",
     "EdgeSpec",
+    "EdgeSpecValue",
     "BoundarySpec",
 ]

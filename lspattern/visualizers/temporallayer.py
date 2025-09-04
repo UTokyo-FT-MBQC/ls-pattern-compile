@@ -1,27 +1,11 @@
 from __future__ import annotations
 
-from typing import Optional, Tuple, Dict
-
 import os
+from typing import Dict, Optional, Tuple
+
 import matplotlib.pyplot as plt
 
-from lspattern.geom.rhg_parity import is_data, is_ancilla_x, is_ancilla_z
-
-
-def _color_for_coord(x: int, y: int, z: int) -> str:
-    """Return node color based on RHG parity, matching existing visualizers.
-
-    - DATA: white (even z), red (odd z)
-    - ancilla-X: blue
-    - ancilla-Z: green
-    """
-    if is_data(x, y, z):
-        return "white" if (z % 2 == 0) else "red"
-    if is_ancilla_x(x, y, z):
-        return "blue"
-    if is_ancilla_z(x, y, z):
-        return "green"
-    return "gray"
+from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z
 
 
 def visualize_temporal_layer(
@@ -62,25 +46,49 @@ def visualize_temporal_layer(
     ax.grid(False)
     ax.set_axis_off()
 
-    # Scatter nodes
-    xs, ys, zs, colors = [], [], [], []
+    # 役割ベースでグルーピングして凡例を表示（z 偶奇による分岐は行わない）
+    roles: Dict[int, str] = getattr(layer, "node2role", {}) or {}
+    groups: Dict[str, Dict[str, list]] = {
+        "data": {"x": [], "y": [], "z": []},
+        "ancilla_x": {"x": [], "y": [], "z": []},
+        "ancilla_z": {"x": [], "y": [], "z": []},
+    }
     for nid, (x, y, z) in node2coord.items():
-        xs.append(x)
-        ys.append(y)
-        zs.append(z)
-        colors.append(_color_for_coord(x, y, z))
+        role = roles.get(nid)
+        if role == "ancilla_x":
+            g = groups["ancilla_x"]
+        elif role == "ancilla_z":
+            g = groups["ancilla_z"]
+        else:
+            # 役割がない場合はパリティから推定（それでも ancilla 判定されなければ data 扱い）
+            if role is None:
+                if is_ancilla_x(x, y, z):
+                    g = groups["ancilla_x"]
+                elif is_ancilla_z(x, y, z):
+                    g = groups["ancilla_z"]
+                else:
+                    g = groups["data"]
+            else:
+                g = groups["data"]
+        g["x"].append(x)
+        g["y"].append(y)
+        g["z"].append(z)
 
-    if xs:
-        ax.scatter(
-            xs,
-            ys,
-            zs,
-            c=colors,
-            edgecolors="black",
-            s=50,
-            depthshade=True,
-            label="nodes",
-        )
+    def scat(gkey: str, color: str, label: str | None):
+        pts = groups[gkey]
+        if pts["x"]:
+            ax.scatter(
+                pts["x"], pts["y"], pts["z"],
+                c=color,
+                edgecolors="black",
+                s=50,
+                depthshade=True,
+                label=label,
+            )
+
+    scat("data", "white", "data")
+    scat("ancilla_x", "blue", "ancilla X")
+    scat("ancilla_z", "green", "ancilla Z")
 
     # Draw edges if we have a local graph
     local_graph = getattr(layer, "local_graph", None)

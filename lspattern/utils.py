@@ -1,5 +1,5 @@
-from lspattern.mytype import PatchCoordGlobal3D
 from lspattern.consts.consts import PIPEDIRECTION
+from lspattern.mytype import PatchCoordGlobal3D
 
 
 def get_direction(
@@ -29,3 +29,8 @@ def get_direction(
 def __tuple_sum(l_: tuple, r_: tuple) -> tuple:
     assert len(l_) == len(r_)
     return tuple(a + b for a, b in zip(l_, r_))
+
+
+# Prepare outputs as sorted lists for determinism
+def sort_xy(points: set[tuple[int, int]]):
+    return sorted(points, key=lambda p: (p[1], p[0]))

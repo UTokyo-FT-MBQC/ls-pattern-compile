@@ -1,42 +1,23 @@
 from dataclasses import dataclass, field
 
-# Allow running this file directly (python lspattern/template/base.py)
-# by adding the project root to sys.path if needed.
-try:
-    from lspattern.mytype import TilingConsistentQubitId, TilingCoord2D
-except ModuleNotFoundError as e:
-    if e.name == "lspattern":
-        import sys
-        from pathlib import Path
+from mytype import EdgeSpec
 
-        repo_root = Path(__file__).resolve().parents[2]
-        if str(repo_root) not in sys.path:
-            sys.path.insert(0, str(repo_root))
-        from lspattern.mytype import TilingConsistentQubitId, TilingCoord2D
-    else:
-        raise
+from lspattern.mytype import TilingConsistentQubitId, TilingCoord2D
+from lspattern.tiling import Tiling
+from lspattern.utils import sort_xy
 
 
-# Prepare outputs as sorted lists for determinism
-def sort_xy(points: set[tuple[int, int]]):
-    return sorted(points, key=lambda p: (p[1], p[0]))
-
-
+# TODO: remove kind. Use edgespec
 @dataclass
-class ScalableTemplate:
+class ScalableTemplate(Tiling):
     d: int
     kind: tuple[str, str, str]  # (X, Y, Z) faces 3-4 chars
+    edgespec: EdgeSpec
 
     data_coords: list[tuple[int, int]] = field(default_factory=list)
     data_indices: list[int] = field(default_factory=list)
     x_coords: list[tuple[int, int]] = field(default_factory=list)
     z_coords: list[tuple[int, int]] = field(default_factory=list)
-
-    # boundary coords
-    # left_coords: list[tuple[int, int]] = field(default_factory=list)
-    # right_coords: list[tuple[int, int]] = field(default_factory=list)
-    # top_coords: list[tuple[int, int]] = field(default_factory=list)
-    # bottom_coords: list[tuple[int, int]] = field(default_factory=list)
 
     def to_tiling(self) -> dict[str, list[tuple[int, int]]]: ...
 
@@ -178,6 +159,8 @@ class RotatedPlanarTemplate(ScalableTemplate):
 
         # 3) X faces (left/right boundaries along x)
         # kind[0] chooses which type lives on vertical boundaries
+        # TODO: refactor this part
+        # このあたりkind -> edgespecに置き換えたい。変更が大きくなるので注意して取り組む
         if self.kind[0] == "X":
             # left: x=-1 at y=1,5,9,..; right: x=2d-1 at y=2d-3,2d-7,..
             for y in range(1, 2 * d - 1, 4):
@@ -230,7 +213,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         data_coords: set[tuple[int, int]] = set()
         x_coords: set[tuple[int, int]] = set()
         z_coords: set[tuple[int, int]] = set()
-
+        # kind廃止の際はself.directionがXpm,Ypm, Zpmで取得できるようにする
         if self.kind[0] == "O":
             """
             if self.kind[0] == "O", which means this pipe is piping along X direction

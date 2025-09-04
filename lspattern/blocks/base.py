@@ -110,8 +110,13 @@ class RHGBlock:
         ox, oy, oz = by
 
         if self.node2coord:
+            patchsize = self.d + 1  # include output layer if any
             self.node2coord = {
-                n: (coord[0] + ox, coord[1] + oy, coord[2] + oz)
+                n: (
+                    coord[0] + ox * patchsize,
+                    coord[1] + oy * patchsize,
+                    coord[2] + oz * patchsize,
+                )
                 for n, coord in self.node2coord.items()
             }
 
