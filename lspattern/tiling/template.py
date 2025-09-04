@@ -389,7 +389,7 @@ if __name__ == "__main__":
         fig, axes = plt.subplots(2, 2, figsize=(10, 10))
         for (label, spec), ax in zip(configs, axes.ravel()):
             set_edgespec(**spec)
-            template = RotatedPlanarTemplate(d=d, kind=("X", "X", "*"), edgespec=EdgeSpec)
+            template = RotatedPlanarTemplate(d=d, edgespec=EdgeSpec)
             tiling = template.to_tiling()
             print(label, {k: len(v) for k, v in tiling.items()})
             template.visualize_tiling(ax=ax, show=False, title_suffix=label)
@@ -410,7 +410,7 @@ if __name__ == "__main__":
         fig2, axes2 = plt.subplots(2, 2, figsize=(10, 10))
         for (label, kind, spec), ax in zip(pipe_cfgs, axes2.ravel()):
             set_edgespec(**spec)
-            ptemp = RotatedPlanarPipetemplate(d=d, kind=kind, edgespec=EdgeSpec)
+            ptemp = RotatedPlanarPipetemplate(d=d, edgespec=EdgeSpec)
             tiling = ptemp.to_tiling()
             print(label, {k: len(v) for k, v in tiling.items()})
             ptemp.visualize_tiling(ax=ax, show=False, title_suffix=label)
