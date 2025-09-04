@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from lspattern.mytype import EdgeSpec, TilingConsistentQubitId, TilingCoord2D
+from lspattern.mytype import SpatialEdgeSpec, TilingConsistentQubitId, TilingCoord2D
 from lspattern.tiling.base import Tiling
 from lspattern.utils import sort_xy
 
@@ -9,7 +9,7 @@ from lspattern.utils import sort_xy
 @dataclass(kw_only=True)
 class ScalableTemplate(Tiling):
     d: int
-    edgespec: EdgeSpec  # XXZX
+    edgespec: SpatialEdgeSpec  # e.g., {"top":"X","bottom":"Z",...}
 
     data_coords: list[tuple[int, int]] = field(default_factory=list)
     data_indices: list[int] = field(default_factory=list)
@@ -17,6 +17,28 @@ class ScalableTemplate(Tiling):
     z_coords: list[tuple[int, int]] = field(default_factory=list)
 
     def to_tiling(self) -> dict[str, list[tuple[int, int]]]: ...
+
+    def _spec(self, side: str) -> str:
+        """Return standardized spec value ("X"/"Z"/"O").
+
+        Accepts side in any case (e.g., "left"/"LEFT"). Falls back to "O".
+        """
+        # Prefer lower-case keys per SpatialEdgeSpec
+        v = None
+        if isinstance(self.edgespec, dict):
+            v = self.edgespec.get(side.lower())
+            if v is None:
+                v = self.edgespec.get(side.upper())
+        # Fallback for legacy attribute-style EdgeSpec
+        if v is None:
+            try:
+                v = getattr(self.edgespec, side.upper())  # type: ignore[attr-defined]
+            except Exception:
+                v = "O"
+        try:
+            return str(v).upper()
+        except Exception:
+            return "O"
 
     def get_data_indices(self) -> dict[TilingCoord2D, TilingConsistentQubitId]:
         data_index = {coor: i for i, coor in enumerate(sort_xy(self.data_coords))}
@@ -187,7 +209,7 @@ class RotatedPlanarTemplate(ScalableTemplate):
                     z_coords.add((x, y))
 
         # 3) X faces (left/right boundaries along x)
-        match self.edgespec.LEFT:
+        match self._spec("LEFT"):
             case "X":
                 for y in range(1, 2 * d - 1, 4):
                     x_coords.add((-1, y))
@@ -197,7 +219,7 @@ class RotatedPlanarTemplate(ScalableTemplate):
             case "O":
                 # nothing
                 pass
-        match self.edgespec.RIGHT:
+        match self._spec("RIGHT"):
             case "X":
                 for y in range(2 * d - 3, -1, -4):
                     x_coords.add((2 * d - 1, y))
@@ -206,7 +228,7 @@ class RotatedPlanarTemplate(ScalableTemplate):
                     z_coords.add((2 * d - 1, y))
             case _:
                 pass
-        match self.edgespec.BOTTOM:
+        match self._spec("BOTTOM"):
             case "X":
                 for x in range(1, 2 * d - 1, 4):
                     x_coords.add((x, -1))
@@ -215,7 +237,7 @@ class RotatedPlanarTemplate(ScalableTemplate):
                     z_coords.add((x, -1))
             case _:
                 pass
-        match self.edgespec.TOP:
+        match self._spec("TOP"):
             case "X":
                 for x in range(2 * d - 3, -1, -4):
                     x_coords.add((x, 2 * d - 1))
@@ -246,7 +268,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         x_coords: set[tuple[int, int]] = set()
         z_coords: set[tuple[int, int]] = set()
         # kind廃止の際はself.directionがXpm,Ypm, Zpmで取得できるようにする
-        if self.edgespec.LEFT == self.edgespec.RIGHT == "O":
+        if self._spec("LEFT") == self._spec("RIGHT") == "O":
             """
             if self.kind[0] == "O", which means this pipe is piping along X direction
 
@@ -273,7 +295,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                 y = 2 * n + 1
                 z_coords.add((x, y))
 
-            match self.edgespec.TOP:
+            match self._spec("TOP"):
                 case "X":
                     x_coords.add((1, 2 * d + 1))
                 case "Z":
@@ -281,7 +303,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                 case "O":
                     pass
 
-            match self.edgespec.BOTTOM:
+            match self._spec("BOTTOM"):
                 case "X":
                     x_coords.add((-1, -1))
                 case "Z":
@@ -289,7 +311,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                 case "O":
                     pass
 
-        elif self.edgespec.TOP == self.edgespec.BOTTOM == "O":
+        elif self._spec("TOP") == self._spec("BOTTOM") == "O":
             """
             If `self.kind[1] == "O"`, the pipe runs along the Y direction
             (horizontal faces are open/trimmed). This is the 90-degree-rotated
@@ -330,7 +352,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                 z_coords.add((x, y))
 
             # Two-body stabilizers at left/right ends decided by EdgeSpec
-            match self.edgespec.LEFT:
+            match self._spec("LEFT"):
                 case "X":
                     x_coords.add((-1, -1))
                 case "Z":
@@ -338,14 +360,14 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                 case "O":
                     pass
 
-            match self.edgespec.RIGHT:
+            match self._spec("RIGHT"):
                 case "X":
                     x_coords.add((2 * d - 1, 1))
                 case "Z":
                     z_coords.add((2 * d - 1, -1))
                 case "O":
                     pass
-        elif self.edgespec.UP == "O" or self.edgespec.DOWN == "O":
+        elif self._spec("UP") == "O" or self._spec("DOWN") == "O":
             raise NotImplementedError("Temporal pipe not supported yet")
         else:
             raise ValueError("This pipe has no connection boundary")
