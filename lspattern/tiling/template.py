@@ -11,8 +11,7 @@ from lspattern.utils import sort_xy
 @dataclass
 class ScalableTemplate(Tiling):
     d: int
-    kind: tuple[str, str, str]  # (X, Y, Z) faces 3-4 chars
-    edgespec: EdgeSpec
+    edgespec: EdgeSpec  # XXZX
 
     data_coords: list[tuple[int, int]] = field(default_factory=list)
     data_indices: list[int] = field(default_factory=list)
@@ -25,58 +24,37 @@ class ScalableTemplate(Tiling):
         data_index = {coor: i for i, coor in enumerate(sort_xy(self.data_coords))}
         return data_index
 
-    # ---- T3 additions: EdgeSpec 利用と Trim API ----
-    def _resolve_edge(self, side: str) -> str:
-        s = side.upper()
-        # Prefer per-instance edgespec if provided; fallback to 'O'
-        try:
-            val = getattr(self.edgespec, s)
-        except Exception:
-            val = "O"
-        if val not in ("X", "Z", "O"):
-            return "O"
-        return val
-
-    def _dir_to_side(self, direction: str) -> str:
-        d = direction.upper()
-        # 追加指示: LEFT/RIGHT/TOP/BOTTOM 以外は来ない前提で簡略化
-        if d in ("LEFT", "RIGHT", "TOP", "BOTTOM"):
-            return d
-        return d
-
-    def _ensure_coords_populated(self) -> None:
-        if not (self.data_coords or self.x_coords or self.z_coords):
-            try:
-                self.to_tiling()
-            except Exception:
-                pass
-
     def trim_spatial_boundary(self, direction: str) -> None:
         """Remove ancilla/two-body checks on a given boundary in 2D tiling.
 
         Only X/Z ancilla on the target boundary line are removed. Data qubits
         remain intact. Supported directions: LEFT/RIGHT/TOP/BOTTOM or X±/Y±.
         """
-        self._ensure_coords_populated()
-        side = self._dir_to_side(direction)
-        d = getattr(self, "d", None)
-        if not isinstance(d, int):
-            return
+        if not (self.data_coords or self.x_coords or self.z_coords):
+            self.to_tiling()
 
-        def on_side(pt: tuple[int, int]) -> bool:
-            x, y = pt
-            if side == "LEFT":
-                return x == -1
-            if side == "RIGHT":
-                return x == 2 * d - 1
-            if side == "BOTTOM":
-                return y == -1
-            if side == "TOP":
-                return y == 2 * d - 1
-            return False
+        axis: int = -1
+        target: int = -1
 
-        self.x_coords = [p for p in (self.x_coords or []) if not on_side(p)]
-        self.z_coords = [p for p in (self.z_coords or []) if not on_side(p)]
+        # check TOP
+        match direction:
+            case "TOP" | "Y+":
+                axis = 1
+                target = 2 * self.d - 1
+            case "BOTTOM" | "Y-":
+                axis = 1
+                target = -1
+            case "LEFT" | "X-":
+                axis = 0
+                target = -1
+            case "RIGHT" | "X+":
+                axis = 0
+                target = 2 * self.d - 1
+            case _:
+                raise ValueError("Invalid direction for trim_spatial_boundary")
+
+        self.x_coords = [p for p in (self.x_coords or []) if p[axis] != target]
+        self.z_coords = [p for p in (self.z_coords or []) if p[axis] != target]
 
     def visualize_tiling(
         self, ax=None, show: bool = True, title_suffix: str | None = None
@@ -211,69 +189,43 @@ class RotatedPlanarTemplate(ScalableTemplate):
                     z_coords.add((x, y))
 
         # 3) X faces (left/right boundaries along x)
-        # kind[0] chooses which type lives on vertical boundaries
-        # TODO: refactor this part
-        # このあたりkind -> edgespecに置き換えたい。変更が大きくなるので注意して取り組む
-        # kind ベースの境界ロジックは廃止（EdgeSpec で決定）
-        # 3) 垂直境界（LEFT/RIGHT）は EdgeSpec で決定
-        left_spec = self._resolve_edge("LEFT")
-        right_spec = self._resolve_edge("RIGHT")
-        if left_spec == "X":
-            for y in range(1, 2 * d - 1, 4):
-                x_coords.add((-1, y))
-        elif left_spec == "Z":
-            for y in range(2 * d - 3, -1, -4):
-                z_coords.add((-1, y))
-
-        if right_spec == "X":
-            for y in range(2 * d - 3, -1, -4):
-                x_coords.add((2 * d - 1, y))
-        elif right_spec == "Z":
-            for y in range(1, 2 * d - 1, 4):
-                z_coords.add((2 * d - 1, y))
-
-        # 4) 水平境界（BOTTOM/TOP）は EdgeSpec で決定
-        bottom_spec = self._resolve_edge("BOTTOM")
-        top_spec = self._resolve_edge("TOP")
-        if bottom_spec == "X":
-            for x in range(1, 2 * d - 1, 4):
-                x_coords.add((x, -1))
-        elif bottom_spec == "Z":
-            for x in range(2 * d - 3, -1, -4):
-                z_coords.add((x, -1))
-
-        if top_spec == "X":
-            for x in range(2 * d - 3, -1, -4):
-                x_coords.add((x, 2 * d - 1))
-        elif top_spec == "Z":
-            for x in range(1, 2 * d - 1, 4):
-                z_coords.add((x, 2 * d - 1))
-
-        # 5) Reconcile per-side EdgeSpec on boundaries (EdgeSpec overrides kind)
-        def on_side(pt: tuple[int, int], side: str) -> bool:
-            x, y = pt
-            if side == "LEFT":
-                return x == -1
-            if side == "RIGHT":
-                return x == 2 * d - 1
-            if side == "BOTTOM":
-                return y == -1
-            if side == "TOP":
-                return y == 2 * d - 1
-            return False
-
-        for side in ("LEFT", "RIGHT", "BOTTOM", "TOP"):
-            spec = self._resolve_edge(side)
-            if spec == "X":
-                # only X allowed on this side
-                z_coords = {p for p in z_coords if not on_side(p, side)}
-            elif spec == "Z":
-                # only Z allowed on this side
-                x_coords = {p for p in x_coords if not on_side(p, side)}
-            elif spec == "O":
-                # trimmed: remove both X and Z on this side
-                x_coords = {p for p in x_coords if not on_side(p, side)}
-                z_coords = {p for p in z_coords if not on_side(p, side)}
+        match self.edgespec.LEFT:
+            case "X":
+                for y in range(1, 2 * d - 1, 4):
+                    x_coords.add((-1, y))
+            case "Z":
+                for y in range(2 * d - 3, -1, -4):
+                    z_coords.add((-1, y))
+            case "O":
+                # nothing
+                pass
+        match self.edgespec.RIGHT:
+            case "X":
+                for y in range(2 * d - 3, -1, -4):
+                    x_coords.add((2 * d - 1, y))
+            case "Z":
+                for y in range(1, 2 * d - 1, 4):
+                    z_coords.add((2 * d - 1, y))
+            case _:
+                pass
+        match self.edgespec.BOTTOM:
+            case "X":
+                for x in range(1, 2 * d - 1, 4):
+                    x_coords.add((x, -1))
+            case "Z":
+                for x in range(2 * d - 3, -1, -4):
+                    z_coords.add((x, -1))
+            case _:
+                pass
+        match self.edgespec.TOP:
+            case "X":
+                for x in range(2 * d - 3, -1, -4):
+                    x_coords.add((x, 2 * d - 1))
+            case "Z":
+                for x in range(1, 2 * d - 1, 4):
+                    z_coords.add((x, 2 * d - 1))
+            case _:
+                pass
 
         result = {
             "data": sort_xy(data_coords),
@@ -281,13 +233,9 @@ class RotatedPlanarTemplate(ScalableTemplate):
             "Z": sort_xy(z_coords),
         }
 
-        # Also populate instance attrs if present (optional for visualization)
-        try:
-            self.data_coords = result["data"]  # type: ignore[attr-defined]
-            self.x_coords = result["X"]  # type: ignore[attr-defined]
-            self.z_coords = result["Z"]  # type: ignore[attr-defined]
-        except Exception:
-            pass
+        self.data_coords = result["data"]
+        self.x_coords = result["X"]
+        self.z_coords = result["Z"]
 
         return result
 
@@ -300,7 +248,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         x_coords: set[tuple[int, int]] = set()
         z_coords: set[tuple[int, int]] = set()
         # kind廃止の際はself.directionがXpm,Ypm, Zpmで取得できるようにする
-        if self.kind[0] == "O":
+        if self.edgespec.LEFT == self.edgespec.RIGHT == "O":
             """
             if self.kind[0] == "O", which means this pipe is piping along X direction
 
@@ -316,24 +264,34 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
             # data qubits
             for y in range(0, 2 * d, 2):
                 data_coords.add((0, y))
-            # x ancillas
-            for x0, y0 in ((-1, 3), (1, 1)):
-                for iy in range(d // 2):
-                    x_coords.add((x0, y0 + 4 * iy))
-            # z ancillas
-            for x0, y0 in ((-1, 1), (1, 3)):
-                for iy in range(d // 2):
-                    z_coords.add((x0, y0 + 4 * iy))
+            # x ancillas (bulk)
+            for n in range(d - 2):
+                x = (-1) ** n
+                y = 2 * n + 1
+                x_coords.add((x, y))
+            # z ancillas (bulk)
+            for n in range(d - 2):
+                x = -((-1) ** n)
+                y = 2 * n + 1
+                z_coords.add((x, y))
 
-            if self.kind[1] == "X":
-                # insert two-body X stabilizer at (-1, -1) and (1, 2d-1)
-                x_coords.add((-1, -1))
-                x_coords.add((1, 2 * d - 1))
-            elif self.kind[1] == "Z":
-                # insert two-body Z stabilizer at (1, -1) and (-1, 2d-1)
-                z_coords.add((1, -1))
-                z_coords.add((-1, 2 * d - 1))
-        elif self.kind[1] == "O":
+            match self.edgespec.TOP:
+                case "X":
+                    x_coords.add((1, 2 * d + 1))
+                case "Z":
+                    z_coords.add((-1, 2 * d + 1))
+                case "O":
+                    pass
+
+            match self.edgespec.BOTTOM:
+                case "X":
+                    x_coords.add((-1, -1))
+                case "Z":
+                    z_coords.add((1, -1))
+                case "O":
+                    pass
+
+        elif self.edgespec.TOP == self.edgespec.BOTTOM == "O":
             """
             If `self.kind[1] == "O"`, the pipe runs along the Y direction
             (horizontal faces are open/trimmed). This is the 90-degree-rotated
@@ -381,7 +339,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                 # Insert two-body Z stabilizers near x=-1 and x=2d-1
                 z_coords.add((-1, 1))
                 z_coords.add((2 * d - 1, -1))
-        elif self.kind[2] == "O":
+        elif self.edgespec.UP == "O" or self.edgespec.DOWN == "O":
             raise NotImplementedError("Temporal pipe not supported yet")
         else:
             raise ValueError("This pipe has no connection boundary")
@@ -393,12 +351,9 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
             "Z": sort_xy(z_coords),
         }
 
-        try:
-            self.data_coords = result["data"]  # type: ignore[attr-defined]
-            self.x_coords = result["X"]  # type: ignore[attr-defined]
-            self.z_coords = result["Z"]  # type: ignore[attr-defined]
-        except Exception:
-            pass
+        self.data_coords = result["data"]  # type: ignore[attr-defined]
+        self.x_coords = result["X"]  # type: ignore[attr-defined]
+        self.z_coords = result["Z"]  # type: ignore[attr-defined]
 
         return result
 
