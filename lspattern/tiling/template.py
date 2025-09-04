@@ -2,8 +2,8 @@ from dataclasses import dataclass, field
 
 from mytype import EdgeSpec
 
-from lspattern.mytype import BoundarySide, TilingConsistentQubitId, TilingCoord2D
-from lspattern.tiling import Tiling
+from lspattern.mytype import TilingConsistentQubitId, TilingCoord2D
+from lspattern.tiling.base import Tiling
 from lspattern.utils import sort_xy
 
 
@@ -39,21 +39,10 @@ class ScalableTemplate(Tiling):
 
     def _dir_to_side(self, direction: str) -> str:
         d = direction.upper()
-        m = {
-            "LEFT": "LEFT",
-            "RIGHT": "RIGHT",
-            "TOP": "TOP",
-            "BOTTOM": "BOTTOM",
-            "X-": "LEFT",
-            "XMINUS": "LEFT",
-            "X+": "RIGHT",
-            "XPLUS": "RIGHT",
-            "Y-": "BOTTOM",
-            "YMINUS": "BOTTOM",
-            "Y+": "TOP",
-            "YPLUS": "TOP",
-        }
-        return m.get(d, d)
+        # 追加指示: LEFT/RIGHT/TOP/BOTTOM 以外は来ない前提で簡略化
+        if d in ("LEFT", "RIGHT", "TOP", "BOTTOM"):
+            return d
+        return d
 
     def _ensure_coords_populated(self) -> None:
         if not (self.data_coords or self.x_coords or self.z_coords):
@@ -225,31 +214,38 @@ class RotatedPlanarTemplate(ScalableTemplate):
         # kind[0] chooses which type lives on vertical boundaries
         # TODO: refactor this part
         # このあたりkind -> edgespecに置き換えたい。変更が大きくなるので注意して取り組む
-        if self.kind[0] == "X":
-            # left: x=-1 at y=1,5,9,..; right: x=2d-1 at y=2d-3,2d-7,..
+        # kind ベースの境界ロジックは廃止（EdgeSpec で決定）
+        # 3) 垂直境界（LEFT/RIGHT）は EdgeSpec で決定
+        left_spec = self._resolve_edge("LEFT")
+        right_spec = self._resolve_edge("RIGHT")
+        if left_spec == "X":
             for y in range(1, 2 * d - 1, 4):
                 x_coords.add((-1, y))
-            for y in range(2 * d - 3, -1, -4):
-                x_coords.add((2 * d - 1, y))
-        elif self.kind[0] == "Z":
-            # left: Z at high-first sequence; right: Z at low-first sequence
+        elif left_spec == "Z":
             for y in range(2 * d - 3, -1, -4):
                 z_coords.add((-1, y))
+
+        if right_spec == "X":
+            for y in range(2 * d - 3, -1, -4):
+                x_coords.add((2 * d - 1, y))
+        elif right_spec == "Z":
             for y in range(1, 2 * d - 1, 4):
                 z_coords.add((2 * d - 1, y))
 
-        # 4) Y faces (top/bottom boundaries along y)
-        # kind[1] chooses which type lives on horizontal boundaries
-        if self.kind[1] == "X":
-            # bottom: y=-1 at x=1,5,9,..; top: y=2d-1 at x=2d-3,2d-7,..
+        # 4) 水平境界（BOTTOM/TOP）は EdgeSpec で決定
+        bottom_spec = self._resolve_edge("BOTTOM")
+        top_spec = self._resolve_edge("TOP")
+        if bottom_spec == "X":
             for x in range(1, 2 * d - 1, 4):
                 x_coords.add((x, -1))
-            for x in range(2 * d - 3, -1, -4):
-                x_coords.add((x, 2 * d - 1))
-        elif self.kind[1] == "Z":
-            # bottom: Z at high-first sequence; top: Z at low-first sequence
+        elif bottom_spec == "Z":
             for x in range(2 * d - 3, -1, -4):
                 z_coords.add((x, -1))
+
+        if top_spec == "X":
+            for x in range(2 * d - 3, -1, -4):
+                x_coords.add((x, 2 * d - 1))
+        elif top_spec == "Z":
             for x in range(1, 2 * d - 1, 4):
                 z_coords.add((x, 2 * d - 1))
 
