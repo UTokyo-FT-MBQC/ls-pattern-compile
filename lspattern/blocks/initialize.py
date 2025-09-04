@@ -1,24 +1,23 @@
 from __future__ import annotations
 
-from typing import Dict, List, Set, Tuple, Union
+from typing import List, Set
 
-from graphix_zx.graphstate import BaseGraphState, GraphState
 from graphix_zx.common import Plane, PlannerMeasBasis
+from graphix_zx.graphstate import GraphState
 
-from lspattern.blocks.base import RHGBlockSkeleton, RHGBlock
+from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
+from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import (
     BlockKindstr,
+    FlowLocal,
     NodeIdLocal,
+    NodeSetLocal,
+    PhysCoordGlobal3D,
     PhysCoordLocal2D,
     PhysCoordLocal3D,
-    PhysCoordGlobal3D,
-    NodeSetLocal,
-    FlowLocal,
     ScheduleTuplesLocal,
 )
-from lspattern.template.base import RotatedPlanarTemplate, ScalableTemplate
-from lspattern.consts.consts import DIRECTIONS2D, DIRECTIONS3D
-from lspattern.utils import __tuple_sum
+from lspattern.template.base import RotatedPlanarTemplate
 
 
 class InitPlusSkeleton(RHGBlockSkeleton):
@@ -156,8 +155,8 @@ class InitPlus(RHGBlock):
 
         # Bind to block fields
         self.graph_local = g
-        self.node2coords = node2coord
-        self.coords2node = {coord: nid for nid, coord in node2coord.items()}
+        self.node2coord = node2coord
+        self.coord2node = {coord: nid for nid, coord in node2coord.items()}
         self.node2role = node2role
         self.in_ports = set()
         self.out_ports = out_ports
@@ -188,7 +187,7 @@ if __name__ == "__main__":
     block.materialize()
 
     g = block.graph_local
-    node2coord = block.node2coords
+    node2coord = block.node2coord
     node2role = block.node2role
 
     # Prepare colored point clouds (match template colors)

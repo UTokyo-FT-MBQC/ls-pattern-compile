@@ -17,23 +17,6 @@ from lspattern.template.base import ScalableTemplate
 
 
 @dataclass
-class ParityAccumulator:
-    # Parity check groups (LOCAL ids)
-    x_checks: list[set[NodeIdLocal]] = field(default_factory=list)
-    z_checks: list[set[NodeIdLocal]] = field(default_factory=list)
-
-
-@dataclass
-class FlowAccumulator:
-    xflow: dict[NodeIdLocal, set[NodeIdLocal]] = field(default_factory=dict)
-
-
-@dataclass
-class ScheduleAccumulator:
-    schedule: dict[int, set[NodeIdLocal]] = field(default_factory=dict)
-
-
-@dataclass
 class RHGBlockSkeleton:
     # サイズとkind(色)情報だけ持っている
     d: int
@@ -67,8 +50,8 @@ class RHGBlock:
     cout_ports: list[set[NodeIdLocal]] = field(default_factory=list)
 
     # Geometry annotations (LOCAL node -> (x, y, z))
-    node2coords: dict[NodeIdLocal, PhysCoordLocal3D] = field(default_factory=dict)
-    coords2node: dict[PhysCoordLocal3D, NodeIdLocal] = field(default_factory=dict)
+    node2coord: dict[NodeIdLocal, PhysCoordLocal3D] = field(default_factory=dict)
+    coord2node: dict[PhysCoordLocal3D, NodeIdLocal] = field(default_factory=dict)
     node2role: dict[NodeIdLocal, str] = field(default_factory=dict)
 
     # Parity checks contributed entirely within the block (LOCAL ids)
@@ -104,13 +87,13 @@ class RHGBlock:
             ]
 
         # coords maps
-        if self.node2coords:
-            self.node2coords = {
-                int(n) + by: coord for n, coord in self.node2coords.items()
+        if self.node2coord:
+            self.node2coord = {
+                int(n) + by: coord for n, coord in self.node2coord.items()
             }
-        if self.coords2node:
-            self.coords2node = {
-                coord: int(n) + by for coord, n in self.coords2node.items()
+        if self.coord2node:
+            self.coord2node = {
+                coord: int(n) + by for coord, n in self.coord2node.items()
             }
 
         # parity checks
@@ -125,15 +108,15 @@ class RHGBlock:
             return
         ox, oy, oz = by
 
-        if self.node2coords:
-            self.node2coords = {
+        if self.node2coord:
+            self.node2coord = {
                 n: (coord[0] + ox, coord[1] + oy, coord[2] + oz)
-                for n, coord in self.node2coords.items()
+                for n, coord in self.node2coord.items()
             }
 
-        if self.coords2node:
+        if self.coord2node:
             # rebuild inverse map from updated node2coords for consistency
-            self.coords2node = {coord: n for n, coord in self.node2coords.items()}
+            self.coord2node = {coord: n for n, coord in self.node2coord.items()}
 
         self.origin = by
 
@@ -183,10 +166,10 @@ class RHGBlock:
                 raise ValueError("depth larger than block size d")
 
         # Precompute extrema
-        if not self.node2coords:
+        if not self.node2coord:
             raise ValueError("Block not materialized: node2coords is empty")
 
-        xs, ys, zs = zip(*self.node2coords.values())
+        xs, ys, zs = zip(*self.node2coord.values())
         xmin, xmax = min(xs), max(xs)
         ymin, ymax = min(ys), max(ys)
         zmin, zmax = min(zs), max(zs)  # note output nodes have extra 1z layer
@@ -222,11 +205,11 @@ class RHGBlock:
         xcheck_nodes: dict[PhysCoordLocal3D, NodeIdLocal] = {}
 
         # Single pass over coords for speed
-        for n, coord in self.node2coords.items():
+        for n, coord in self.node2coord.items():
             if coord[axis] not in targets:
                 continue
 
-            role = self.node2coords[n]
+            role = self.node2coord[n]
             if role == "data":
                 data_nodes[coord] = n
             if role == "ancilla_x":

@@ -7,11 +7,11 @@ import stim
 
 # graphix_zx pieces
 from graphix_zx.graphstate import GraphState, compose_sequentially
-from mytype import *
 
 from lspattern.blocks.base import BlockDelta, RHGBlock
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import (
+    FlowLocal,
     NodeIdGlobal,
     NodeIdLocal,
     PatchCoordGlobal3D,
@@ -20,6 +20,38 @@ from lspattern.mytype import (
 )
 from lspattern.pipes.base import RHGPipe
 from lspattern.utils import __tuple_sum, get_direction
+
+
+# Flow helpers (node maps guaranteed to contain all keys)
+def _remap_flow(flow: FlowLocal, node_map: dict[NodeIdLocal, NodeIdLocal]) -> FlowLocal:
+    return {
+        node_map[src]: {node_map[dst] for dst in dsts} for src, dsts in flow.items()
+    }
+
+
+def _merge_flow(a: FlowLocal, b: FlowLocal) -> FlowLocal:
+    out: FlowLocal = {}
+    for src, dsts in a.items():
+        if not dsts:
+            continue
+        out.setdefault(src, set()).update(dsts)
+    for src, dsts in b.items():
+        if not dsts:
+            continue
+        out.setdefault(src, set()).update(dsts)
+    return out
+
+
+# Parity groups: remap list[set[int]] via node maps and concatenate.
+def _remap_groups(
+    groups: list[set[NodeIdLocal]],
+    node_map: dict[NodeIdLocal, NodeIdLocal],
+) -> list[set[NodeIdLocal]]:
+    return [
+        {node_map.get(n, n) for n in grp}
+        for grp in groups
+        if grp  # skip empty
+    ]
 
 
 @dataclass
@@ -81,7 +113,7 @@ class TemporalLayer:
         self.out_portset[pos] = block.out_ports
 
         # Update node2coord and coord2node
-        for n, coord in block.node_coords.items():
+        for n, coord in block.node2coords.items():
             self.node2coord[n] = coord
             self.coord2node[coord] = n
 
@@ -214,9 +246,29 @@ class RHGCanvas2:
 
     def compile(self) -> CompiledRHGCanvas:
         temporal_layers = self.to_temporal_layers()
-        cgraph = CompiledRHGCanvas()
+        # Initialize an empty compiled canvas with required accumulators
+        cgraph = CompiledRHGCanvas(
+            layers=[],
+            global_graph=None,
+            coord2node={},
+            in_portset={},
+            out_portset={},
+            cout_portset={},
+            schedule=ScheduleAccumulator(),
+            flow=FlowAccumulator(),
+            parity=ParityAccumulator(),
+            z=0,
+        )
 
-        for layer in temporal_layers:
+        # Compose layers in increasing temporal order, wiring any cross-layer pipes
+        for z in sorted(temporal_layers.keys()):
+            layer = temporal_layers[z]
+            # Select pipes whose start.z is the current compiled z and end.z is the next layer z
+            pipes: list[RHGPipe] = [
+                pipe
+                for (u, v), pipe in self.pipe3d.items()
+                if u[2] == cgraph.z and v[2] == z
+            ]
             cgraph = add_temporal_layer(cgraph, layer, pipes)
         return cgraph
 
@@ -226,7 +278,6 @@ def to_temporal_layer(
     blocks: dict[PatchCoordGlobal3D, RHGBlock],
     pipes: dict[PipeCoordGlobal3D, RHGPipe],
 ) -> TemporalLayer:
-    # The workflow is below
     # 1) Make empty TemporalLayer instance
     layer = TemporalLayer(z)
     # 2) Add blocks
@@ -299,9 +350,29 @@ def add_temporal_layer(
 
     # scheduler, xflow, parity
     new_schedule = cgraph.schedule.compose_sequential(next_layer.schedule)
-    # TODO: Implement xflow and parity composition
-    new_xflow = ...
-    new_parity = ...
+
+    # Remap existing flows via node_map1 and new layer flows via node_map2, then merge.
+
+    # TODO: add new stabilizers, xflow, parity coming from merged boundaries
+    remapped_prev_x = _remap_flow(cgraph.flow.xflow, node_map1)
+    remapped_prev_z = _remap_flow(cgraph.flow.zflow, node_map1)
+    remapped_next_x = _remap_flow(next_layer.flow.xflow, node_map2)
+    remapped_next_z = _remap_flow(next_layer.flow.zflow, node_map2)
+
+    merged_xflow = _merge_flow(remapped_prev_x, remapped_next_x)
+    merged_zflow = _merge_flow(remapped_prev_z, remapped_next_z)
+
+    new_xflow = FlowAccumulator(xflow=merged_xflow, zflow=merged_zflow)
+
+    remapped_prev_x_checks = _remap_groups(cgraph.parity.x_checks, node_map1)
+    remapped_prev_z_checks = _remap_groups(cgraph.parity.z_checks, node_map1)
+    remapped_next_x_checks = _remap_groups(next_layer.parity.x_checks, node_map2)
+    remapped_next_z_checks = _remap_groups(next_layer.parity.z_checks, node_map2)
+
+    new_parity = ParityAccumulator(
+        x_checks=remapped_prev_x_checks + remapped_next_x_checks,
+        z_checks=remapped_prev_z_checks + remapped_next_z_checks,
+    )
     cgraph = CompiledRHGCanvas(
         layers=new_layers,
         global_graph=new_graph,
@@ -309,7 +380,9 @@ def add_temporal_layer(
         in_portset=in_portset,
         out_portset=out_portset,
         cout_portset=cout_portset,
-        scheduler=cgraph.scheduler.compose_sequential(next_layer.scheduler),
+        scheduler=new_schedule,
+        xflow=new_xflow,
+        parity=new_parity,
         z=new_z,
     )
 
