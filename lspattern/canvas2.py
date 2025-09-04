@@ -5,7 +5,7 @@ from typing import Optional, Set
 
 # import stim
 # graphix_zx pieces
-from graphix_zx.graphstate import GraphState, compose_sequentially
+from graphix_zx.graphstate import GraphState, compose_in_parallel, compose_sequentially
 from lspattern.accumulator import (
     FlowAccumulator,
     ParityAccumulator,
@@ -60,45 +60,67 @@ class TemporalLayer:
         self.coord2node = {}
 
     def add_block(self, pos: PatchCoordGlobal3D, block: RHGBlock) -> None:
-        # Ensure the block has a template and is materialized
+        # Require a template and a materialized local graph
         if getattr(block, "template", None) is None:
-            try:
-                from lspattern.template.base import RotatedPlanarTemplate
+            raise ValueError(
+                "Block has no template; set block.template before add_block()."
+            )
+        block.materialize()
+        if getattr(block, "graph_local", None) is None:
+            raise ValueError("Block.materialize() did not produce graph_local.")
+        if not getattr(block, "node2coord", {}):
+            raise ValueError("Block has empty node2coord after materialize().")
 
-                block.template = RotatedPlanarTemplate(d=block.d, kind=block.kind)
-                _ = block.template.to_tiling()
-            except Exception:
-                pass
-        if getattr(block, "graph_local", None) in (None, {}) or not getattr(block, "node2coord", {}):
-            # Materialize if not already
-            try:
-                block.materialize()
-            except Exception:
-                # If materialization fails, proceed without composing graph to avoid crash
-                pass
-
-        # shift qubit ids and coordinates for placement
-        block.shift_ids(self.qubit_count)
+        # shift coordinates for placement (ids remain local to block graph)
         block.shift_coords(pos)
 
         # Update patch, input/output ports
         self.patches.append(pos)
-        try:
-            self.in_portset[pos] = list(getattr(block, "in_ports", []))
-            self.out_portset[pos] = list(getattr(block, "out_ports", []))
-        except Exception:
-            self.in_portset[pos] = []
-            self.out_portset[pos] = []
+        self.in_portset[pos] = list(getattr(block, "in_ports", []))
+        self.out_portset[pos] = list(getattr(block, "out_ports", []))
 
-        # Update node2coord and coord2node
-        for n, coord in getattr(block, "node2coord", {}).items():
-            self.node2coord[n] = coord
-            self.coord2node[coord] = n
+        # (Defer geometry mapping until after graph composition)
 
-        # Initialize or update the layer's local graph minimally
+        # Compose this block's graph by cloning it into the layer graph
+        g2: GraphState = getattr(block, "graph_local", None)
         if getattr(self, "local_graph", None) is None:
-            self.local_graph = getattr(block, "graph_local", None)
-        # For now, skip composition with compose_sequentially until multi-block wiring is needed
+            self.local_graph = GraphState()
+        g_dst: GraphState = self.local_graph
+
+        node_map2: dict[int, int] = {}
+        # Clone nodes and meas bases
+        for n in sorted(g2.physical_nodes):
+            nn = g_dst.add_physical_node()
+            node_map2[n] = nn
+            mb = g2.meas_bases.get(n)
+            if mb is not None:
+                g_dst.assign_meas_basis(nn, mb)
+        # Clone edges
+        for u, v in g2.physical_edges:
+            g_dst.add_physical_edge(node_map2[u], node_map2[v])
+        # Carry over IO markers
+        for in_n in g2.input_node_indices.keys():
+            g_dst.register_input(node_map2[in_n])
+        for out_n, qidx in g2.output_node_indices.items():
+            g_dst.register_output(node_map2[out_n], qidx)
+
+        # Add the new block geometry via node_map2
+        for old_n, coord in (getattr(block, "node2coord", {}) or {}).items():
+            nn = node_map2.get(old_n)
+            if nn is None:
+                continue
+            self.node2coord[nn] = coord
+            self.coord2node[coord] = nn
+
+        if pos in self.in_portset:
+            self.in_portset[pos] = [node_map2[n] for n in self.in_portset[pos] if n in node_map2]
+        if pos in self.out_portset:
+            self.out_portset[pos] = [node_map2[n] for n in self.out_portset[pos] if n in node_map2]
+
+        self.in_ports.extend(self.in_portset.get(pos, []))
+        self.out_ports.extend(self.out_portset.get(pos, []))
+
+        self.qubit_count = len(self.local_graph.physical_nodes)
 
     def add_pipe(
         self,
@@ -250,16 +272,16 @@ class RHGCanvas2:
     # Graphは持たない
     name: str = "Blank Canvas"
     # {(0,0,0): InitPlus(), ..}
-    block3d: dict[PatchCoordGlobal3D, BlockDelta] = field(default_factory=dict)
+    block3d: dict[PatchCoordGlobal3D, RHGBlock] = field(default_factory=dict)
     # {((0,0,0),(1,0,0)): Stabilize(), ((0,0,0), (0,0,1)): Measure(basis=X)}
-    pipe3d: dict[PipeCoordGlobal3D, BlockDelta] = field(default_factory=dict)
+    pipe3d: dict[PipeCoordGlobal3D, RHGPipe] = field(default_factory=dict)
     layers: Optional[list[TemporalLayer]] = None
 
-    def add_block(self, position: PatchCoordGlobal3D, block: BlockDelta) -> None:
+    def add_block(self, position: PatchCoordGlobal3D, block: RHGBlock) -> None:
         self.block3d[position] = block
 
     def add_pipe(
-        self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: BlockDelta
+        self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipe
     ) -> None:
         self.pipe3d[(start, end)] = pipe
 
