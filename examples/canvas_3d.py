@@ -6,6 +6,7 @@ This example builds a single-logical memory line by stacking blocks on a growing
 Usage:
   python examples/rhg_memory.py
 """
+
 # %%
 import pathlib
 
@@ -40,12 +41,11 @@ for block in blocks:
     canvas.add_block(*block)
 for pipe in pipes:
     canvas.add_pipe(*pipe)
-    
+
 layers = canvas.to_temporal_layers()
 
 compiled_canvas = CompiledRHGCanvas(
     layers=layers,
-    
 )
 
 # %%

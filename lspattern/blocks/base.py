@@ -15,8 +15,21 @@ from typing import (
 
 from graphix_zx.graphstate import GraphState
 from lspattern.template.base import ScalableTemplate
-from mytype import *
+from lspattern.mytype import *
 
+@dataclass
+class ParityAccumulator:
+    # Parity check groups (LOCAL ids)
+    x_checks: list[set[NodeIdLocal]] = field(default_factory=list)
+    z_checks: list[set[NodeIdLocal]] = field(default_factory=list)
+
+@dataclass
+class FlowAccumulator:
+    xflow: dict[NodeIdLocal, set[NodeIdLocal]] = field(default_factory=dict)
+
+@dataclass
+class ScheduleAccumulator:
+    schedule: dict[int, set[NodeIdLocal]] = field(default_factory=dict)
 
 @dataclass
 class RHGBlockSkeleton:
@@ -27,24 +40,23 @@ class RHGBlockSkeleton:
 
 @dataclass
 class RHGBlock:
-    index: int
-    d: int
-    origin: Optional[tuple[int, int, int]] = (0, 0, 0)
-    kind: tuple[str, str, str] = field(default_factory=lambda: ("X", "X", "Z"))
-    template: ScalableTemplate = field(default=None)
-
+    index: int = 0
+    d: int = 3
     # The graph fragment contributed by the block (LOCAL ids).
-    graph_local: GraphState
+    graph_local: GraphState = field(default_factory=GraphState)
+    origin: Optional[tuple[int, int, int]] = (0, 0, 0)
+    kind: BlockKindstr = field(default_factory=lambda: ("X", "X", "Z"))
+    template: Optional[ScalableTemplate] = None
+
     # measurement schedule (int)--> set of measured local nodes
-    schedule_local: list[tuple[int, set[NodeIdLocal]]] = field(default_factory=list)
+    schedule_local: ScheduleTuplesLocal = field(default_factory=list)
     # Flow (LOCAL ids): minimal X-flow mapping (node -> correction target nodes)
-    flow_local: dict[NodeIdLocal, set[NodeIdLocal]] = field(default_factory=dict)
+    flow_local: FlowLocal = field(default_factory=dict)
 
     # MBQC interface (local ids)
-    # logical -> set of input-side boundary nodes
-    in_ports: set[dict[NodeIdLocal, int]] = field(default_factory=set)
-    # logical -> set of output-side boundary nodes
-    out_ports: set[dict[NodeIdLocal, int]] = field(default_factory=set)
+    # Ports for this block's current logical patch boundary
+    in_ports: NodeSetLocal = field(default_factory=set)
+    out_ports: NodeSetLocal = field(default_factory=set)
     # classical output ports. One group represents one logical result (to be XORed)
     cout_ports: list[set[NodeIdLocal]] = field(default_factory=list)
 
@@ -180,7 +192,7 @@ class BlockDelta:
     """
 
     # The graph fragment contributed by the block (LOCAL ids).
-    local_graph: BaseGraphState
+    local_graph: GraphState
 
     # MBQC interface (LOCAL ids)
     in_ports: Dict[int, Set[int]] = field(

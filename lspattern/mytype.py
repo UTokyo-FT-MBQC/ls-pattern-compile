@@ -81,8 +81,6 @@ __all__ = [
     # sets/maps
     "NodeSetLocal",
     "NodeSetGlobal",
-    "NodeCoordMapLocal",
-    "NodeCoordMapGlobal",
     # block IO
     "InPortsLocal",
     "OutPortsLocal",
@@ -96,5 +94,4 @@ __all__ = [
     # kinds
     "BlockKindstr",
     # directions
-    "direction2D",
 ]

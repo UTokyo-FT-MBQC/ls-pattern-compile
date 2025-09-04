@@ -121,17 +121,44 @@ class TemporalLayer:
 
 
 @dataclass
+class Scheduler:
+    schedule: dict[int, Set[NodeIdGlobal]] = field(default_factory=dict)
+
+    def compose_parallel(self, other: Scheduler) -> Scheduler:
+        new_schedule = self.schedule.copy()
+        for t, nodes in other.schedule.items():
+            if t in new_schedule:
+                new_schedule[t].update(nodes)
+            else:
+                new_schedule[t] = nodes
+        return Scheduler(new_schedule)
+
+    def shift_z(self, z_by: int) -> None:
+        new_schedule = {}
+        for t, nodes in self.schedule.items():
+            new_schedule[t + z_by] = nodes
+        self.schedule = new_schedule
+
+    def compose_sequential(self, late_schedule: Scheduler) -> Scheduler:
+        new_schedule = self.schedule.copy()
+        late_schedule.shift_z(max(self.schedule.keys()) + 1)
+        for t, nodes in late_schedule.schedule.items():
+            new_schedule[t] = new_schedule.get(t, set()).union(nodes)
+        return Scheduler(new_schedule)
+
+
+@dataclass
 class CompiledRHGCanvas:
     layers: list[TemporalLayer]
 
-    global_graph: Optional[BaseGraphState] = None
+    global_graph: Optional[GraphState] = None
     coord2node: dict[PhysCoordGlobal3D, int] = field(default_factory=dict)
 
     in_portset: dict[PatchCoordGlobal3D, list[int]] = field(default_factory=dict)
     out_portset: dict[PatchCoordGlobal3D, list[int]] = field(default_factory=dict)
     cout_portset: dict[PatchCoordGlobal3D, list[int]] = field(default_factory=dict)
 
-    scheduler: "Scheduler"
+    scheduler: Scheduler
     flower: "Flower"
     z: int = 0
 
@@ -144,9 +171,9 @@ class RHGCanvas2:
     # Graphは持たない
     name: str = "Blank Canvas"
     block3d: dict[PatchCoordGlobal3D, BlockDelta] = {}  # {(0,0,0): InitPlus(), ...}
-    pipe3d: dict[PipeCoordGlobal3D, BlockDelta] = (
-        {}
-    )  # {((0,0,0),(1,0,0)): Stabilize(), ((0,0,0), (0,0,1)): Measure(basis=X)}
+    pipe3d: dict[
+        PipeCoordGlobal3D, BlockDelta
+    ] = {}  # {((0,0,0),(1,0,0)): Stabilize(), ((0,0,0), (0,0,1)): Measure(basis=X)}
 
     def add_block(self, position: PatchCoordGlobal3D, block: BlockDelta) -> None:
         self.block3d[position] = block

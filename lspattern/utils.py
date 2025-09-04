@@ -1,7 +1,7 @@
-from mytype import PIPEDIRECTION, PatchCoordGlobal3D
+from lspattern.mytype import PatchCoordGlobal3D
+from lspattern.consts.consts import PIPEDIRECTION
 
 
-# TODO: implement this by reading mytype.py as reference
 def get_direction(
     source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D
 ) -> PIPEDIRECTION:
@@ -26,6 +26,6 @@ def get_direction(
             raise ValueError("Invalid direction")
 
 
-def __tuple_sum(l: tuple, r: tuple) -> tuple:
-    assert len(l) == len(r)
-    return tuple(a + b for a, b in zip(l, r))
+def __tuple_sum(l_: tuple, r_: tuple) -> tuple:
+    assert len(l_) == len(r_)
+    return tuple(a + b for a, b in zip(l_, r_))

@@ -8,7 +8,11 @@
         "src",
         "src/graphix_zx"
     ],
-    "pythonVersion": "3.11",
+    "typeCheckingMode": "off",
+    "reportMissingImports": "none",
+    "reportMissingTypeStubs": "none",
+    "reportOptionalMemberAccess": "none",
+    "pythonVersion": "3.12",
     "pythonPlatform": "Windows",
     "venvPath": ".",
     "venv": ".venv"

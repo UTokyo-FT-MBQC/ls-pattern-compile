@@ -1,3 +1,6 @@
 [submodule "src/tqec"]
 	path = src/tqec
 	url = https://github.com/tqec/tqec.git
+[submodule "src/graphix-zx"]
+	path = src/graphix-zx
+	url = https://github.com/TeamGraphix/graphix-zx
