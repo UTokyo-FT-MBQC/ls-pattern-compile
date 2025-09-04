@@ -15,6 +15,7 @@ changing runtime representations.
 from __future__ import annotations
 
 from typing import Dict, List, Mapping, MutableMapping, NewType, Set, Tuple
+from enum import Enum
 
 # ---------------------------------------------------------------------
 # Core scalar ids (NewType for static distinction)
@@ -94,4 +95,33 @@ __all__ = [
     # kinds
     "BlockKindstr",
     # directions
+]
+
+# ---------------------------------------------------------------------
+# Boundary enums and types (for per-side face specification)
+# ---------------------------------------------------------------------
+
+class BoundarySide(str, Enum):
+    TOP = "TOP"        # +Y
+    BOTTOM = "BOTTOM"  # -Y
+    LEFT = "LEFT"      # -X
+    RIGHT = "RIGHT"    # +X
+    UP = "UP"          # +Z
+    DOWN = "DOWN"      # -Z
+
+
+class EdgeSpec(str, Enum):
+    # X: X-type boundary, Z: Z-type boundary, O: Open/Trimmed
+    X = "X"
+    Z = "Z"
+    O = "O"
+
+
+# Mapping from side to boundary spec
+BoundarySpec = Dict[BoundarySide, EdgeSpec]
+
+__all__ += [
+    "BoundarySide",
+    "EdgeSpec",
+    "BoundarySpec",
 ]

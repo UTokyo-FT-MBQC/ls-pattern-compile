@@ -2,20 +2,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import (
-    Any,
     Dict,
     List,
-    Mapping,
     Optional,
     Protocol,
     Set,
     Tuple,
-    TYPE_CHECKING,
 )
 
 from graphix_zx.graphstate import GraphState
-from lspattern.template.base import ScalableTemplate
+
 from lspattern.mytype import *
+from lspattern.template.base import ScalableTemplate
+
 
 @dataclass
 class ParityAccumulator:
@@ -23,13 +22,16 @@ class ParityAccumulator:
     x_checks: list[set[NodeIdLocal]] = field(default_factory=list)
     z_checks: list[set[NodeIdLocal]] = field(default_factory=list)
 
+
 @dataclass
 class FlowAccumulator:
     xflow: dict[NodeIdLocal, set[NodeIdLocal]] = field(default_factory=dict)
 
+
 @dataclass
 class ScheduleAccumulator:
     schedule: dict[int, set[NodeIdLocal]] = field(default_factory=dict)
+
 
 @dataclass
 class RHGBlockSkeleton:
@@ -46,7 +48,11 @@ class RHGBlock:
     graph_local: GraphState = field(default_factory=GraphState)
     origin: Optional[tuple[int, int, int]] = (0, 0, 0)
     kind: BlockKindstr = field(default_factory=lambda: ("X", "X", "Z"))
+    boundary_spec: dict[str, str] = field(default_factory=dict)
     template: Optional[ScalableTemplate] = None
+
+    # 各境界の仕様（X/Z/O=Open/Trimmed）。未設定(None/欠損)は Open(O) とみなす。
+    boundary_spec: Optional[BoundarySpec] = None
 
     # measurement schedule (int)--> set of measured local nodes
     schedule_local: ScheduleTuplesLocal = field(default_factory=list)
@@ -134,32 +140,103 @@ class RHGBlock:
     def materialize(self, skeleton: RHGBlockSkeleton) -> None:
         pass
 
+    def get_boundary_spec(self, side: BoundarySide) -> EdgeSpec:
+        """指定 side の境界仕様を返す（未設定は Open/Trimmed とみなす）。"""
+        return self.boundary_spec[side]
+
     def get_boundary_nodes(
-        self, face: str, depth: list[int] = [-1]
+        self, face: str, depth: list[int] = [0]
     ) -> dict[str, list[NodeIdLocal]]:
-        # get all the nodes whose X/Y/Z coordinate match the given face and depth condition
-        # -1 means they are on the boundary, -2 means one step inside the bulk
-        # raise error if depth larger than size d
-        # You may assume LocalGraph (maybe shifted/incremented with shfit_ids/coords command)
-        # if X face, choose min X (X-) and max X (X+) if Y, choose min Y (Y-) and max Y (Y+) if Z, choose min Z (Z-) and max Z (Z+)
-        # The return scheme is
-        # ret = {"data": [node indices...], "x_check": [nodeindices...], "z_check": [node ids...]}
-        # You may look for 2D template: C:\Users\qipe\Documents\GitHub\ls-pattern-compile\lspattern\template\base.py for reference. But make sure we will build RHG lattice based on this 2D tiling with r-rounds.
-        # if you have question, just ask me
+        """Get all the nodes on a given face and at a specific depth.
+
+        The function selects nodes from a LocalGraph based on their coordinates,
+        targeting a specific face of the lattice boundary and a depth relative
+        to it. The lattice is assumed to be a 3D RHG lattice built from a 2D
+        tiling with r-rounds.
+
+        The depth is measured outwards from the boundary surface. For example:
+        - A depth of 0 indicates nodes are on the boundary.
+        - A depth of -1 indicates nodes are one step inside the bulk from the surface.
+        - A depth of +1 indicates nodes are one step outside the surface (valid only then Z+, to get the output ports).
+
+        An error will be raised if the depth is larger than the size 'd'.
+
+        Args:
+            face (str): The face to select nodes from. Must be one of
+                        "X+", "X-", "Y+", "Y-", "Z+", or "Z-".
+            depth (int): The inward depth from the specified face.
+
+        Returns:
+            dict: A dictionary with three keys:
+                  - "data": A list of data qubit node indices.
+                  - "x_check": A list of X-check qubit node indices.
+                  - "z_check": A list of Z-check qubit node indices.
+        """
         assert face in ["X+", "X-", "Y+", "Y-", "Z+", "Z-"]
-        match face:
-            case "X+":
-                pass
-            case "X-":
-                pass
-            case "Y+":
-                pass
-            case "Y-":
-                pass
-            case "Z+":
-                pass
-            case "Z-":
-                pass
+        for dv in depth:
+            if dv >= 0:
+                raise ValueError(
+                    "depth values must be negative (e.g., -1 for boundary)"
+                )
+            # steps inside from boundary = (-dv - 1)
+            if (-dv - 1) >= int(self.d):
+                raise ValueError("depth larger than block size d")
+
+        # Precompute extrema
+        if not self.node2coords:
+            raise ValueError("Block not materialized: node2coords is empty")
+
+        xs, ys, zs = zip(*self.node2coords.values())
+        xmin, xmax = min(xs), max(xs)
+        ymin, ymax = min(ys), max(ys)
+        zmin, zmax = min(zs), max(zs)  # note output nodes have extra 1z layer
+
+        if face[0] == "X":
+            axis = 0
+            if face == "X+":
+                targets = {xmax - s for s in depth}
+            elif face == "X-":
+                targets = {xmin + s for s in depth}
+        elif face[0] == "Y":
+            if face == "Y+":
+                targets = {ymax - s for s in depth}
+            elif face == "Y-":
+                targets = {ymin + s for s in depth}
+            axis = 1
+        elif face[0] == "Z":
+            if face == "Z+":
+                # Need modification if graph contains output layer
+                has_output = bool(len(self.graph_local.output_nodes) > 0)
+                if has_output:
+                    targets = {zmax - 1 - s for s in depth}
+                else:
+                    targets = {zmax - s for s in depth}
+            elif face == "Z-":
+                targets = {zmin + s for s in depth}
+            axis = 2
+
+        # Collect nodes by role on the selected face layers
+        # data_nodes should be a mapping from local coordinates to node id
+        data_nodes: dict[PhysCoordLocal3D, NodeIdLocal] = {}
+        zcheck_nodes: dict[PhysCoordLocal3D, NodeIdLocal] = {}
+        xcheck_nodes: dict[PhysCoordLocal3D, NodeIdLocal] = {}
+
+        # Single pass over coords for speed
+        for n, coord in self.node2coords.items():
+            if coord[axis] not in targets:
+                continue
+
+            role = self.node2coords[n]
+            if role == "data":
+                data_nodes[coord] = n
+            if role == "ancilla_x":
+                xcheck_nodes[coord] = n
+            elif role == "ancilla_z":
+                zcheck_nodes[coord] = n
+            else:
+                raise ValueError(f"Unknown node role: {role}")
+
+        return {"data": data_nodes, "x_check": xcheck_nodes, "z_check": zcheck_nodes}
 
 
 class Memory(RHGBlock):

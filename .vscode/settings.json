@@ -1,30 +1,20 @@
 {
-    "chatgpt.openOnStartup": true,
-    "python.defaultInterpreterPath": "./.venv/Scripts/python.exe",
-    "python.terminal.activateEnvironment": true,
-    "python.analysis.extraPaths": [
-        "./src",
-        "./src/graphix_zx",
-        "./lspattern"
-    ],
-    "python.analysis.autoSearchPaths": true,
-    "python.analysis.typeCheckingMode": "off",
-    "python.analysis.diagnosticMode": "openFilesOnly",
-    "python.linting.enabled": true,
-    "python.linting.pylintEnabled": true,
-    "python.linting.pylintPath": "./.venv/Scripts/pylint.exe",
-    "pylint.path": [
-        "./.venv/Scripts/pylint.exe"
-    ],
-    "pylint.args": [
-        "--py-version=3.12"
-    ],
-    "python.linting.pylintArgs": [
-        "--py-version=3.12"
-    ],
-    "python-envs.pythonProjects": [],
-    "python.analysis.typeCheckingMode": "off",
-    "python.analysis.diagnosticMode": "openFilesOnly",
-    "python.envFile": "${workspaceFolder}/.env",
-    "jupyter.notebookFileRoot": "${workspaceFolder}"
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.extraPaths": [
+    "src",
+    "src/graphix-zx",
+    "src/tqec/src"
+  ],
+  "ruff.lint.run": "onSave",
+  "ruff.fixOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "files.exclude": {
+    "**/__pycache__": true,
+    ".venv": false
+  }
 }
+

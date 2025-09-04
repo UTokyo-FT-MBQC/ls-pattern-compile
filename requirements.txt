@@ -10,7 +10,7 @@ decorator==5.2.1
 executing==2.2.0
 fastjsonschema==2.21.2
 fonttools==4.59.0
--e git+https://github.com/TeamGraphix/graphix-zx@25759c65da4a6b85cab88b175bed8ffe75e1c134#egg=graphix_zx&subdirectory=..\..\..\src\graphix-zx
+# -e git+https://github.com/TeamGraphix/graphix-zx@25759c65da4a6b85cab88b175bed8ffe75e1c134#egg=graphix_zx&subdirectory=..\..\..\src\graphix-zx
 immutabledict==4.2.1
 iniconfig==2.1.0
 ipykernel==6.30.1
