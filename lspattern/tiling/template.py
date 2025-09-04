@@ -6,7 +6,7 @@ from lspattern.utils import sort_xy
 
 
 # TODO: remove kind. Use edgespec
-@dataclass
+@dataclass(kw_only=True)
 class ScalableTemplate(Tiling):
     d: int
     edgespec: EdgeSpec  # XXZX
