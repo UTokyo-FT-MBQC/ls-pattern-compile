@@ -330,15 +330,22 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                 for ix in range(d // 2):
                     z_coords.add((x0 + 4 * ix, y0))
 
-            # Two-body stabilizers at left/right ends decided by kind[0]
-            if self.kind[0] == "X":
-                # Insert two-body X stabilizers near x=-1 and x=2d-1
-                x_coords.add((-1, -1))
-                x_coords.add((2 * d - 1, 1))
-            elif self.kind[0] == "Z":
-                # Insert two-body Z stabilizers near x=-1 and x=2d-1
-                z_coords.add((-1, 1))
-                z_coords.add((2 * d - 1, -1))
+            # Two-body stabilizers at left/right ends decided by EdgeSpec
+            match self.edgespec.LEFT:
+                case "X":
+                    x_coords.add((-1, -1))
+                case "Z":
+                    z_coords.add((-1, 1))
+                case "O":
+                    pass
+
+            match self.edgespec.RIGHT:
+                case "X":
+                    x_coords.add((2 * d - 1, 1))
+                case "Z":
+                    z_coords.add((2 * d - 1, -1))
+                case "O":
+                    pass
         elif self.edgespec.UP == "O" or self.edgespec.DOWN == "O":
             raise NotImplementedError("Temporal pipe not supported yet")
         else:
