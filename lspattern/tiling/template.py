@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 
 from mytype import EdgeSpec
 
-from lspattern.mytype import TilingConsistentQubitId, TilingCoord2D
+from lspattern.mytype import BoundarySide, TilingConsistentQubitId, TilingCoord2D
 from lspattern.tiling import Tiling
 from lspattern.utils import sort_xy
 
@@ -24,6 +24,70 @@ class ScalableTemplate(Tiling):
     def get_data_indices(self) -> dict[TilingCoord2D, TilingConsistentQubitId]:
         data_index = {coor: i for i, coor in enumerate(sort_xy(self.data_coords))}
         return data_index
+
+    # ---- T3 additions: EdgeSpec 利用と Trim API ----
+    def _resolve_edge(self, side: str) -> str:
+        s = side.upper()
+        # Prefer per-instance edgespec if provided; fallback to 'O'
+        try:
+            val = getattr(self.edgespec, s)
+        except Exception:
+            val = "O"
+        if val not in ("X", "Z", "O"):
+            return "O"
+        return val
+
+    def _dir_to_side(self, direction: str) -> str:
+        d = direction.upper()
+        m = {
+            "LEFT": "LEFT",
+            "RIGHT": "RIGHT",
+            "TOP": "TOP",
+            "BOTTOM": "BOTTOM",
+            "X-": "LEFT",
+            "XMINUS": "LEFT",
+            "X+": "RIGHT",
+            "XPLUS": "RIGHT",
+            "Y-": "BOTTOM",
+            "YMINUS": "BOTTOM",
+            "Y+": "TOP",
+            "YPLUS": "TOP",
+        }
+        return m.get(d, d)
+
+    def _ensure_coords_populated(self) -> None:
+        if not (self.data_coords or self.x_coords or self.z_coords):
+            try:
+                self.to_tiling()
+            except Exception:
+                pass
+
+    def trim_spatial_boundary(self, direction: str) -> None:
+        """Remove ancilla/two-body checks on a given boundary in 2D tiling.
+
+        Only X/Z ancilla on the target boundary line are removed. Data qubits
+        remain intact. Supported directions: LEFT/RIGHT/TOP/BOTTOM or X±/Y±.
+        """
+        self._ensure_coords_populated()
+        side = self._dir_to_side(direction)
+        d = getattr(self, "d", None)
+        if not isinstance(d, int):
+            return
+
+        def on_side(pt: tuple[int, int]) -> bool:
+            x, y = pt
+            if side == "LEFT":
+                return x == -1
+            if side == "RIGHT":
+                return x == 2 * d - 1
+            if side == "BOTTOM":
+                return y == -1
+            if side == "TOP":
+                return y == 2 * d - 1
+            return False
+
+        self.x_coords = [p for p in (self.x_coords or []) if not on_side(p)]
+        self.z_coords = [p for p in (self.z_coords or []) if not on_side(p)]
 
     def visualize_tiling(
         self, ax=None, show: bool = True, title_suffix: str | None = None
@@ -188,6 +252,32 @@ class RotatedPlanarTemplate(ScalableTemplate):
                 z_coords.add((x, -1))
             for x in range(1, 2 * d - 1, 4):
                 z_coords.add((x, 2 * d - 1))
+
+        # 5) Reconcile per-side EdgeSpec on boundaries (EdgeSpec overrides kind)
+        def on_side(pt: tuple[int, int], side: str) -> bool:
+            x, y = pt
+            if side == "LEFT":
+                return x == -1
+            if side == "RIGHT":
+                return x == 2 * d - 1
+            if side == "BOTTOM":
+                return y == -1
+            if side == "TOP":
+                return y == 2 * d - 1
+            return False
+
+        for side in ("LEFT", "RIGHT", "BOTTOM", "TOP"):
+            spec = self._resolve_edge(side)
+            if spec == "X":
+                # only X allowed on this side
+                z_coords = {p for p in z_coords if not on_side(p, side)}
+            elif spec == "Z":
+                # only Z allowed on this side
+                x_coords = {p for p in x_coords if not on_side(p, side)}
+            elif spec == "O":
+                # trimmed: remove both X and Z on this side
+                x_coords = {p for p in x_coords if not on_side(p, side)}
+                z_coords = {p for p in z_coords if not on_side(p, side)}
 
         result = {
             "data": sort_xy(data_coords),
