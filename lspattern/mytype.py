@@ -141,46 +141,6 @@ class _EdgeSpecMeta(type):
         # Fallback to regular class attribute set
         return super().__setattr__(name, value)
 
-    def __call__(cls, *args, **kwargs):  # type: ignore[override]
-        """Factory: allow `EdgeSpec("X","Z","Z","O")` or kwargs.
-
-        Positional args order (4 or 6 values):
-        - 4 args: (TOP, BOTTOM, LEFT, RIGHT)
-        - 6 args: (TOP, BOTTOM, LEFT, RIGHT, UP, DOWN)
-
-        Keyword args (case-insensitive keys) can specify any subset of
-        TOP/BOTTOM/LEFT/RIGHT/UP/DOWN. Unspecified sides default to "O".
-        Returns an instance with attribute access (e.g., `es.TOP`).
-        """
-        mapping: Dict[str, str] = {k: "O" for k in self._allowed_keys}  # type: ignore[name-defined]
-        # Positional handling
-        if args:
-            if len(args) == 4:
-                keys = ("TOP", "BOTTOM", "LEFT", "RIGHT")
-            elif len(args) == 6:
-                keys = ("TOP", "BOTTOM", "LEFT", "RIGHT", "UP", "DOWN")
-            else:
-                raise TypeError("EdgeSpec(...) expects 4 or 6 positional values")
-            for k, v in zip(keys, args):
-                if not isinstance(v, str):
-                    raise TypeError("EdgeSpec values must be strings 'X'/'Z'/'O'")
-                vv = v.upper()
-                if vv not in self._allowed_vals:  # type: ignore[attr-defined]
-                    raise ValueError("EdgeSpec value must be one of 'X','Z','O'")
-                mapping[k] = vv
-        # Keyword handling
-        for k, v in kwargs.items():
-            kk = str(k).upper()
-            if kk not in self._allowed_keys:  # type: ignore[attr-defined]
-                raise ValueError(f"Unknown EdgeSpec side: {k}")
-            if not isinstance(v, str):
-                raise TypeError("EdgeSpec values must be strings 'X'/'Z'/'O'")
-            vv = v.upper()
-            if vv not in self._allowed_vals:  # type: ignore[attr-defined]
-                raise ValueError("EdgeSpec value must be one of 'X','Z','O'")
-            mapping[kk] = vv
-        return EdgeSpecInstance(mapping)
-
 
 class EdgeSpec(metaclass=_EdgeSpecMeta):
     """Class-level container for per-side edge specifications.
@@ -203,8 +163,6 @@ class EdgeSpec(metaclass=_EdgeSpecMeta):
     BOTTOM: str
     LEFT: str
     RIGHT: str
-    UP: str
-    DOWN: str
 
     @classmethod
     def as_dict(cls) -> Dict[str, EdgeSpecValue]:
@@ -216,102 +174,12 @@ class EdgeSpec(metaclass=_EdgeSpecMeta):
             setattr(cls, k, v)
 
 
-class EdgeSpecInstance:
-    """Instance-style edge spec with attribute access and validation.
-
-    Supports attributes: TOP, BOTTOM, LEFT, RIGHT, UP, DOWN; plus
-    `.as_dict()` and `.update({...})` like the class-level EdgeSpec.
-    """
-
-    def __init__(self, values: Mapping[str, str] | None = None) -> None:
-        base = {k: "O" for k in _EdgeSpecMeta._allowed_keys}  # type: ignore[attr-defined]
-        if values:
-            for k, v in values.items():
-                kk = str(k).upper()
-                vv = str(v).upper()
-                if kk not in _EdgeSpecMeta._allowed_keys:  # type: ignore[attr-defined]
-                    raise ValueError(f"Unknown EdgeSpec side: {k}")
-                if vv not in _EdgeSpecMeta._allowed_vals:  # type: ignore[attr-defined]
-                    raise ValueError("EdgeSpec value must be one of 'X','Z','O'")
-                base[kk] = vv
-        self._values: Dict[str, str] = base
-
-    # Properties for each side
-    @property
-    def TOP(self) -> str:  # noqa: N802
-        return self._values["TOP"]
-
-    @TOP.setter
-    def TOP(self, v: str) -> None:  # noqa: N802
-        self._values["TOP"] = self._validate(v)
-
-    @property
-    def BOTTOM(self) -> str:  # noqa: N802
-        return self._values["BOTTOM"]
-
-    @BOTTOM.setter
-    def BOTTOM(self, v: str) -> None:  # noqa: N802
-        self._values["BOTTOM"] = self._validate(v)
-
-    @property
-    def LEFT(self) -> str:  # noqa: N802
-        return self._values["LEFT"]
-
-    @LEFT.setter
-    def LEFT(self, v: str) -> None:  # noqa: N802
-        self._values["LEFT"] = self._validate(v)
-
-    @property
-    def RIGHT(self) -> str:  # noqa: N802
-        return self._values["RIGHT"]
-
-    @RIGHT.setter
-    def RIGHT(self, v: str) -> None:  # noqa: N802
-        self._values["RIGHT"] = self._validate(v)
-
-    @property
-    def UP(self) -> str:  # noqa: N802
-        return self._values["UP"]
-
-    @UP.setter
-    def UP(self, v: str) -> None:  # noqa: N802
-        self._values["UP"] = self._validate(v)
-
-    @property
-    def DOWN(self) -> str:  # noqa: N802
-        return self._values["DOWN"]
-
-    @DOWN.setter
-    def DOWN(self, v: str) -> None:  # noqa: N802
-        self._values["DOWN"] = self._validate(v)
-
-    def as_dict(self) -> Dict[str, EdgeSpecValue]:
-        return dict(self._values)  # type: ignore[return-value]
-
-    def update(self, mapping: Mapping[str, str]) -> None:
-        for k, v in mapping.items():
-            setattr(self, str(k).upper(), v)
-
-    @staticmethod
-    def _validate(v: str) -> str:
-        if not isinstance(v, str):
-            raise TypeError("EdgeSpec values must be strings 'X'/'Z'/'O'")
-        vv = v.upper()
-        if vv not in _EdgeSpecMeta._allowed_vals:  # type: ignore[attr-defined]
-            raise ValueError("EdgeSpec value must be one of 'X','Z','O'")
-        return vv
-
-# Convenience alias (user requested Edgespec)
-Edgespec = EdgeSpec
-
-
 # Mapping from side to boundary spec
 BoundarySpec = Dict[BoundarySide, EdgeSpecValue]
 
 __all__ += [
     "BoundarySide",
     "EdgeSpec",
-    "EdgeSpecInstance",
     "EdgeSpecValue",
     "BoundarySpec",
 ]
