@@ -15,6 +15,9 @@ class Tiling:
     x_coords: list[TilingCoord2D] = field(default_factory=list)
     z_coords: list[TilingCoord2D] = field(default_factory=list)
 
+    def shift_qubit_indices(self, by: int):
+        self.qubit_indices = [qi + by for qi in self.qubit_indices]
+
 
 @dataclass(init=False)
 class ConnectedTiling(Tiling):
@@ -65,6 +68,7 @@ class ConnectedTiling(Tiling):
                 z_list.extend(t.z_coords)
                 z_set.update(t.z_coords)
 
+        # TODO: 関数の外に出してコードをきれいにする
         if check_collisions:
             dup_data = _find_duplicates(data_list)
             dup_x = _find_duplicates(x_list)
@@ -97,16 +101,14 @@ class ConnectedTiling(Tiling):
         self.x_coords = list(dict.fromkeys(x_list))
         self.z_coords = list(dict.fromkeys(z_list))
 
-        # Assign contiguous indices across all coords: data -> X -> Z
-        self.coord2qubitindex = {}
-        for i, c in enumerate(self.data_coords):
-            self.coord2qubitindex[c] = QubitIndex(i)
-        offset = len(self.data_coords)
-        for j, c in enumerate(self.x_coords):
-            self.coord2qubitindex[c] = QubitIndex(offset + j)
-        offset += len(self.x_coords)
-        for k, c in enumerate(self.z_coords):
-            self.coord2qubitindex[c] = QubitIndex(offset + k)
+        for c in self.data_coords:
+            self.coord2qubitindex[c] = QubitIndex(self.data_coords.index(c))
+        for c in self.x_coords:
+            offset = len(self.data_coords)
+            self.coord2qubitindex[c] = QubitIndex(self.x_coords.index(c) + offset)
+        for c in self.z_coords:
+            offset = len(self.data_coords) + len(self.x_coords)
+            self.coord2qubitindex[c] = QubitIndex(self.z_coords.index(c) + offset)
 
         self.node_maps = {
             "data": {
