@@ -26,7 +26,7 @@ if GX not in sys.path:
 
 from lspattern.consts.consts import PIPEDIRECTION
 from lspattern.mytype import PatchCoordGlobal3D
-from lspattern.tiling.template import RotatedPlanarTemplate
+from lspattern.tiling.template import RotatedPlanarBlockTemplate
 
 
 def assert_true(cond: bool, msg: str) -> None:
@@ -37,7 +37,7 @@ def assert_true(cond: bool, msg: str) -> None:
 def test_template_and_trim() -> None:
     d = 3
     edgespec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
-    tmpl = RotatedPlanarTemplate(d=d, edgespec=edgespec)
+    tmpl = RotatedPlanarBlockTemplate(d=d, edgespec=edgespec)
     t = tmpl.to_tiling()
     assert_true(len(t["data"]) > 0 and (len(t["X"]) + len(t["Z"]) > 0), "tiling empty")
     z_before = len(tmpl.z_coords)
@@ -59,11 +59,12 @@ def test_block_and_canvas_layers() -> None:
     from lspattern.canvas import RHGCanvas  # lazy import to avoid hard dep
 
     skel = InitPlusBlockSkeleton(d=d, edgespec=edgespec)
-    block = skel.materialize()
-    assert_true(block.graph_local is not None and len(block.node2coord) > 0, "block empty")
+    block = skel.to_block()
+    t = block.template.to_tiling()
+    assert_true(len(t.get("data", [])) > 0, "block template empty")
 
     canvas = RHGCanvas("RefactorSmoke")
-    canvas.add_block(PatchCoordGlobal3D((0, 0, 0)), skel)
+    canvas.add_cube(PatchCoordGlobal3D((0, 0, 0)), skel)
     layers = canvas.to_temporal_layers()
     assert_true(0 in layers, "layer z=0 missing")
     layer0 = layers[0]
@@ -96,8 +97,8 @@ def test_pipe_materialize_and_canvas() -> None:
     canvas = RHGCanvas("RefactorPipe")
     a = PatchCoordGlobal3D((0, 0, 0))
     b = PatchCoordGlobal3D((1, 0, 0))
-    canvas.add_block(a, skel_a)
-    canvas.add_block(b, skel_b)
+    canvas.add_cube(a, skel_a)
+    canvas.add_cube(b, skel_b)
     canvas.add_pipe(a, b, pipe)
 
     # Build layers/compile; should not throw

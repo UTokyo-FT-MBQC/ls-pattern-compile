@@ -91,7 +91,7 @@ class ScalableTemplate(Tiling):
         elif coordinate == "patch3d":
             # Default block-style behavior: use block offset
             px, py, _pz = by  # type: ignore[misc]
-            dx, dy = block_offset_xy(self.d, (int(px), int(py), int(_pz)), anchor=anchor)
+            dx, dy = cube_offset_xy(self.d, (int(px), int(py), int(_pz)), anchor=anchor)
         else:
             raise ValueError("coordinate must be one of: tiling2d, phys3d, patch3d")
 
@@ -158,9 +158,7 @@ class ScalableTemplate(Tiling):
         self.x_coords = [p for p in (self.x_coords or []) if p[axis] != target]
         self.z_coords = [p for p in (self.z_coords or []) if p[axis] != target]
 
-    def visualize_tiling(
-        self, ax=None, show: bool = True, title_suffix: str | None = None
-    ) -> None:
+    def visualize_tiling(self, ax=None, show: bool = True, title_suffix: str | None = None) -> None:
         """Visualize the tiling using matplotlib.
 
         - data qubits: white-filled circles with black edge
@@ -224,7 +222,7 @@ class ScalableTemplate(Tiling):
             plt.show()
 
 
-class RotatedPlanarTemplate(ScalableTemplate):
+class RotatedPlanarBlockTemplate(ScalableTemplate):
     def to_tiling(self) -> dict[str, list[tuple[int, int]]]:
         d = self.d
         data_coords: set[tuple[int, int]] = set()
@@ -305,7 +303,7 @@ def offset_tiling(t: Tiling, dx: int, dy: int) -> Tiling:
     return _copy_with_offset(t, dx, dy)
 
 
-def block_offset_xy(
+def cube_offset_xy(
     d: int,
     patch: tuple[int, int, int],
     *,
@@ -539,7 +537,7 @@ if __name__ == "__main__":
         fig, axes = plt.subplots(2, 2, figsize=(10, 10))
         for (label, spec), ax in zip(configs, axes.ravel(), strict=False):
             set_edgespec(**spec)
-            template = RotatedPlanarTemplate(d=d, edgespec=spec)
+            template = RotatedPlanarBlockTemplate(d=d, edgespec=spec)
             template.to_tiling()
             template.visualize_tiling(ax=ax, show=False, title_suffix=label)
 

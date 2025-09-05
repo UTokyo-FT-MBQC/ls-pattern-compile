@@ -5,14 +5,14 @@ from typing import TYPE_CHECKING
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.graphstate import BaseGraphState, GraphState
 
-from lspattern.blocks.base import BlockDelta, RHGBlock
+from lspattern.blocks.base import BlockDelta, RHGCube
 from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z, is_data
 
 if TYPE_CHECKING:
     from lspattern.canvas import RHGCanvas
 
 
-class Memory(RHGBlock):
+class Memory(RHGCube):
     """Extend a logical patch upward by `rounds` time-slices on the RHG lattice.
 
     Behavior

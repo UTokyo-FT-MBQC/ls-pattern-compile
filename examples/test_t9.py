@@ -18,18 +18,18 @@ if ROOT not in sys.path:
 
 from lspattern.tiling.base import ConnectedTiling, Tiling
 from lspattern.tiling.template import (
-    RotatedPlanarTemplate,
+    RotatedPlanarBlockTemplate,
     RotatedPlanarPipetemplate,
-    block_offset_xy,
+    cube_offset_xy,
     pipe_offset_xy,
     offset_tiling,
 )
 from lspattern.consts.consts import PIPEDIRECTION
 
 
-def mk_block_template(d: int) -> RotatedPlanarTemplate:
+def mk_block_template(d: int) -> RotatedPlanarBlockTemplate:
     edgespec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
-    t = RotatedPlanarTemplate(d=d, edgespec=edgespec)
+    t = RotatedPlanarBlockTemplate(d=d, edgespec=edgespec)
     t.to_tiling()
     return t
 
@@ -48,8 +48,8 @@ def test_horizontal_ok() -> None:
     b1 = mk_block_template(d)
 
     # Place at (0,0,0) and (1,0,0) using inner anchor
-    dx0, dy0 = block_offset_xy(d, (0, 0, 0), anchor="inner")
-    dx1, dy1 = block_offset_xy(d, (1, 0, 0), anchor="inner")
+    dx0, dy0 = cube_offset_xy(d, (0, 0, 0), anchor="inner")
+    dx1, dy1 = cube_offset_xy(d, (1, 0, 0), anchor="inner")
     t0 = offset_tiling(b0, dx0, dy0)
     t1 = offset_tiling(b1, dx1, dy1)
 
@@ -65,8 +65,8 @@ def test_vertical_ok() -> None:
     d = 3
     b0 = mk_block_template(d)
     b1 = mk_block_template(d)
-    dx0, dy0 = block_offset_xy(d, (0, 0, 0), anchor="inner")
-    dx1, dy1 = block_offset_xy(d, (0, 1, 0), anchor="inner")
+    dx0, dy0 = cube_offset_xy(d, (0, 0, 0), anchor="inner")
+    dx1, dy1 = cube_offset_xy(d, (0, 1, 0), anchor="inner")
     t0 = offset_tiling(b0, dx0, dy0)
     t1 = offset_tiling(b1, dx1, dy1)
 

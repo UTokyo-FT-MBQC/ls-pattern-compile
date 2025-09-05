@@ -31,6 +31,7 @@ def assert_true(cond: bool, msg: str) -> None:
 def test_layer_viz_no_error() -> None:
     _ensure_paths()
     from lspattern.mytype import PatchCoordGlobal3D
+
     try:
         from lspattern.blocks.cubes.initialize import InitPlusSkeleton as _BlockSkel
     except Exception:
@@ -63,6 +64,7 @@ def test_layer_viz_no_error() -> None:
 def test_mixed_d_raises() -> None:
     _ensure_paths()
     from lspattern.mytype import PatchCoordGlobal3D
+
     try:
         from lspattern.blocks.cubes.initialize import InitPlusSkeleton as _BlockSkel2
     except Exception:

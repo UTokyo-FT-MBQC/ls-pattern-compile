@@ -16,7 +16,7 @@ from __future__ import annotations
 from lspattern.blocks.cubes.initialize import InitPlusBlockSkeleton
 from lspattern.canvas import RHGCanvas
 from lspattern.mytype import PatchCoordGlobal3D
-from lspattern.tiling.template import RotatedPlanarTemplate
+from lspattern.tiling.template import RotatedPlanarBlockTemplate
 
 
 def main() -> None:
@@ -24,7 +24,7 @@ def main() -> None:
     edgespec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
 
     # Template -> tiling
-    tmpl = RotatedPlanarTemplate(d=d, edgespec=edgespec)
+    tmpl = RotatedPlanarBlockTemplate(d=d, edgespec=edgespec)
     t = tmpl.to_tiling()
     assert len(t["data"]) > 0 and (len(t["X"]) + len(t["Z"]) > 0), "tiling is empty"
 
@@ -44,7 +44,7 @@ def main() -> None:
 
     # Canvas with Skeleton input
     canvas = RHGCanvas("T8Smoke")
-    canvas.add_block(PatchCoordGlobal3D((0, 0, 0)), skel)
+    canvas.add_cube(PatchCoordGlobal3D((0, 0, 0)), skel)
     layers = canvas.to_temporal_layers()
     assert 0 in layers and layers[0].local_graph is not None
     print(

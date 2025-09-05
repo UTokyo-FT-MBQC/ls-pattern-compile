@@ -1,33 +1,71 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
 from lspattern.consts.consts import PIPEDIRECTION
 from lspattern.mytype import (
     PatchCoordGlobal3D,
+    PatchCoordLocal2D,
+    QubitIndexLocal,
     SpatialEdgeSpec,
 )
 from lspattern.tiling.template import (
     ScalableTemplate,
 )
+from lspattern.utils import get_direction
 
 
 @dataclass
 class RHGPipeSkeleton(RHGBlockSkeleton):
-    logical: int
     d: int
-    origin: tuple[int, int] | None = None
+    edge_spec: SpatialEdgeSpec = field(default_factory=dict)
+    template: ScalableTemplate | None = None
 
 
 @dataclass
 class RHGPipe(RHGBlock):
-    source: PatchCoordGlobal3D | None = None
-    sink: PatchCoordGlobal3D | None = None
-    # Direction of the pipe (spatial or temporal)
-    direction: PIPEDIRECTION | None = None
+    """
+    Represents a pipe in the RHG block structure.
 
-    # Template or tiling backing this pipe (implementation-specific)
-    template: ScalableTemplate | None = None  # override type to allow None
-    # Optional spatial edge spec for this pipe (alias handled in RHGBlock as edge_spec/edgespec)
-    edgespec: SpatialEdgeSpec | None = None  # type: ignore[assignment]
+    Attributes
+    ----------
+    source : PatchCoordGlobal3D | None
+        The source coordinate of the pipe.
+    sink : PatchCoordGlobal3D | None
+        The sink coordinate of the pipe.
+    direction : PIPEDIRECTION | None
+        Direction of the pipe (spatial or temporal).
+    template : ScalableTemplate | None
+        Template or tiling backing this pipe (implementation-specific).
+    edgespec : SpatialEdgeSpec | None
+        Optional spatial edge spec for this pipe.
+    """
+
+    d: int
+    edge_spec: SpatialEdgeSpec = field(default_factory=dict)
+
+    source: PatchCoordGlobal3D = field(default_factory=lambda: (0, 0, 0))
+    sink: PatchCoordGlobal3D = field(default_factory=lambda: (0, 0, 1))
+    direction: PIPEDIRECTION = field(init=False)
+
+    template: ScalableTemplate = field(default_factory=dict)
+
+    in_ports: set[QubitIndexLocal] = field(default_factory=set)
+    out_ports: set[QubitIndexLocal] = field(default_factory=set)
+    cout_ports: list[set[QubitIndexLocal]] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        # get direction
+        self.direction = get_direction(self.source, self.sink)
+
+    def shift_coords(self, by: PatchCoordGlobal3D) -> None:
+        """Shift the patch coordinates and update the template coordinates accordingly."""
+        osx, osy, osz = self.source
+        osx2, osy2, osz2 = self.sink
+        dx, dy, dz = by
+        self.source = (osx + dx, osy + dy, osz + dz)
+        self.sink = (osx2 + dx, osy2 + dy, osz2 + dz)
+
+        by_template: PatchCoordLocal2D = (by[0], by[1])
+        self.template.shift_coords(by_template)

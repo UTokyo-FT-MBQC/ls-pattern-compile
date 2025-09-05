@@ -20,14 +20,14 @@ from lspattern.blocks.cubes.initialize import InitPlusBlockSkeleton
 
 sys.path.append(r"C:\Users\qipe\Documents\GitHub\ls-pattern-compile")
 
-from lspattern.canvas2 import CompiledRHGCanvas, RHGCanvas2
+from lspattern.canvas import CompiledRHGCanvas, RHGCanvas, RHGCanvasSkeleton
 from lspattern.mytype import PatchCoordGlobal3D
 
 # %%
 d = 3
 r = 3
 
-canvas = RHGCanvas2("Memory X")
+canvass = RHGCanvasSkeleton("Memory X")
 
 edgespec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
 edgespec_trimmed = {"LEFT": "O", "RIGHT": "O", "TOP": "O", "BOTTOM": "O"}
@@ -41,14 +41,18 @@ blocks = [
 pipes = []
 
 for block in blocks:
-    canvas.add_block(*block)
+    canvass.add_block(*block)
 for pipe in pipes:
-    canvas.add_pipe(*pipe)
+    canvass.add_pipe(*pipe)
 
-compiled_canvas = CompiledRHGCanvas(
-    layers=layers,
-)
-pattern = compiled_canvas.compile()
+canvas = canvass.to_canvas()
+temporal_layer = canvas.to_temporal_layers()
+
+# TODO: make a visualizer of the temporal_layer[0] like the notebooks in the examples/* directory
+# Make a separate ipynb: debug_temporal_layers.ipynb (T16.md)
+
+# TODO: Keep goint until this compile runs without errors (T17.md)
+compiled_canvas: CompiledRHGCanvas = canvas.compile()
 # %%
 stim_str = stim_compile(
     pattern,

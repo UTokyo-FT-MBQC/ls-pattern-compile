@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.graphstate import BaseGraphState, GraphState
 
-from lspattern.blocks.base import BlockDelta, RHGBlock
+from lspattern.blocks.base import RHGBlock
 from lspattern.geom.rhg_parity import is_data
 
 if TYPE_CHECKING:
@@ -26,11 +26,7 @@ class _MeasureBase(RHGBlock):
 
     def __init__(self, logical: int, basis: str) -> None:
         self.logical = logical
-        self.basis = (
-            PlannerMeasBasis(Plane.XY, 0.0)
-            if basis == "X"
-            else PlannerMeasBasis(Plane.ZX, 0.0)
-        )
+        self.basis = PlannerMeasBasis(Plane.XY, 0.0) if basis == "X" else PlannerMeasBasis(Plane.ZX, 0.0)
 
     def emit(self, canvas: RHGCanvas) -> BlockDelta:
         lidx = self.logical
@@ -46,9 +42,7 @@ class _MeasureBase(RHGBlock):
                 ys.append(y)
                 zs.append(z)
         if not xs:
-            raise ValueError(
-                "Measure.emit: could not find coordinates for boundary nodes."
-            )
+            raise ValueError("Measure.emit: could not find coordinates for boundary nodes.")
 
         x_min, x_max = min(xs), max(xs)
         y_min, y_max = min(ys), max(ys)
@@ -70,9 +64,7 @@ class _MeasureBase(RHGBlock):
         # Preserve q_index order using the previous boundary's q_map.
         prev_qmap = canvas.logical_registry.boundary_qidx.get(lidx, {})
         if not prev_qmap:
-            raise ValueError(
-                f"Measure.emit: boundary_qidx is missing for logical {lidx}"
-            )
+            raise ValueError(f"Measure.emit: boundary_qidx is missing for logical {lidx}")
 
         inv_coord = {nid: coord for coord, nid in canvas.coord_to_node.items()}
         prev_xy_order: list[tuple[int, int]] = []

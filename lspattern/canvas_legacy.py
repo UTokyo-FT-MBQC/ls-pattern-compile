@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 # graphix_zx pieces
 from graphix_zx.graphstate import BaseGraphState, compose_sequentially
 
-from lspattern.blocks.base import BlockDelta, RHGBlock
+from lspattern.blocks.base import BlockDelta, RHGCube
 from lspattern.compile import compile_canvas
 from lspattern.geom.tiler import PatchTiler
 
@@ -230,7 +230,7 @@ class RHGCanvas:
     _time_cursor: int = 1
 
     # ---- Public API ----
-    def append(self, block: RHGBlock) -> RHGCanvas:
+    def append(self, block: RHGCube) -> RHGCanvas:
         """Emit a delta from the block and merge it into the canvas."""
         delta = block.emit(self)
         if self.graph is None:
