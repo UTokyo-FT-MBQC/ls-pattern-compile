@@ -67,7 +67,7 @@ canvas.append(MeasureX(logical=0))
 for group in canvas.schedule_accum.measure_groups:
     print(f"group: {group}")
 
-logical = set(i for i in range(d))
+logical = set(range(d))
 print(f"logical X: {logical}")
 logical_observables = {0: logical}
 
@@ -88,7 +88,7 @@ print(stim_str)
 
 
 def create_circuit(pattern: Pattern, noise: float) -> stim.Circuit:
-    logical_observables = {0: {i for i in range(d)}}
+    logical_observables = {0: set(range(d))}
     stim_str = stim_compile(
         pattern,
         logical_observables,

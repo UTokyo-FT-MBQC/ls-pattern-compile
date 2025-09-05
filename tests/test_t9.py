@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Smoke tests for T9 placement helpers:
 - Blocks placed at patch (0,0,0) and (1,0,0) do not collide after offset.
@@ -7,6 +5,8 @@ Smoke tests for T9 placement helpers:
 - Without offset, collision is detected.
 Run: python examples/test_t9.py
 """
+
+from __future__ import annotations
 
 from lspattern.consts.consts import PIPEDIRECTION
 from lspattern.tiling.base import ConnectedTiling
@@ -78,7 +78,8 @@ def test_collision_without_offset() -> None:
     b1 = mk_block_template(d)
     try:
         _ = ConnectedTiling([b0, b1], check_collisions=True)
-        raise AssertionError("expected collision was not raised")
+        msg = "expected collision was not raised"
+        raise AssertionError(msg)
     except ValueError:
         pass
 

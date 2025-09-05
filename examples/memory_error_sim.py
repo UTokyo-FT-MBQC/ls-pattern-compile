@@ -28,7 +28,7 @@ def create_circuit(d: int, rounds: int, noise: float) -> stim.Circuit:
 
     pattern = canvas.compile()
 
-    logical_observables = {0: {i for i in range(d)}}
+    logical_observables = {0: set(range(d))}
     stim_str = stim_compile(
         pattern,
         logical_observables,

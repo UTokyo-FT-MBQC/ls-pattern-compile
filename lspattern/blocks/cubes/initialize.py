@@ -87,7 +87,7 @@ class InitPlusBlockSkeleton(RHGBlockSkeleton):
             nodes_by_z[z] = timeslice
 
         # In-plane edges (diagonal neighbors per consts) within each layer
-        for z, timeslice in nodes_by_z.items():
+        for _z, timeslice in nodes_by_z.items():
             for (x, y), src in timeslice.items():
                 for dx, dy, _dz in DIRECTIONS3D:
                     xy_tgt = (x + dx, y + dy)
