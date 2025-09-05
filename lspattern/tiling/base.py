@@ -10,13 +10,25 @@ class Tiling:
     """
 
     data_coords: list[TilingCoord2D] = field(default_factory=list)
+    # TODO: do it 
+    # Tilingを継承しているすべてのclassでqubit indexをcoord2qubitindexに置き換える
     coord2qubitindex: dict[TilingCoord2D, QubitIndex] = field(default_factory=dict)
 
     x_coords: list[TilingCoord2D] = field(default_factory=list)
     z_coords: list[TilingCoord2D] = field(default_factory=list)
 
     def shift_qubit_indices(self, by: int):
-        self.qubit_indices = [qi + by for qi in self.qubit_indices]
+        """Shift assigned qubit indices by `by` in-place.
+
+        Operates on `coord2qubitindex` which maps tiling coordinates to
+        contiguous qubit indices. If no indices are assigned yet, this is a no-op.
+        """
+        if not self.coord2qubitindex:
+            return
+        delta = int(by)
+        self.coord2qubitindex = {
+            c: QubitIndex(int(qi) + delta) for c, qi in self.coord2qubitindex.items()
+        }
 
 
 @dataclass(init=False)
@@ -70,52 +82,41 @@ class ConnectedTiling(Tiling):
 
         # TODO: 関数の外に出してコードをきれいにする
         if check_collisions:
-            dup_data = _find_duplicates(data_list)
-            dup_x = _find_duplicates(x_list)
-            dup_z = _find_duplicates(z_list)
-
-            overlap_dx = data_set & x_set
-            overlap_dz = data_set & z_set
-            overlap_xz = x_set & z_set
-
-            if dup_data or dup_x or dup_z or overlap_dx or overlap_dz or overlap_xz:
-                problems: list[str] = []
-                if dup_data:
-                    problems.append(f"duplicate data coords: {sorted(dup_data)}")
-                if dup_x:
-                    problems.append(f"duplicate X coords: {sorted(dup_x)}")
-                if dup_z:
-                    problems.append(f"duplicate Z coords: {sorted(dup_z)}")
-                if overlap_dx:
-                    problems.append(f"data/X overlap: {sorted(overlap_dx)}")
-                if overlap_dz:
-                    problems.append(f"data/Z overlap: {sorted(overlap_dz)}")
-                if overlap_xz:
-                    problems.append(f"X/Z overlap: {sorted(overlap_xz)}")
-                raise ValueError(
-                    "ConnectedTiling coordinate collisions: " + "; ".join(problems)
-                )
+            _check_collisions_and_raise(
+                data_list,
+                x_list,
+                z_list,
+                data_set,
+                x_set,
+                z_set,
+            )
 
         # Stable de-duplication while preserving part order
         self.data_coords = list(dict.fromkeys(data_list))
         self.x_coords = list(dict.fromkeys(x_list))
         self.z_coords = list(dict.fromkeys(z_list))
 
-        for c in self.data_coords:
-            self.coord2qubitindex[c] = QubitIndex(self.data_coords.index(c))
-        for c in self.x_coords:
-            offset = len(self.data_coords)
-            self.coord2qubitindex[c] = QubitIndex(self.x_coords.index(c) + offset)
-        for c in self.z_coords:
-            offset = len(self.data_coords) + len(self.x_coords)
-            self.coord2qubitindex[c] = QubitIndex(self.z_coords.index(c) + offset)
+        # Precompute index maps (O(n)) to avoid repeated list.index (O(n^2))
+        data_idx = {c: i for i, c in enumerate(self.data_coords)}
+        x_idx = {c: i for i, c in enumerate(self.x_coords)}
+        z_idx = {c: i for i, c in enumerate(self.z_coords)}
 
+        # Build flat coord -> contiguous qubit index map
+        base_x = len(self.data_coords)
+        base_z = base_x + len(self.x_coords)
+        self.coord2qubitindex.update({c: QubitIndex(i) for c, i in data_idx.items()})
+        self.coord2qubitindex.update(
+            {c: QubitIndex(base_x + i) for c, i in x_idx.items()}
+        )
+        self.coord2qubitindex.update(
+            {c: QubitIndex(base_z + i) for c, i in z_idx.items()}
+        )
+
+        # Fast node maps using the precomputed index maps
         self.node_maps = {
-            "data": {
-                c: self.data_coords.index(c) for t in self.parts for c in t.data_coords
-            },
-            "x": {c: self.x_coords.index(c) for t in self.parts for c in t.x_coords},
-            "z": {c: self.z_coords.index(c) for t in self.parts for c in t.z_coords},
+            "data": {c: data_idx[c] for t in self.parts for c in t.data_coords},
+            "x": {c: x_idx[c] for t in self.parts for c in t.x_coords},
+            "z": {c: z_idx[c] for t in self.parts for c in t.z_coords},
         }
 
 
@@ -128,3 +129,44 @@ def _find_duplicates(seq: list[TilingCoord2D]) -> set[TilingCoord2D]:
         else:
             seen.add(item)
     return dups
+
+
+def _check_collisions_and_raise(
+    data_list: list[TilingCoord2D],
+    x_list: list[TilingCoord2D],
+    z_list: list[TilingCoord2D],
+    data_set: set[TilingCoord2D],
+    x_set: set[TilingCoord2D],
+    z_set: set[TilingCoord2D],
+) -> None:
+    dup_data = _find_duplicates(data_list)
+    dup_x = _find_duplicates(x_list)
+    dup_z = _find_duplicates(z_list)
+
+    overlap_dx = data_set & x_set
+    overlap_dz = data_set & z_set
+    overlap_xz = x_set & z_set
+
+    if dup_data or dup_x or dup_z or overlap_dx or overlap_dz or overlap_xz:
+        problems: list[str] = []
+        if dup_data:
+            problems.append(f"duplicate data coords: {sorted(dup_data)}")
+        if dup_x:
+            problems.append(f"duplicate X coords: {sorted(dup_x)}")
+        if dup_z:
+            problems.append(f"duplicate Z coords: {sorted(dup_z)}")
+        if overlap_dx:
+            problems.append(f"data/X overlap: {sorted(overlap_dx)}")
+        if overlap_dz:
+            problems.append(f"data/Z overlap: {sorted(overlap_dz)}")
+        if overlap_xz:
+            problems.append(f"X/Z overlap: {sorted(overlap_xz)}")
+        raise ValueError(
+            "ConnectedTiling coordinate collisions: " + "; ".join(problems)
+        )
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()

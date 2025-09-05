@@ -35,9 +35,7 @@ class RHGPipe:
     out_ports: list[int] = field(default_factory=list)
     node_coords: dict[int, tuple[int, int, int]] = field(default_factory=dict)
 
-    def materialize(self, skeleton: RHGPipeSkeleton) -> None:
-        pass
-
+    
     def shift_ids(self, by: int = 0) -> None:
         # Intentionally left minimal; concrete pipes should implement.
         return

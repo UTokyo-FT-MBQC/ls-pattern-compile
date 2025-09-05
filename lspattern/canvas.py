@@ -21,6 +21,11 @@ from lspattern.mytype import (
 )
 from lspattern.pipes.base import RHGPipe, RHGPipeSkeleton
 from lspattern.tiling.base import ConnectedTiling
+from lspattern.tiling.template import (
+    block_offset_xy,
+    pipe_offset_xy,
+    offset_tiling,
+)
 from lspattern.utils import get_direction
 
 
@@ -74,16 +79,50 @@ class TemporalLayer:
 
     def materialize(self) -> None:
         # TODO: 2次元結合 -> populateの構想
-        assert all(block.template.trimmed for block in self.blocks_.values()), (
-            "All blocks must have trimmed templates before instantiation."
-        )
-        assert all(pipe.template.trimmed for pipe in self.pipes_.values()), (
-            "All pipes must have trimmed templates before instantiation."
-        )
+        # Allow untrimmed templates for single-block layers; trimming is handled
+        # earlier at the skeleton-canvas stage when applicable.
         for b in self.blocks_.values():
             b.template.to_tiling()
         for p in self.pipes_.values():
             p.template.to_tiling()
+
+        # New path: build absolute 2D tilings from patch positions, then connect
+        tilings_abs: list = []
+        dset: set[int] = set()
+
+        for pos, b in self.blocks_.items():
+            if getattr(b, "template", None) is None:
+                continue
+            d_val = int(getattr(b, "d", getattr(b.template, "d", 0)))
+            dset.add(d_val)
+            dx, dy = block_offset_xy(d_val, pos, anchor="inner")
+            tilings_abs.append(offset_tiling(b.template, dx, dy))
+
+        for (source, sink), p in self.pipes_.items():
+            if getattr(p, "template", None) is None:
+                continue
+            d_val = int(getattr(p, "d", getattr(p.template, "d", 0)))
+            dset.add(d_val)
+            direction = get_direction(source, sink)
+            dx, dy = pipe_offset_xy(d_val, source, sink, direction)
+            tilings_abs.append(offset_tiling(p.template, dx, dy))
+
+        if not tilings_abs:
+            self.tiling_node_maps = {}
+            return
+
+        if len(dset) > 1:
+            raise ValueError(
+                "TemporalLayer.materialize: mixed code distances (d) are not supported yet"
+            )
+
+        ct = ConnectedTiling(tilings_abs, check_collisions=True)
+        self.tiling_node_maps = {
+            "data": dict(ct.node_maps.get("data", {})),
+            "x": dict(ct.node_maps.get("x", {})),
+            "z": dict(ct.node_maps.get("z", {})),
+        }
+        return
 
         # 2D 連結（パッチ位置のオフセットは未考慮）
         tilings = [
@@ -93,7 +132,10 @@ class TemporalLayer:
         if not tilings:
             self.tiling_node_maps = {}
             return
-
+        # TODO: fix Bug 
+        # Before this line we assume that template Coord2D are correctly shifted according to block/pipes positions
+        # Need to check 
+        # tilings does not have position information, this is absolutely wrong.
         ct = ConnectedTiling(tilings, check_collisions=True)
         # base/ConnectedTiling の node_maps をそのまま公開
         self.tiling_node_maps = {

@@ -6,7 +6,15 @@ from typing import (
 )
 
 from graphix_zx.graphstate import GraphState
-from lspattern.mytype import *
+from lspattern.mytype import (
+    FlowLocal,
+    NodeIdLocal,
+    NodeSetLocal,
+    PatchCoordGlobal3D,
+    PhysCoordLocal3D,
+    ScheduleTuplesLocal,
+    SpatialEdgeSpec,
+)
 from lspattern.tiling.template import RotatedPlanarTemplate, ScalableTemplate
 
 

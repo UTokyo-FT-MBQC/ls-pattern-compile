@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Literal, Tuple, Optional
 
 from lspattern.mytype import (
     SpatialEdgeSpec,
@@ -9,6 +10,7 @@ from lspattern.mytype import (
 )
 from lspattern.tiling.base import ConnectedTiling, Tiling
 from lspattern.utils import sort_xy
+from lspattern.consts.consts import PIPEDIRECTION
 
 
 @dataclass(kw_only=True)
@@ -49,6 +51,81 @@ class ScalableTemplate(Tiling):
     def get_data_indices(self) -> dict[TilingCoord2D, TilingConsistentQubitId]:
         data_index = {coor: i for i, coor in enumerate(sort_xy(self.data_coords))}
         return data_index
+
+    # ---- Coordinate and index shifting APIs ---------------------------------
+    def _shift_lists_inplace(self, dx: int, dy: int) -> None:
+        if getattr(self, "data_coords", None):
+            self.data_coords = [(x + dx, y + dy) for (x, y) in self.data_coords]
+        if getattr(self, "x_coords", None):
+            self.x_coords = [(x + dx, y + dy) for (x, y) in self.x_coords]
+        if getattr(self, "z_coords", None):
+            self.z_coords = [(x + dx, y + dy) for (x, y) in self.z_coords]
+
+    def shift_coords(
+        self,
+        by: Tuple[int, int] | Tuple[int, int, int],
+        *,
+        coordinate: Literal["tiling2d", "phys3d", "patch3d"] = "tiling2d",
+        anchor: Literal["seam", "inner"] = "seam",
+        inplace: bool = True,
+    ) -> "ScalableTemplate":
+        """Shift template 2D coords based on the given coordinate system.
+
+        - tiling2d: by=(dx,dy) used directly
+        - phys3d: by=(x,y,z), uses (x,y)
+        - patch3d: by=(px,py,pz), converts to (dx,dy) via block offset rule
+
+        Note: Pipe-specific patch3d handling is defined in subclass override.
+        """
+        if not (self.data_coords or self.x_coords or self.z_coords):
+            self.to_tiling()
+
+        dx: int
+        dy: int
+        if coordinate == "tiling2d":
+            bx, by_ = by  # type: ignore[misc]
+            dx, dy = int(bx), int(by_)
+        elif coordinate == "phys3d":
+            bx, by_, _bz = by  # type: ignore[misc]
+            dx, dy = int(bx), int(by_)
+        elif coordinate == "patch3d":
+            # Default block-style behavior: use block offset
+            px, py, _pz = by  # type: ignore[misc]
+            dx, dy = block_offset_xy(self.d, (int(px), int(py), int(_pz)), anchor=anchor)
+        else:
+            raise ValueError("coordinate must be one of: tiling2d, phys3d, patch3d")
+
+        if inplace:
+            self._shift_lists_inplace(dx, dy)
+            return self
+        # create a shallow Tiling copy with shifted coordinates
+        t = offset_tiling(self, dx, dy)
+        # rebuild a new instance of the same class, carrying d/edgespec
+        new = type(self)(d=self.d, edgespec=self.edgespec)  # type: ignore[call-arg]
+        new.data_coords = t.data_coords
+        new.x_coords = t.x_coords
+        new.z_coords = t.z_coords
+        return new
+
+    def shift_qindex(self, by: int, *, inplace: bool = True) -> "ScalableTemplate":
+        """Shift local qubit indices, if present in this template instance.
+
+        This is optional; ConnectedTiling rebuilds indexes, but callers may
+        use this for standalone composition.
+        """
+        data_indices = getattr(self, "data_indices", None)
+        if data_indices is not None:
+            shifted = [int(i) + int(by) for i in data_indices]
+            if inplace:
+                self.data_indices = shifted
+            else:
+                new = type(self)(d=self.d, edgespec=self.edgespec)  # type: ignore[call-arg]
+                new.data_coords = list(self.data_coords)
+                new.x_coords = list(self.x_coords)
+                new.z_coords = list(self.z_coords)
+                new.data_indices = shifted
+                return new
+        return self
 
     def trim_spatial_boundary(self, direction: str) -> None:
         """Remove ancilla/two-body checks on a given boundary in 2D tiling.
@@ -233,6 +310,25 @@ def _copy_with_offset(t: Tiling, dx: int, dy: int) -> Tiling:
     )
 
 
+def offset_tiling(t: Tiling, dx: int, dy: int) -> Tiling:
+    """Public wrapper to create a shifted Tiling copy without mutating input."""
+    return _copy_with_offset(t, dx, dy)
+
+
+def block_offset_xy(
+    d: int,
+    patch: Tuple[int, int, int],
+    *,
+    anchor: Literal["seam", "inner"] = "seam",
+) -> Tuple[int, int]:
+    px, py, _pz = patch
+    base_x = 2 * d * int(px)
+    base_y = 2 * d * int(py)
+    if anchor == "inner":
+        return base_x + 2, base_y + 2
+    return base_x, base_y
+
+
 def merge_pair_spatial(
     a: ScalableTemplate,
     b: ScalableTemplate,
@@ -355,6 +451,81 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         self.x_coords = result["X"]
         self.z_coords = result["Z"]
         return result
+
+    # Pipe-specific shift including patch3d to (dx,dy) conversion.
+    def shift_coords(
+        self,
+        by: Tuple[int, int] | Tuple[int, int, int],
+        *,
+        coordinate: Literal["tiling2d", "phys3d", "patch3d"] = "tiling2d",
+        direction: Optional[PIPEDIRECTION] = None,
+        inplace: bool = True,
+    ) -> "RotatedPlanarPipetemplate":
+        if not (self.data_coords or self.x_coords or self.z_coords):
+            self.to_tiling()
+
+        dx: int
+        dy: int
+        if coordinate == "tiling2d":
+            bx, by_ = by  # type: ignore[misc]
+            dx, dy = int(bx), int(by_)
+        elif coordinate == "phys3d":
+            bx, by_, _bz = by  # type: ignore[misc]
+            dx, dy = int(bx), int(by_)
+        elif coordinate == "patch3d":
+            if direction is None:
+                raise ValueError("direction is required for patch3d pipe shift")
+            px, py, pz = by  # type: ignore[misc]
+            dx, dy = pipe_offset_xy(self.d, (int(px), int(py), int(pz)), None, direction)
+        else:
+            raise ValueError("coordinate must be one of: tiling2d, phys3d, patch3d")
+
+        if inplace:
+            if getattr(self, "data_coords", None):
+                self.data_coords = [(x + dx, y + dy) for (x, y) in self.data_coords]
+            if getattr(self, "x_coords", None):
+                self.x_coords = [(x + dx, y + dy) for (x, y) in self.x_coords]
+            if getattr(self, "z_coords", None):
+                self.z_coords = [(x + dx, y + dy) for (x, y) in self.z_coords]
+            return self
+        t = offset_tiling(self, dx, dy)
+        new = RotatedPlanarPipetemplate(d=self.d, edgespec=self.edgespec)
+        new.data_coords = t.data_coords
+        new.x_coords = t.x_coords
+        new.z_coords = t.z_coords
+        return new
+
+    def shift_qindex(self, by: int, *, inplace: bool = True) -> "RotatedPlanarPipetemplate":
+        return super().shift_qindex(by, inplace=inplace)  # type: ignore[return-value]
+
+
+def pipe_offset_xy(
+    d: int,
+    source: Tuple[int, int, int],
+    sink: Optional[Tuple[int, int, int]],
+    direction: PIPEDIRECTION,
+) -> Tuple[int, int]:
+    sx, sy, sz = source
+    if direction in (PIPEDIRECTION.UP, PIPEDIRECTION.DOWN):
+        raise NotImplementedError("Temporal pipe (UP/DOWN) not supported for 2D tiling placement")
+
+    if sink is not None:
+        tx, ty, tz = sink
+        if sz != tz:
+            raise ValueError("source and sink must share the same z for spatial pipe")
+        if abs(tx - sx) + abs(ty - sy) != 1:
+            raise ValueError("source and sink must be axis neighbors (Manhattan distance 1)")
+
+    if direction in (PIPEDIRECTION.RIGHT, PIPEDIRECTION.LEFT):
+        base_x = 2 * d * min(sx, (sink[0] if sink else sx))
+        base_y = 2 * d * sy
+        return base_x, base_y
+    elif direction in (PIPEDIRECTION.TOP, PIPEDIRECTION.BOTTOM):
+        base_x = 2 * d * sx
+        base_y = 2 * d * min(sy, (sink[1] if sink else sy))
+        return base_x, base_y
+    else:
+        raise ValueError("Invalid direction for pipe offset")
 
 
 if __name__ == "__main__":
