@@ -27,16 +27,17 @@ if TYPE_CHECKING:
 
 @dataclass
 class InitPlusPipeSkeleton(RHGPipeSkeleton):
-    """InitPlus 相当の Pipe Skeleton。.
+    """InitPlus equivalent Pipe Skeleton.
 
-    edgespec を省略した場合、方向に応じた既定値を用いる：
-        - RIGHT/LEFT（水平）: {TOP:'O', BOTTOM:'O', LEFT:'X', RIGHT:'Z'}
-        - TOP/BOTTOM（垂直）: {LEFT:'O', RIGHT:'O', TOP:'X', BOTTOM:'Z'}
+    If edgespec is omitted, uses defaults based on direction:
+        - RIGHT/LEFT (horizontal): {TOP:'O', BOTTOM:'O', LEFT:'X', RIGHT:'Z'}
+        - TOP/BOTTOM (vertical): {LEFT:'O', RIGHT:'O', TOP:'X', BOTTOM:'Z'}
     """
 
     edgespec: SpatialEdgeSpec | None = None
 
     def to_pipe(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> InitPlusPipe:
+        """Create a pipe from source to sink coordinates."""
         direction = get_direction(source, sink)
         spec = self.edgespec
         if spec is None:
@@ -52,6 +53,8 @@ class InitPlusPipeSkeleton(RHGPipeSkeleton):
 
 
 class InitPlusPipe(RHGPipe):
+    """Init Plus pipe implementation."""
+
     def __init__(
         self,
         d: int,
@@ -121,7 +124,7 @@ class InitPlusPipe(RHGPipe):
             nodes_by_z[z] = cur
 
         # Diagonal adjacency within the same slice (xy plane)
-        for z, cur in nodes_by_z.items():
+        for _z, cur in nodes_by_z.items():
             for (x, y), src in cur.items():
                 for dx, dy, dz in DIRECTIONS3D:
                     if dz != 0:
@@ -183,7 +186,7 @@ class InitPlusPipe(RHGPipe):
                 left_x, right_x = x_min, x_max
                 in_x = left_x if self.direction == PIPEDIRECTION.RIGHT else right_x
                 out_x = right_x if self.direction == PIPEDIRECTION.RIGHT else left_x
-                for (x, y, z), n in coord2node.items():
+                for (x, _y, _z), n in coord2node.items():
                     if node2role[n] == "data":
                         if x == in_x:
                             in_ports.add(n)
@@ -193,7 +196,7 @@ class InitPlusPipe(RHGPipe):
                 bot_y, top_y = y_min, y_max
                 in_y = bot_y if self.direction == PIPEDIRECTION.TOP else top_y
                 out_y = top_y if self.direction == PIPEDIRECTION.TOP else bot_y
-                for (x, y, z), n in coord2node.items():
+                for (_x, y, _z), n in coord2node.items():
                     if node2role[n] == "data":
                         if y == in_y:
                             in_ports.add(n)

@@ -139,7 +139,7 @@ class InitPlusBlockSkeleton(RHGBlockSkeleton):
 
         # Out ports are DATA nodes on the final slice
         out_ports: NodeSetLocal = set()
-        for (_x, _y), n in nodes_by_z[max_t].items():
+        for n in nodes_by_z[max_t].values():
             if node2role.get(n) == "data":
                 out_ports.add(n)
 

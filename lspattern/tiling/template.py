@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal
 
 from lspattern.consts.consts import PIPEDIRECTION
 from lspattern.mytype import (
@@ -159,7 +159,7 @@ class ScalableTemplate(Tiling):
         self.x_coords = [p for p in (self.x_coords or []) if p[axis] != target]
         self.z_coords = [p for p in (self.z_coords or []) if p[axis] != target]
 
-    def visualize_tiling(self, ax=None, show: bool = True, title_suffix: str | None = None) -> None:
+    def visualize_tiling(self, ax: Any = None, show: bool = True, title_suffix: str | None = None) -> None:
         """Visualize the tiling using matplotlib.
 
         - data qubits: white-filled circles with black edge

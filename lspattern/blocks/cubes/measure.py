@@ -55,13 +55,13 @@ class _MeasureBase(RHGBlock):
         node_coords: dict[int, tuple[int, int, int]] = {}
 
         # Create DATA readout nodes at z0 and assign the measurement basis.
-        for X in range(x_min, x_max + 1):
-            for Y in range(y_min, y_max + 1):
-                if is_data(X, Y, z0):
+        for x in range(x_min, x_max + 1):
+            for y in range(y_min, y_max + 1):
+                if is_data(x, y, z0):
                     n = g.add_physical_node()
                     g.assign_meas_basis(n, self.basis)
-                    layer_map[X, Y] = n
-                    node_coords[n] = (X, Y, z0)
+                    layer_map[x, y] = n
+                    node_coords[n] = (x, y, z0)
 
         # Preserve q_index order using the previous boundary's q_map.
         prev_qmap = canvas.logical_registry.boundary_qidx.get(lidx, {})

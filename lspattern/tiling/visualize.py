@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from lspattern.tiling.base import ConnectedTiling
@@ -8,11 +8,11 @@ if TYPE_CHECKING:
 
 def plot_connected_tiling(
     ct: ConnectedTiling,
-    ax=None,
+    ax: Any = None,
     *,
     show: bool = True,
     title: str | None = None,
-):
+) -> None:
     """2D 散布図で ConnectedTiling を簡易可視化する。.
 
     - 色分け: data=白, X=緑, Z=青

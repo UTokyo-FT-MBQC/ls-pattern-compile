@@ -40,6 +40,12 @@ class Memory(RHGBlock):
         self.rounds = rounds
 
     def emit(self, canvas: RHGCanvas) -> BlockDelta:
+        """Emit the memory block to the canvas.
+
+        Raises
+        ------
+            ValueError: If boundary conditions are invalid.
+        """
         lidx = self.logical
         boundary = canvas.logical_registry.require_boundary(lidx)
 
@@ -80,22 +86,22 @@ class Memory(RHGBlock):
             anc_group: set[int] = set()
             data_group: set[int] = set()
 
-            for X in range(x_min, x_max + 1):
-                for Y in range(y_min, y_max + 1):
-                    if is_data(X, Y, z):
+            for x in range(x_min, x_max + 1):
+                for y in range(y_min, y_max + 1):
+                    if is_data(x, y, z):
                         n = g.add_physical_node()
                         if t != 2 * self.rounds:
                             # All DATA except the last slice get a measurement basis.
                             g.assign_meas_basis(n, PlannerMeasBasis(Plane.XY, 0.0))
                             data_group.add(n)
-                        layer_map[X, Y] = n
-                        node_coords[n] = (X, Y, z)
-                    elif is_ancilla_x(X, Y, z) or is_ancilla_z(X, Y, z):
+                        layer_map[x, y] = n
+                        node_coords[n] = (x, y, z)
+                    elif is_ancilla_x(x, y, z) or is_ancilla_z(x, y, z):
                         if t != 2 * self.rounds:  # no ancillas on the very last (pure DATA) slice
                             n = g.add_physical_node()
                             g.assign_meas_basis(n, PlannerMeasBasis(Plane.XY, 0.0))
-                            layer_map[X, Y] = n
-                            node_coords[n] = (X, Y, z)
+                            layer_map[x, y] = n
+                            node_coords[n] = (x, y, z)
                             anc_group.add(n)
 
             node_at_layer[t] = layer_map
@@ -105,9 +111,9 @@ class Memory(RHGBlock):
                 schedule_tuples.append((2 * t + 1, data_group))
 
             # In-plane edges.
-            for (X, Y), u in layer_map.items():
-                for dX, dY in [(1, 0), (0, 1)]:
-                    v = layer_map.get((X + dX, Y + dY))
+            for (x, y), u in layer_map.items():
+                for dx, dy in [(1, 0), (0, 1)]:
+                    v = layer_map.get((x + dx, y + dy))
                     if v is not None:
                         g.add_physical_edge(u, v)
 
@@ -201,8 +207,8 @@ class Memory(RHGBlock):
         out_boundary: set[int] = set()
         if self.rounds >= 1:
             last_map = node_at_layer[2 * self.rounds]
-            for (X, Y), n in last_map.items():
-                if is_data(X, Y, z0 + self.rounds):
+            for (x, y), n in last_map.items():
+                if is_data(x, y, z0 + self.rounds):
                     out_boundary.add(n)
 
         # in_ports/out_ports for canvas bookkeeping (DATA only).

@@ -18,6 +18,8 @@ if TYPE_CHECKING:
 
 @dataclass
 class RHGPipeSkeleton(RHGBlockSkeleton):
+    """RHG pipe skeleton for deferred materialization."""
+
     logical: int
     d: int
     origin: tuple[int, int] | None = None
@@ -25,6 +27,8 @@ class RHGPipeSkeleton(RHGBlockSkeleton):
 
 @dataclass
 class RHGPipe(RHGBlock):
+    """RHG pipe block with source and sink coordinates."""
+
     source: PatchCoordGlobal3D | None = None
     sink: PatchCoordGlobal3D | None = None
     # Direction of the pipe (spatial or temporal)

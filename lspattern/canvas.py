@@ -156,16 +156,16 @@ class TemporalLayer:
         return
 
     def get_node_maps(self) -> dict[str, dict[tuple[int, int], int]]:
-        """ConnectedTiling 由来の node_maps を返す（必要なら遅延計算）。."""
+        """Return node_maps from ConnectedTiling (lazy computation if needed)."""
         if not getattr(self, "tiling_node_maps", None):
             self.materialize()
         return self.tiling_node_maps
 
     def get_connected_tiling(self, anchor: str = "inner") -> ConnectedTiling:
-        """ブロック/パイプを絶対2D座標に再配置して ConnectedTiling を返す。.
+        """Relocate blocks/pipes to absolute 2D coordinates and return ConnectedTiling.
 
-        - materialize() と同等のオフセット計算を一時的に行う（キャッシュは任意）
-        - d が混在する場合は ValueError を送出
+        - Perform offset calculations equivalent to materialize() (caching optional)
+        - Raise ValueError if d values are mixed
         """
         # to_tiling を先に呼び出して内部座標を確実に持たせる
         for b in self.blocks_.values():

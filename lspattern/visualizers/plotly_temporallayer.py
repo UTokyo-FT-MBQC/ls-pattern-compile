@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
 
 def visualize_temporal_layer_plotly(
-    layer,
+    layer: Any,
     *,
     node_roles: dict[int, str] | None = None,
     ancilla_mode: str = "both",  # 'both' | 'x' | 'z'
@@ -16,7 +16,7 @@ def visualize_temporal_layer_plotly(
     width: int = 800,
     height: int = 600,
     reverse_axes: bool = True,
-):
+) -> None:
     """Interactive 3D Plotly visualization for a TemporalLayer.
 
     Coloring/interaction is modeled after examples/visualize_initialize2.ipynb.
@@ -25,6 +25,10 @@ def visualize_temporal_layer_plotly(
       `node_roles`. Otherwise, roles are inferred from parity.
     - Draws edges from `layer.local_graph.physical_edges` when available.
     - Highlights input/output nodes from GraphState registries if present.
+
+    Raises
+    ------
+        RuntimeError: If plotly is not installed.
     """
     try:
         import plotly.graph_objects as go
