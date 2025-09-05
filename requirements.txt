@@ -24,7 +24,7 @@ jupyter_client==8.6.3
 jupyter_core==5.8.1
 jupyterlab_widgets==3.0.15
 kiwisolver==1.4.8
-matplotlib==3.10.5
+matplotlib
 matplotlib-inline==0.1.7
 mypy==1.17.0
 mypy_extensions==1.1.0
@@ -33,8 +33,8 @@ nbformat==5.10.4
 nest-asyncio==1.6.0
 networkx==3.5
 nodeenv==1.9.1
-numpy==2.3.2
-ortools==9.14.6206
+numpy>=1.22,<3
+ortools>=9,<10
 packaging==25.0
 pandas==2.3.1
 parso==0.8.4
@@ -48,7 +48,7 @@ protobuf==6.31.1
 psutil==7.0.0
 pure_eval==0.2.3
 Pygments==2.19.2
-PyMatching==2.2.2
+PyMatching>=2
 pyparsing==3.2.3
 pyright==1.1.403
 pytest==8.4.1
@@ -60,13 +60,14 @@ referencing==0.36.2
 rpds-py==0.27.1
 ruff==0.12.4
 scipy==1.16.1
-sinter==1.15.0
+sinter>=1
 six==1.17.0
 stack-data==0.6.3
-stim==1.15.0
+stim
 tornado==6.5.1
 traitlets==5.14.3
-typing_extensions==4.14.1
+typing_extensions
 tzdata==2025.2
 wcwidth==0.2.13
 widgetsnbextension==4.0.14
+
