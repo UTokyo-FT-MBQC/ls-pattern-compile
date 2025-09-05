@@ -12,7 +12,7 @@ from lspattern.accumulator import (
     ScheduleAccumulator,
 )
 from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
-from lspattern.blocks.base2 import RHGPipe, RHGPipeSkeleton
+from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import (
     NodeIdLocal,
