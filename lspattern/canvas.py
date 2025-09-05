@@ -27,6 +27,13 @@ from lspattern.tiling.template import (
 from lspattern.utils import get_direction
 
 
+class MixedCodeDistanceError(Exception):
+    """Raised when mixed code distances are detected in TemporalLayer.materialize."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+
+
 class TemporalLayer:
     """
     Represents a single temporal layer in the RHG canvas.
@@ -96,15 +103,18 @@ class TemporalLayer:
             self.add_pipe(source, sink, pipe)
 
     def materialize(self) -> None:
-        # TODO: 2次允E�E��E�吁E-> populateの構想
-        # Allow untrimmed templates for single-cube layers; trimming is handled
-        # earlier at the skeleton-canvas stage when applicable.
         for b in self.cubes_.values():
             b.template.to_tiling()
         for p in self.pipes_.values():
             p.template.to_tiling()
 
         # New path: build absolute 2D tilings from patch positions, then connect
+        # TODO: ConnectedTilingが無造作にpatch同士をつなげてしまうバグが見つかった。
+        # どうやら今のコードだとPatch同士がつながっているか、ただ隣同士にいるだけなのか区別できないようだ
+        # ConnectedTilingにはcube_tilingsとpipe_tilingsを分けて渡すようにする
+        # でConnectedTiling内で接続があればcoord2idを同一化させるように修正する
+        # ancillaはこれまでと同様に全方向を探索するが、coord2idが同一のdata/ancilla間のみを接続するように修正する
+        # 以上をT19.mdに仕様書として書き出し、遂行しなさい。
         tilings_abs: list = []
         dset: set[int] = set()
 
@@ -125,12 +135,9 @@ class TemporalLayer:
             dx, dy = pipe_offset_xy(d_val, source, sink, direction)
             tilings_abs.append(offset_tiling(p.template, dx, dy))
 
-        if not tilings_abs:
-            self.tiling_node_maps = {}
-            return
-
         if len(dset) > 1:
-            raise ValueError("TemporalLayer.materialize: mixed code distances (d) are not supported yet")
+            msg = "TemporalLayer.materialize: mixed code distances (d) are not supported yet"
+            raise MixedCodeDistanceError(msg)
 
         ct = ConnectedTiling(tilings_abs, check_collisions=True)
         self.tiling_node_maps = {
@@ -202,29 +209,18 @@ class TemporalLayer:
         self.node2role = node2role
         self.qubit_count = len(g.physical_nodes)
 
-        # 2D 連結（パチE�E��E�位置のオフセチE�E��E�は未老E�E�E�E�E�E�E
-        # tilings = [
-        #     *(b.template for b in self.cubes_.values() if getattr(b, "template", None)),
-        #     *(p.template for p in self.pipes_.values() if getattr(p, "template", None)),
-        # ]
-        # if not tilings:
-        #     self.tiling_node_maps = {}
-        #     return
-        # # TODO: fix Bug
-        # # Before this line we assume that template Coord2D are correctly shifted according to cube/pipes positions
-        # # Need to check
-        # # tilings does not have position information, this is absolutely wrong.
+        # 2D 連結（パッチ位置のオフセットは未考慮）
         # ct = ConnectedTiling(tilings, check_collisions=True)
-        # # base/ConnectedTiling の node_maps をそのまま公閁E
+        # # base/ConnectedTiling の node_maps をそのまま引き継ぐ
         # self.tiling_node_maps = {
         #     "data": dict(ct.node_maps.get("data", {})),
         #     "x": dict(ct.node_maps.get("x", {})),
         #     "z": dict(ct.node_maps.get("z", {})),
         # }
-        # # TODO: ctはmaterializeするも�E。なんかぁE�E��E�感じに設計したい
+        # # TODO: ctはmaterializeするもの。なんかぁE�E��E�感じに設計したい
         # # graph, coord2node, ... = ct.materialize()
 
-        # # TODO: input_nodeset, output_nodesetの設定をnodemapをもとに適刁E�E��E�実裁E�E��E�る忁E�E��E�があめE
+        # # TODO: input_nodeset, output_nodesetの設定をnodemapをもとに適切に実装する必要があります
         # return
 
         return
@@ -572,6 +568,11 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
 
     NOTE: This assumes `next_layer.local_graph` is a canonical GraphState built
     from its cubes/pipes. If it's None, we keep cgraph unchanged.
+
+    Returns
+    -------
+    CompiledRHGCanvas
+        The composed canvas with the next temporal layer integrated.
     """
     # If the canvas is empty, this is the first layer.
     if cgraph.global_graph is None:
@@ -639,10 +640,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         for xy, u in prev_xy_to_node.items():
             v = next_xy_to_node.get(xy)
             if v is not None and u != v:
-                try:
-                    new_graph.add_physical_edge(u, v)
-                except Exception:
-                    pass
+                new_graph.add_physical_edge(u, v)
                 seam_pairs.append((u, v))
 
     # Merge schedule, flow, parity

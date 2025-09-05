@@ -1,6 +1,26 @@
 from dataclasses import dataclass, field
+from itertools import count
 
 from lspattern.mytype import QubitIndex, TilingCoord2D
+
+
+def _next_tiling_id() -> int:
+    """Return the next globally unique Tiling id.
+
+    Increments by 1 for every Tiling (and subclass) instantiation.
+    Starts from 1.
+    """
+    return next(_TILING_ID_COUNTER)
+
+
+def reset_tiling_id_counter(start_at: int = 1) -> None:
+    """Reset the global Tiling id counter (primarily for tests)."""
+    global _TILING_ID_COUNTER
+    _TILING_ID_COUNTER = count(int(start_at))
+
+
+# Global counter shared by Tiling and all subclasses
+_TILING_ID_COUNTER = count(1)
 
 
 @dataclass
@@ -9,13 +29,17 @@ class Tiling:
     Base class for physical qubit tiling patterns.
     """
 
+    id_: int = 0  # unique identifier, auto-assigned on init
     data_coords: list[TilingCoord2D] = field(default_factory=list)
-    # TODO: do it
-    # Tilingを継承しているすべてのclassでqubit indexをcoord2qubitindexに置き換える
     coord2qubitindex: dict[TilingCoord2D, QubitIndex] = field(default_factory=dict)
+    coord2id: dict[TilingCoord2D, int] = field(default_factory=dict)
 
     x_coords: list[TilingCoord2D] = field(default_factory=list)
     z_coords: list[TilingCoord2D] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        # Assign a globally unique, incrementing id
+        self.id_ = _next_tiling_id()
 
     def shift_qubit_indices(self, by: int):
         """Shift assigned qubit indices by `by` in-place.
@@ -53,6 +77,8 @@ class ConnectedTiling(Tiling):
         *,
         check_collisions: bool = True,
     ) -> None:
+        # Assign unique id for this ConnectedTiling instance as well
+        self.id_ = _next_tiling_id()
         # Keep references to parts; do not mutate them
         self.parts = list(tilings)
         self.node_maps: dict[str, dict[TilingCoord2D, QubitIndex]] = {}
