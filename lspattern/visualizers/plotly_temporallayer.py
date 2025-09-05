@@ -66,7 +66,7 @@ def visualize_temporal_layer_plotly(
             return "ancilla_z"
         return "data"
 
-    # 役割は優先して TemporalLayer.node2role から取得（引数未指定時）
+    # Roles are retrieved from TemporalLayer.node2role with priority (when arguments not specified)
     if node_roles is None:
         node_roles = getattr(layer, "node2role", {}) or None
 

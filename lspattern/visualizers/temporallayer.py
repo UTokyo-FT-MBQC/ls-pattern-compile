@@ -44,7 +44,7 @@ def visualize_temporal_layer(
     ax.grid(False)
     ax.set_axis_off()
 
-    # 役割ベースでグルーピングして凡例を表示（z 偶奇による分岐は行わない）
+    # Group by role and display legend (no branching by z even/odd)
     roles: dict[int, str] = getattr(layer, "node2role", {}) or {}
     groups: dict[str, dict[str, list]] = {
         "data": {"x": [], "y": [], "z": []},
@@ -57,7 +57,7 @@ def visualize_temporal_layer(
             g = groups["ancilla_x"]
         elif role == "ancilla_z":
             g = groups["ancilla_z"]
-        # 役割がない場合はパリティから推定（それでも ancilla 判定されなければ data 扱い）
+        # If no role, estimate from parity (if still not ancilla, treat as data)
         elif role is None:
             if is_ancilla_x(x, y, z):
                 g = groups["ancilla_x"]

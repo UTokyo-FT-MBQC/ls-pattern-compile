@@ -124,7 +124,7 @@ class TemporalLayer:
         }
         return
 
-        # 2D 連結（パッチ位置のオフセットは未考慮）
+        # 2D connection (patch position offsets not considered)
         tilings = [
             *(b.template for b in self.blocks_.values() if getattr(b, "template", None)),
             *(p.template for p in self.pipes_.values() if getattr(p, "template", None)),

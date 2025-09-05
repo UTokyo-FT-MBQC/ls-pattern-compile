@@ -43,13 +43,13 @@ def test_no_collision_merge() -> None:
     assert set(ct.data_coords) == {(0, 0), (2, 0), (0, 2), (2, 2)}
     assert set(ct.x_coords) == {(1, 1), (1, 3)}
     assert set(ct.z_coords) == {(3, 1), (3, 3)}
-    # coord2qubitindex は全座標（data+X+Z）をキーに持つ
+    # coord2qubitindex holds all coordinates (data+X+Z) as keys
     assert len(ct.coord2qubitindex) == (len(ct.data_coords) + len(ct.x_coords) + len(ct.z_coords))
 
 
 def test_within_type_duplicate_detected() -> None:
     a = _mk_tiling(xs=[(1, 1)])
-    b = _mk_tiling(xs=[(1, 1)])  # 同一 X 座標が重複
+    b = _mk_tiling(xs=[(1, 1)])  # Same X coordinate duplicated
     try:
         _ = ConnectedTiling([a, b], check_collisions=True)
         raise AssertionError("expected collision was not raised")
@@ -60,7 +60,7 @@ def test_within_type_duplicate_detected() -> None:
 
 def test_across_type_overlap_detected() -> None:
     a = _mk_tiling(data=[(0, 0)])
-    b = _mk_tiling(xs=[(0, 0)])  # data と X が重なる
+    b = _mk_tiling(xs=[(0, 0)])  # data and X overlap
     try:
         _ = ConnectedTiling([a, b], check_collisions=True)
         raise AssertionError("expected overlap was not raised")
@@ -73,20 +73,20 @@ def test_pair_merge_with_templates() -> None:
     edgespec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
     d = 3
 
-    # 2つのテンプレートを用意し、to_tiling() で 2D 座標を作る
+    # Prepare two templates and create 2D coordinates with to_tiling()
     t1 = RotatedPlanarTemplate(d=d, edgespec=edgespec)
     t1.to_tiling()
     t2 = RotatedPlanarTemplate(d=d, edgespec=edgespec)
     t2.to_tiling()
 
-    # 右方向に隣接させる（境界は自動 trim、オフセットは 2*d）
+    # Adjacent in right direction (boundary auto trim, offset is 2*d)
     connected = merge_pair_spatial(t1, t2, direction="X+")
     # merge_pair_spatial の返り値は ConnectedTiling
     assert isinstance(connected, ConnectedTiling)
 
-    # data は d*d + d*d 個（重複がなければ）
+    # data is d*d + d*d pieces (if no duplicates)
     assert len(connected.data_coords) == d * d * 2
-    # X/Z も双方の分が（境界 trim 分は減少しうるが）少なくとも片側相当は残る
+    # X/Z both sides (boundary trim may decrease) at least one side equivalent remains
     assert len(connected.x_coords) > 0
     assert len(connected.z_coords) > 0
 

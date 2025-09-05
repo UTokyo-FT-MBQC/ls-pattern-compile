@@ -116,7 +116,7 @@ class InitPlusPipe(RHGPipe):
 
             nodes_by_z[z] = cur
 
-        # 同一スライス内の斜め隣接（xy 平面）
+        # Diagonal adjacency within the same slice (xy plane)
         for z, cur in nodes_by_z.items():
             for (x, y), src in cur.items():
                 for dx, dy, dz in DIRECTIONS3D:
@@ -126,7 +126,7 @@ class InitPlusPipe(RHGPipe):
                     if tgt is not None and tgt > src:
                         g.add_physical_edge(src, tgt)
 
-        # 縦方向（時間）エッジと最小 X-flow
+        # Vertical (time) edges and minimal X-flow
         flow_local: FlowLocal = {}
         for z in range(1, max_t + 1):
             cur = nodes_by_z[z]
@@ -137,7 +137,7 @@ class InitPlusPipe(RHGPipe):
                     g.add_physical_edge(u, v)
                     flow_local[v] = {u}
 
-        # パリティ（同一種 ancilla の z 間隔2）
+        # Parity (same type ancilla with z interval 2)
         x_checks: list[NodeSetLocal] = []
         z_checks: list[NodeSetLocal] = []
         for n, (x, y, z) in node2coord.items():
@@ -151,7 +151,7 @@ class InitPlusPipe(RHGPipe):
                 if nxt is not None and node2role.get(nxt) == "ancilla_z":
                     z_checks.append({n, nxt})
 
-        # スケジュール: 偶数タイムスロット=ancilla, 奇数=data（最終は除く）
+        # Schedule: even time slots = ancilla, odd = data (except final)
         schedule_local: ScheduleTuplesLocal = []
         for z, cur in nodes_by_z.items():
             anc: set[int] = set()

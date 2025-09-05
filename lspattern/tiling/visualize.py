@@ -26,7 +26,7 @@ def plot_connected_tiling(
     else:
         fig = ax.figure
 
-    # 座標取得（tuple[int,int]）
+    # Get coordinates (tuple[int,int])
     data = list(getattr(ct, "data_coords", []) or [])
     xs = list(getattr(ct, "x_coords", []) or [])
     zs = list(getattr(ct, "z_coords", []) or [])
