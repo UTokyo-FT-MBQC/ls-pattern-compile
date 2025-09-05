@@ -1,1 +1,0 @@
-# Blocktemplate and Pipetemplate
