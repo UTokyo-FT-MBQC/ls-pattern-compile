@@ -7,7 +7,9 @@ import sinter
 import stim
 from graphix_zx.stim_compiler import stim_compile
 
-from lspattern.blocks import InitPlus, MeasureX, Memory
+from lspattern.blocks.cubes.initialize import InitPlus
+from lspattern.blocks.cubes.measure import MeasureX
+from lspattern.blocks.cubes.memory import Memory
 from lspattern.canvas import RHGCanvas
 
 
