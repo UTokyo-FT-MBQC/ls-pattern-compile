@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
 
 
 # ----------------------------
@@ -10,6 +9,7 @@ from typing import Dict, List, Optional, Tuple
 @dataclass(frozen=True)
 class Rect:
     """Closed-open rectangle [x0, x1) × [y0, y1) on an integer grid."""
+
     x0: int
     y0: int
     dx: int
@@ -25,7 +25,7 @@ class Rect:
         """Top edge (exclusive)."""
         return self.y0 + self.dy
 
-    def moved(self, x: int, y: int) -> "Rect":
+    def moved(self, x: int, y: int) -> Rect:
         """Return a copy translated so its anchor is (x, y)."""
         return Rect(x, y, self.dx, self.dy)
 
@@ -57,17 +57,18 @@ class PatchTiler:
     >>> x0, y0 = tiler.alloc(logical=0, dx=7, dy=7)
     >>> tiler.reserve(1, x0=40, y0=0, dx=7, dy=7)
     """
+
     pitch_x: int = 16
     pitch_y: int = 16
     margin_x: int = 0
     margin_y: int = 0
-    _occupied: Dict[int, Rect] = field(default_factory=dict)
+    _occupied: dict[int, Rect] = field(default_factory=dict)
     _scan_limit: int = 10_000  # safety cap on search iterations
 
     # -------------------
     # Public API
     # -------------------
-    def alloc(self, logical: int, dx: int, dy: int, *, prefer_row: int = 0) -> Tuple[int, int]:
+    def alloc(self, logical: int, dx: int, dy: int, *, prefer_row: int = 0) -> tuple[int, int]:
         """Find a free anchor (x0, y0) to place a dx-by-dy patch for `logical`.
 
         The anchor is the lower-left corner. Raises ValueError if no spot is found
@@ -95,10 +96,7 @@ class PatchTiler:
                 x = 0
                 y += self.pitch_y
 
-        raise ValueError(
-            "PatchTiler.alloc: failed to find space "
-            "(increase scan_limit or adjust pitch/margins)."
-        )
+        raise ValueError("PatchTiler.alloc: failed to find space (increase scan_limit or adjust pitch/margins).")
 
     def reserve(self, logical: int, *, x0: int, y0: int, dx: int, dy: int) -> None:
         """Reserve an explicit rectangle for a logical index (raises if it collides)."""
@@ -117,11 +115,11 @@ class PatchTiler:
         """Release a previously reserved/allocated rectangle."""
         self._occupied.pop(logical, None)
 
-    def list_occupied(self) -> List[Tuple[int, Rect]]:
+    def list_occupied(self) -> list[tuple[int, Rect]]:
         """List occupied patches as (logical, Rect), ordered by (y0, x0)."""
         return sorted(self._occupied.items(), key=lambda kv: (kv[1].y0, kv[1].x0))
 
-    def bbox(self) -> Optional[Rect]:
+    def bbox(self) -> Rect | None:
         """Return the bounding box covering all occupied patches (or None if empty)."""
         if not self._occupied:
             return None

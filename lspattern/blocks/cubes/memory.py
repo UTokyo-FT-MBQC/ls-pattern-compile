@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, List, Set, Tuple
+from typing import TYPE_CHECKING
 
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.graphstate import BaseGraphState, GraphState
+
 from lspattern.blocks.base import BlockDelta, RHGBlock
 from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z, is_data
 
@@ -37,47 +38,45 @@ class Memory(RHGBlock):
         self.logical = logical
         self.rounds = rounds
 
-    def emit(self, canvas: "RHGCanvas") -> BlockDelta:
+    def emit(self, canvas: RHGCanvas) -> BlockDelta:
         lidx = self.logical
         boundary = canvas.logical_registry.require_boundary(lidx)
 
         # Derive the footprint (x, y) and base z from the current logical boundary.
-        xs: List[int] = []
-        ys: List[int] = []
-        zs: List[int] = []
+        xs: list[int] = []
+        ys: list[int] = []
+        zs: list[int] = []
         for (x, y, z), nid in canvas.coord_to_node.items():
             if nid in boundary:
                 xs.append(x)
                 ys.append(y)
                 zs.append(z)
         if not xs:
-            raise ValueError(
-                "Memory.emit: could not find coordinates for boundary nodes."
-            )
+            raise ValueError("Memory.emit: could not find coordinates for boundary nodes.")
 
         x_min, x_max = min(xs), max(xs)
         y_min, y_max = min(ys), max(ys)
         z0 = max(zs)  # continue upward from the last data layer
 
         g: BaseGraphState = GraphState()
-        node_at_layer: Dict[int, Dict[Tuple[int, int], int]] = {}
-        node_coords: Dict[int, Tuple[int, int, int]] = {}
+        node_at_layer: dict[int, dict[tuple[int, int], int]] = {}
+        node_coords: dict[int, tuple[int, int, int]] = {}
 
-        x_parity_check_groups: List[Set[int]] = []
-        z_parity_check_groups: List[Set[int]] = []
+        x_parity_check_groups: list[set[int]] = []
+        z_parity_check_groups: list[set[int]] = []
 
         # (t_local, LOCAL-node-set) pairs for scheduling; t_local starts at 0 in this block.
-        schedule_tuples: List[Tuple[int, Set[int]]] = []
+        schedule_tuples: list[tuple[int, set[int]]] = []
 
         # Local X-flow accumulator (LOCAL ids).
-        f: Dict[int, Set[int]] = {}
+        f: dict[int, set[int]] = {}
 
         # Build layers z0 . z0 + rounds with allowed parities only.
         for t in range(2 * self.rounds + 1):
             z = z0 + t
-            layer_map: Dict[Tuple[int, int], int] = {}
-            anc_group: Set[int] = set()
-            data_group: Set[int] = set()
+            layer_map: dict[tuple[int, int], int] = {}
+            anc_group: set[int] = set()
+            data_group: set[int] = set()
 
             for X in range(x_min, x_max + 1):
                 for Y in range(y_min, y_max + 1):
@@ -87,15 +86,13 @@ class Memory(RHGBlock):
                             # All DATA except the last slice get a measurement basis.
                             g.assign_meas_basis(n, PlannerMeasBasis(Plane.XY, 0.0))
                             data_group.add(n)
-                        layer_map[(X, Y)] = n
+                        layer_map[X, Y] = n
                         node_coords[n] = (X, Y, z)
                     elif is_ancilla_x(X, Y, z) or is_ancilla_z(X, Y, z):
-                        if (
-                            t != 2 * self.rounds
-                        ):  # no ancillas on the very last (pure DATA) slice
+                        if t != 2 * self.rounds:  # no ancillas on the very last (pure DATA) slice
                             n = g.add_physical_node()
                             g.assign_meas_basis(n, PlannerMeasBasis(Plane.XY, 0.0))
-                            layer_map[(X, Y)] = n
+                            layer_map[X, Y] = n
                             node_coords[n] = (X, Y, z)
                             anc_group.add(n)
 
@@ -123,16 +120,14 @@ class Memory(RHGBlock):
                         f[v] = {u}
 
         # MBQC inputs/outputs on DATA nodes only, aligned by (x, y).
-        q_indices: Dict[Tuple[int, int], int] = {}
+        q_indices: dict[tuple[int, int], int] = {}
         if self.rounds >= 1:
             first_map = node_at_layer[0]
             prev_qmap = canvas.logical_registry.boundary_qidx.get(lidx, {})
             if not prev_qmap:
-                raise ValueError(
-                    f"Memory.emit: boundary_qidx is missing for logical {lidx}"
-                )
+                raise ValueError(f"Memory.emit: boundary_qidx is missing for logical {lidx}")
             inv_coord = {nid: coord for coord, nid in canvas.coord_to_node.items()}
-            prev_xy_order: List[Tuple[int, int]] = []
+            prev_xy_order: list[tuple[int, int]] = []
             for nid, _q in sorted(prev_qmap.items(), key=lambda kv: kv[1]):
                 x, y, _ = inv_coord[nid]
                 prev_xy_order.append((x, y))
@@ -146,63 +141,35 @@ class Memory(RHGBlock):
 
         # Determine the first ancilla layer (X/Z) to stitch with previous block, if any.
         first_layer = node_at_layer[0]
-        first_x_local = {
-            (X, Y): n for (X, Y), n in first_layer.items() if is_ancilla_x(X, Y, z0)
-        }
-        first_z_local = {
-            (X, Y): n for (X, Y), n in first_layer.items() if is_ancilla_z(X, Y, z0)
-        }
+        first_x_local = {(X, Y): n for (X, Y), n in first_layer.items() if is_ancilla_x(X, Y, z0)}
+        first_z_local = {(X, Y): n for (X, Y), n in first_layer.items() if is_ancilla_z(X, Y, z0)}
         if not first_x_local:
             second_layer = node_at_layer[1]
-            first_x_local = {
-                (X, Y): n
-                for (X, Y), n in second_layer.items()
-                if is_ancilla_x(X, Y, z0 + 1)
-            }
+            first_x_local = {(X, Y): n for (X, Y), n in second_layer.items() if is_ancilla_x(X, Y, z0 + 1)}
         if not first_z_local:
             second_layer = node_at_layer[1]
-            first_z_local = {
-                (X, Y): n
-                for (X, Y), n in second_layer.items()
-                if is_ancilla_z(X, Y, z0 + 1)
-            }
+            first_z_local = {(X, Y): n for (X, Y), n in second_layer.items() if is_ancilla_z(X, Y, z0 + 1)}
 
         # Determine the last ancilla layer to expose as seam_last_*.
         last_anc_t = 2 * self.rounds - 1
         last_layer = node_at_layer[last_anc_t]
-        seam_last_x = {
-            (X, Y): n
-            for (X, Y), n in last_layer.items()
-            if is_ancilla_x(X, Y, z0 + last_anc_t)
-        }
-        seam_last_z = {
-            (X, Y): n
-            for (X, Y), n in last_layer.items()
-            if is_ancilla_z(X, Y, z0 + last_anc_t)
-        }
+        seam_last_x = {(X, Y): n for (X, Y), n in last_layer.items() if is_ancilla_x(X, Y, z0 + last_anc_t)}
+        seam_last_z = {(X, Y): n for (X, Y), n in last_layer.items() if is_ancilla_z(X, Y, z0 + last_anc_t)}
         if not seam_last_x:
             last_anc_t = 2 * self.rounds - 2
             last_layer = node_at_layer[last_anc_t]
-            seam_last_x = {
-                (X, Y): n
-                for (X, Y), n in last_layer.items()
-                if is_ancilla_x(X, Y, z0 + last_anc_t)
-            }
+            seam_last_x = {(X, Y): n for (X, Y), n in last_layer.items() if is_ancilla_x(X, Y, z0 + last_anc_t)}
         if not seam_last_z:
             last_anc_t = 2 * self.rounds - 2
             last_layer = node_at_layer[last_anc_t]
-            seam_last_z = {
-                (X, Y): n
-                for (X, Y), n in last_layer.items()
-                if is_ancilla_z(X, Y, z0 + last_anc_t)
-            }
+            seam_last_z = {(X, Y): n for (X, Y), n in last_layer.items() if is_ancilla_z(X, Y, z0 + last_anc_t)}
 
         # Build parity directives that pair previous GLOBAL centers with current LOCAL nodes.
         last_x = canvas.parity_layers.get_last(lidx, "X")
         last_z = canvas.parity_layers.get_last(lidx, "Z")
 
-        parity_x: List[Tuple[int, List[int]]] = []
-        parity_z: List[Tuple[int, List[int]]] = []
+        parity_x: list[tuple[int, list[int]]] = []
+        parity_z: list[tuple[int, list[int]]] = []
         if last_x:
             for xy, n_local in first_x_local.items():
                 if xy in last_x.by_xy:
@@ -230,7 +197,7 @@ class Memory(RHGBlock):
                     z_parity_check_groups.append({u, next_ancilla})
 
         # Logical boundary becomes the last slice's DATA nodes.
-        out_boundary: Set[int] = set()
+        out_boundary: set[int] = set()
         if self.rounds >= 1:
             last_map = node_at_layer[2 * self.rounds]
             for (X, Y), n in last_map.items():
@@ -238,19 +205,11 @@ class Memory(RHGBlock):
                     out_boundary.add(n)
 
         # in_ports/out_ports for canvas bookkeeping (DATA only).
-        in_ports: Dict[int, Set[int]] = {}
+        in_ports: dict[int, set[int]] = {}
         if self.rounds >= 1:
             # NOTE: Keep the original logic intact.
-            first_map_for_ports = node_at_layer[
-                z0
-            ]  # noqa: F841  (intentional: matches the existing logic)
-            in_ports = {
-                lidx: {
-                    first_map_for_ports[xy]
-                    for xy in first_map_for_ports
-                    if is_data(xy[0], xy[1], z0 + 1)
-                }
-            }
+            first_map_for_ports = node_at_layer[z0]
+            in_ports = {lidx: {first_map_for_ports[xy] for xy in first_map_for_ports if is_data(xy[0], xy[1], z0 + 1)}}
 
         return BlockDelta(
             local_graph=g,

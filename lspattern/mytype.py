@@ -14,7 +14,7 @@ changing runtime representations.
 
 from __future__ import annotations
 
-from typing import Dict, List, Literal, NewType, Set, Tuple
+from typing import Literal, NewType
 
 # ---------------------------------------------------------------------
 # Core scalar ids (NewType for static distinction)
@@ -31,37 +31,35 @@ QubitIndexLocal = NewType("QubitIndexLocal", int)
 # ---------------------------------------------------------------------
 # Tiling coordinate
 
-TilingCoord2D = NewType("TilingCoord2D", Tuple[int, int])
+TilingCoord2D = NewType("TilingCoord2D", tuple[int, int])
 TilingConsistentQubitId = NewType("TilingConsistentQubitId", int)
 
 # Patch coordinates are 2D integer anchors (x0, y0).
-PatchCoordLocal2D = NewType("PatchCoordLocal2D", Tuple[int, int])
-PatchCoordGlobal3D = NewType("PatchCoordGlobal3D", Tuple[int, int, int])
-PipeCoordGlobal3D = NewType(
-    "PipeCoordGlobal3D", Tuple[Tuple[int, int, int], Tuple[int, int, int]]
-)
+PatchCoordLocal2D = NewType("PatchCoordLocal2D", tuple[int, int])
+PatchCoordGlobal3D = NewType("PatchCoordGlobal3D", tuple[int, int, int])
+PipeCoordGlobal3D = NewType("PipeCoordGlobal3D", tuple[tuple[int, int, int], tuple[int, int, int]])
 
 # Physical qubit coordinates are 3D integer positions (x, y, z).
-PhysCoordLocal2D = NewType("PhysCoordLocal2D", Tuple[int, int])  # (x, y)
-PhysCoordLocal3D = NewType("PhysCoordLocal3D", Tuple[int, int, int])  # (x, y, z)
-PhysCoordGlobal3D = NewType("PhysCoordGlobal3D", Tuple[int, int, int])
+PhysCoordLocal2D = NewType("PhysCoordLocal2D", tuple[int, int])  # (x, y)
+PhysCoordLocal3D = NewType("PhysCoordLocal3D", tuple[int, int, int])  # (x, y, z)
+PhysCoordGlobal3D = NewType("PhysCoordGlobal3D", tuple[int, int, int])
 
 # Convenience aliases for collections
-NodeSetLocal = Set[NodeIdLocal]
-NodeSetGlobal = Set[NodeIdGlobal]
+NodeSetLocal = set[NodeIdLocal]
+NodeSetGlobal = set[NodeIdGlobal]
 
 # Ports and q-index mappings (LOCAL frame on blocks)
-InPortsLocal = Dict[LogicalIndex, NodeSetLocal]
-OutPortsLocal = Dict[LogicalIndex, NodeSetLocal]
-OutQMapLocal = Dict[LogicalIndex, Dict[NodeIdLocal, QubitIndex]]
+InPortsLocal = dict[LogicalIndex, NodeSetLocal]
+OutPortsLocal = dict[LogicalIndex, NodeSetLocal]
+OutQMapLocal = dict[LogicalIndex, dict[NodeIdLocal, QubitIndex]]
 
 # Schedule and flow (LOCAL)
 LocalTime = NewType("LocalTime", int)
-ScheduleTuplesLocal = List[Tuple[LocalTime, NodeSetLocal]]
-FlowLocal = Dict[NodeIdLocal, NodeSetLocal]
+ScheduleTuplesLocal = list[tuple[LocalTime, NodeSetLocal]]
+FlowLocal = dict[NodeIdLocal, NodeSetLocal]
 
 # Parity caps linking PREV global center to CURR local nodes
-ParityCapsLocal = List[Tuple[NodeIdGlobal, List[NodeIdLocal]]]
+ParityCapsLocal = list[tuple[NodeIdGlobal, list[NodeIdLocal]]]
 
 # ---------------------------------------------------------------------
 # Edge/boundary specs for scalable tilings
@@ -73,7 +71,7 @@ EdgeSpecValue = Literal["X", "Z", "O"]
 BoundarySide = Literal["TOP", "BOTTOM", "LEFT", "RIGHT", "UP", "DOWN"]
 
 # Dict-based spatial edge spec preferred across the codebase
-SpatialEdgeSpec = Dict[str, EdgeSpecValue]
+SpatialEdgeSpec = dict[str, EdgeSpecValue]
 
 # Module-level convenience default used by examples/tests.
 # All sides start as open ("O"). Callers may update it locally.

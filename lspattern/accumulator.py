@@ -5,9 +5,7 @@ from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal
 
 # Flow helpers (node maps guaranteed to contain all keys)
 def _remap_flow(flow: FlowLocal, node_map: dict[NodeIdLocal, NodeIdLocal]) -> FlowLocal:
-    return {
-        node_map[src]: {node_map[dst] for dst in dsts} for src, dsts in flow.items()
-    }
+    return {node_map[src]: {node_map[dst] for dst in dsts} for src, dsts in flow.items()}
 
 
 def _merge_flow(a: FlowLocal, b: FlowLocal) -> FlowLocal:
@@ -67,9 +65,7 @@ class ScheduleAccumulator:
             new_schedule[t + z_by] = nodes
         self.schedule = new_schedule
 
-    def compose_sequential(
-        self, late_schedule: "ScheduleAccumulator"
-    ) -> "ScheduleAccumulator":
+    def compose_sequential(self, late_schedule: "ScheduleAccumulator") -> "ScheduleAccumulator":
         new_schedule = self.schedule.copy()
         late_schedule.shift_z(max(self.schedule.keys()) + 1)
         for t, nodes in late_schedule.schedule.items():
@@ -83,9 +79,7 @@ class ParityAccumulator:
     x_checks: list[set[NodeIdLocal]] = field(default_factory=list)
     z_checks: list[set[NodeIdLocal]] = field(default_factory=list)
 
-    def remap_nodes(
-        self, node_map: dict[NodeIdLocal, NodeIdLocal]
-    ) -> "ParityAccumulator":
+    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> "ParityAccumulator":
         # Fast remap via set/list comprehensions
         return ParityAccumulator(
             x_checks=_remap_groups(self.x_checks, node_map),
@@ -98,9 +92,7 @@ class FlowAccumulator:
     xflow: dict[NodeIdLocal, set[NodeIdLocal]] = field(default_factory=dict)
     zflow: dict[NodeIdLocal, set[NodeIdLocal]] = field(default_factory=dict)
 
-    def remap_nodes(
-        self, node_map: dict[NodeIdLocal, NodeIdLocal]
-    ) -> "FlowAccumulator":
+    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> "FlowAccumulator":
         # Remap both x/z flows using helper for speed
         return FlowAccumulator(
             xflow=_remap_flow(self.xflow, node_map),

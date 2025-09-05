@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from typing import Dict, Optional, Tuple
 
 import matplotlib.pyplot as plt
 
@@ -13,7 +12,7 @@ def visualize_temporal_layer(
     *,
     indicated_nodes: set[int] | None = None,
     annotate: bool = False,
-    save_path: Optional[str] = None,
+    save_path: str | None = None,
     show: bool = True,
     figsize: tuple[int, int] = (6, 6),
     dpi: int = 120,
@@ -37,8 +36,7 @@ def visualize_temporal_layer(
     dpi : int
         Matplotlib figure DPI.
     """
-
-    node2coord: Dict[int, Tuple[int, int, int]] = getattr(layer, "node2coord", {}) or {}
+    node2coord: dict[int, tuple[int, int, int]] = getattr(layer, "node2coord", {}) or {}
 
     fig = plt.figure(figsize=figsize, dpi=dpi)
     ax = fig.add_subplot(111, projection="3d")
@@ -47,8 +45,8 @@ def visualize_temporal_layer(
     ax.set_axis_off()
 
     # 役割ベースでグルーピングして凡例を表示（z 偶奇による分岐は行わない）
-    roles: Dict[int, str] = getattr(layer, "node2role", {}) or {}
-    groups: Dict[str, Dict[str, list]] = {
+    roles: dict[int, str] = getattr(layer, "node2role", {}) or {}
+    groups: dict[str, dict[str, list]] = {
         "data": {"x": [], "y": [], "z": []},
         "ancilla_x": {"x": [], "y": [], "z": []},
         "ancilla_z": {"x": [], "y": [], "z": []},
@@ -59,17 +57,16 @@ def visualize_temporal_layer(
             g = groups["ancilla_x"]
         elif role == "ancilla_z":
             g = groups["ancilla_z"]
-        else:
-            # 役割がない場合はパリティから推定（それでも ancilla 判定されなければ data 扱い）
-            if role is None:
-                if is_ancilla_x(x, y, z):
-                    g = groups["ancilla_x"]
-                elif is_ancilla_z(x, y, z):
-                    g = groups["ancilla_z"]
-                else:
-                    g = groups["data"]
+        # 役割がない場合はパリティから推定（それでも ancilla 判定されなければ data 扱い）
+        elif role is None:
+            if is_ancilla_x(x, y, z):
+                g = groups["ancilla_x"]
+            elif is_ancilla_z(x, y, z):
+                g = groups["ancilla_z"]
             else:
                 g = groups["data"]
+        else:
+            g = groups["data"]
         g["x"].append(x)
         g["y"].append(y)
         g["z"].append(z)
@@ -78,7 +75,9 @@ def visualize_temporal_layer(
         pts = groups[gkey]
         if pts["x"]:
             ax.scatter(
-                pts["x"], pts["y"], pts["z"],
+                pts["x"],
+                pts["y"],
+                pts["z"],
                 c=color,
                 edgecolors="black",
                 s=50,

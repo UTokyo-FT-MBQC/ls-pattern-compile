@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal, Tuple, Optional
+from typing import Literal
 
+from lspattern.consts.consts import PIPEDIRECTION
 from lspattern.mytype import (
     SpatialEdgeSpec,
     TilingConsistentQubitId,
@@ -10,7 +11,6 @@ from lspattern.mytype import (
 )
 from lspattern.tiling.base import ConnectedTiling, Tiling
 from lspattern.utils import sort_xy
-from lspattern.consts.consts import PIPEDIRECTION
 
 
 @dataclass(kw_only=True)
@@ -63,12 +63,12 @@ class ScalableTemplate(Tiling):
 
     def shift_coords(
         self,
-        by: Tuple[int, int] | Tuple[int, int, int],
+        by: tuple[int, int] | tuple[int, int, int],
         *,
         coordinate: Literal["tiling2d", "phys3d", "patch3d"] = "tiling2d",
         anchor: Literal["seam", "inner"] = "seam",
         inplace: bool = True,
-    ) -> "ScalableTemplate":
+    ) -> ScalableTemplate:
         """Shift template 2D coords based on the given coordinate system.
 
         - tiling2d: by=(dx,dy) used directly
@@ -107,7 +107,7 @@ class ScalableTemplate(Tiling):
         new.z_coords = t.z_coords
         return new
 
-    def shift_qindex(self, by: int, *, inplace: bool = True) -> "ScalableTemplate":
+    def shift_qindex(self, by: int, *, inplace: bool = True) -> ScalableTemplate:
         """Shift local qubit indices, if present in this template instance.
 
         This is optional; ConnectedTiling rebuilds indexes, but callers may
@@ -158,9 +158,7 @@ class ScalableTemplate(Tiling):
         self.x_coords = [p for p in (self.x_coords or []) if p[axis] != target]
         self.z_coords = [p for p in (self.z_coords or []) if p[axis] != target]
 
-    def visualize_tiling(
-        self, ax=None, show: bool = True, title_suffix: str | None = None
-    ) -> None:
+    def visualize_tiling(self, ax=None, show: bool = True, title_suffix: str | None = None) -> None:
         """Visualize the tiling using matplotlib.
 
         - data qubits: white-filled circles with black edge
@@ -180,7 +178,7 @@ class ScalableTemplate(Tiling):
         def unpack(coords: list[tuple[int, int]]):
             if not coords:
                 return [], []
-            x_vals, y_vals = zip(*coords)
+            x_vals, y_vals = zip(*coords, strict=False)
             return list(x_vals), list(y_vals)
 
         dx, dy = unpack(data)
@@ -237,48 +235,38 @@ class RotatedPlanarTemplate(ScalableTemplate):
         # Bulk checks (odd-odd), two interleaving lattices per type
         for x0, y0 in ((1, 3), (3, 1)):
             for x in range(x0, 2 * d - 1, 4):
-                for y in range(y0, 2 * d - 1, 4):
-                    x_coords.add((x, y))
+                x_coords.update((x, y) for y in range(y0, 2 * d - 1, 4))
         for x0, y0 in ((1, 1), (3, 3)):
             for x in range(x0, 2 * d - 1, 4):
-                for y in range(y0, 2 * d - 1, 4):
-                    z_coords.add((x, y))
+                z_coords.update((x, y) for y in range(y0, 2 * d - 1, 4))
 
         # Boundaries
         match self._spec("LEFT"):
             case "X":
-                for y in range(1, 2 * d - 1, 4):
-                    x_coords.add((-1, y))
+                x_coords.update((-1, y) for y in range(1, 2 * d - 1, 4))
             case "Z":
-                for y in range(2 * d - 3, -1, -4):
-                    z_coords.add((-1, y))
+                z_coords.update((-1, y) for y in range(2 * d - 3, -1, -4))
             case _:
                 pass
         match self._spec("RIGHT"):
             case "X":
-                for y in range(2 * d - 3, -1, -4):
-                    x_coords.add((2 * d - 1, y))
+                x_coords.update((2 * d - 1, y) for y in range(2 * d - 3, -1, -4))
             case "Z":
-                for y in range(1, 2 * d - 1, 4):
-                    z_coords.add((2 * d - 1, y))
+                z_coords.update((2 * d - 1, y) for y in range(1, 2 * d - 1, 4))
             case _:
                 pass
         match self._spec("BOTTOM"):
             case "X":
-                for x in range(1, 2 * d - 1, 4):
-                    x_coords.add((x, -1))
+                x_coords.update((x, -1) for x in range(1, 2 * d - 1, 4))
             case "Z":
-                for x in range(2 * d - 3, -1, -4):
-                    z_coords.add((x, -1))
+                z_coords.update((x, -1) for x in range(2 * d - 3, -1, -4))
             case _:
                 pass
         match self._spec("TOP"):
             case "X":
-                for x in range(2 * d - 3, -1, -4):
-                    x_coords.add((x, 2 * d - 1))
+                x_coords.update((x, 2 * d - 1) for x in range(2 * d - 3, -1, -4))
             case "Z":
-                for x in range(1, 2 * d - 1, 4):
-                    z_coords.add((x, 2 * d - 1))
+                z_coords.update((x, 2 * d - 1) for x in range(1, 2 * d - 1, 4))
             case _:
                 pass
 
@@ -317,10 +305,10 @@ def offset_tiling(t: Tiling, dx: int, dy: int) -> Tiling:
 
 def block_offset_xy(
     d: int,
-    patch: Tuple[int, int, int],
+    patch: tuple[int, int, int],
     *,
     anchor: Literal["seam", "inner"] = "seam",
-) -> Tuple[int, int]:
+) -> tuple[int, int]:
     px, py, _pz = patch
     base_x = 2 * d * int(px)
     base_y = 2 * d * int(py)
@@ -395,8 +383,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
 
         if is_x_dir:
             # Pipe along Y (vertical), x fixed at 0
-            for y in range(0, 2 * d, 2):
-                data_coords.add((0, y))
+            data_coords.update((0, y) for y in range(0, 2 * d, 2))
             for n in range(d - 2):
                 y = 2 * n + 1
                 x_coords.add((((-1) ** n), y))
@@ -419,8 +406,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
 
         elif is_y_dir:
             # Pipe along X (horizontal), y fixed at 0
-            for x in range(0, 2 * d, 2):
-                data_coords.add((x, 0))
+            data_coords.update((x, 0) for x in range(0, 2 * d, 2))
             for n in range(d - 2):
                 x = 2 * n + 1
                 x_coords.add((x, (-1) ** n))
@@ -455,12 +441,12 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
     # Pipe-specific shift including patch3d to (dx,dy) conversion.
     def shift_coords(
         self,
-        by: Tuple[int, int] | Tuple[int, int, int],
+        by: tuple[int, int] | tuple[int, int, int],
         *,
         coordinate: Literal["tiling2d", "phys3d", "patch3d"] = "tiling2d",
-        direction: Optional[PIPEDIRECTION] = None,
+        direction: PIPEDIRECTION | None = None,
         inplace: bool = True,
-    ) -> "RotatedPlanarPipetemplate":
+    ) -> RotatedPlanarPipetemplate:
         if not (self.data_coords or self.x_coords or self.z_coords):
             self.to_tiling()
 
@@ -495,16 +481,16 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         new.z_coords = t.z_coords
         return new
 
-    def shift_qindex(self, by: int, *, inplace: bool = True) -> "RotatedPlanarPipetemplate":
+    def shift_qindex(self, by: int, *, inplace: bool = True) -> RotatedPlanarPipetemplate:
         return super().shift_qindex(by, inplace=inplace)  # type: ignore[return-value]
 
 
 def pipe_offset_xy(
     d: int,
-    source: Tuple[int, int, int],
-    sink: Optional[Tuple[int, int, int]],
+    source: tuple[int, int, int],
+    sink: tuple[int, int, int] | None,
     direction: PIPEDIRECTION,
-) -> Tuple[int, int]:
+) -> tuple[int, int]:
     sx, sy, sz = source
     if direction in (PIPEDIRECTION.UP, PIPEDIRECTION.DOWN):
         raise NotImplementedError("Temporal pipe (UP/DOWN) not supported for 2D tiling placement")
@@ -520,12 +506,11 @@ def pipe_offset_xy(
         base_x = 2 * d * min(sx, (sink[0] if sink else sx))
         base_y = 2 * d * sy
         return base_x, base_y
-    elif direction in (PIPEDIRECTION.TOP, PIPEDIRECTION.BOTTOM):
+    if direction in (PIPEDIRECTION.TOP, PIPEDIRECTION.BOTTOM):
         base_x = 2 * d * sx
         base_y = 2 * d * min(sy, (sink[1] if sink else sy))
         return base_x, base_y
-    else:
-        raise ValueError("Invalid direction for pipe offset")
+    raise ValueError("Invalid direction for pipe offset")
 
 
 if __name__ == "__main__":
@@ -550,7 +535,7 @@ if __name__ == "__main__":
         ]
 
         fig, axes = plt.subplots(2, 2, figsize=(10, 10))
-        for (label, spec), ax in zip(configs, axes.ravel()):
+        for (label, spec), ax in zip(configs, axes.ravel(), strict=False):
             set_edgespec(**spec)
             template = RotatedPlanarTemplate(d=d, edgespec=spec)
             template.to_tiling()
@@ -570,7 +555,7 @@ if __name__ == "__main__":
         ]
 
         fig2, axes2 = plt.subplots(2, 2, figsize=(10, 10))
-        for (label, spec), ax in zip(pipe_cfgs, axes2.ravel()):
+        for (label, spec), ax in zip(pipe_cfgs, axes2.ravel(), strict=False):
             set_edgespec(**spec)
             ptemp = RotatedPlanarPipetemplate(d=d, edgespec=spec)
             ptemp.to_tiling()

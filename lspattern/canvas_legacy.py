@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Mapping, Optional, Set, Tuple
 
 # graphix_zx pieces
 from graphix_zx.graphstate import BaseGraphState, compose_sequentially
+
 from lspattern.blocks.base import BlockDelta, RHGBlock
 from lspattern.compile import compile_canvas
 from lspattern.geom.tiler import PatchTiler
@@ -13,14 +14,12 @@ from lspattern.geom.tiler import PatchTiler
 # ----------------------------
 # Small helpers
 # ----------------------------
-def _remap_set(nodes: Iterable[int], node_map: Mapping[int, int]) -> Set[int]:
+def _remap_set(nodes: Iterable[int], node_map: Mapping[int, int]) -> set[int]:
     """Remap a set of LOCAL node ids to GLOBAL ids via node_map."""
     return {node_map[n] for n in nodes}
 
 
-def _remap_list_of_sets(
-    sets: Iterable[Iterable[int]], node_map: Mapping[int, int]
-) -> List[Set[int]]:
+def _remap_list_of_sets(sets: Iterable[Iterable[int]], node_map: Mapping[int, int]) -> list[set[int]]:
     """Remap a list of LOCAL node-id sets to GLOBAL ids via node_map."""
     return [_remap_set(s, node_map) for s in sets]
 
@@ -31,30 +30,32 @@ def _remap_list_of_sets(
 @dataclass
 class ParityLast:
     """A record of the latest parity layer for a given logical index."""
+
     z: int
-    by_xy: Dict[Tuple[int, int], int]  # (x, y) -> GLOBAL node id
+    by_xy: dict[tuple[int, int], int]  # (x, y) -> GLOBAL node id
 
 
 @dataclass
 class ParityLayerRegistry:
     """Keeps only the *last* X/Z parity layers per logical index."""
-    last_x: Dict[int, ParityLast] = field(default_factory=dict)
-    last_z: Dict[int, ParityLast] = field(default_factory=dict)
 
-    def get_last(self, logical: int, kind: str) -> Optional[ParityLast]:
+    last_x: dict[int, ParityLast] = field(default_factory=dict)
+    last_z: dict[int, ParityLast] = field(default_factory=dict)
+
+    def get_last(self, logical: int, kind: str) -> ParityLast | None:
         """Return the last parity layer of the given kind ('X' or 'Z') for a logical index."""
         return (self.last_x if kind.upper() == "X" else self.last_z).get(logical)
 
     def update_last_from_seams(
         self,
         logical: int,
-        seam_last_x_g: Dict[Tuple[int, int], int],
-        seam_last_z_g: Dict[Tuple[int, int], int],
-        coord_to_node: Dict[Tuple[int, int, int], int],
+        seam_last_x_g: dict[tuple[int, int], int],
+        seam_last_z_g: dict[tuple[int, int], int],
+        coord_to_node: dict[tuple[int, int, int], int],
     ) -> None:
         """Update the last X/Z layers from seam-last dicts (already GLOBAL ids)."""
         # Build a reverse map: GLOBAL node -> (x, y, z)
-        node_to_coord: Dict[int, Tuple[int, int, int]] = {nid: coord for coord, nid in coord_to_node.items()}
+        node_to_coord: dict[int, tuple[int, int, int]] = {nid: coord for coord, nid in coord_to_node.items()}
 
         if seam_last_x_g:
             any_node = next(iter(seam_last_x_g.values()))
@@ -73,7 +74,8 @@ class ParityLayerRegistry:
 @dataclass
 class LogicalRegistry:
     """Tracks the logical boundary as a mapping: logical -> {GLOBAL node -> q_index}."""
-    boundary_qidx: Dict[int, Dict[int, int]] = field(default_factory=dict)
+
+    boundary_qidx: dict[int, dict[int, int]] = field(default_factory=dict)
 
     def remap_all(self, node_map: Mapping[int, int]) -> None:
         """Remap all stored GLOBAL node ids via node_map (compose_sequentially's node_map1)."""
@@ -81,17 +83,17 @@ class LogicalRegistry:
             li: {node_map.get(n, n): q for n, q in qmap.items()} for li, qmap in self.boundary_qidx.items()
         }
 
-    def set_boundary(self, logical: int, nodes: Set[int], qidx_map: Optional[Dict[int, int]] = None) -> None:
+    def set_boundary(self, logical: int, nodes: set[int], qidx_map: dict[int, int] | None = None) -> None:
         """Set logical boundary nodes with an optional explicit q_index map."""
         if qidx_map is None:
             qidx_map = {n: i for i, n in enumerate(sorted(nodes))}
         self.boundary_qidx[logical] = dict(qidx_map)
 
-    def get_boundary_nodes(self, logical: int) -> Set[int]:
+    def get_boundary_nodes(self, logical: int) -> set[int]:
         """Return the set of boundary GLOBAL nodes for the logical index (empty set if absent)."""
         return set(self.boundary_qidx.get(logical, {}).keys())
 
-    def require_boundary(self, logical: int) -> Set[int]:
+    def require_boundary(self, logical: int) -> set[int]:
         """Return boundary nodes or raise if not present."""
         nodes = self.get_boundary_nodes(logical)
         if not nodes:
@@ -102,8 +104,9 @@ class LogicalRegistry:
 @dataclass
 class ParityAccumulator:
     """Collects X/Z parity-check groups (GLOBAL node-id sets)."""
-    x_groups: List[Set[int]] = field(default_factory=list)
-    z_groups: List[Set[int]] = field(default_factory=list)
+
+    x_groups: list[set[int]] = field(default_factory=list)
+    z_groups: list[set[int]] = field(default_factory=list)
 
     def remap_all(self, node_map: Mapping[int, int]) -> None:
         self.x_groups = _remap_list_of_sets(self.x_groups, node_map)
@@ -118,7 +121,8 @@ class ParityAccumulator:
 @dataclass
 class FlowAccumulator:
     """Collects (currently) X-flow as a dict[GLOBAL node] -> set[GLOBAL nodes]."""
-    xflow: Dict[int, Set[int]] = field(default_factory=dict)
+
+    xflow: dict[int, set[int]] = field(default_factory=dict)
 
     def remap_all(self, node_map: Mapping[int, int]) -> None:
         self.xflow = {node_map.get(k, k): {node_map.get(v, v) for v in vs} for k, vs in self.xflow.items()}
@@ -138,8 +142,9 @@ class ScheduleAccumulator:
     Each Block returns BlockDelta.schedule_tuples = [(t_local, {local_nodes}), ..] starting at 0.
     The canvas shifts them by base_time (global head) and merges by t_global.
     """
-    _timeline: Dict[int, Set[int]] = field(default_factory=dict)  # t_global -> GLOBAL node set
-    measure_groups: List[Set[int]] = field(default_factory=list)  # exposed (sorted by t_global)
+
+    _timeline: dict[int, set[int]] = field(default_factory=dict)  # t_global -> GLOBAL node set
+    measure_groups: list[set[int]] = field(default_factory=list)  # exposed (sorted by t_global)
 
     def _rebuild_groups(self) -> None:
         """Rebuild 'measure_groups' as a list sorted by t_global."""
@@ -150,9 +155,7 @@ class ScheduleAccumulator:
         self._timeline = {t: {node_map.get(n, n) for n in nodes} for t, nodes in self._timeline.items()}
         self._rebuild_groups()
 
-    def extend_from_delta_timed(
-        self, delta: BlockDelta, node_map2: Mapping[int, int], *, base_time: int
-    ) -> None:
+    def extend_from_delta_timed(self, delta: BlockDelta, node_map2: Mapping[int, int], *, base_time: int) -> None:
         """Shift (t_local, LOCAL nodes) by base_time and merge into the timeline."""
         if not delta.schedule_tuples:
             return
@@ -177,17 +180,18 @@ class ScheduleAccumulator:
         input_nodes = set(getattr(graph, "input_node_indices", {}).keys())
 
         # Prepare at time 0 (non-input nodes).
-        prep_time = {n: 0 for n in (all_nodes - input_nodes)}
+        prep_time = dict.fromkeys(all_nodes - input_nodes, 0)
 
         # Measurements follow timeline keys; input nodes go to the earliest measurement time.
         t0 = min(self._timeline) if self._timeline else 1
-        meas_time: Dict[int, int] = {n: t0 for n in input_nodes}
+        meas_time: dict[int, int] = dict.fromkeys(input_nodes, t0)
         for t in sorted(self._timeline):
             for n in self._timeline[t]:
                 meas_time[n] = t
 
         try:
             from graphix_zx.scheduler import Scheduler  # type: ignore
+
             sched = Scheduler(graph)
             sched.from_manual_design(prepare_time=prep_time, measure_time=meas_time)
             return sched
@@ -205,8 +209,9 @@ class RHGCanvas:
     Growing RHG canvas. Each block contributes a BlockDelta that's merged in-place.
     Geometry/ports/flows/parity/schedule are accumulated and later compiled.
     """
-    graph: Optional[BaseGraphState] = None
-    coord_to_node: Dict[Tuple[int, int, int], int] = field(default_factory=dict)
+
+    graph: BaseGraphState | None = None
+    coord_to_node: dict[tuple[int, int, int], int] = field(default_factory=dict)
 
     logical_registry: LogicalRegistry = field(default_factory=LogicalRegistry)
     parity_accum: ParityAccumulator = field(default_factory=ParityAccumulator)
@@ -222,7 +227,7 @@ class RHGCanvas:
     _time_cursor: int = 1
 
     # ---- Public API ----
-    def append(self, block: RHGBlock) -> "RHGCanvas":
+    def append(self, block: RHGBlock) -> RHGCanvas:
         """Emit a delta from the block and merge it into the canvas."""
         delta = block.emit(self)
         if self.graph is None:
@@ -316,14 +321,14 @@ class RHGCanvas:
                 self.parity_accum.z_groups.append(group)
 
         # Update last parity layers (for subsequent blocks to reference).
-        def _seam_global(seam_local_xy2nid: Dict[Tuple[int, int], int]) -> Dict[Tuple[int, int], int]:
+        def _seam_global(seam_local_xy2nid: dict[tuple[int, int], int]) -> dict[tuple[int, int], int]:
             return {xy: node_map2[nid] for xy, nid in seam_local_xy2nid.items() if nid in node_map2}
 
         seam_last_x_g = _seam_global(delta.seam_last_x)
         seam_last_z_g = _seam_global(delta.seam_last_z)
 
         # Determine the logical index to update (prefer outputs; otherwise inputs).
-        lidx: Optional[int] = None
+        lidx: int | None = None
         if delta.out_ports:
             lidx = next(iter(delta.out_ports.keys()))
         elif delta.in_ports:
@@ -352,8 +357,7 @@ class RHGCanvas:
         # Update z_top heuristic.
         if delta.node_coords:
             z_max_delta = max(z for (_, _, z) in delta.node_coords.values())
-            if z_max_delta > self.z_top:
-                self.z_top = z_max_delta
+            self.z_top = max(self.z_top, z_max_delta)
 
         # Switch to the composed graph.
         self.graph = composed

@@ -1,10 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import (
-    Optional,
-    Tuple,
-)
 
 from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
 from lspattern.consts.consts import PIPEDIRECTION
@@ -21,17 +17,17 @@ from lspattern.tiling.template import (
 class RHGPipeSkeleton(RHGBlockSkeleton):
     logical: int
     d: int
-    origin: Optional[Tuple[int, int]] = None
+    origin: tuple[int, int] | None = None
 
 
 @dataclass
 class RHGPipe(RHGBlock):
-    source: Optional[PatchCoordGlobal3D] = None
-    sink: Optional[PatchCoordGlobal3D] = None
+    source: PatchCoordGlobal3D | None = None
+    sink: PatchCoordGlobal3D | None = None
     # Direction of the pipe (spatial or temporal)
-    direction: Optional[PIPEDIRECTION] = None
+    direction: PIPEDIRECTION | None = None
 
     # Template or tiling backing this pipe (implementation-specific)
-    template: Optional[ScalableTemplate] = None  # override type to allow None
+    template: ScalableTemplate | None = None  # override type to allow None
     # Optional spatial edge spec for this pipe (alias handled in RHGBlock as edge_spec/edgespec)
-    edgespec: Optional[SpatialEdgeSpec] = None  # type: ignore[assignment]
+    edgespec: SpatialEdgeSpec | None = None  # type: ignore[assignment]

@@ -26,9 +26,7 @@ class Tiling:
         if not self.coord2qubitindex:
             return
         delta = int(by)
-        self.coord2qubitindex = {
-            c: QubitIndex(int(qi) + delta) for c, qi in self.coord2qubitindex.items()
-        }
+        self.coord2qubitindex = {c: QubitIndex(int(qi) + delta) for c, qi in self.coord2qubitindex.items()}
 
 
 @dataclass(init=False)
@@ -105,12 +103,8 @@ class ConnectedTiling(Tiling):
         base_x = len(self.data_coords)
         base_z = base_x + len(self.x_coords)
         self.coord2qubitindex.update({c: QubitIndex(i) for c, i in data_idx.items()})
-        self.coord2qubitindex.update(
-            {c: QubitIndex(base_x + i) for c, i in x_idx.items()}
-        )
-        self.coord2qubitindex.update(
-            {c: QubitIndex(base_z + i) for c, i in z_idx.items()}
-        )
+        self.coord2qubitindex.update({c: QubitIndex(base_x + i) for c, i in x_idx.items()})
+        self.coord2qubitindex.update({c: QubitIndex(base_z + i) for c, i in z_idx.items()})
 
         # Fast node maps using the precomputed index maps
         self.node_maps = {
@@ -161,9 +155,7 @@ def _check_collisions_and_raise(
             problems.append(f"data/Z overlap: {sorted(overlap_dz)}")
         if overlap_xz:
             problems.append(f"X/Z overlap: {sorted(overlap_xz)}")
-        raise ValueError(
-            "ConnectedTiling coordinate collisions: " + "; ".join(problems)
-        )
+        raise ValueError("ConnectedTiling coordinate collisions: " + "; ".join(problems))
 
 
 if __name__ == "__main__":

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 # import stim
 # graphix_zx pieces
 from graphix_zx.graphstate import GraphState, compose_in_parallel, compose_sequentially
+
 from lspattern.accumulator import (
     FlowAccumulator,
     ParityAccumulator,
@@ -114,9 +114,7 @@ class TemporalLayer:
             return
 
         if len(dset) > 1:
-            raise ValueError(
-                "TemporalLayer.materialize: mixed code distances (d) are not supported yet"
-            )
+            raise ValueError("TemporalLayer.materialize: mixed code distances (d) are not supported yet")
 
         ct = ConnectedTiling(tilings_abs, check_collisions=True)
         self.tiling_node_maps = {
@@ -148,7 +146,7 @@ class TemporalLayer:
         # TODO: ctはmaterializeするもの。なんかいい感じに設計したい
         # graph, coord2node, ... = ct.materialize()
 
-        ## TODO: input_nodeset, output_nodesetの設定をnodemapをもとに適切に実装する必要がある
+        # TODO: input_nodeset, output_nodesetの設定をnodemapをもとに適切に実装する必要がある
         return
 
     def get_node_maps(self) -> dict[str, dict[tuple[int, int], int]]:
@@ -204,9 +202,7 @@ class TemporalLayer:
             block = block.materialize()
         # Require a template and a materialized local graph
         if getattr(block, "template", None) is None:
-            raise ValueError(
-                "Block has no template; set block.template before add_block()."
-            )
+            raise ValueError("Block has no template; set block.template before add_block().")
         # TODO: Materialize 方針について再考する
         block.materialize()
         if getattr(block, "graph_local", None) is None:
@@ -239,36 +235,24 @@ class TemporalLayer:
 
             # Remap existing registries by node_map1
             if node_map1:
-                self.node2coord = {
-                    node_map1.get(n, n): c for n, c in self.node2coord.items()
-                }
-                self.coord2node = {
-                    c: node_map1.get(n, n) for c, n in self.coord2node.items()
-                }
-                self.node2role = {
-                    node_map1.get(n, n): r for n, r in self.node2role.items()
-                }
+                self.node2coord = {node_map1.get(n, n): c for n, c in self.node2coord.items()}
+                self.coord2node = {c: node_map1.get(n, n) for c, n in self.coord2node.items()}
+                self.node2role = {node_map1.get(n, n): r for n, r in self.node2role.items()}
 
                 # Remap existing port sets and flat lists
                 for p, nodes in list(self.in_portset.items()):
                     self.in_portset[p] = [node_map1.get(n, n) for n in nodes]
                 for p, nodes in list(self.out_portset.items()):
                     self.out_portset[p] = [node_map1.get(n, n) for n in nodes]
-                if hasattr(self, "cout_portset") and isinstance(
-                    self.cout_portset, dict
-                ):
+                if hasattr(self, "cout_portset") and isinstance(self.cout_portset, dict):
                     for p, nodes in list(self.cout_portset.items()):
                         self.cout_portset[p] = [node_map1.get(n, n) for n in nodes]
                 self.in_ports = [node_map1.get(n, n) for n in self.in_ports]
                 self.out_ports = [node_map1.get(n, n) for n in self.out_ports]
 
         # Set in/out ports for this block using node_map2
-        self.in_portset[pos] = [
-            node_map2[n] for n in getattr(block, "in_ports", []) if n in node_map2
-        ]
-        self.out_portset[pos] = [
-            node_map2[n] for n in getattr(block, "out_ports", []) if n in node_map2
-        ]
+        self.in_portset[pos] = [node_map2[n] for n in getattr(block, "in_ports", []) if n in node_map2]
+        self.out_portset[pos] = [node_map2[n] for n in getattr(block, "out_ports", []) if n in node_map2]
         self.in_ports.extend(self.in_portset.get(pos, []))
         self.out_ports.extend(self.out_portset.get(pos, []))
 
@@ -281,8 +265,7 @@ class TemporalLayer:
             if coord in self.coord2node:
                 existing_nn = self.coord2node[coord]
                 raise ValueError(
-                    f"Coordinate collision: {coord} already occupied by node {existing_nn} "
-                    f"when adding block at {pos}."
+                    f"Coordinate collision: {coord} already occupied by node {existing_nn} when adding block at {pos}."
                 )
             self.node2coord[nn] = coord
             self.coord2node[coord] = nn
@@ -311,12 +294,10 @@ class TemporalLayer:
         # Shift pipe-local ids (defensive; concrete pipes may override)
         spatial_pipe.shift_ids(by=self.qubit_count)
         # Position the pipe according to source->sink direction (seam anchoring)
-        spatial_pipe.shift_coords(
-            source, direction=get_direction(source, sink), sink=sink
-        )
+        spatial_pipe.shift_coords(source, direction=get_direction(source, sink), sink=sink)
 
         # ConnectedTiling 用に保持
-        self.pipes_[(source, sink)] = spatial_pipe
+        self.pipes_[source, sink] = spatial_pipe
 
         # Compose the pipe's local graph into the layer graph (if any)
         node_map1: dict[int, int] = {}
@@ -335,15 +316,9 @@ class TemporalLayer:
 
                 # Remap existing registries for prior nodes
                 if node_map1:
-                    self.node2coord = {
-                        node_map1.get(n, n): c for n, c in self.node2coord.items()
-                    }
-                    self.coord2node = {
-                        c: node_map1.get(n, n) for c, n in self.coord2node.items()
-                    }
-                    self.node2role = {
-                        node_map1.get(n, n): r for n, r in self.node2role.items()
-                    }
+                    self.node2coord = {node_map1.get(n, n): c for n, c in self.node2coord.items()}
+                    self.coord2node = {c: node_map1.get(n, n) for c, n in self.coord2node.items()}
+                    self.node2role = {node_map1.get(n, n): r for n, r in self.node2role.items()}
                     # Remap existing portsets and flat lists
                     for p, nodes in list(self.in_portset.items()):
                         self.in_portset[p] = [node_map1.get(n, n) for n in nodes]
@@ -357,14 +332,10 @@ class TemporalLayer:
 
         # Register in/out ports (remapped if composed)
         if getattr(spatial_pipe, "in_ports", None):
-            self.in_portset[source] = [
-                node_map2.get(n, n) for n in spatial_pipe.in_ports
-            ]
+            self.in_portset[source] = [node_map2.get(n, n) for n in spatial_pipe.in_ports]
             self.in_ports.extend(self.in_portset[source])
         if getattr(spatial_pipe, "out_ports", None):
-            self.out_portset[sink] = [
-                node_map2.get(n, n) for n in spatial_pipe.out_ports
-            ]
+            self.out_portset[sink] = [node_map2.get(n, n) for n in spatial_pipe.out_ports]
             self.out_ports.extend(self.out_portset[sink])
 
         # Update coord registries for the newly added pipe nodes
@@ -410,32 +381,22 @@ class TemporalLayer:
         for (start, end), pipe in pipes.items():
             self.add_pipe(start, end, pipe)
 
-    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> "TemporalLayer":
+    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> TemporalLayer:
         """Return a copy of this layer with all node ids remapped by `node_map`."""
         new_layer = TemporalLayer(self.z)
         new_layer.qubit_count = self.qubit_count
         new_layer.patches = self.patches.copy()
         new_layer.lines = self.lines.copy()
 
-        new_layer.in_portset = {
-            pos: [node_map.get(n, n) for n in nodes]
-            for pos, nodes in self.in_portset.items()
-        }
-        new_layer.out_portset = {
-            pos: [node_map.get(n, n) for n in nodes]
-            for pos, nodes in self.out_portset.items()
-        }
+        new_layer.in_portset = {pos: [node_map.get(n, n) for n in nodes] for pos, nodes in self.in_portset.items()}
+        new_layer.out_portset = {pos: [node_map.get(n, n) for n in nodes] for pos, nodes in self.out_portset.items()}
         new_layer.in_ports = [node_map.get(n, n) for n in self.in_ports]
         new_layer.out_ports = [node_map.get(n, n) for n in self.out_ports]
 
         if self.local_graph is not None:
             new_layer.local_graph = self.local_graph.remap_nodes(node_map)
-        new_layer.node2coord = {
-            node_map.get(n, n): c for n, c in self.node2coord.items()
-        }
-        new_layer.coord2node = {
-            c: node_map.get(n, n) for c, n in self.coord2node.items()
-        }
+        new_layer.node2coord = {node_map.get(n, n): c for n, c in self.node2coord.items()}
+        new_layer.coord2node = {c: node_map.get(n, n) for c, n in self.coord2node.items()}
         new_layer.node2role = {node_map.get(n, n): r for n, r in self.node2role.items()}
 
         new_layer.schedule = self.schedule.remap_nodes(node_map)
@@ -448,7 +409,7 @@ class TemporalLayer:
 class CompiledRHGCanvas:
     layers: list[TemporalLayer]
 
-    global_graph: Optional[GraphState] = None
+    global_graph: GraphState | None = None
     coord2node: dict[PhysCoordGlobal3D, int] = field(default_factory=dict)
 
     in_portset: dict[PatchCoordGlobal3D, list[int]] = field(default_factory=dict)
@@ -464,9 +425,7 @@ class CompiledRHGCanvas:
     # def generate_stim_circuit(self) -> stim.Circuit:
     #     pass
 
-    def remap_nodes(
-        self, node_map: dict[NodeIdLocal, NodeIdLocal]
-    ) -> CompiledRHGCanvas:
+    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> CompiledRHGCanvas:
         new_cgraph = CompiledRHGCanvas(
             layers=self.layers.copy(),
             global_graph=self.global_graph.remap_nodes(node_map),
@@ -511,14 +470,12 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
     def add_block(self, position: PatchCoordGlobal3D, block: RHGBlockSkeleton) -> None:
         self.blocks_[position] = block
 
-    def add_pipe(
-        self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipeSkeleton
-    ) -> None:
-        self.pipes_[(start, end)] = pipe
+    def add_pipe(self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipeSkeleton) -> None:
+        self.pipes_[start, end] = pipe
 
     def trim_spatial_boundaries(self) -> None:
         """
-        function trim spatial boundary (tiling from Scalable tiling class)
+        Function trim spatial boundary (tiling from Scalable tiling class)
             case direction
             match direction
             if Xplus then
@@ -599,7 +556,7 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
                     pipe_obj = to_pipe(start, end)
                 except TypeError:
                     pipe_obj = to_pipe()
-            pipes_[(start, end)] = pipe_obj
+            pipes_[start, end] = pipe_obj
 
         canvas = RHGCanvas(name=self.name, blocks_=blocks_, pipes_=pipes_)
         return canvas
@@ -611,25 +568,19 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
     # blocks pipesは最後までmateiralizeされることはない。してもいいけど。tilingはmaterializeできる
     blocks_: dict[PatchCoordGlobal3D, RHGBlock] = field(default_factory=dict)
     pipes_: dict[PipeCoordGlobal3D, RHGPipe] = field(default_factory=dict)
-    layers: Optional[list[TemporalLayer]] = None
+    layers: list[TemporalLayer] | None = None
 
     def add_block(self, position: PatchCoordGlobal3D, block: RHGBlock) -> None:
         self.blocks_[position] = block
 
-    def add_pipe(
-        self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipe
-    ) -> None:
-        self.pipes_[(start, end)] = pipe
+    def add_pipe(self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipe) -> None:
+        self.pipes_[start, end] = pipe
 
     def to_temporal_layers(self) -> dict[int, TemporalLayer]:
         temporal_layers: dict[int, TemporalLayer] = {}
         for z in range(max(self.blocks_.keys(), key=lambda pos: pos[2])[2] + 1):
             blocks = {pos: blk for pos, blk in self.blocks_.items() if pos[2] == z}
-            pipes = {
-                (u, v): p
-                for (u, v), p in self.pipes_.items()
-                if u[2] == z and v[2] == z
-            }
+            pipes = {(u, v): p for (u, v), p in self.pipes_.items() if u[2] == z and v[2] == z}
 
             layer = to_temporal_layer(z, blocks, pipes)
             temporal_layers[z] = layer
@@ -656,11 +607,7 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
         for z in sorted(temporal_layers.keys()):
             layer = temporal_layers[z]
             # Select pipes whose start.z is the current compiled z and end.z is the next layer z
-            pipes: list[RHGPipe] = [
-                pipe
-                for (u, v), pipe in self.pipes_.items()
-                if u[2] == cgraph.z and v[2] == z
-            ]
+            pipes: list[RHGPipe] = [pipe for (u, v), pipe in self.pipes_.items() if u[2] == cgraph.z and v[2] == z]
             cgraph = add_temporal_layer(cgraph, layer, pipes)
         return cgraph
 
@@ -681,9 +628,7 @@ def to_temporal_layer(
     return layer
 
 
-def add_temporal_layer(
-    cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pipes: list[RHGPipe]
-) -> CompiledRHGCanvas:
+def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pipes: list[RHGPipe]) -> CompiledRHGCanvas:
     """Compose the compiled canvas with the next temporal layer.
 
     Follows the legacy-canvas pattern:
@@ -697,7 +642,6 @@ def add_temporal_layer(
     NOTE: This assumes `next_layer.local_graph` is a canonical GraphState built
     from its blocks/pipes. If it's None, we keep cgraph unchanged.
     """
-
     # If the canvas is empty, this is the first layer.
     if cgraph.global_graph is None:
         new_cgraph = CompiledRHGCanvas(
@@ -758,16 +702,8 @@ def add_temporal_layer(
 
     seam_pairs: list[tuple[int, int]] = []
     if prev_last_z is not None and next_first_z is not None:
-        prev_xy_to_node = {
-            (x, y): nid
-            for (x, y, z), nid in cgraph.coord2node.items()
-            if z == prev_last_z
-        }
-        next_xy_to_node = {
-            (x, y): nid
-            for (x, y, z), nid in next_layer.coord2node.items()
-            if z == next_first_z
-        }
+        prev_xy_to_node = {(x, y): nid for (x, y, z), nid in cgraph.coord2node.items() if z == prev_last_z}
+        next_xy_to_node = {(x, y): nid for (x, y, z), nid in next_layer.coord2node.items() if z == next_first_z}
         for xy, u in prev_xy_to_node.items():
             v = next_xy_to_node.get(xy)
             if v is not None and u != v:

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from typing import List, Set
-
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.graphstate import GraphState
+
 from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import (
@@ -21,7 +20,7 @@ from lspattern.tiling.template import RotatedPlanarTemplate
 class InitPlusBlockSkeleton(RHGBlockSkeleton):
     name: str = __qualname__
 
-    def materialize(self) -> "RHGBlock":
+    def materialize(self) -> RHGBlock:
         tiling = self.template.to_tiling()
         data_indices = self.template.get_data_indices()
 
@@ -33,7 +32,7 @@ class InitPlusBlockSkeleton(RHGBlockSkeleton):
         # Build nodes per layer z in [0, 2*d]
         max_t = 2 * self.d
         nodes_by_z: dict[int, dict[PhysCoordLocal2D, NodeIdLocal]] = {}
-        for z in range(0, max_t + 1):
+        for z in range(max_t + 1):
             timeslice: dict[PhysCoordLocal2D, NodeIdLocal] = {}
 
             # DATA on every slice
@@ -43,7 +42,7 @@ class InitPlusBlockSkeleton(RHGBlockSkeleton):
                 if z != max_t:
                     g.assign_meas_basis(n, PlannerMeasBasis(Plane.XY, 0.0))
                 if z == max_t:
-                    g.register_output(n, data_indices[(x, y)])
+                    g.register_output(n, data_indices[x, y])
                 if z == 0:
                     # mark initial data slice as input nodes
                     # g.register_input(n)
@@ -52,7 +51,7 @@ class InitPlusBlockSkeleton(RHGBlockSkeleton):
                 coord2node[coord] = n
                 node2coord[n] = coord
                 node2role[n] = "data"
-                timeslice[(x, y)] = n
+                timeslice[x, y] = n
 
             # Ancillas except on the final slice
             if z != max_t:
@@ -65,7 +64,7 @@ class InitPlusBlockSkeleton(RHGBlockSkeleton):
                         coord2node[coord] = n
                         node2coord[n] = coord
                         node2role[n] = "ancilla_x"
-                        timeslice[(x, y)] = n
+                        timeslice[x, y] = n
 
                 else:
                     # Z ancillas on odd layers
@@ -76,7 +75,7 @@ class InitPlusBlockSkeleton(RHGBlockSkeleton):
                         coord2node[coord] = n
                         node2coord[n] = coord
                         node2role[n] = "ancilla_z"
-                        timeslice[(x, y)] = n
+                        timeslice[x, y] = n
 
             nodes_by_z[z] = timeslice
 
@@ -102,8 +101,8 @@ class InitPlusBlockSkeleton(RHGBlockSkeleton):
                     flow_local[v] = {u}
 
         # Parity checks along time for ancillas (2-body separated by delta z = 2)
-        x_checks: List[NodeSetLocal] = []
-        z_checks: List[NodeSetLocal] = []
+        x_checks: list[NodeSetLocal] = []
+        z_checks: list[NodeSetLocal] = []
         # Fast lookup by coord
         for n, (x, y, z) in node2coord.items():
             if node2role[n] == "ancilla_x":
@@ -118,8 +117,8 @@ class InitPlusBlockSkeleton(RHGBlockSkeleton):
         # Measurement schedule: (2*z) ancillas, (2*z+1) data except last slice
         schedule_local: ScheduleTuplesLocal = []
         for z, timeslice in nodes_by_z.items():
-            anc_group: Set[int] = set()
-            data_group: Set[int] = set()
+            anc_group: set[int] = set()
+            data_group: set[int] = set()
             for n in timeslice.values():
                 role = node2role[n]
                 if role.startswith("ancilla"):
@@ -293,9 +292,7 @@ if __name__ == "__main__":
     for u, v in g.physical_edges:
         x1, y1, z1 = node2coord[u]
         x2, y2, z2 = node2coord[v]
-        ax.plot(
-            [x1, x2], [y1, y2], [z1, z2], color="black", linewidth=EDGE_WIDTH, alpha=0.9
-        )
+        ax.plot([x1, x2], [y1, y2], [z1, z2], color="black", linewidth=EDGE_WIDTH, alpha=0.9)
 
     # Overlay input and output nodes with black fill
     in_nodes = set(g.input_node_indices.keys())
@@ -304,9 +301,7 @@ if __name__ == "__main__":
         xin = [node2coord[n][0] for n in in_nodes]
         yin = [node2coord[n][1] for n in in_nodes]
         zin = [node2coord[n][2] for n in in_nodes]
-        ax.scatter(
-            xin, yin, zin, s=60, c="black", edgecolors="black", label="input", zorder=5
-        )
+        ax.scatter(xin, yin, zin, s=60, c="black", edgecolors="black", label="input", zorder=5)
     if out_nodes:
         xout = [node2coord[n][0] for n in out_nodes]
         yout = [node2coord[n][1] for n in out_nodes]

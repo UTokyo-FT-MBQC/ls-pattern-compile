@@ -23,11 +23,11 @@ def _ensure_paths() -> None:
 def main() -> None:
     _ensure_paths()
 
-    from lspattern.consts.consts import PIPEDIRECTION
-    from lspattern.mytype import PatchCoordGlobal3D
     from lspattern.blocks.initialize import InitPlusSkeleton
     from lspattern.pipes.initialize import InitPlusPipeSkeleton
+
     from lspattern.canvas import RHGCanvasSkeleton
+    from lspattern.mytype import PatchCoordGlobal3D
     from lspattern.tiling.visualize import plot_layer_tiling
 
     d = 5

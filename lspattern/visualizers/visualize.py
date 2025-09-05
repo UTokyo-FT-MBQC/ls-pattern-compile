@@ -1,21 +1,23 @@
 from __future__ import annotations
 
-from typing import Optional, Tuple, Dict, Any, List
-import matplotlib.pyplot as plt
 import os
 
-from lspattern.geom.rhg_parity import is_data, is_ancilla_x, is_ancilla_z
+import matplotlib.pyplot as plt
 
-def _node_to_coord(canvas) -> Dict[int, Tuple[int,int,int]]:
+from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z, is_data
+
+
+def _node_to_coord(canvas) -> dict[int, tuple[int, int, int]]:
     """Invert canvas.coord_to_node -> node -> (x,y,z)."""
-    return { nid: coord for coord, nid in canvas.coord_to_node.items() }
+    return {nid: coord for coord, nid in canvas.coord_to_node.items()}
+
 
 def visualize_canvas(
     canvas,
     *,
     indicated_nodes: set[int] | None = None,
     annotate: bool = False,
-    save_path: Optional[str] = None,
+    save_path: str | None = None,
     show: bool = True,
     figsize: tuple[int, int] = (6, 6),
     dpi: int = 120,
@@ -40,7 +42,6 @@ def visualize_canvas(
         Figure resolution in dots per inch, by default 120
 
     """
-
     node2coord = _node_to_coord(canvas)
     nodes = list(node2coord.keys())
 
@@ -121,8 +122,6 @@ def visualize_canvas(
             if os.environ.get("DISPLAY") or os.name == "nt":
                 plt.show()
             else:
-                print(
-                    "Display not available. Use save_path parameter to save the figure."
-                )
+                print("Display not available. Use save_path parameter to save the figure.")
     else:
         plt.close(fig)

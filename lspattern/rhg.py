@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import NamedTuple
 
 import matplotlib.pyplot as plt
-
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.graphstate import GraphState
 

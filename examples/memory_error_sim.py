@@ -7,8 +7,8 @@ import sinter
 import stim
 from graphix_zx.stim_compiler import stim_compile
 
+from lspattern.blocks import InitPlus, MeasureX, Memory
 from lspattern.canvas import RHGCanvas
-from lspattern.blocks import InitPlus, Memory, MeasureX
 
 
 def create_circuit(d: int, rounds: int, noise: float) -> stim.Circuit:

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from lspattern.tiling.base import ConnectedTiling
 
 
@@ -10,7 +8,7 @@ def plot_connected_tiling(
     ax=None,
     *,
     show: bool = True,
-    title: Optional[str] = None,
+    title: str | None = None,
 ):
     """2D 散布図で ConnectedTiling を簡易可視化する。
 
@@ -21,9 +19,7 @@ def plot_connected_tiling(
     try:
         import matplotlib.pyplot as plt
     except Exception as e:  # pragma: no cover
-        raise RuntimeError(
-            "matplotlib が必要です。`pip install matplotlib` を実行してください"
-        ) from e
+        raise RuntimeError("matplotlib が必要です。`pip install matplotlib` を実行してください") from e
 
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=(6, 6))
@@ -38,7 +34,7 @@ def plot_connected_tiling(
     def _split_xy(points: list[tuple[int, int]]):
         if not points:
             return [], []
-        px, py = zip(*points)
+        px, py = zip(*points, strict=False)
         return list(px), list(py)
 
     dx, dy = _split_xy(data)
@@ -68,9 +64,7 @@ def plot_connected_tiling(
     return ax
 
 
-def plot_layer_tiling(
-    layer, *, anchor: str = "inner", show: bool = True, title: Optional[str] = None
-):
+def plot_layer_tiling(layer, *, anchor: str = "inner", show: bool = True, title: str | None = None):
     """TemporalLayer のブロック/パイプを 2D タイルに再構成して表示する。
 
     - `layer.get_connected_tiling(anchor)` を用いて ConnectedTiling を得る

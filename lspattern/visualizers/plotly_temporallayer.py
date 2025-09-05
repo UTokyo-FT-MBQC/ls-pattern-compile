@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import Dict, Iterable, Optional, Tuple
+from collections.abc import Iterable
+
 
 def visualize_temporal_layer_plotly(
     layer,
     *,
-    node_roles: Optional[Dict[int, str]] = None,
+    node_roles: dict[int, str] | None = None,
     ancilla_mode: str = "both",  # 'both' | 'x' | 'z'
     show_edges: bool = True,
     edge_width: float = 3.0,
@@ -22,19 +23,17 @@ def visualize_temporal_layer_plotly(
     - Draws edges from `layer.local_graph.physical_edges` when available.
     - Highlights input/output nodes from GraphState registries if present.
     """
-
     try:
         import plotly.graph_objects as go
     except Exception as e:  # pragma: no cover
         raise RuntimeError(
-            "plotly is required for visualize_temporal_layer_plotly.\n"
-            "Install via `pip install plotly`."
+            "plotly is required for visualize_temporal_layer_plotly.\nInstall via `pip install plotly`."
         ) from e
 
     # Lazy import parity helpers
-    from lspattern.geom.rhg_parity import is_data, is_ancilla_x, is_ancilla_z
+    from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z, is_data
 
-    node2coord: Dict[int, Tuple[int, int, int]] = getattr(layer, "node2coord", {}) or {}
+    node2coord: dict[int, tuple[int, int, int]] = getattr(layer, "node2coord", {}) or {}
     g = getattr(layer, "local_graph", None)
 
     # Color mapping consistent with the notebook
@@ -55,11 +54,9 @@ def visualize_temporal_layer_plotly(
     }
 
     # Build groups
-    groups: Dict[str, Dict[str, list]] = {
-        k: {"x": [], "y": [], "z": [], "nodes": []} for k in color_map
-    }
+    groups: dict[str, dict[str, list]] = {k: {"x": [], "y": [], "z": [], "nodes": []} for k in color_map}
 
-    def infer_role(coord: Tuple[int, int, int]) -> str:
+    def infer_role(coord: tuple[int, int, int]) -> str:
         x, y, z = coord
         if is_data(x, y, z):
             return "data"

@@ -16,15 +16,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from lspattern.tiling.base import ConnectedTiling, Tiling
-from lspattern.tiling.template import (
-    RotatedPlanarTemplate,
-    RotatedPlanarPipetemplate,
-    block_offset_xy,
-    pipe_offset_xy,
-    offset_tiling,
-)
 from lspattern.consts.consts import PIPEDIRECTION
+from lspattern.tiling.base import ConnectedTiling
+from lspattern.tiling.template import (
+    RotatedPlanarPipetemplate,
+    RotatedPlanarTemplate,
+    block_offset_xy,
+    offset_tiling,
+    pipe_offset_xy,
+)
 
 
 def mk_block_template(d: int) -> RotatedPlanarTemplate:

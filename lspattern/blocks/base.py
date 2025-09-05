@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import (
-    Optional,
-)
 
 from graphix_zx.graphstate import GraphState
+
 from lspattern.mytype import (
     FlowLocal,
     NodeSetLocal,
@@ -28,12 +26,10 @@ class RHGBlock:
     # evaluated template
     index: int = 0
     d: int = 3
-    edge_spec: Optional[SpatialEdgeSpec] = None
-    patch_coord: Optional[PatchCoordGlobal3D] = (0, 0, 0)
+    edge_spec: SpatialEdgeSpec | None = None
+    patch_coord: PatchCoordGlobal3D | None = (0, 0, 0)
 
-    template: ScalableTemplate = field(
-        default_factory=lambda: RotatedPlanarTemplate(d=3, edgespec={})
-    )  # evaluated
+    template: ScalableTemplate = field(default_factory=lambda: RotatedPlanarTemplate(d=3, edgespec={}))  # evaluated
 
     # Ports for this block's current logical patch boundary
     in_ports: QubitIndexLocal = field(default_factory=set)
@@ -75,11 +71,11 @@ class RHGBlock:
     # Some parts of the codebase use `edgespec` while this class had `edge_spec`.
     # Provide a property alias for smoother unification with pipes/templates.
     @property
-    def edgespec(self) -> Optional[SpatialEdgeSpec]:  # type: ignore[override]
+    def edgespec(self) -> SpatialEdgeSpec | None:  # type: ignore[override]
         return self.edge_spec
 
     @edgespec.setter
-    def edgespec(self, v: Optional[SpatialEdgeSpec]) -> None:
+    def edgespec(self, v: SpatialEdgeSpec | None) -> None:
         self.edge_spec = v
 
 

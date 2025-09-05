@@ -3,6 +3,7 @@
 from graphix_zx.pattern import Pattern
 from graphix_zx.qompiler import qompile
 from graphix_zx.scheduler import Scheduler
+
 from lspattern.rhg import create_rhg
 
 

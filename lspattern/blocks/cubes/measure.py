@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, List, Set, Tuple
+from typing import TYPE_CHECKING
 
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.graphstate import BaseGraphState, GraphState
+
 from lspattern.blocks.base import BlockDelta, RHGBlock
 from lspattern.geom.rhg_parity import is_data
 
@@ -25,37 +26,31 @@ class _MeasureBase(RHGBlock):
 
     def __init__(self, logical: int, basis: str) -> None:
         self.logical = logical
-        self.basis = (
-            PlannerMeasBasis(Plane.XY, 0.0)
-            if basis == "X"
-            else PlannerMeasBasis(Plane.ZX, 0.0)
-        )
+        self.basis = PlannerMeasBasis(Plane.XY, 0.0) if basis == "X" else PlannerMeasBasis(Plane.ZX, 0.0)
 
-    def emit(self, canvas: "RHGCanvas") -> BlockDelta:
+    def emit(self, canvas: RHGCanvas) -> BlockDelta:
         lidx = self.logical
         boundary = canvas.logical_registry.require_boundary(lidx)
 
         # Recover the footprint from current boundary coordinates.
-        xs: List[int] = []
-        ys: List[int] = []
-        zs: List[int] = []
+        xs: list[int] = []
+        ys: list[int] = []
+        zs: list[int] = []
         for (x, y, z), nid in canvas.coord_to_node.items():
             if nid in boundary:
                 xs.append(x)
                 ys.append(y)
                 zs.append(z)
         if not xs:
-            raise ValueError(
-                "Measure.emit: could not find coordinates for boundary nodes."
-            )
+            raise ValueError("Measure.emit: could not find coordinates for boundary nodes.")
 
         x_min, x_max = min(xs), max(xs)
         y_min, y_max = min(ys), max(ys)
         z0 = max(zs)  # measure on the latest DATA layer
 
         g: BaseGraphState = GraphState()
-        layer_map: Dict[Tuple[int, int], int] = {}
-        node_coords: Dict[int, Tuple[int, int, int]] = {}
+        layer_map: dict[tuple[int, int], int] = {}
+        node_coords: dict[int, tuple[int, int, int]] = {}
 
         # Create DATA readout nodes at z0 and assign the measurement basis.
         for X in range(x_min, x_max + 1):
@@ -63,18 +58,16 @@ class _MeasureBase(RHGBlock):
                 if is_data(X, Y, z0):
                     n = g.add_physical_node()
                     g.assign_meas_basis(n, self.basis)
-                    layer_map[(X, Y)] = n
+                    layer_map[X, Y] = n
                     node_coords[n] = (X, Y, z0)
 
         # Preserve q_index order using the previous boundary's q_map.
         prev_qmap = canvas.logical_registry.boundary_qidx.get(lidx, {})
         if not prev_qmap:
-            raise ValueError(
-                f"Measure.emit: boundary_qidx is missing for logical {lidx}"
-            )
+            raise ValueError(f"Measure.emit: boundary_qidx is missing for logical {lidx}")
 
         inv_coord = {nid: coord for coord, nid in canvas.coord_to_node.items()}
-        prev_xy_order: List[Tuple[int, int]] = []
+        prev_xy_order: list[tuple[int, int]] = []
         for nid, _ in sorted(prev_qmap.items(), key=lambda kv: kv[1]):
             x, y, _ = inv_coord[nid]
             prev_xy_order.append((x, y))
@@ -84,14 +77,14 @@ class _MeasureBase(RHGBlock):
             g.register_output(layer_map[xy], q)
 
         # Consume the logical: in_ports populated, out_ports empty.
-        in_port_nodes: Set[int] = set(g.physical_nodes)
+        in_port_nodes: set[int] = set(g.physical_nodes)
 
         # Build X-cap parity directives using the last X layer's centers.
         last_x = canvas.parity_layers.get_last(lidx, "X")
-        caps: List[Tuple[int, List[int]]] = []
+        caps: list[tuple[int, list[int]]] = []
         if last_x:
             for (xc, yc), center_global in last_x.by_xy.items():
-                locals4: List[int] = []
+                locals4: list[int] = []
                 for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
                     nid = layer_map.get((xc + dx, yc + dy))
                     if nid is not None:
