@@ -7,7 +7,25 @@ from lspattern.mytype import PatchCoordGlobal3D
 
 
 def get_direction(source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> PIPEDIRECTION:
-    """Get the pipe direction from source to sink coordinates."""
+    """Get the pipe direction from source to sink coordinates.
+
+    Parameters
+    ----------
+    source : PatchCoordGlobal3D
+        Source coordinates.
+    sink : PatchCoordGlobal3D
+        Sink coordinates.
+
+    Returns
+    -------
+    PIPEDIRECTION
+        Direction enum value.
+
+    Raises
+    ------
+    ValueError
+        If direction is invalid.
+    """
     dx = sink[0] - source[0]
     dy = sink[1] - source[1]
     dz = sink[2] - source[2]

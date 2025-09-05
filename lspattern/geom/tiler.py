@@ -73,8 +73,28 @@ class PatchTiler:
     def alloc(self, logical: int, dx: int, dy: int, *, prefer_row: int = 0) -> tuple[int, int]:
         """Find a free anchor (x0, y0) to place a dx-by-dy patch for `logical`.
 
-        The anchor is the lower-left corner. Raises ValueError if no spot is found
-        within the scan limit.
+        The anchor is the lower-left corner.
+
+        Parameters
+        ----------
+        logical : int
+            Logical index for the patch.
+        dx : int
+            Width of the patch.
+        dy : int
+            Height of the patch.
+        prefer_row : int, optional
+            Preferred row for placement, by default 0.
+
+        Returns
+        -------
+        tuple[int, int]
+            Tuple of anchor coordinates (x0, y0).
+
+        Raises
+        ------
+        ValueError
+            If no spot is found within the scan limit or logical is already placed.
         """
         if logical in self._occupied:
             msg = f"logical {logical} is already placed at {self._occupied[logical]}"
@@ -103,7 +123,26 @@ class PatchTiler:
         raise ValueError(msg)
 
     def reserve(self, logical: int, *, x0: int, y0: int, dx: int, dy: int) -> None:
-        """Reserve an explicit rectangle for a logical index (raises if it collides)."""
+        """Reserve an explicit rectangle for a logical index.
+
+        Parameters
+        ----------
+        logical : int
+            Logical index for the patch.
+        x0 : int
+            X coordinate of the anchor.
+        y0 : int
+            Y coordinate of the anchor.
+        dx : int
+            Width of the rectangle.
+        dy : int
+            Height of the rectangle.
+
+        Raises
+        ------
+        ValueError
+            If the reservation collides with existing patches.
+        """
         rect = Rect(x0, y0, dx, dy)
         if not self._fits(rect):
             msg = f"Requested reservation collides with existing patches: {rect}"

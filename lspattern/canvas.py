@@ -89,7 +89,13 @@ class TemporalLayer:
         self.tiling_node_maps = {}
 
     def materialize(self) -> None:
-        """Materialize the temporal layer by combining blocks and pipes into a single graph."""
+        """Materialize the temporal layer by combining blocks and pipes into a single graph.
+
+        Raises
+        ------
+        ValueError
+            If mixed code distances (d) are not supported.
+        """
         # TODO: 2次元結合 -> populateの構想
         # Allow untrimmed templates for single-block layers; trimming is handled
         # earlier at the skeleton-canvas stage when applicable.
@@ -161,7 +167,13 @@ class TemporalLayer:
         return
 
     def get_node_maps(self) -> dict[str, dict[tuple[int, int], int]]:
-        """Return node_maps from ConnectedTiling (lazy computation if needed)."""
+        """Return node_maps from ConnectedTiling (lazy computation if needed).
+
+        Raises
+        ------
+        ValueError
+            If mixed code distances (d) are not supported.
+        """
         if not getattr(self, "tiling_node_maps", None):
             self.materialize()
         return self.tiling_node_maps
@@ -170,7 +182,21 @@ class TemporalLayer:
         """Relocate blocks/pipes to absolute 2D coordinates and return ConnectedTiling.
 
         - Perform offset calculations equivalent to materialize() (caching optional)
-        - Raise ValueError if d values are mixed
+
+        Parameters
+        ----------
+        anchor : str, optional
+            Anchor position for coordinate calculations, by default "inner"
+
+        Returns
+        -------
+        ConnectedTiling
+            ConnectedTiling instance.
+
+        Raises
+        ------
+        ValueError
+            If d values are mixed.
         """
         # to_tiling を先に呼び出して内部座標を確実に持たせる
         for b in self.blocks_.values():
@@ -209,7 +235,20 @@ class TemporalLayer:
         return ConnectedTiling(tilings_abs, check_collisions=True)
 
     def add_block(self, pos: PatchCoordGlobal3D, block: RHGBlockSkeleton) -> None:  # noqa: C901, PLR0912, PLR0915
-        """Add a block to the temporal layer at the specified position."""
+        """Add a block to the temporal layer at the specified position.
+
+        Parameters
+        ----------
+        pos : PatchCoordGlobal3D
+            Position to place the block.
+        block : RHGBlockSkeleton
+            Block skeleton to add.
+
+        Raises
+        ------
+        ValueError
+            If coordinate collision occurs or block is invalid.
+        """
         # Accept either a pre-materialized block or a skeleton.
         if isinstance(block, RHGBlockSkeleton):
             block = block.materialize()
@@ -280,10 +319,10 @@ class TemporalLayer:
             # Detect coordinate collisions with already-placed blocks/nodes
             if coord in self.coord2node:
                 existing_nn = self.coord2node[coord]
-                msg = f"Coordinate collision: {coord} already occupied by node {existing_nn} when adding block at {pos}."
-                raise ValueError(
-                    msg
+                msg = (
+                    f"Coordinate collision: {coord} already occupied by node {existing_nn} when adding block at {pos}."
                 )
+                raise ValueError(msg)
             self.node2coord[nn] = coord
             self.coord2node[coord] = nn
 
@@ -308,6 +347,20 @@ class TemporalLayer:
         - In addition, it connects two blocks of the same z in PatchCoordGlobal3D (do assert).
           Accordingly we need to modify
         - 1.
+
+        Parameters
+        ----------
+        source : PatchCoordGlobal3D
+            Source patch coordinates.
+        sink : PatchCoordGlobal3D
+            Sink patch coordinates.
+        spatial_pipe : RHGPipe
+            Spatial pipe to add.
+
+        Raises
+        ------
+        ValueError
+            If coordinate collision occurs.
         """
         # Shift pipe-local ids (defensive; concrete pipes may override)
         spatial_pipe.shift_ids(by=self.qubit_count)
@@ -365,9 +418,7 @@ class TemporalLayer:
                     f"Coordinate collision: {coord} already occupied by node {self.coord2node[coord]} "
                     f"when adding pipe {source}->{sink}."
                 )
-                raise ValueError(
-                    msg
-                )
+                raise ValueError(msg)
             self.node2coord[nn] = coord
             self.coord2node[coord] = nn
 

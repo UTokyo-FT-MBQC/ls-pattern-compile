@@ -20,6 +20,22 @@ def plot_connected_tiling(
     - 色分け: data=白, X=緑, Z=青
     - 軸ラベル/方眼/凡例を付加
     - `ax` 未指定なら新規に作成
+
+    Parameters
+    ----------
+    ct : ConnectedTiling
+        ConnectedTiling instance to visualize.
+    ax : Any, optional
+        Matplotlib axes object, by default None.
+    show : bool, optional
+        Whether to show the plot, by default True.
+    title : str, optional
+        Title for the plot, by default None.
+
+    Raises
+    ------
+    RuntimeError
+        If matplotlib is not available.
     """
     try:
         import matplotlib.pyplot as plt

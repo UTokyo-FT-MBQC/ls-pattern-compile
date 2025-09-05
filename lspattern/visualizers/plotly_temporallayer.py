@@ -28,9 +28,29 @@ def visualize_temporal_layer_plotly(  # noqa: C901, PLR0912, PLR0913
     - Draws edges from `layer.local_graph.physical_edges` when available.
     - Highlights input/output nodes from GraphState registries if present.
 
+    Parameters
+    ----------
+    layer : Any
+        TemporalLayer instance to visualize.
+    node_roles : dict[int, str], optional
+        Mapping from node to role, by default None.
+    ancilla_mode : str, optional
+        Which ancilla to show ('both', 'x', 'z'), by default "both".
+    show_edges : bool, optional
+        Whether to show edges, by default True.
+    edge_width : float, optional
+        Width of edges, by default 3.0.
+    width : int, optional
+        Plot width, by default 800.
+    height : int, optional
+        Plot height, by default 600.
+    reverse_axes : bool, optional
+        Whether to reverse axes, by default True.
+
     Raises
     ------
-        RuntimeError: If plotly is not installed.
+    RuntimeError
+        If plotly is not installed.
     """
     try:
         import plotly.graph_objects as go

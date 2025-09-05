@@ -81,6 +81,27 @@ class ScalableTemplate(Tiling):
         - patch3d: by=(px,py,pz), converts to (dx,dy) via block offset rule
 
         Note: Pipe-specific patch3d handling is defined in subclass override.
+
+        Parameters
+        ----------
+        by : tuple[int, int] | tuple[int, int, int]
+            Offset coordinates.
+        coordinate : {"tiling2d", "phys3d", "patch3d"}, optional
+            Coordinate system to use, by default "tiling2d".
+        anchor : {"seam", "inner"}, optional
+            Anchor position for calculations, by default "seam".
+        inplace : bool, optional
+            Whether to modify in place, by default True.
+
+        Returns
+        -------
+        ScalableTemplate
+            Modified template instance.
+
+        Raises
+        ------
+        ValueError
+            If coordinate system is invalid.
         """
         if not (self.data_coords or self.x_coords or self.z_coords):
             self.to_tiling()
@@ -138,6 +159,16 @@ class ScalableTemplate(Tiling):
 
         Only X/Z ancilla on the target boundary line are removed. Data qubits
         remain intact. Supported directions: LEFT/RIGHT/TOP/BOTTOM or X±/Y±.
+
+        Parameters
+        ----------
+        direction : str
+            Direction to trim (LEFT/RIGHT/TOP/BOTTOM or X±/Y±).
+
+        Raises
+        ------
+        ValueError
+            If direction is invalid.
         """
         if not (self.data_coords or self.x_coords or self.z_coords):
             self.to_tiling()
@@ -342,6 +373,27 @@ def merge_pair_spatial(
     - Offsets `b` so it sits adjacent to `a` (grid step = 2*d)
     - Returns a ConnectedTiling which stably de-duplicates within-type coords
       and optionally checks for across-type overlaps.
+
+    Parameters
+    ----------
+    a : ScalableTemplate
+        First template to merge.
+    b : ScalableTemplate
+        Second template to merge.
+    direction : str
+        Direction for merging (X+, X-, Y+, Y-).
+    check_collisions : bool, optional
+        Whether to check for collisions, by default True.
+
+    Returns
+    -------
+    ConnectedTiling
+        ConnectedTiling instance.
+
+    Raises
+    ------
+    ValueError
+        If templates don't have integer distance 'd' or if direction is invalid.
     """
     d_a = getattr(a, "d", None)
     d_b = getattr(b, "d", None)
@@ -388,7 +440,18 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
     """Rotated planar template for pipe patterns."""
 
     def to_tiling(self) -> dict[str, list[tuple[int, int]]]:  # noqa: C901
-        """Generate tiling coordinates for pipe template."""
+        """Generate tiling coordinates for pipe template.
+
+        Returns
+        -------
+        dict[str, list[tuple[int, int]]]
+            Dictionary containing coordinate lists for 'data', 'x', and 'z'.
+
+        Raises
+        ------
+        ValueError
+            If pipe configuration is invalid.
+        """
         d = self.d
         data_coords: set[tuple[int, int]] = set()
         x_coords: set[tuple[int, int]] = set()
@@ -465,7 +528,29 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         direction: PIPEDIRECTION | None = None,
         inplace: bool = True,
     ) -> RotatedPlanarPipetemplate:
-        """Shift pipe coordinates by the specified offset."""
+        """Shift pipe coordinates by the specified offset.
+
+        Parameters
+        ----------
+        by : tuple[int, int] | tuple[int, int, int]
+            Offset coordinates.
+        coordinate : {"tiling2d", "phys3d", "patch3d"}, optional
+            Coordinate system to use, by default "tiling2d".
+        direction : PIPEDIRECTION, optional
+            Pipe direction, by default None.
+        inplace : bool, optional
+            Whether to modify in place, by default True.
+
+        Returns
+        -------
+        RotatedPlanarPipetemplate
+            Modified template instance.
+
+        Raises
+        ------
+        ValueError
+            If coordinate system is invalid.
+        """
         if not (self.data_coords or self.x_coords or self.z_coords):
             self.to_tiling()
 
@@ -513,7 +598,29 @@ def pipe_offset_xy(
     sink: tuple[int, int, int] | None,
     direction: PIPEDIRECTION,
 ) -> tuple[int, int]:
-    """Calculate the XY offset for positioning a pipe in the tiling."""
+    """Calculate the XY offset for positioning a pipe in the tiling.
+
+    Parameters
+    ----------
+    d : int
+        Code distance.
+    source : tuple[int, int, int]
+        Source coordinates.
+    sink : tuple[int, int, int] | None
+        Sink coordinates.
+    direction : PIPEDIRECTION
+        Pipe direction.
+
+    Returns
+    -------
+    tuple[int, int]
+        XY offset coordinates.
+
+    Raises
+    ------
+    ValueError
+        If temporal pipe (UP/DOWN) is used for 2D tiling placement.
+    """
     sx, sy, sz = source
     if direction in {PIPEDIRECTION.UP, PIPEDIRECTION.DOWN}:
         msg = "Temporal pipe (UP/DOWN) not supported for 2D tiling placement"
