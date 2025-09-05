@@ -1,1 +1,1 @@
-"""LS-pattern-compile: Linear-Size Pattern Compilation for MBQC."""
+"""LS-pattern-compile: Lattice-Surgery to Pattern Compilation for MBQC."""
