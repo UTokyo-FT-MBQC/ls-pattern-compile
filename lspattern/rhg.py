@@ -1,5 +1,9 @@
+"""RHG (Raussendorf-Harrington-Goyal) lattice creation and visualization."""
+
+import contextlib
 import os
-from typing import NamedTuple, Optional
+from pathlib import Path
+from typing import NamedTuple
 
 import matplotlib.pyplot as plt
 
@@ -83,9 +87,9 @@ def create_rhg(
 
 
 def _create_rhg(
-    Lx: int,
-    Ly: int,
-    Lz: int,
+    lx: int,
+    ly: int,
+    lz: int,
     allowed_parities: list[tuple[int, int, int]] = allowed_parities,
 ) -> tuple[
     GraphState,
@@ -102,11 +106,11 @@ def _create_rhg(
 
     Parameters
     ----------
-    Lx : int
+    lx : int
         Lattice size in x direction
-    Ly : int
+    ly : int
         Lattice size in y direction
-    Lz : int
+    lz : int
         Lattice size in z direction
     allowed_parities : list[tuple[int, int, int]]
         List of allowed parity patterns for node placement
@@ -122,34 +126,32 @@ def _create_rhg(
         - grouping: Measurement order grouping
     """
     # 1. Create nodes and measurement groups
-    gs, coord2node, grouping = _create_nodes_and_groups(Lx, Ly, Lz, allowed_parities)
+    gs, coord2node, grouping = _create_nodes_and_groups(lx, ly, lz, allowed_parities)
 
     # 2. Add physical edges
     _add_physical_edges(gs, coord2node)
 
     # 3. Create parity check groups
-    x_parity_check_groups, z_parity_check_groups = _create_parity_check_groups(
-        coord2node
-    )
+    x_parity_check_groups, z_parity_check_groups = _create_parity_check_groups(coord2node)
 
     # 4. Add data qubit stabilizers
-    _add_data_qubit_stabilizers(coord2node, x_parity_check_groups, Lx, Ly, Lz)
+    _add_data_qubit_stabilizers(coord2node, x_parity_check_groups, lx, ly, lz)
 
     return gs, coord2node, x_parity_check_groups, z_parity_check_groups, grouping
 
 
 def _create_nodes_and_groups(
-    Lx: int, Ly: int, Lz: int, allowed_parities: list[tuple[int, int, int]]
+    lx: int, ly: int, lz: int, allowed_parities: list[tuple[int, int, int]]
 ) -> tuple[GraphState, dict[tuple[int, int, int], int], list[set[int]]]:
     """Create nodes and measurement groups for RHG lattice.
 
     Parameters
     ----------
-    Lx : int
+    lx : int
         Lattice size in x direction
-    Ly : int
+    ly : int
         Lattice size in y direction
-    Lz : int
+    lz : int
         Lattice size in z direction
     allowed_parities : list[tuple[int, int, int]]
         List of allowed parity patterns for node placement
@@ -164,45 +166,41 @@ def _create_nodes_and_groups(
     coord2qindex: dict[tuple[int, int], int] = {}
     grouping: list[set[int]] = []
 
-    for z in range(Lz):
+    for z in range(lz):
         data_qubits = set()
         ancilla_qubits = set()
-        for y in range(Ly):
-            for x in range(Lx):
+        for y in range(ly):
+            for x in range(lx):
                 parity = (x % 2, y % 2, z % 2)
                 if parity not in allowed_parities:
                     continue
 
-                if (z == Lz - 1) and parity not in data_parities:
+                if (z == lz - 1) and parity not in data_parities:
                     # skip output layer if not in data_parities
                     continue
                 node_idx = gs.add_physical_node()
-                coord2node[(x, y, z)] = node_idx
-                if z == Lz - 1:  # output layer
+                coord2node[x, y, z] = node_idx
+                if z == lz - 1:  # output layer
                     if parity in data_parities:
-                        gs.register_output(node_idx, coord2qindex[(x, y)])
+                        gs.register_output(node_idx, coord2qindex[x, y])
                     else:
                         gs.assign_meas_basis(node_idx, PlannerMeasBasis(Plane.XY, 0.0))
                 else:
-                    if z == 0:  # input layer
-                        if parity in data_parities:
-                            q_index = gs.register_input(node_idx)
-                            coord2qindex[(x, y)] = q_index
+                    if z == 0 and parity in data_parities:  # input layer
+                        q_index = gs.register_input(node_idx)
+                        coord2qindex[x, y] = q_index
                     gs.assign_meas_basis(node_idx, PlannerMeasBasis(Plane.XY, 0.0))
 
                 if parity in data_parities:
                     data_qubits.add(node_idx)
                 else:
                     ancilla_qubits.add(node_idx)
-        grouping.append(ancilla_qubits)
-        grouping.append(data_qubits)
+        grouping.extend((ancilla_qubits, data_qubits))
 
     return gs, coord2node, grouping
 
 
-def _add_physical_edges(
-    gs: GraphState, coord2node: dict[tuple[int, int, int], int]
-) -> None:
+def _add_physical_edges(gs: GraphState, coord2node: dict[tuple[int, int, int], int]) -> None:
     """Add physical edges between adjacent nodes.
 
     Parameters
@@ -223,11 +221,9 @@ def _add_physical_edges(
         ]:
             nx, ny, nz = x + dx, y + dy, z + dz
             if (nx, ny, nz) in coord2node:
-                v = coord2node[(nx, ny, nz)]
-                try:
+                v = coord2node[nx, ny, nz]
+                with contextlib.suppress(ValueError):
                     gs.add_physical_edge(u, v)
-                except ValueError:
-                    pass
 
 
 def _create_parity_check_groups(
@@ -267,9 +263,9 @@ def _create_parity_check_groups(
 def _add_data_qubit_stabilizers(
     coord2node: dict[tuple[int, int, int], int],
     x_parity_check_groups: list[set[int]],
-    Lx: int,
-    Ly: int,
-    Lz: int,
+    lx: int,
+    ly: int,
+    lz: int,
 ) -> None:
     """Add data qubit stabilizer groups to X parity checks.
 
@@ -279,20 +275,20 @@ def _add_data_qubit_stabilizers(
         Mapping from coordinates to node indices
     x_parity_check_groups : list[set[int]]
         List of X parity check groups to append to
-    Lx : int
+    lx : int
         Lattice size in x direction
-    Ly : int
+    ly : int
         Lattice size in y direction
-    Lz : int
+    lz : int
         Lattice size in z direction
     """
-    for i in range((Lx - 1) // 2):
-        for j in range((Ly + 1) // 2):
+    for i in range((lx - 1) // 2):
+        for j in range((ly + 1) // 2):
             group: set[int] = set()
-            pos0 = (2 * i, 2 * j, Lz - 1)
-            pos1 = (2 * i + 1, 2 * j - 1, Lz - 1)
-            pos2 = (2 * i + 2, 2 * j, Lz - 1)
-            pos3 = (2 * i + 1, 2 * j + 1, Lz - 1)
+            pos0 = (2 * i, 2 * j, lz - 1)
+            pos1 = (2 * i + 1, 2 * j - 1, lz - 1)
+            pos2 = (2 * i + 2, 2 * j, lz - 1)
+            pos3 = (2 * i + 1, 2 * j + 1, lz - 1)
 
             if node0 := coord2node.get(pos0):
                 group.add(node0)
@@ -304,20 +300,21 @@ def _add_data_qubit_stabilizers(
                 group.add(node3)
 
             # add the previous stabilizer measurement
-            group.add(coord2node[2 * i + 1, 2 * j, Lz - 2])
+            group.add(coord2node[2 * i + 1, 2 * j, lz - 2])
             x_parity_check_groups.append(group)
 
 
-def visualize_rhg(
+def visualize_rhg(  # noqa: PLR0913, PLR0917
     lattice_state: GraphState,
     coord2node: dict[tuple[int, int, int], int],
     allowed_parities: list[tuple[int, int, int]] = allowed_parities,
-    save_path: Optional[str] = None,
+    save_path: str | None = None,
     show: bool = True,
     figsize: tuple[int, int] = (6, 6),
     dpi: int = 120,
 ) -> None:
     """Visualizes the Raussendorf lattice with nodes colored based on their parity.
+
     Nodes with allowed parities are colored white, others are red.
     Physical edges are drawn in gray.
 
@@ -341,19 +338,19 @@ def visualize_rhg(
         Figure resolution in dots per inch, by default 120
 
     """
-    node2coord: dict[int, tuple[int, int, int]] = {
-        node: coord for coord, node in coord2node.items()
-    }
+    node2coord: dict[int, tuple[int, int, int]] = {node: coord for coord, node in coord2node.items()}
 
     fig = plt.figure(figsize=figsize, dpi=dpi)
     ax = fig.add_subplot(111, projection="3d")
-    ax.set_box_aspect((1, 1, 1))  # Set aspect ratio to be equal
+    ax.set_box_aspect((1.0, 1.0, 1.0))
     ax.grid(False)
     ax.set_axis_off()
 
-    xs, ys, zs = [], [], []
+    xs: list[int] = []
+    ys: list[int] = []
+    zs: list[int] = []
     colors = []
-    for _, (x, y, z) in node2coord.items():
+    for x, y, z in node2coord.values():
         xs.append(x)
         ys.append(y)
         zs.append(z)
@@ -367,7 +364,7 @@ def visualize_rhg(
     ax.scatter(
         xs,
         ys,
-        zs,
+        zs,  # pyright: ignore[reportArgumentType]
         c=colors,
         edgecolors="black",
         s=50,
@@ -389,26 +386,20 @@ def visualize_rhg(
     # Save figure if path is provided
     if save_path is not None:
         # Create directory if it doesn't exist
-        save_dir = os.path.dirname(save_path)
-        if save_dir and not os.path.exists(save_dir):
-            os.makedirs(save_dir, exist_ok=True)
+        save_file = Path(save_path)
+        save_file.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(save_path, bbox_inches="tight", dpi=dpi)
-        print(f"Figure saved to: {save_path}")
 
     # Show figure if requested and in interactive mode
     if show:
         # Check if we're in a Jupyter notebook
         try:
-            get_ipython()  # type: ignore
+            get_ipython()  # type: ignore[name-defined]
             # In Jupyter, just display the plot
             plt.show()
         except NameError:
             # Not in Jupyter, check if display is available
             if os.environ.get("DISPLAY") or os.name == "nt":
                 plt.show()
-            else:
-                print(
-                    "Display not available. Use save_path parameter to save the figure."
-                )
     else:
         plt.close(fig)

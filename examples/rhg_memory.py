@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 """New-API demo: RHG memory experiment (InitPlus -> Memory -> MeasureX).
 
@@ -7,11 +6,12 @@ This example builds a single-logical memory line by stacking blocks on a growing
 Usage:
   python examples/rhg_memory.py
 """
+
 # %%
 import pathlib
 
 import pymatching
-import stim 
+import stim
 from graphix_zx.stim_compiler import stim_compile
 from graphix_zx.pattern import Pattern, print_pattern
 from lspattern.canvas import RHGCanvas
@@ -26,7 +26,7 @@ canvas = RHGCanvas()
 canvas.append(InitPlus(logical=0, dx=d, dy=d))
 visualize_canvas(
     canvas,
-    show=True, 
+    show=True,
 )
 
 # %%
@@ -36,7 +36,7 @@ canvas.append(Memory(logical=0, rounds=r))
 visualize_canvas(
     canvas,
     save_path="figures/rhg_lattice.png",
-    show=True, 
+    show=True,
 )
 
 # %%
@@ -48,7 +48,7 @@ canvas.append(MeasureX(logical=0))
 visualize_canvas(
     canvas,
     save_path="figures/rhg_lattice.png",
-    show=True, 
+    show=True,
 )
 
 # %%
@@ -63,7 +63,7 @@ canvas.append(MeasureX(logical=0))
 
 for group in canvas.schedule_accum.measure_groups:
     print(f"group: {group}")
-    
+
 logical = set(i for i in range(d))
 print(f"logical X: {logical}")
 logical_observables = {0: logical}
@@ -93,6 +93,7 @@ def create_circuit(pattern: Pattern, noise: float) -> stim.Circuit:
         before_measure_flip_probability=noise,
     )
     return stim.Circuit(stim_str)
+
 
 # %%
 
