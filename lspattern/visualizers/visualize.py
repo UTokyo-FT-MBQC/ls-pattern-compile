@@ -43,13 +43,13 @@ def visualize_canvas(
 
     node2coord = _node_to_coord(canvas)
     nodes = list(node2coord.keys())
-    
+
     fig = plt.figure(figsize=figsize, dpi=dpi)
     ax = fig.add_subplot(111, projection="3d")
     ax.set_box_aspect((1, 1, 1))  # Set aspect ratio to be equal
     ax.grid(False)
     ax.set_axis_off()
-    
+
     xs, ys, zs = [], [], []
     colors = []
     for _, (x, y, z) in node2coord.items():
@@ -76,7 +76,7 @@ def visualize_canvas(
         depthshade=True,
         label="nodes",
     )
-    
+
     for u, v in canvas.graph.physical_edges:
         # Extract coordinates from coord2node
         x1, y1, z1 = node2coord[u]

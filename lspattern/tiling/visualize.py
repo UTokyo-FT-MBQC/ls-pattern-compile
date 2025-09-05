@@ -80,4 +80,3 @@ def plot_layer_tiling(
     if title is None:
         title = f"TemporalLayer z={getattr(layer, 'z', '?')} (anchor={anchor})"
     return plot_connected_tiling(ct, ax=None, show=show, title=title)
-

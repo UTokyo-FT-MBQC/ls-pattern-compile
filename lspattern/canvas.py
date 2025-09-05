@@ -134,9 +134,9 @@ class TemporalLayer:
         if not tilings:
             self.tiling_node_maps = {}
             return
-        # TODO: fix Bug 
+        # TODO: fix Bug
         # Before this line we assume that template Coord2D are correctly shifted according to block/pipes positions
-        # Need to check 
+        # Need to check
         # tilings does not have position information, this is absolutely wrong.
         ct = ConnectedTiling(tilings, check_collisions=True)
         # base/ConnectedTiling の node_maps をそのまま公開
@@ -149,7 +149,7 @@ class TemporalLayer:
         # graph, coord2node, ... = ct.materialize()
 
         ## TODO: input_nodeset, output_nodesetの設定をnodemapをもとに適切に実装する必要がある
-        return 
+        return
 
     def get_node_maps(self) -> dict[str, dict[tuple[int, int], int]]:
         """ConnectedTiling 由来の node_maps を返す（必要なら遅延計算）。"""

@@ -10,7 +10,7 @@ class Tiling:
     """
 
     data_coords: list[TilingCoord2D] = field(default_factory=list)
-    # TODO: do it 
+    # TODO: do it
     # Tilingを継承しているすべてのclassでqubit indexをcoord2qubitindexに置き換える
     coord2qubitindex: dict[TilingCoord2D, QubitIndex] = field(default_factory=dict)
 
