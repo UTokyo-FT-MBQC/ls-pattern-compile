@@ -4,7 +4,6 @@ from typing import List, Set
 
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.graphstate import GraphState
-
 from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import (
@@ -19,12 +18,12 @@ from lspattern.mytype import (
 from lspattern.tiling.template import RotatedPlanarTemplate
 
 
-class InitPlusSkeleton(RHGBlockSkeleton):
+class InitPlusBlockSkeleton(RHGBlockSkeleton):
     name: str = __qualname__
 
     def materialize(self) -> "RHGBlock":
-        tiling = self.tiling.to_tiling()
-        data_indices = self.tiling.get_data_indices()
+        tiling = self.template.to_tiling()
+        data_indices = self.template.get_data_indices()
 
         g = GraphState()
         coord2node: dict[PhysCoordLocal3D, NodeIdLocal] = {}
@@ -154,7 +153,7 @@ class InitPlusSkeleton(RHGBlockSkeleton):
             schedule_local=schedule_local,
             flow_local=flow_local,
             edge_spec=self.edgespec,  # Use edgespec from skeleton
-            template=self.tiling,  # Pass the tiling as template
+            template=self.template,  # Pass the tiling as template
         )
         return block
 
@@ -181,7 +180,7 @@ class InitPlus(RHGBlock):
             edgespec = getattr(self, "edge_spec", None) or {}
 
         # Use the skeleton to construct a canonical RHGBlock, then adopt fields
-        skel = InitPlusSkeleton(d=self.d, edgespec=edgespec)
+        skel = InitPlusBlockSkeleton(d=self.d, edgespec=edgespec)
         built = skel.materialize()
 
         # Adopt the built artifacts
@@ -199,7 +198,7 @@ class InitPlus(RHGBlock):
         self.edge_spec = built.edge_spec
         # Prefer an explicit template if already set; otherwise take the skeleton's
         if getattr(self, "template", None) is None:
-            self.template = skel.tiling
+            self.template = skel.template
 
 
 if __name__ == "__main__":

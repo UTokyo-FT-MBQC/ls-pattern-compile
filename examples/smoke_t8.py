@@ -13,7 +13,7 @@ This script is intentionally lightweight; it prints a few counts and asserts.
 
 from __future__ import annotations
 
-from lspattern.blocks.initialize import InitPlusSkeleton
+from lspattern.blocks.initialize import InitPlusBlockSkeleton
 from lspattern.canvas import RHGCanvas
 from lspattern.mytype import PatchCoordGlobal3D
 from lspattern.tiling.template import RotatedPlanarTemplate
@@ -36,7 +36,7 @@ def main() -> None:
     assert z_after <= z_before, "trim did not reduce/equal Z ancillas as expected"
 
     # Skeleton -> block
-    skel = InitPlusSkeleton(d=d, edgespec=edgespec)
+    skel = InitPlusBlockSkeleton(d=d, edgespec=edgespec)
     block = skel.materialize()
     assert block.graph_local is not None and len(block.node2coord) > 0
     assert len(block.schedule_local) > 0

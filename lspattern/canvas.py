@@ -12,6 +12,7 @@ from lspattern.accumulator import (
     ScheduleAccumulator,
 )
 from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
+from lspattern.blocks.base2 import RHGPipe, RHGPipeSkeleton
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import (
     NodeIdLocal,
@@ -19,12 +20,11 @@ from lspattern.mytype import (
     PhysCoordGlobal3D,
     PipeCoordGlobal3D,
 )
-from lspattern.pipes.base import RHGPipe, RHGPipeSkeleton
 from lspattern.tiling.base import ConnectedTiling
 from lspattern.tiling.template import (
     block_offset_xy,
-    pipe_offset_xy,
     offset_tiling,
+    pipe_offset_xy,
 )
 from lspattern.utils import get_direction
 
@@ -62,8 +62,10 @@ class TemporalLayer:
         self.lines = []
         self.in_portset = {}
         self.out_portset = {}
+        self.cout_portset = {}
         self.in_ports = []
         self.out_ports = []
+        self.cout_ports = []
         self.local_graph = None
         self.node2coord = {}
         self.coord2node = {}
@@ -143,14 +145,58 @@ class TemporalLayer:
             "x": dict(ct.node_maps.get("x", {})),
             "z": dict(ct.node_maps.get("z", {})),
         }
+        # TODO: ctはmaterializeするもの。なんかいい感じに設計したい
+        # graph, coord2node, ... = ct.materialize()
 
-        return
+        ## TODO: input_nodeset, output_nodesetの設定をnodemapをもとに適切に実装する必要がある
+        return 
 
     def get_node_maps(self) -> dict[str, dict[tuple[int, int], int]]:
         """ConnectedTiling 由来の node_maps を返す（必要なら遅延計算）。"""
         if not getattr(self, "tiling_node_maps", None):
             self.materialize()
         return self.tiling_node_maps
+
+    def get_connected_tiling(self, anchor: str = "inner") -> ConnectedTiling:
+        """ブロック/パイプを絶対2D座標に再配置して ConnectedTiling を返す。
+
+        - materialize() と同等のオフセット計算を一時的に行う（キャッシュは任意）
+        - d が混在する場合は ValueError を送出
+        """
+        # to_tiling を先に呼び出して内部座標を確実に持たせる
+        for b in self.blocks_.values():
+            if getattr(b, "template", None) is not None:
+                b.template.to_tiling()
+        for p in self.pipes_.values():
+            if getattr(p, "template", None) is not None:
+                p.template.to_tiling()
+
+        tilings_abs: list = []
+        dset: set[int] = set()
+
+        for pos, b in self.blocks_.items():
+            if getattr(b, "template", None) is None:
+                continue
+            d_val = int(getattr(b, "d", getattr(b.template, "d", 0)))
+            dset.add(d_val)
+            dx, dy = block_offset_xy(d_val, pos, anchor=anchor)
+            tilings_abs.append(offset_tiling(b.template, dx, dy))
+
+        for (source, sink), p in self.pipes_.items():
+            if getattr(p, "template", None) is None:
+                continue
+            d_val = int(getattr(p, "d", getattr(p.template, "d", 0)))
+            dset.add(d_val)
+            direction = get_direction(source, sink)
+            dx, dy = pipe_offset_xy(d_val, source, sink, direction)
+            tilings_abs.append(offset_tiling(p.template, dx, dy))
+
+        if not tilings_abs:
+            return ConnectedTiling([])
+        if len(dset) > 1:
+            raise ValueError("Mixed code distances (d) are not supported in a single layer")
+
+        return ConnectedTiling(tilings_abs, check_collisions=True)
 
     def add_block(self, pos: PatchCoordGlobal3D, block: RHGBlockSkeleton) -> None:
         # Accept either a pre-materialized block or a skeleton.
@@ -264,9 +310,9 @@ class TemporalLayer:
         """
         # Shift pipe-local ids (defensive; concrete pipes may override)
         spatial_pipe.shift_ids(by=self.qubit_count)
-        # Position the pipe according to source->sink direction
+        # Position the pipe according to source->sink direction (seam anchoring)
         spatial_pipe.shift_coords(
-            patch_coord=source, direction=get_direction(source, sink)
+            source, direction=get_direction(source, sink), sink=sink
         )
 
         # ConnectedTiling 用に保持
@@ -504,27 +550,27 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
             if dx == 1 and dy == 0:
                 # X+ direction: trim RIGHT of left block and LEFT of right block
                 if left is not None:
-                    left.trim_spatial_boundaries("RIGHT")
+                    left.trim_spatial_boundary("RIGHT")
                 if right is not None:
-                    right.trim_spatial_boundaries("LEFT")
+                    right.trim_spatial_boundary("LEFT")
             elif dx == -1 and dy == 0:
                 # X- direction
                 if left is not None:
-                    left.trim_spatial_boundaries("LEFT")
+                    left.trim_spatial_boundary("LEFT")
                 if right is not None:
-                    right.trim_spatial_boundaries("RIGHT")
+                    right.trim_spatial_boundary("RIGHT")
             elif dy == 1 and dx == 0:
                 # Y+ direction
                 if left is not None:
-                    left.trim_spatial_boundaries("TOP")
+                    left.trim_spatial_boundary("TOP")
                 if right is not None:
-                    right.trim_spatial_boundaries("BOTTOM")
+                    right.trim_spatial_boundary("BOTTOM")
             elif dy == -1 and dx == 0:
                 # Y- direction
                 if left is not None:
-                    left.trim_spatial_boundaries("BOTTOM")
+                    left.trim_spatial_boundary("BOTTOM")
                 if right is not None:
-                    right.trim_spatial_boundaries("TOP")
+                    right.trim_spatial_boundary("TOP")
             else:
                 # Not an axis-aligned spatial neighbor; ignore.
                 continue
@@ -535,11 +581,25 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
         trimmed_blocks_skeleton = self.blocks_.copy()
         trimmed_pipes_skeleton = self.pipes_.copy()
 
-        blocks_ = {pos: blk.to_block() for pos, blk in trimmed_blocks_skeleton.items()}
-        pipes_ = {
-            (start, end): p.to_pipe()
-            for (start, end), p in trimmed_pipes_skeleton.items()
-        }
+        # Block は to_block() があればそれを、無ければ materialize() を使う
+        blocks_ = {}
+        for pos, blk in trimmed_blocks_skeleton.items():
+            to_block = getattr(blk, "to_block", None)
+            if callable(to_block):
+                blocks_[pos] = to_block()
+            else:
+                blocks_[pos] = blk.materialize()
+        # Pipe は skeleton でも concrete でも受け付ける
+        pipes_ = {}
+        for (start, end), p in trimmed_pipes_skeleton.items():
+            pipe_obj = p
+            to_pipe = getattr(p, "to_pipe", None)
+            if callable(to_pipe):
+                try:
+                    pipe_obj = to_pipe(start, end)
+                except TypeError:
+                    pipe_obj = to_pipe()
+            pipes_[(start, end)] = pipe_obj
 
         canvas = RHGCanvas(name=self.name, blocks_=blocks_, pipes_=pipes_)
         return canvas

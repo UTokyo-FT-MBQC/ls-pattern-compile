@@ -14,7 +14,6 @@ changing runtime representations.
 
 from __future__ import annotations
 
-from enum import Enum
 from typing import Dict, List, Literal, NewType, Set, Tuple
 
 # ---------------------------------------------------------------------
@@ -25,6 +24,7 @@ NodeIdGlobal = NewType("NodeIdGlobal", int)
 
 LogicalIndex = NewType("LogicalIndex", int)
 QubitIndex = NewType("QubitIndex", int)
+QubitIndexLocal = NewType("QubitIndexLocal", int)
 
 # ---------------------------------------------------------------------
 # Coordinates

@@ -16,7 +16,7 @@ import stim
 
 from graphix_zx.pattern import Pattern
 from graphix_zx.stim_compiler import stim_compile
-from lspattern.blocks.initialize import InitPlusSkeleton
+from lspattern.blocks.initialize import InitPlusBlockSkeleton
 
 sys.path.append(r"C:\Users\qipe\Documents\GitHub\ls-pattern-compile")
 
@@ -34,9 +34,9 @@ edgespec_trimmed = {"LEFT": "O", "RIGHT": "O", "TOP": "O", "BOTTOM": "O"}
 # tmpl = RotatedPlanarTemplate(d=3, edgespec=edgespec)
 # _ = tmpl.to_tiling()
 blocks = [
-    (PatchCoordGlobal3D((0, 0, 0)), InitPlusSkeleton(d=3, edgespec=edgespec)),
-    (PatchCoordGlobal3D((1, 1, 0)), InitPlusSkeleton(d=3, edgespec=edgespec_trimmed)),
-    (PatchCoordGlobal3D((2, 2, 0)), InitPlusSkeleton(d=3, edgespec=edgespec)),
+    (PatchCoordGlobal3D((0, 0, 0)), InitPlusBlockSkeleton(d=3, edgespec=edgespec)),
+    (PatchCoordGlobal3D((1, 1, 0)), InitPlusBlockSkeleton(d=3, edgespec=edgespec_trimmed)),
+    (PatchCoordGlobal3D((2, 2, 0)), InitPlusBlockSkeleton(d=3, edgespec=edgespec)),
 ]
 pipes = []
 
