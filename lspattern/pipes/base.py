@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import (
-    Any,
-    Literal,
-    Optional,
-    Tuple,
-)
+from dataclasses import dataclass, field
+from typing import Any, Optional, Tuple
 
 from graphix_zx.graphstate import BaseGraphState
-from lspattern.mytype import BlockKindstr, PatchCoordGlobal3D
+from lspattern.consts.consts import PIPEDIRECTION
+from lspattern.mytype import PatchCoordGlobal3D, SpatialEdgeSpec
 
 
 @dataclass
@@ -24,19 +20,33 @@ class RHGPipe:
     source: PatchCoordGlobal3D
     sink: PatchCoordGlobal3D
     d: int
-    kind: BlockKindstr
-    direction: Literal["up", "down", "left", "right"]
+    # Direction of the pipe (spatial or temporal)
+    direction: PIPEDIRECTION
+    # Template or tiling backing this pipe (implementation-specific)
     local_template: Any
+    # Optional spatial edge spec for this pipe
+    edgespec: Optional[SpatialEdgeSpec] = None
+    # Local graph fragment contributed by the pipe
     local_graph: Optional[BaseGraphState] = None
+    # Optional port/coord registries for compatibility with canvas2
+    in_ports: list[int] = field(default_factory=list)
+    out_ports: list[int] = field(default_factory=list)
+    node_coords: dict[int, tuple[int, int, int]] = field(default_factory=dict)
 
     def materialize(self, skeleton: RHGPipeSkeleton) -> None:
         pass
 
-    def shift_ids(by: int = 0):
-        pass
+    def shift_ids(self, by: int = 0) -> None:
+        # Intentionally left minimal; concrete pipes should implement.
+        return
 
-    def shift_coords(by: tuple[int, int, int] = 0):
-        pass
+    def shift_coords(
+        self,
+        patch_coord: PatchCoordGlobal3D,
+        direction: PIPEDIRECTION,
+    ) -> None:
+        # Intentionally left minimal; concrete pipes should implement.
+        return
 
 
 class Memory(RHGPipe):

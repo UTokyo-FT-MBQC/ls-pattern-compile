@@ -39,6 +39,19 @@ def _remap_groups(
 class ScheduleAccumulator:
     schedule: dict[int, set[NodeIdGlobal]] = field(default_factory=dict)
 
+    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> "ScheduleAccumulator":
+        """Return a new accumulator with node ids remapped by `node_map`.
+
+        Times are preserved; nodes in each time slot are mapped via `node_map`.
+        Unknown nodes are kept as-is for robustness.
+        """
+        if not self.schedule:
+            return ScheduleAccumulator()
+        remapped: dict[int, set[NodeIdGlobal]] = {}
+        for t, nodes in self.schedule.items():
+            remapped[t] = {node_map.get(n, n) for n in nodes}
+        return ScheduleAccumulator(remapped)
+
     def compose_parallel(self, other: "ScheduleAccumulator") -> "ScheduleAccumulator":
         new_schedule = self.schedule.copy()
         for t, nodes in other.schedule.items():
@@ -92,4 +105,11 @@ class FlowAccumulator:
         return FlowAccumulator(
             xflow=_remap_flow(self.xflow, node_map),
             zflow=_remap_flow(self.zflow, node_map),
+        )
+
+    def merge_with(self, other: "FlowAccumulator") -> "FlowAccumulator":
+        """Union-merge two flow accumulators (local/global-agnostic)."""
+        return FlowAccumulator(
+            xflow=_merge_flow(self.xflow, other.xflow),
+            zflow=_merge_flow(self.zflow, other.zflow),
         )

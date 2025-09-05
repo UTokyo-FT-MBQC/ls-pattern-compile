@@ -75,17 +75,6 @@ BoundarySide = Literal["TOP", "BOTTOM", "LEFT", "RIGHT", "UP", "DOWN"]
 # Dict-based spatial edge spec preferred across the codebase
 SpatialEdgeSpec = Dict[str, EdgeSpecValue]
 
-# Module-level convenience default used by examples/tests.
-# All sides start as open ("O"). Callers may update it locally.
-EdgeSpec: SpatialEdgeSpec = {
-    "TOP": "O",
-    "BOTTOM": "O",
-    "LEFT": "O",
-    "RIGHT": "O",
-    "UP": "O",
-    "DOWN": "O",
-}
-
 __all__ = [
     # ids
     "NodeIdLocal",
@@ -114,5 +103,4 @@ __all__ = [
     # directions
     "BoundarySide",
     "SpatialEdgeSpec",
-    "EdgeSpec",
 ]

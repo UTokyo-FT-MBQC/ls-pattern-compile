@@ -24,4 +24,3 @@ packages = [
 lspattern = "lspattern"
 graphix_zx = "src/graphix-zx/graphix_zx"
 tqec = "src/tqec/src/tqec"
-

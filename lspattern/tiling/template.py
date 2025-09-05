@@ -1,9 +1,15 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 
-from lspattern.mytype import SpatialEdgeSpec, TilingConsistentQubitId, TilingCoord2D
-from lspattern.tiling.base import Tiling
+from lspattern.mytype import (
+    QubitIndex,
+    SpatialEdgeSpec,
+    TilingConsistentQubitId,
+    TilingCoord2D,
+)
+from lspattern.tiling.base import ConnectedTiling, Tiling
 from lspattern.utils import sort_xy
-
 
 
 @dataclass(kw_only=True)
@@ -16,20 +22,19 @@ class ScalableTemplate(Tiling):
     x_coords: list[tuple[int, int]] = field(default_factory=list)
     z_coords: list[tuple[int, int]] = field(default_factory=list)
 
-    def to_tiling(self) -> dict[str, list[tuple[int, int]]]: ...
+    def to_tiling(self) -> dict[str, list[tuple[int, int]]]:
+        raise NotImplementedError
 
     def _spec(self, side: str) -> str:
         """Return standardized spec value ("X"/"Z"/"O").
 
         Accepts side in any case (e.g., "left"/"LEFT"). Falls back to "O".
         """
-        # Prefer lower-case keys per SpatialEdgeSpec
         v = None
         if isinstance(self.edgespec, dict):
             v = self.edgespec.get(side.lower())
             if v is None:
                 v = self.edgespec.get(side.upper())
-        # Fallback for legacy attribute-style EdgeSpec
         if v is None:
             try:
                 v = getattr(self.edgespec, side.upper())  # type: ignore[attr-defined]
@@ -53,11 +58,10 @@ class ScalableTemplate(Tiling):
         if not (self.data_coords or self.x_coords or self.z_coords):
             self.to_tiling()
 
-        axis: int = -1
-        target: int = -1
+        axis: int
+        target: int
 
-        # check TOP
-        match direction:
+        match direction.upper():
             case "TOP" | "Y+":
                 axis = 1
                 target = 2 * self.d - 1
@@ -84,65 +88,34 @@ class ScalableTemplate(Tiling):
         - data qubits: white-filled circles with black edge
         - X faces: green circles
         - Z faces: blue circles
-
-        Adds x/y ticks and grid; title shows d and kind.
         """
         import matplotlib.pyplot as plt
 
-        # Prepare coordinate arrays (robust to None/empties)
         data = list(getattr(self, "data_coords", []) or [])
         xs = list(getattr(self, "x_coords", []) or [])
         zs = list(getattr(self, "z_coords", []) or [])
 
-        # Build figure/axes
         created_fig = None
         if ax is None:
             created_fig, ax = plt.subplots(figsize=(6, 6))
 
-        # Helper to unpack list[(x,y)] -> two lists
         def unpack(coords: list[tuple[int, int]]):
             if not coords:
                 return [], []
             x_vals, y_vals = zip(*coords)
             return list(x_vals), list(y_vals)
 
-        # Plot points
         dx, dy = unpack(data)
         xx, xy = unpack(xs)
         zx, zy = unpack(zs)
 
         if dx:
-            ax.scatter(
-                dx,
-                dy,
-                s=120,
-                facecolors="white",
-                edgecolors="black",
-                linewidths=1.8,
-                label="data",
-            )
+            ax.scatter(dx, dy, s=120, facecolors="white", edgecolors="black", linewidths=1.8, label="data")
         if xx:
-            ax.scatter(
-                xx,
-                xy,
-                s=90,
-                color="#2ecc71",
-                edgecolors="#1e8449",
-                linewidths=1.0,
-                label="X",
-            )
+            ax.scatter(xx, xy, s=90, color="#2ecc71", edgecolors="#1e8449", linewidths=1.0, label="X")
         if zx:
-            ax.scatter(
-                zx,
-                zy,
-                s=90,
-                color="#3498db",
-                edgecolors="#1f618d",
-                linewidths=1.0,
-                label="Z",
-            )
+            ax.scatter(zx, zy, s=90, color="#3498db", edgecolors="#1f618d", linewidths=1.0, label="Z")
 
-        # Axis limits: pad by 1 around all shown points
         all_x = (dx or []) + (xx or []) + (zx or [])
         all_y = (dy or []) + (xy or []) + (zy or [])
         if all_x and all_y:
@@ -152,27 +125,16 @@ class ScalableTemplate(Tiling):
             ax.set_xlim(xmin - pad, xmax + pad)
             ax.set_ylim(ymin - pad, ymax + pad)
 
-            # Ticks at integer grid points within limits
-            xticks = list(range(int(xmin) - pad, int(xmax) + pad + 1))
-            yticks = list(range(int(ymin) - pad, int(ymax) + pad + 1))
-            ax.set_xticks(xticks)
-            ax.set_yticks(yticks)
-
-        # Grid and aspect
-        ax.grid(True, which="major", linestyle="--", linewidth=0.6, alpha=0.7)
-        ax.set_aspect("equal", adjustable="box")
-
-        # Axes labels and title
+        ax.set_aspect("equal")
+        ax.grid(True, which="both", linestyle=":", linewidth=0.5)
         ax.set_xlabel("x")
         ax.set_ylabel("y")
-        title_core = (
-            f"Tiling d={getattr(self, 'd', '?')} edgespec={getattr(self, 'edgespec', '?')}"
-        )
+
+        title_core = f"d={getattr(self, 'd', '?')}"
         if title_suffix:
-            title_core += f" ({title_suffix})"
+            title_core += f" | {title_suffix}"
         ax.set_title(title_core)
 
-        # Legend only if something is plotted
         if any((dx, xx, zx)):
             ax.legend(loc="upper right", frameon=True)
 
@@ -187,27 +149,24 @@ class ScalableTemplate(Tiling):
 class RotatedPlanarTemplate(ScalableTemplate):
     def to_tiling(self) -> dict[str, list[tuple[int, int]]]:
         d = self.d
-        # Local containers (avoid relying on dataclass defaults)
         data_coords: set[tuple[int, int]] = set()
         x_coords: set[tuple[int, int]] = set()
         z_coords: set[tuple[int, int]] = set()
 
-        # 1) Data qubits at even-even coordinates within [0, 2d-2]
+        # Data qubits at even-even coordinates in [0, 2d-2]
         data_coords = {(2 * i, 2 * j) for i in range(d) for j in range(d)}
 
-        # 2) Bulk checks (odd-odd), two interleaving lattices per type
-        # X bulk seeds: (1,3) and (3,1)
+        # Bulk checks (odd-odd), two interleaving lattices per type
         for x0, y0 in ((1, 3), (3, 1)):
             for x in range(x0, 2 * d - 1, 4):
                 for y in range(y0, 2 * d - 1, 4):
                     x_coords.add((x, y))
-        # Z bulk seeds: (1,1) and (3,3)
         for x0, y0 in ((1, 1), (3, 3)):
             for x in range(x0, 2 * d - 1, 4):
                 for y in range(y0, 2 * d - 1, 4):
                     z_coords.add((x, y))
 
-        # 3) X faces (left/right boundaries along x)
+        # Boundaries
         match self._spec("LEFT"):
             case "X":
                 for y in range(1, 2 * d - 1, 4):
@@ -215,8 +174,7 @@ class RotatedPlanarTemplate(ScalableTemplate):
             case "Z":
                 for y in range(2 * d - 3, -1, -4):
                     z_coords.add((-1, y))
-            case "O":
-                # nothing
+            case _:
                 pass
         match self._spec("RIGHT"):
             case "X":
@@ -246,197 +204,168 @@ class RotatedPlanarTemplate(ScalableTemplate):
             case _:
                 pass
 
-        result = {
-            "data": sort_xy(data_coords),
-            "X": sort_xy(x_coords),
-            "Z": sort_xy(z_coords),
-        }
-
+        result = {"data": sort_xy(data_coords), "X": sort_xy(x_coords), "Z": sort_xy(z_coords)}
         self.data_coords = result["data"]
         self.x_coords = result["X"]
         self.z_coords = result["Z"]
-
         return result
 
 
+# --- Spatial merge helper APIs (Trim -> Merge -> Unify) ---------------------
+
+
+def _offset_coords(coords: list[tuple[int, int]] | None, dx: int, dy: int) -> list[tuple[int, int]]:
+    if not coords:
+        return []
+    return [(x + dx, y + dy) for (x, y) in coords]
+
+
+def _copy_with_offset(t: Tiling, dx: int, dy: int) -> Tiling:
+    """Create a shallow Tiling copy with all 2D coords offset by (dx, dy).
+
+    Does not mutate the input instance.
+    """
+    return Tiling(
+        data_coords=_offset_coords(getattr(t, "data_coords", []), dx, dy),
+        qubit_indices=[QubitIndex(i) for i in range(len(getattr(t, "data_coords", [])))],
+        x_coords=_offset_coords(getattr(t, "x_coords", []), dx, dy),
+        z_coords=_offset_coords(getattr(t, "z_coords", []), dx, dy),
+    )
+
+
+def merge_pair_spatial(
+    a: ScalableTemplate,
+    b: ScalableTemplate,
+    direction: str,
+    *,
+    shift_qubits: bool = True,
+    check_collisions: bool = True,
+) -> ConnectedTiling:
+    """Trim the facing boundaries of `a` and `b`, then merge their tilings.
+
+    - direction: one of "X+", "X-", "Y+", "Y-" (case-insensitive)
+    - Trims ancilla/two-body checks on the seam (RIGHT/LEFT for X, TOP/BOTTOM for Y)
+    - Offsets `b` so it sits adjacent to `a` (grid step = 2*d)
+    - Returns a ConnectedTiling which stably de-duplicates within-type coords
+      and optionally checks for across-type overlaps.
+    """
+    d_a = getattr(a, "d", None)
+    d_b = getattr(b, "d", None)
+    if not isinstance(d_a, int) or not isinstance(d_b, int):
+        raise ValueError("Both templates must have integer distance 'd'.")
+
+    # Ensure coordinates are populated
+    if not (a.data_coords or a.x_coords or a.z_coords):
+        a.to_tiling()
+    if not (b.data_coords or b.x_coords or b.z_coords):
+        b.to_tiling()
+
+    diru = direction.upper()
+    if diru not in ("X+", "X-", "Y+", "Y-"):
+        raise ValueError("direction must be one of: X+, X-, Y+, Y-")
+
+    # 1) Trim the seam boundaries
+    if diru == "X+":
+        a.trim_spatial_boundary("RIGHT")
+        b.trim_spatial_boundary("LEFT")
+        off_b = (2 * d_a, 0)
+    elif diru == "X-":
+        a.trim_spatial_boundary("LEFT")
+        b.trim_spatial_boundary("RIGHT")
+        off_b = (-2 * d_b, 0)
+    elif diru == "Y+":
+        a.trim_spatial_boundary("TOP")
+        b.trim_spatial_boundary("BOTTOM")
+        off_b = (0, 2 * d_a)
+    else:  # "Y-"
+        a.trim_spatial_boundary("BOTTOM")
+        b.trim_spatial_boundary("TOP")
+        off_b = (0, -2 * d_b)
+
+    # 2) Build offset copies and merge
+    a_copy = _copy_with_offset(a, 0, 0)
+    b_copy = _copy_with_offset(b, *off_b)
+    return ConnectedTiling(
+        [a_copy, b_copy], shift_qubits=shift_qubits, check_collisions=check_collisions
+    )
+
+
 class RotatedPlanarPipetemplate(ScalableTemplate):
-    def to_tiling(self):
+    def to_tiling(self) -> dict[str, list[tuple[int, int]]]:
         d = self.d
-        # Local containers (avoid relying on dataclass defaults)
         data_coords: set[tuple[int, int]] = set()
         x_coords: set[tuple[int, int]] = set()
         z_coords: set[tuple[int, int]] = set()
-        # kind廃止の際はself.directionがXpm,Ypm, Zpmで取得できるようにする
-        if self._spec("LEFT") == self._spec("RIGHT") == "O":
-            """
-            if self.kind[0] == "O", which means this pipe is piping along X direction
 
-            The schematic. = shows X boundary and - shows Z boundary
-            ===== KKK =====
-            |   | x x |   |
-            |   | x x |   |
-            ===== KKK =====
+        is_x_dir = self._spec("LEFT") == "O" and self._spec("RIGHT") == "O"
+        is_y_dir = self._spec("TOP") == "O" and self._spec("BOTTOM") == "O"
 
-            So the tiling has the footprint of (1, d), excluding the ancilla qubits. If we include them it will be (3, d+1)
-            Here K means the boundary designated by kind[1]
-            """
-            # data qubits
+        if is_x_dir:
+            # Pipe along Y (vertical), x fixed at 0
             for y in range(0, 2 * d, 2):
                 data_coords.add((0, y))
-            # x ancillas (bulk)
             for n in range(d - 2):
-                x = (-1) ** n
                 y = 2 * n + 1
-                x_coords.add((x, y))
-            # z ancillas (bulk)
-            for n in range(d - 2):
-                x = -((-1) ** n)
-                y = 2 * n + 1
-                z_coords.add((x, y))
+                x_coords.add((((-1) ** n), y))
+                z_coords.add((-((-1) ** n), y))
 
             match self._spec("TOP"):
                 case "X":
-                    x_coords.add((1, 2 * d + 1))
+                    x_coords.add((1, 2 * d - 1))
                 case "Z":
-                    z_coords.add((-1, 2 * d + 1))
-                case "O":
+                    z_coords.add((-1, 2 * d - 1))
+                case _:
                     pass
-
             match self._spec("BOTTOM"):
                 case "X":
                     x_coords.add((-1, -1))
                 case "Z":
                     z_coords.add((1, -1))
-                case "O":
+                case _:
                     pass
 
-        # kind廃止の際はself.directionがXpm,Ypm, Zpmで取得できるようにする
-        if self._spec("LEFT") == "O" and self._spec("RIGHT") == "O":
-            """
-            if self.kind[0] == "O", which means this pipe is piping along X direction
-
-            The schematic. = shows X boundary and - shows Z boundary
-            ===== KKK =====
-            |   | x x |   |
-            |   | x x |   |
-            ===== KKK =====
-
-            So the tiling has the footprint of (1, d), excluding the ancilla qubits. If we include them it will be (3, d+1)
-            Here K means the boundary designated by kind[1]
-            """
-            # data qubits
-            for y in range(0, 2 * d, 2):
-                data_coords.add((0, y))
-            # x ancillas (bulk)
-            for n in range(d - 2):
-                x = (-1) ** n
-                y = 2 * n + 1
-                x_coords.add((x, y))
-            # z ancillas (bulk)
-            for n in range(d - 2):
-                x = -((-1) ** n)
-                y = 2 * n + 1
-                z_coords.add((x, y))
-
-            match self._spec("TOP"):
-                case "X":
-                    x_coords.add((1, 2 * d + 1))
-                case "Z":
-                    z_coords.add((-1, 2 * d + 1))
-                case "O":
-                    pass
-
-            match self._spec("BOTTOM"):
-                case "X":
-                    x_coords.add((-1, -1))
-                case "Z":
-                    z_coords.add((1, -1))
-                case "O":
-                    pass
-
-        elif self._spec("TOP") == "O" and self._spec("BOTTOM") == "O":
-            """
-            If `self.kind[1] == "O"`, the pipe runs along the Y direction
-            (horizontal faces are open/trimmed). This is the 90-degree-rotated
-            counterpart of the X-direction pipe above.
-
-            Schematic (now piping along Y). "=" shows X boundary, "-" shows Z boundary.
-            
-            =====
-            |   |
-            |   |
-            =====
-            KxxxK
-            K   K
-            KxxxK    
-            =====
-            |   |
-            |   |
-            =====
-
-            Footprint (excluding ancilla qubits): (d, 1). Including ancilla:
-            approximately (d+1, 3). Here K means the boundary designated by kind[0]
-            (left/right faces), which decides whether two-body X or Z stabilizers
-            are placed at the pipe ends.
-            """
-            # data qubits along x (y fixed at 0): (0,0), (2,0), .., (2d-2, 0)
+        elif is_y_dir:
+            # Pipe along X (horizontal), y fixed at 0
             for x in range(0, 2 * d, 2):
                 data_coords.add((x, 0))
-
-            # x ancillas (bulk)
             for n in range(d - 2):
                 x = 2 * n + 1
-                y = (-1) ** n
-                x_coords.add((x, y))
-            # z ancillas (bulk)
-            for n in range(d - 2):
-                x = 2 * n + 1
-                y = -((-1) ** n)
-                z_coords.add((x, y))
+                x_coords.add((x, (-1) ** n))
+                z_coords.add((x, -((-1) ** n)))
 
-            # Two-body stabilizers at left/right ends decided by EdgeSpec
             match self._spec("LEFT"):
                 case "X":
                     x_coords.add((-1, -1))
                 case "Z":
                     z_coords.add((-1, 1))
-                case "O":
+                case _:
                     pass
-
             match self._spec("RIGHT"):
                 case "X":
                     x_coords.add((2 * d - 1, 1))
                 case "Z":
                     z_coords.add((2 * d - 1, -1))
-                case "O":
+                case _:
                     pass
+
         elif self._spec("UP") == "O" or self._spec("DOWN") == "O":
             raise NotImplementedError("Temporal pipe not supported yet")
         else:
-            raise ValueError("This pipe has no connection boundary")
+            raise ValueError("This pipe has no connection boundary (EdgeSpec)")
 
-        # Build deterministic result and also populate instance attributes (optional)
-        result = {
-            "data": sort_xy(data_coords),
-            "X": sort_xy(x_coords),
-            "Z": sort_xy(z_coords),
-        }
-
-        self.data_coords = result["data"]  # type: ignore[attr-defined]
-        self.x_coords = result["X"]  # type: ignore[attr-defined]
-        self.z_coords = result["Z"]  # type: ignore[attr-defined]
-
+        result = {"data": sort_xy(data_coords), "X": sort_xy(x_coords), "Z": sort_xy(z_coords)}
+        self.data_coords = result["data"]
+        self.x_coords = result["X"]
+        self.z_coords = result["Z"]
         return result
 
 
-# simple testing (manual)
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    from lspattern.mytype import EdgeSpec  # use global class-level spec
+    from lspattern.mytype import EdgeSpec
 
     def set_edgespec(**kw):
-        # Reset to open by default, then apply overrides
-        EdgeSpec.update({"TOP": "O", "BOTTOM": "O", "LEFT": "O", "RIGHT": "O"})
+        EdgeSpec.update({"TOP": "O", "BOTTOM": "O", "LEFT": "O", "RIGHT": "O", "UP": "O", "DOWN": "O"})
         EdgeSpec.update({k.upper(): v for k, v in kw.items()})
 
     SHOW_BLOCK = False
@@ -455,8 +384,7 @@ if __name__ == "__main__":
         for (label, spec), ax in zip(configs, axes.ravel()):
             set_edgespec(**spec)
             template = RotatedPlanarTemplate(d=d, edgespec=spec)
-            tiling = template.to_tiling()
-            print(label, {k: len(v) for k, v in tiling.items()})
+            template.to_tiling()
             template.visualize_tiling(ax=ax, show=False, title_suffix=label)
 
         fig.suptitle(f"Rotated Planar (EdgeSpec-driven) d={d}")
@@ -466,93 +394,20 @@ if __name__ == "__main__":
     if SHOW_PIPE:
         d = 7
         pipe_cfgs = [
-            ("Pipe X: TOP=X, BOTTOM=Z", {"TOP": "X", "BOTTOM": "Z"}),
-            ("Pipe X: TOP=Z, BOTTOM=X", {"TOP": "Z", "BOTTOM": "X"}),
-            ("Pipe Y: LEFT=X, RIGHT=Z", {"LEFT": "X", "RIGHT": "Z"}),
-            ("Pipe Y: LEFT=Z, RIGHT=X", {"LEFT": "Z", "RIGHT": "X"}),
+            ("Pipe X: TOP=X, BOTTOM=Z", {"TOP": "X", "BOTTOM": "Z", "LEFT": "O", "RIGHT": "O"}),
+            ("Pipe X: TOP=Z, BOTTOM=X", {"TOP": "Z", "BOTTOM": "X", "LEFT": "O", "RIGHT": "O"}),
+            ("Pipe Y: LEFT=X, RIGHT=Z", {"LEFT": "X", "RIGHT": "Z", "TOP": "O", "BOTTOM": "O"}),
+            ("Pipe Y: LEFT=Z, RIGHT=X", {"LEFT": "Z", "RIGHT": "X", "TOP": "O", "BOTTOM": "O"}),
         ]
 
         fig2, axes2 = plt.subplots(2, 2, figsize=(10, 10))
         for (label, spec), ax in zip(pipe_cfgs, axes2.ravel()):
             set_edgespec(**spec)
             ptemp = RotatedPlanarPipetemplate(d=d, edgespec=spec)
-            tiling = ptemp.to_tiling()
-            print(label, {k: len(v) for k, v in tiling.items()})
+            ptemp.to_tiling()
             ptemp.visualize_tiling(ax=ax, show=False, title_suffix=label)
 
         fig2.suptitle(f"Rotated Planar Pipes (EdgeSpec) d={d}")
         fig2.tight_layout()
         plt.show()
-        elif self._spec("UP") == "O" or self._spec("DOWN") == "O":
-            raise NotImplementedError("Temporal pipe not supported yet")
-        else:
-            raise ValueError("This pipe has no connection boundary")
 
-        # Build deterministic result and also populate instance attributes (optional)
-        result = {
-            "data": sort_xy(data_coords),
-            "X": sort_xy(x_coords),
-            "Z": sort_xy(z_coords),
-        }
-
-        self.data_coords = result["data"]  # type: ignore[attr-defined]
-        self.x_coords = result["X"]  # type: ignore[attr-defined]
-        self.z_coords = result["Z"]  # type: ignore[attr-defined]
-
-        return result
-
-
-# simple testing (manual)
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    from mytype import EdgeSpec  # use global class-level spec
-
-    def set_edgespec(**kw):
-        # Reset to open by default, then apply overrides
-        EdgeSpec.update({"TOP": "O", "BOTTOM": "O", "LEFT": "O", "RIGHT": "O"})
-        EdgeSpec.update({k.upper(): v for k, v in kw.items()})
-
-    SHOW_BLOCK = False
-    SHOW_PIPE = True
-
-    if SHOW_BLOCK:
-        d = 3
-        configs = [
-            ("L/R=X, T/B=Z", {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}),
-            ("L/R=Z, T/B=X", {"LEFT": "Z", "RIGHT": "Z", "TOP": "X", "BOTTOM": "X"}),
-            ("All X", {"LEFT": "X", "RIGHT": "X", "TOP": "X", "BOTTOM": "X"}),
-            ("All Z", {"LEFT": "Z", "RIGHT": "Z", "TOP": "Z", "BOTTOM": "Z"}),
-        ]
-
-        fig, axes = plt.subplots(2, 2, figsize=(10, 10))
-        for (label, spec), ax in zip(configs, axes.ravel()):
-            set_edgespec(**spec)
-            template = RotatedPlanarTemplate(d=d, edgespec=EdgeSpec)
-            tiling = template.to_tiling()
-            print(label, {k: len(v) for k, v in tiling.items()})
-            template.visualize_tiling(ax=ax, show=False, title_suffix=label)
-
-        fig.suptitle(f"Rotated Planar (EdgeSpec-driven) d={d}")
-        fig.tight_layout()
-        plt.show()
-
-    if SHOW_PIPE:
-        d = 7
-        pipe_cfgs = [
-            ("Pipe X: TOP=X, BOTTOM=Z", {"TOP": "X", "BOTTOM": "Z"}),
-            ("Pipe X: TOP=Z, BOTTOM=X", {"TOP": "Z", "BOTTOM": "X"}),
-            ("Pipe Y: LEFT=X, RIGHT=Z", {"LEFT": "X", "RIGHT": "Z"}),
-            ("Pipe Y: LEFT=Z, RIGHT=X", {"LEFT": "Z", "RIGHT": "X"}),
-        ]
-
-        fig2, axes2 = plt.subplots(2, 2, figsize=(10, 10))
-        for (label, spec), ax in zip(pipe_cfgs, axes2.ravel()):
-            set_edgespec(**spec)
-            ptemp = RotatedPlanarPipetemplate(d=d, edgespec=spec)
-            tiling = ptemp.to_tiling()
-            print(label, {k: len(v) for k, v in tiling.items()})
-            ptemp.visualize_tiling(ax=ax, show=False, title_suffix=label)
-
-        fig2.suptitle(f"Rotated Planar Pipes (EdgeSpec) d={d}")
-        fig2.tight_layout()
-        plt.show()

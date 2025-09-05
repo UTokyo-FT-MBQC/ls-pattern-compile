@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional, Set
+from typing import Optional
 
 # import stim
 # graphix_zx pieces
@@ -14,7 +14,6 @@ from lspattern.accumulator import (
 from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import (
-    NodeIdGlobal,
     NodeIdLocal,
     PatchCoordGlobal3D,
     PhysCoordGlobal3D,
@@ -60,8 +59,15 @@ class TemporalLayer:
         self.node2coord = {}
         self.coord2node = {}
         self.node2role = {}
+        # accumulators
+        self.schedule = ScheduleAccumulator()
+        self.flow = FlowAccumulator()
+        self.parity = ParityAccumulator()
 
     def add_block(self, pos: PatchCoordGlobal3D, block: RHGBlock) -> None:
+        # Accept either a pre-materialized block or a skeleton.
+        if isinstance(block, RHGBlockSkeleton):
+            block = block.materialize()
         # Require a template and a materialized local graph
         if getattr(block, "template", None) is None:
             raise ValueError(
@@ -151,7 +157,6 @@ class TemporalLayer:
 
         self.qubit_count = len(self.local_graph.physical_nodes)
 
-    # TODO: complete this function later
     def add_pipe(
         self,
         source: PatchCoordGlobal3D,
@@ -165,40 +170,102 @@ class TemporalLayer:
         - 1.
 
         """
-        # TODO: Implement add_pipe functionality
-        # shift qubit ids and coordinate
+        # Shift pipe-local ids (defensive; concrete pipes may override)
         spatial_pipe.shift_ids(by=self.qubit_count)
+        # Position the pipe according to source->sink direction
         spatial_pipe.shift_coords(
             patch_coord=source, direction=get_direction(source, sink)
         )
 
-        # Update pipe3d, input/output ports
+        # Compose the pipe's local graph into the layer graph (if any)
+        node_map1: dict[int, int] = {}
+        node_map2: dict[int, int] = {}
+        g2 = spatial_pipe.local_graph
+
+        if g2 is not None:
+            if getattr(self, "local_graph", None) is None:
+                # First ingestion into the layer
+                self.local_graph = g2
+                node_map2 = {n: n for n in g2.physical_nodes}
+            else:
+                g1 = self.local_graph
+                g_new, node_map1, node_map2 = compose_in_parallel(g1, g2)
+                self.local_graph = g_new
+
+                # Remap existing registries for prior nodes
+                if node_map1:
+                    self.node2coord = {
+                        node_map1.get(n, n): c for n, c in self.node2coord.items()
+                    }
+                    self.coord2node = {
+                        c: node_map1.get(n, n) for c, n in self.coord2node.items()
+                    }
+                    self.node2role = {
+                        node_map1.get(n, n): r for n, r in self.node2role.items()
+                    }
+                    # Remap existing portsets and flat lists
+                    for p, nodes in list(self.in_portset.items()):
+                        self.in_portset[p] = [node_map1.get(n, n) for n in nodes]
+                    for p, nodes in list(self.out_portset.items()):
+                        self.out_portset[p] = [node_map1.get(n, n) for n in nodes]
+                    self.in_ports = [node_map1.get(n, n) for n in self.in_ports]
+                    self.out_ports = [node_map1.get(n, n) for n in self.out_ports]
+
+        # Record the pipe endpoints for visualization
         self.lines.append((source, sink))
-        self.in_portset[source] = spatial_pipe.in_ports
-        self.out_portset[sink] = spatial_pipe.out_ports
 
-        # update node2coord and coord2node
-        for n, coord in spatial_pipe.node_coords.items():
-            self.node2coord[n] = coord
-            self.coord2node[coord] = n
+        # Register in/out ports (remapped if composed)
+        if getattr(spatial_pipe, "in_ports", None):
+            self.in_portset[source] = [
+                node_map2.get(n, n) for n in spatial_pipe.in_ports
+            ]
+            self.in_ports.extend(self.in_portset[source])
+        if getattr(spatial_pipe, "out_ports", None):
+            self.out_portset[sink] = [
+                node_map2.get(n, n) for n in spatial_pipe.out_ports
+            ]
+            self.out_ports.extend(self.out_portset[sink])
 
-        # search for new RHG CZ-connection
-        for node in spatial_pipe.local_graph.physical_nodes:
-            for direction in DIRECTIONS3D:
-                u: PhysCoordGlobal3D = node  # type: ignore[assignment]
-                v: PhysCoordGlobal3D = __tuple_sum(node, direction)  # type: ignore[assignment]
+        # Update coord registries for the newly added pipe nodes
+        for old_n, coord in (getattr(spatial_pipe, "node_coords", {}) or {}).items():
+            nn = node_map2.get(old_n, old_n)
+            # Collision check against existing coordinates
+            if coord in self.coord2node and self.coord2node[coord] != nn:
+                raise ValueError(
+                    f"Coordinate collision: {coord} already occupied by node {self.coord2node[coord]} "
+                    f"when adding pipe {source}->{sink}."
+                )
+            self.node2coord[nn] = coord
+            self.coord2node[coord] = nn
 
-        # search for new detector groups
-        for node in spatial_pipe.local_graph.physical_nodes:
-            for direction in DIRECTIONS3D:
-                u: PhysCoordGlobal3D = node  # type: ignore[assignment]
-                v: PhysCoordGlobal3D = __tuple_sum(node, direction)  # type: ignore[assignment]
+        # Stitch RHG seam edges: connect new nodes to any neighbor-at-offset nodes
+        # present in the layer at the same z slice.
+        if getattr(self, "local_graph", None) is not None and spatial_pipe.node_coords:
+            for old_n, coord in spatial_pipe.node_coords.items():
+                nn = node_map2.get(old_n, old_n)
+                x, y, z = coord
+                for dx, dy, dz in DIRECTIONS3D:
+                    if dz != 0:
+                        continue
+                    nbr_coord = (x + dx, y + dy, z)
+                    nbr = self.coord2node.get(nbr_coord)
+                    if nbr is None or nbr == nn:
+                        continue
+                    try:
+                        self.local_graph.add_physical_edge(nn, nbr)
+                    except Exception:
+                        # Ignore duplicate/self edges or invalid connections
+                        pass
+
+        # Update qubit count if we now have a layer graph
+        if getattr(self, "local_graph", None) is not None:
+            self.qubit_count = len(self.local_graph.physical_nodes)
 
     def add_blocks(self, blocks: dict[PatchCoordGlobal3D, RHGBlock]) -> None:
         for pos, block in blocks.items():
             self.add_block(pos, block)
 
-    def add_pipes(self, pipes: dict[PipeCoordGlobal3D, RHGBlock]) -> None:
+    def add_pipes(self, pipes: dict[PipeCoordGlobal3D, RHGPipe]) -> None:
         for (start, end), pipe in pipes.items():
             self.add_pipe(start, end, pipe)
 
@@ -233,17 +300,38 @@ class TemporalLayer:
 
         return new_layer
 
-    def remap_nodes(
-        self, node_map: dict[NodeIdLocal, NodeIdLocal]
-    ) -> "ScheduleAccumulator":
-        if not self.schedule:
-            return ScheduleAccumulator()
-        # Times are unchanged; remap node ids per time slot.
-        remapped: dict[int, Set[NodeIdGlobal]] = {}
-        for t, nodes in self.schedule.items():
-            # Use get for robustness if node_map is partial in some contexts
-            remapped[t] = {node_map.get(n, n) for n in nodes}
-        return ScheduleAccumulator(remapped)
+    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> "TemporalLayer":
+        """Return a copy of this layer with all node ids remapped by `node_map`."""
+        new_layer = TemporalLayer(self.z)
+        new_layer.qubit_count = self.qubit_count
+        new_layer.patches = self.patches.copy()
+        new_layer.lines = self.lines.copy()
+
+        new_layer.in_portset = {
+            pos: [node_map.get(n, n) for n in nodes]
+            for pos, nodes in self.in_portset.items()
+        }
+        new_layer.out_portset = {
+            pos: [node_map.get(n, n) for n in nodes]
+            for pos, nodes in self.out_portset.items()
+        }
+        new_layer.in_ports = [node_map.get(n, n) for n in self.in_ports]
+        new_layer.out_ports = [node_map.get(n, n) for n in self.out_ports]
+
+        if self.local_graph is not None:
+            new_layer.local_graph = self.local_graph.remap_nodes(node_map)
+        new_layer.node2coord = {
+            node_map.get(n, n): c for n, c in self.node2coord.items()
+        }
+        new_layer.coord2node = {
+            c: node_map.get(n, n) for c, n in self.coord2node.items()
+        }
+        new_layer.node2role = {node_map.get(n, n): r for n, r in self.node2role.items()}
+
+        new_layer.schedule = self.schedule.remap_nodes(node_map)
+        new_layer.flow = self.flow.remap_nodes(node_map)
+        new_layer.parity = self.parity.remap_nodes(node_map)
+        return new_layer
 
 
 @dataclass
@@ -300,12 +388,13 @@ class CompiledRHGCanvas:
 @dataclass
 class RHGCanvasSkeleton:  # BlockGraph in tqec
     name: str = "Blank Canvas Skeleton"
+    # Optional template placeholder for future use
+    template: object | None = None
     # {(0,0,0): InitPlusSkeleton(), ..}
     blocks_: dict[PatchCoordGlobal3D, RHGBlockSkeleton] = field(default_factory=dict)
     # {((0,0,0),(1,0,0)): StabilizeSkeleton(), ((0,0,0), (0,0,1)): MeasureSkeleton(basis=X)}
     pipes_: dict[PipeCoordGlobal3D, RHGPipeSkeleton] = field(default_factory=dict)
     trimmed: bool = False
-    template: ...
 
     def add_block(self, position: PatchCoordGlobal3D, block: RHGBlockSkeleton) -> None:
         self.blocks_[position] = block
@@ -332,6 +421,49 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
             end
         end
         """
+        # Iterate spatial pipes and trim facing boundaries of adjacent blocks.
+        # Pipes are keyed by ((x,y,z),(x,y,z)); detect spatial adjacency by dx/dy.
+        for (u, v), _pipe in list(self.pipes_.items()):
+            ux, uy, uz = u
+            vx, vy, vz = v
+            # Temporal pipes are not handled here
+            if uz != vz:
+                continue
+
+            dx, dy = vx - ux, vy - uy
+
+            left = self.blocks_.get(u)
+            right = self.blocks_.get(v)
+
+            if dx == 1 and dy == 0:
+                # X+ direction: trim RIGHT of left block and LEFT of right block
+                if left is not None:
+                    left.trim_spatial_boundaries("RIGHT")
+                if right is not None:
+                    right.trim_spatial_boundaries("LEFT")
+            elif dx == -1 and dy == 0:
+                # X- direction
+                if left is not None:
+                    left.trim_spatial_boundaries("LEFT")
+                if right is not None:
+                    right.trim_spatial_boundaries("RIGHT")
+            elif dy == 1 and dx == 0:
+                # Y+ direction
+                if left is not None:
+                    left.trim_spatial_boundaries("TOP")
+                if right is not None:
+                    right.trim_spatial_boundaries("BOTTOM")
+            elif dy == -1 and dx == 0:
+                # Y- direction
+                if left is not None:
+                    left.trim_spatial_boundaries("BOTTOM")
+                if right is not None:
+                    right.trim_spatial_boundaries("TOP")
+            else:
+                # Not an axis-aligned spatial neighbor; ignore.
+                continue
+
+        self.trimmed = True
 
     def to_canvas(self) -> RHGCanvas2:
         self.trim_spatial_boundaries()
@@ -342,6 +474,7 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
         canvas = RHGCanvas2(
             name=self.name, blocks_=trimmed_blocks, pipes_=trimmed_pipes
         )
+        return canvas
 
 
 @dataclass
@@ -444,7 +577,7 @@ def add_temporal_layer(
             in_portset=next_layer.in_portset,
             out_portset=next_layer.out_portset,
             cout_portset=next_layer.cout_portset,
-            scheduler=next_layer.scheduler,
+            schedule=next_layer.schedule,
             z=next_layer.z,
         )
         return new_cgraph
@@ -454,7 +587,7 @@ def add_temporal_layer(
 
     # Compose sequentially with node remaps
     new_graph, node_map1, node_map2 = compose_sequentially(graph1, graph2)
-    # remap nodes for cgraph and next_layer
+    # Remap registries for both sides into the composed id-space
     cgraph = cgraph.remap_nodes(node_map1)
     next_layer = next_layer.remap_nodes(node_map2)
 
@@ -462,12 +595,12 @@ def add_temporal_layer(
     new_layers = cgraph.layers + [next_layer]
     new_z = next_layer.z
 
-    # Remap nodes
+    # Build merged coord2node map (already remapped above)
     new_coord2node: dict[PhysCoordGlobal3D, int] = {}
-    for coord, old_nodeid in cgraph.coord2node.items():
-        new_coord2node[coord] = node_map1[old_nodeid]
-    for coord, old_nodeid in next_layer.coord2node.items():
-        new_coord2node[coord] = node_map2[old_nodeid]
+    for coord, nid in cgraph.coord2node.items():
+        new_coord2node[coord] = nid
+    for coord, nid in next_layer.coord2node.items():
+        new_coord2node[coord] = nid
 
     # Remap portsets
     in_portset = {}
@@ -483,22 +616,70 @@ def add_temporal_layer(
     for pos, nodes in next_layer.cout_portset.items():
         cout_portset[pos] = [node_map2[n] for n in nodes]
 
-    # scheduler, xflow, parity
+    # Stitch across time by matching (x, y) at the temporal seam; add CZ edges
+    try:
+        prev_last_z = max(c[2] for c in cgraph.coord2node.keys())
+    except ValueError:
+        prev_last_z = None
+    try:
+        next_first_z = min(c[2] for c in next_layer.coord2node.keys())
+    except ValueError:
+        next_first_z = None
+
+    seam_pairs: list[tuple[int, int]] = []
+    if prev_last_z is not None and next_first_z is not None:
+        prev_xy_to_node = {
+            (x, y): nid
+            for (x, y, z), nid in cgraph.coord2node.items()
+            if z == prev_last_z
+        }
+        next_xy_to_node = {
+            (x, y): nid
+            for (x, y, z), nid in next_layer.coord2node.items()
+            if z == next_first_z
+        }
+        for xy, u in prev_xy_to_node.items():
+            v = next_xy_to_node.get(xy)
+            if v is not None and u != v:
+                try:
+                    new_graph.add_physical_edge(u, v)
+                except Exception:
+                    pass
+                seam_pairs.append((u, v))
+
+    # Merge schedule, flow, parity
     new_schedule = cgraph.schedule.compose_sequential(next_layer.schedule)
-    new_xflow = FlowAccumulator(xflow=merged_xflow, zflow=merged_zflow)
+
+    # Start from unions of existing x/z flows
+    xflow_combined: dict[int, set[int]] = {}
+    zflow_combined: dict[int, set[int]] = {}
+    for src, dsts in cgraph.flow.xflow.items():
+        xflow_combined[src] = set(dsts)
+    for src, dsts in next_layer.flow.xflow.items():
+        xflow_combined.setdefault(src, set()).update(dsts)
+    for src, dsts in cgraph.flow.zflow.items():
+        zflow_combined[src] = set(dsts)
+    for src, dsts in next_layer.flow.zflow.items():
+        zflow_combined.setdefault(src, set()).update(dsts)
+    # Add seam corrections (prev -> next)
+    for u, v in seam_pairs:
+        xflow_combined.setdefault(u, set()).add(v)
+
+    merged_flow = FlowAccumulator(xflow=xflow_combined, zflow=zflow_combined)
     new_parity = ParityAccumulator(
-        x_checks=remapped_prev_x_checks + remapped_next_x_checks,
-        z_checks=remapped_prev_z_checks + remapped_next_z_checks,
+        x_checks=cgraph.parity.x_checks + next_layer.parity.x_checks,
+        z_checks=cgraph.parity.z_checks + next_layer.parity.z_checks,
     )
+
     cgraph = CompiledRHGCanvas(
         layers=new_layers,
         global_graph=new_graph,
-        coord2node=new_cgraph.coord2node,
+        coord2node=new_coord2node,
         in_portset=in_portset,
         out_portset=out_portset,
         cout_portset=cout_portset,
-        scheduler=new_schedule,
-        xflow=new_xflow,
+        schedule=new_schedule,
+        flow=merged_flow,
         parity=new_parity,
         z=new_z,
     )

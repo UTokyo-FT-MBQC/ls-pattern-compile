@@ -4,8 +4,7 @@ from typing import List, Set
 
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.graphstate import GraphState
-from lspattern.blocks.base import RHGBlock
-from lspattern.blocks.skeleton import RHGBlockSkeleton
+from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import (
     FlowLocal,
@@ -16,13 +15,13 @@ from lspattern.mytype import (
     PhysCoordLocal3D,
     ScheduleTuplesLocal,
 )
-from lspattern.template.base import RotatedPlanarTemplate
+from lspattern.tiling.template import RotatedPlanarTemplate
 
 
 class InitPlusSkeleton(RHGBlockSkeleton):
     name: str = __qualname__
 
-    def to_canvas(self) -> "RHGBlock":
+    def materialize(self) -> "RHGBlock":
         tiling = self.tiling.to_tiling()
         data_indices = self.tiling.get_data_indices()
 
@@ -139,22 +138,22 @@ class InitPlusSkeleton(RHGBlockSkeleton):
             if node2role.get(n) == "data":
                 out_ports.add(n)
 
-        # Create RHGBlock instance
-        block = RHGBlock(
+        # Create InitPlus instance
+        block = InitPlus(
             d=self.d,
             graph_local=g,
             node2coord=node2coord,
             coord2node={coord: nid for nid, coord in node2coord.items()},
             node2role=node2role,
-            in_ports=set(), # Assuming no explicit input ports for InitPlus
+            in_ports=set(),  # Assuming no explicit input ports for InitPlus
             out_ports=out_ports,
-            cout_ports=[], # Assuming no classical output ports for InitPlus
+            cout_ports=[],  # Assuming no classical output ports for InitPlus
             x_checks=x_checks,
             z_checks=z_checks,
             schedule_local=schedule_local,
             flow_local=flow_local,
-            boundary_spec=self.edgespec, # Use edgespec from skeleton
-            template=self.tiling # Pass the tiling as template
+            boundary_spec=self.edgespec,  # Use edgespec from skeleton
+            template=self.tiling,  # Pass the tiling as template
         )
         return block
 
@@ -162,7 +161,44 @@ class InitPlusSkeleton(RHGBlockSkeleton):
 class InitPlus(RHGBlock):
     name: str = __qualname__
 
-    
+    def materialize(self) -> None:
+        """Build the local graph/metadata from the skeleton.
+
+        This overrides the no-op base implementation so that a bare
+        `InitPlus(d=..., template=...)` can be materialized directly.
+        """
+        # If already materialized (has coords/nodes), do nothing
+        if getattr(self.graph_local, "physical_nodes", None):
+            # GraphState with existing nodes; assume materialized
+            return
+
+        # Determine edgespec from provided template or boundary_spec
+        edgespec = None
+        if getattr(self, "template", None) is not None:
+            edgespec = getattr(self.template, "edgespec", None)
+        if edgespec is None:
+            edgespec = getattr(self, "boundary_spec", None) or {}
+
+        # Use the skeleton to construct a canonical RHGBlock, then adopt fields
+        skel = InitPlusSkeleton(d=self.d, edgespec=edgespec)
+        built = skel.materialize()
+
+        # Adopt the built artifacts
+        self.graph_local = built.graph_local
+        self.node2coord = built.node2coord
+        self.coord2node = built.coord2node
+        self.node2role = built.node2role
+        self.schedule_local = built.schedule_local
+        self.flow_local = built.flow_local
+        self.in_ports = built.in_ports
+        self.out_ports = built.out_ports
+        self.cout_ports = built.cout_ports
+        self.x_checks = built.x_checks
+        self.z_checks = built.z_checks
+        self.boundary_spec = built.boundary_spec
+        # Prefer an explicit template if already set; otherwise take the skeleton's
+        if getattr(self, "template", None) is None:
+            self.template = skel.tiling
 
 
 if __name__ == "__main__":
@@ -172,7 +208,12 @@ if __name__ == "__main__":
 
     # Hardcoded options (edit here as needed)
     d = 3
-    edgespec = {"TOP": "X", "BOTTOM": "Z", "LEFT": "X", "RIGHT": "Z"}  # e.g., {"TOP":"X","BOTTOM":"Z",...}
+    edgespec = {
+        "TOP": "X",
+        "BOTTOM": "Z",
+        "LEFT": "X",
+        "RIGHT": "Z",
+    }  # e.g., {"TOP":"X","BOTTOM":"Z",...}
     ANCILLA_MODE = "both"  # "both" | "x" | "z"
     EDGE_WIDTH = 0.5  # thicker black edges
     INTERACTIVE = True  # interactive plot
@@ -182,7 +223,8 @@ if __name__ == "__main__":
     _ = template.to_tiling()  # populate internal coords for indices
 
     block = InitPlus(d=d, template=template)
-    # block.materialize()
+    # Materialize to populate graph/coords before visualizing
+    block.materialize()
 
     g = block.graph_local
     node2coord = block.node2coord

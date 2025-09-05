@@ -2,21 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import (
-    Dict,
-    List,
     Optional,
-    Protocol,
-    Set,
-    Tuple,
 )
 
 from graphix_zx.graphstate import GraphState
 from lspattern.mytype import *
-from lspattern.template.base import RotatedPlanarTemplate, ScalableTemplate
-from .skeleton import RHGBlockSkeleton
-
-
-
+from lspattern.tiling.template import RotatedPlanarTemplate, ScalableTemplate
 
 
 @dataclass
@@ -26,14 +17,14 @@ class RHGBlock:
     # The graph fragment contributed by the block (LOCAL ids).
     graph_local: GraphState = field(default_factory=GraphState)
     origin: Optional[tuple[int, int, int]] = (0, 0, 0)
-    
+
     boundary_spec: dict[str, str] = field(default_factory=dict)
     template: Optional[ScalableTemplate] = field(
         default_factory=lambda: RotatedPlanarTemplate(d=3, edgespec={})
     )
 
     # 各境界の仕様（X/Z/O=Open/Trimmed）。未設定(None/欠損)は Open(O) とみなす。
-    boundary_spec: Optional[BoundarySpec] = None
+    boundary_spec: Optional[SpatialEdgeSpec] = None
 
     # measurement schedule (int)--> set of measured local nodes
     schedule_local: ScheduleTuplesLocal = field(default_factory=list)
@@ -123,165 +114,28 @@ class RHGBlock:
 
         self.origin = by
 
-    
+    # New API compatibility: blocks produced by skeletons are already
+    # materialized. Provide a no-op materialize() so Canvas can call it safely.
+    def materialize(self) -> None:  # noqa: D401
+        """No-op for pre-materialized blocks (skeleton.to_canvas())."""
+        return
 
 
-# ---------------------------------------------------------------------
-# Block delta (the unit of mutation produced by each block)
-# ---------------------------------------------------------------------
 @dataclass
-class BlockDelta:
-    """Delta produced by a block.
+class RHGBlockSkeleton:
+    """A lightweight representation of a block before materialization."""
 
-    Notes
-    -----
-    * All node ids in this object are LOCAL to `local_graph`.
-      The canvas remaps them to GLOBAL ids when merging.
-    * `in_ports`/`out_ports` use LOCAL ids. `out_qmap` provides LOCAL node -> q_index.
-    * `schedule_tuples` is a list of (t_local, LOCAL-node-set). Each block starts at t_local=0.
-    * `parity_*_prev_global_curr_local` are unified parity directives:
-         (prev_global_center, [curr_local_nodes..]).
-    """
-
-    # The graph fragment contributed by the block (LOCAL ids).
-    local_graph: GraphState
-
-    # MBQC interface (LOCAL ids)
-    in_ports: Dict[int, Set[int]] = field(
-        default_factory=dict
-    )  # logical -> set of input-side boundary nodes
-    out_ports: Dict[int, Set[int]] = field(
-        default_factory=dict
-    )  # logical -> set of output-side boundary nodes
-    out_qmap: Dict[int, Dict[int, int]] = field(
-        default_factory=dict
-    )  # logical -> {LOCAL node -> q_index}
-
-    # Geometry annotations (LOCAL node -> (x, y, z))
-    node_coords: Dict[int, Tuple[int, int, int]] = field(default_factory=dict)
-
-    # Parity checks contributed entirely within the block (LOCAL ids)
-    x_checks: List[Set[int]] = field(default_factory=list)
-    z_checks: List[Set[int]] = field(default_factory=list)
-
-    # Local measurement schedule: list of (t_local, LOCAL node set)
-    schedule_tuples: List[Tuple[int, Set[int]]] = field(default_factory=list)
-
-    # Flow (LOCAL ids): minimal X-flow mapping (node -> correction target nodes)
-    flow_local: Dict[int, Set[int]] = field(default_factory=dict)
-
-    # Unified parity directives that pair previous GLOBAL centers with current LOCAL nodes
-    parity_x_prev_global_curr_local: List[Tuple[int, List[int]]] = field(
-        default_factory=list
-    )
-    parity_z_prev_global_curr_local: List[Tuple[int, List[int]]] = field(
-        default_factory=list
-    )
-
-    # Last ancilla layers (LOCAL) keyed by (x, y) -> LOCAL node id, for seam stitching
-    seam_last_x: Dict[Tuple[int, int], int] = field(default_factory=dict)
-    seam_last_z: Dict[Tuple[int, int], int] = field(default_factory=dict)
-
-    def shift_ids(self, by: int) -> None:
-        # change index of every element carrying LOCAL node ids by an offset
-        if by == 0:
-            return
-
-        # in/out ports
-        if self.in_ports:
-            self.in_ports = {
-                li: {int(n) + by for n in nodes} for li, nodes in self.in_ports.items()
-            }
-        if self.out_ports:
-            self.out_ports = {
-                li: {int(n) + by for n in nodes} for li, nodes in self.out_ports.items()
-            }
-
-        # out_qmap: logical -> {LOCAL node -> q_index}
-        if self.out_qmap:
-            self.out_qmap = {
-                li: {int(n) + by: q for n, q in qmap.items()}
-                for li, qmap in self.out_qmap.items()
-            }
-
-        # node_coords: LOCAL node -> coord
-        if self.node_coords:
-            self.node_coords = {
-                int(n) + by: coord for n, coord in self.node_coords.items()
-            }
-
-        # parity checks
-        if self.x_checks:
-            self.x_checks = [{int(n) + by for n in group} for group in self.x_checks]
-        if self.z_checks:
-            self.z_checks = [{int(n) + by for n in group} for group in self.z_checks]
-
-        # schedule
-        if self.schedule_tuples:
-            self.schedule_tuples = [
-                (t, {int(n) + by for n in nodes}) for (t, nodes) in self.schedule_tuples
-            ]
-
-        # flow
-        if self.flow_local:
-            self.flow_local = {
-                int(src) + by: {int(v) + by for v in tgts}
-                for src, tgts in self.flow_local.items()
-            }
-
-        # parity caps (prev global center unchanged; current local nodes shifted)
-        if self.parity_x_prev_global_curr_local:
-            self.parity_x_prev_global_curr_local = [
-                (center, [int(n) + by for n in locals_list])
-                for center, locals_list in self.parity_x_prev_global_curr_local
-            ]
-        if self.parity_z_prev_global_curr_local:
-            self.parity_z_prev_global_curr_local = [
-                (center, [int(n) + by for n in locals_list])
-                for center, locals_list in self.parity_z_prev_global_curr_local
-            ]
-
-        # seam last layers
-        if self.seam_last_x:
-            self.seam_last_x = {xy: int(n) + by for xy, n in self.seam_last_x.items()}
-        if self.seam_last_z:
-            self.seam_last_z = {xy: int(n) + by for xy, n in self.seam_last_z.items()}
-
-    def shift_coords(self, patch_coord: Tuple[int, int]) -> None:
-        # change the coordinates of every element by translating by patch_coord
-        if not self.node_coords or patch_coord is None:
-            return
-
-        # Support both 2D (x, y) and 3D (x, y, z) inputs gracefully
-        if len(patch_coord) == 2:
-            ox, oy = patch_coord  # type: ignore[misc]
-            oz = 0
-        else:
-            ox, oy, oz = patch_coord  # type: ignore[assignment]
-
-        self.node_coords = {
-            n: (coord[0] + ox, coord[1] + oy, coord[2] + oz)
-            for n, coord in self.node_coords.items()
-        }
-
-
-# ---------------------------------------------------------------------
-# Block protocol
-# ---------------------------------------------------------------------
-class RHGBlock2(Protocol):
-    """Protocol for an RHG block (structural typing)."""
-
-    logical: int
     d: int
+    edgespec: SpatialEdgeSpec
+    tiling: ScalableTemplate = field(init=False)
 
-    def emit(self, canvas: "RHGCanvas") -> BlockDelta: ...
+    def __post_init__(self):
+        self.tiling = RotatedPlanarTemplate(d=self.d, edgespec=self.edgespec)
 
+    def materialize(self) -> RHGBlock:
+        """Materialize the block and return a RHGBlock."""
+        raise NotImplementedError
 
-# ---------------------------------------------------------------------
-# Small utility
-# ---------------------------------------------------------------------
-def choose_port_node(nodes: Set[int]) -> int:
-    """Pick a representative port node from a non-empty set (deterministic)."""
-    if not nodes:
-        raise ValueError("Port node set is empty.")
-    return min(nodes)
+    def trim_spatial_boundaries(self, direction: str) -> None:
+        """Trim the spatial boundaries of the tiling."""
+        self.tiling.trim_spatial_boundary(direction)
