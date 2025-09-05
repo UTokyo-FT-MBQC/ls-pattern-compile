@@ -1,70 +1,4 @@
-from __future__ import annotations
-
-from dataclasses import dataclass, field
-from typing import Optional
-
-# import stim
-# graphix_zx pieces
-from graphix_zx.graphstate import GraphState, compose_in_parallel, compose_sequentially
-from lspattern.accumulator import (
-    FlowAccumulator,
-    ParityAccumulator,
-    ScheduleAccumulator,
-)
-from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
-from lspattern.consts.consts import DIRECTIONS3D
-from lspattern.mytype import (
-    NodeIdLocal,
-    PatchCoordGlobal3D,
-    PhysCoordGlobal3D,
-    PipeCoordGlobal3D,
-)
-from lspattern.pipes.base import RHGPipe, RHGPipeSkeleton
-from lspattern.utils import __tuple_sum, get_direction
-
-
-class TemporalLayer:
-    z: int
-    qubit_count: int
-    patches: list[PatchCoordGlobal3D]
-    lines: list[PipeCoordGlobal3D]
-
-    in_portset: dict[PatchCoordGlobal3D, list[NodeIdLocal]]
-    out_portset: dict[PatchCoordGlobal3D, list[NodeIdLocal]]
-    cout_portset: dict[PatchCoordGlobal3D, list[NodeIdLocal]]
-
-    in_ports: list[NodeIdLocal]
-    out_ports: list[NodeIdLocal]
-    cout_ports: list[NodeIdLocal]
-
-    schedule: ScheduleAccumulator
-    flow: FlowAccumulator
-    parity: ParityAccumulator
-
-    local_graph: GraphState
-    node2coord: dict[NodeIdLocal, PhysCoordGlobal3D]
-    coord2node: dict[PhysCoordGlobal3D, NodeIdLocal]
-    node2role: dict[NodeIdLocal, str]
-
-    def __init__(self, z: int):
-        self.z = z
-        self.qubit_count = 0
-        self.patches = []
-        self.lines = []
-        self.in_portset = {}
-        self.out_portset = {}
-        self.in_ports = []
-        self.out_ports = []
-        self.local_graph = None
-        self.node2coord = {}
-        self.coord2node = {}
-        self.node2role = {}
-        # accumulators
-        self.schedule = ScheduleAccumulator()
-        self.flow = FlowAccumulator()
-        self.parity = ParityAccumulator()
-
-    def add_block(self, pos: PatchCoordGlobal3D, block: RHGBlock) -> None:
+    def add_block(self, pos: PatchCoordGlobal3D, block: RHGBlockSkeleton) -> None:
         # Accept either a pre-materialized block or a skeleton.
         if isinstance(block, RHGBlockSkeleton):
             block = block.materialize()
@@ -73,6 +7,7 @@ class TemporalLayer:
             raise ValueError(
                 "Block has no template; set block.template before add_block()."
             )
+        # TODO: Materialize 方針につぁE��再老E��めE
         block.materialize()
         if getattr(block, "graph_local", None) is None:
             raise ValueError("Block.materialize() did not produce graph_local.")
@@ -180,7 +115,7 @@ class TemporalLayer:
         # Compose the pipe's local graph into the layer graph (if any)
         node_map1: dict[int, int] = {}
         node_map2: dict[int, int] = {}
-        g2 = spatial_pipe.local_graph
+        g2 = spatial_pipe.graph_local
 
         if g2 is not None:
             if getattr(self, "local_graph", None) is None:
@@ -261,44 +196,13 @@ class TemporalLayer:
         if getattr(self, "local_graph", None) is not None:
             self.qubit_count = len(self.local_graph.physical_nodes)
 
-    def add_blocks(self, blocks: dict[PatchCoordGlobal3D, RHGBlock]) -> None:
+    def add_blocks(self, blocks: dict[PatchCoordGlobal3D, RHGBlockSkeleton]) -> None:
         for pos, block in blocks.items():
             self.add_block(pos, block)
 
-    def add_pipes(self, pipes: dict[PipeCoordGlobal3D, RHGPipe]) -> None:
+    def add_pipes(self, pipes: dict[PipeCoordGlobal3D, RHGBlockSkeleton]) -> None:
         for (start, end), pipe in pipes.items():
             self.add_pipe(start, end, pipe)
-
-    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> TemporalLayer:
-        new_layer = TemporalLayer(self.z)
-        new_layer.qubit_count = self.qubit_count
-        new_layer.patches = self.patches.copy()
-        new_layer.lines = self.lines.copy()
-
-        new_layer.in_portset = {
-            pos: [node_map[n] for n in nodes] for pos, nodes in self.in_portset.items()
-        }
-        new_layer.out_portset = {
-            pos: [node_map[n] for n in nodes] for pos, nodes in self.out_portset.items()
-        }
-
-        new_layer.in_ports = [node_map[n] for n in self.in_ports]
-        new_layer.out_ports = [node_map[n] for n in self.out_ports]
-
-        new_layer.local_graph = self.local_graph.remap_nodes(node_map)
-        new_layer.node2coord = {
-            node_map[n]: coord for n, coord in self.node2coord.items()
-        }
-        new_layer.coord2node = {
-            coord: node_map[n] for n, coord in self.node2coord.items()
-        }
-
-        # TODO: implement remap_nodes for schedule, flow, parity
-        new_layer.schedule = self.schedule.remap_nodes(node_map)
-        new_layer.flow = self.flow.remap_nodes(node_map)
-        new_layer.parity = self.parity.remap_nodes(node_map)
-
-        return new_layer
 
     def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> "TemporalLayer":
         """Return a copy of this layer with all node ids remapped by `node_map`."""
@@ -394,7 +298,9 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
     blocks_: dict[PatchCoordGlobal3D, RHGBlockSkeleton] = field(default_factory=dict)
     # {((0,0,0),(1,0,0)): StabilizeSkeleton(), ((0,0,0), (0,0,1)): MeasureSkeleton(basis=X)}
     pipes_: dict[PipeCoordGlobal3D, RHGPipeSkeleton] = field(default_factory=dict)
-    trimmed: bool = False
+
+    def materialize(self) -> RHGBlock:
+        "Materialize the internal template assuming that the boundaries are trimmed"
 
     def add_block(self, position: PatchCoordGlobal3D, block: RHGBlockSkeleton) -> None:
         self.blocks_[position] = block
@@ -463,29 +369,31 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
                 # Not an axis-aligned spatial neighbor; ignore.
                 continue
 
-        self.trimmed = True
-
-    def to_canvas(self) -> RHGCanvas2:
+    def to_canvas(self) -> RHGCanvas:
         self.trim_spatial_boundaries()
 
-        trimmed_blocks = self.blocks_.copy()
-        trimmed_pipes = self.pipes_.copy()
+        trimmed_blocks_skeleton = self.blocks_.copy()
+        trimmed_pipes_skeleton = self.pipes_.copy()
 
-        canvas = RHGCanvas2(
-            name=self.name, blocks_=trimmed_blocks, pipes_=trimmed_pipes
-        )
+        blocks_ = {pos: blk.to_block() for pos, blk in trimmed_blocks_skeleton.items()}
+        pipes_ = {
+            (start, end): p.to_pipe()
+            for (start, end), p in trimmed_pipes_skeleton.items()
+        }
+
+        canvas = RHGCanvas(name=self.name, blocks_=blocks_, pipes_=pipes_)
         return canvas
 
 
 @dataclass
-class RHGCanvas2:  # TopologicalComputationGraph in tqec
+class RHGCanvas:  # TopologicalComputationGraph in tqec
     name: str = "Blank Canvas"
-    # blocks pipesは最後までmateiralizeされることはない。してもいいけど。tilingはmaterializeできる
-    blocks_: dict[PatchCoordGlobal3D, RHGBlockSkeleton] = field(default_factory=dict)
-    pipes_: dict[PipeCoordGlobal3D, RHGPipeSkeleton] = field(default_factory=dict)
+    # blocks pipesは最後までmateiralizeされることはなぁE��してもいぁE��ど。tilingはmaterializeできる
+    blocks_: dict[PatchCoordGlobal3D, RHGBlock] = field(default_factory=dict)
+    pipes_: dict[PipeCoordGlobal3D, RHGPipe] = field(default_factory=dict)
     layers: Optional[list[TemporalLayer]] = None
 
-    def add_block(self, position: PatchCoordGlobal3D, block: RHGBlockSkeleton) -> None:
+    def add_block(self, position: PatchCoordGlobal3D, block: RHGBlock) -> None:
         self.blocks_[position] = block
 
     def add_pipe(
@@ -539,15 +447,17 @@ class RHGCanvas2:  # TopologicalComputationGraph in tqec
 
 def to_temporal_layer(
     z: int,
-    blocks: dict[PatchCoordGlobal3D, RHGBlock],
-    pipes: dict[PipeCoordGlobal3D, RHGPipe],
+    blocks: dict[PatchCoordGlobal3D, RHGBlockSkeleton],
+    pipes: dict[PipeCoordGlobal3D, RHGBlockSkeleton],
 ) -> TemporalLayer:
     # 1) Make empty TemporalLayer instance
     layer = TemporalLayer(z)
-    # 2) Add blocks
+
     layer.add_blocks(blocks)
-    # 3) Add pipes
     layer.add_pipes(pipes)
+
+    # call materialize here
+    layer.materialize()
     return layer
 
 
@@ -685,3 +595,4 @@ def add_temporal_layer(
     )
 
     return cgraph
+

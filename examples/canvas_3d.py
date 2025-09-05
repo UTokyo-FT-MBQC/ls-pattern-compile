@@ -16,10 +16,10 @@ import stim
 
 from graphix_zx.pattern import Pattern
 from graphix_zx.stim_compiler import stim_compile
+from lspattern.blocks.initialize import InitPlusSkeleton
 
 sys.path.append(r"C:\Users\qipe\Documents\GitHub\ls-pattern-compile")
 
-from lspattern.blocks import InitPlus, MeasureX, Memory
 from lspattern.canvas2 import CompiledRHGCanvas, RHGCanvas2
 from lspattern.mytype import PatchCoordGlobal3D
 
@@ -29,20 +29,21 @@ r = 3
 
 canvas = RHGCanvas2("Memory X")
 
+edgespec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
+edgespec_trimmed = {"LEFT": "O", "RIGHT": "O", "TOP": "O", "BOTTOM": "O"}
+# tmpl = RotatedPlanarTemplate(d=3, edgespec=edgespec)
+# _ = tmpl.to_tiling()
 blocks = [
-    (PatchCoordGlobal3D(0, 0, 0), InitPlus(kind="ZXX")),
-    (PatchCoordGlobal3D(0, 0, 1), MeasureX(kind="ZXX")),
+    (PatchCoordGlobal3D((0, 0, 0)), InitPlusSkeleton(d=3, edgespec=edgespec)),
+    (PatchCoordGlobal3D((1, 1, 0)), InitPlusSkeleton(d=3, edgespec=edgespec_trimmed)),
+    (PatchCoordGlobal3D((2, 2, 0)), InitPlusSkeleton(d=3, edgespec=edgespec)),
 ]
-pipes = [
-    (PatchCoordGlobal3D(0, 0, 0), PatchCoordGlobal3D(0, 0, 1), Memory(kind="ZXO")),
-]
+pipes = []
 
 for block in blocks:
     canvas.add_block(*block)
 for pipe in pipes:
     canvas.add_pipe(*pipe)
-
-layers = canvas.to_temporal_layers()
 
 compiled_canvas = CompiledRHGCanvas(
     layers=layers,

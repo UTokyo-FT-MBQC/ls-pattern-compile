@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from lspattern.mytype import (
-    QubitIndex,
     SpatialEdgeSpec,
     TilingConsistentQubitId,
     TilingCoord2D,
@@ -21,6 +20,8 @@ class ScalableTemplate(Tiling):
     data_indices: list[int] = field(default_factory=list)
     x_coords: list[tuple[int, int]] = field(default_factory=list)
     z_coords: list[tuple[int, int]] = field(default_factory=list)
+
+    trimmed: bool = False
 
     def to_tiling(self) -> dict[str, list[tuple[int, int]]]:
         raise NotImplementedError
@@ -227,7 +228,6 @@ def _copy_with_offset(t: Tiling, dx: int, dy: int) -> Tiling:
     """
     return Tiling(
         data_coords=_offset_coords(getattr(t, "data_coords", []), dx, dy),
-        qubit_indices=[QubitIndex(i) for i in range(len(getattr(t, "data_coords", [])))],
         x_coords=_offset_coords(getattr(t, "x_coords", []), dx, dy),
         z_coords=_offset_coords(getattr(t, "z_coords", []), dx, dy),
     )
@@ -238,7 +238,6 @@ def merge_pair_spatial(
     b: ScalableTemplate,
     direction: str,
     *,
-    shift_qubits: bool = True,
     check_collisions: bool = True,
 ) -> ConnectedTiling:
     """Trim the facing boundaries of `a` and `b`, then merge their tilings.
@@ -285,9 +284,7 @@ def merge_pair_spatial(
     # 2) Build offset copies and merge
     a_copy = _copy_with_offset(a, 0, 0)
     b_copy = _copy_with_offset(b, *off_b)
-    return ConnectedTiling(
-        [a_copy, b_copy], shift_qubits=shift_qubits, check_collisions=check_collisions
-    )
+    return ConnectedTiling([a_copy, b_copy], check_collisions=check_collisions)
 
 
 class RotatedPlanarPipetemplate(ScalableTemplate):
@@ -362,6 +359,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
+
     from lspattern.mytype import EdgeSpec
 
     def set_edgespec(**kw):
@@ -410,4 +408,3 @@ if __name__ == "__main__":
         fig2.suptitle(f"Rotated Planar Pipes (EdgeSpec) d={d}")
         fig2.tight_layout()
         plt.show()
-

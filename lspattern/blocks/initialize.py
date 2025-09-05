@@ -152,7 +152,7 @@ class InitPlusSkeleton(RHGBlockSkeleton):
             z_checks=z_checks,
             schedule_local=schedule_local,
             flow_local=flow_local,
-            boundary_spec=self.edgespec,  # Use edgespec from skeleton
+            edge_spec=self.edgespec,  # Use edgespec from skeleton
             template=self.tiling,  # Pass the tiling as template
         )
         return block
@@ -172,12 +172,12 @@ class InitPlus(RHGBlock):
             # GraphState with existing nodes; assume materialized
             return
 
-        # Determine edgespec from provided template or boundary_spec
+        # Determine edgespec from provided template or edge_spec
         edgespec = None
         if getattr(self, "template", None) is not None:
             edgespec = getattr(self.template, "edgespec", None)
         if edgespec is None:
-            edgespec = getattr(self, "boundary_spec", None) or {}
+            edgespec = getattr(self, "edge_spec", None) or {}
 
         # Use the skeleton to construct a canonical RHGBlock, then adopt fields
         skel = InitPlusSkeleton(d=self.d, edgespec=edgespec)
@@ -195,7 +195,7 @@ class InitPlus(RHGBlock):
         self.cout_ports = built.cout_ports
         self.x_checks = built.x_checks
         self.z_checks = built.z_checks
-        self.boundary_spec = built.boundary_spec
+        self.edge_spec = built.edge_spec
         # Prefer an explicit template if already set; otherwise take the skeleton's
         if getattr(self, "template", None) is None:
             self.template = skel.tiling

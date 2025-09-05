@@ -18,13 +18,11 @@ class RHGBlock:
     graph_local: GraphState = field(default_factory=GraphState)
     origin: Optional[tuple[int, int, int]] = (0, 0, 0)
 
-    boundary_spec: dict[str, str] = field(default_factory=dict)
     template: Optional[ScalableTemplate] = field(
         default_factory=lambda: RotatedPlanarTemplate(d=3, edgespec={})
     )
 
-    # 各境界の仕様（X/Z/O=Open/Trimmed）。未設定(None/欠損)は Open(O) とみなす。
-    boundary_spec: Optional[SpatialEdgeSpec] = None
+    edge_spec: Optional[SpatialEdgeSpec] = None
 
     # measurement schedule (int)--> set of measured local nodes
     schedule_local: ScheduleTuplesLocal = field(default_factory=list)
@@ -36,7 +34,7 @@ class RHGBlock:
     in_ports: NodeSetLocal = field(default_factory=set)
     out_ports: NodeSetLocal = field(default_factory=set)
     # classical output ports. One group represents one logical result (to be XORed)
-    cout_ports: list[set[NodeIdLocal]] = field(default_factory=list)
+    cout_ports: list[NodeSetLocal] = field(default_factory=list)
 
     # Geometry annotations (LOCAL node -> (x, y, z))
     node2coord: dict[NodeIdLocal, PhysCoordLocal3D] = field(default_factory=dict)
@@ -44,8 +42,8 @@ class RHGBlock:
     node2role: dict[NodeIdLocal, str] = field(default_factory=dict)
 
     # Parity checks contributed entirely within the block (LOCAL ids)
-    x_checks: list[set[NodeIdLocal]] = field(default_factory=list)
-    z_checks: list[set[NodeIdLocal]] = field(default_factory=list)
+    x_checks: list[NodeSetLocal] = field(default_factory=list)
+    z_checks: list[NodeSetLocal] = field(default_factory=list)
 
     def shift_ids(self, by: int) -> None:
         # increase/decrease every nodes denoted by NodeIdLocal
@@ -132,8 +130,7 @@ class RHGBlockSkeleton:
     def __post_init__(self):
         self.tiling = RotatedPlanarTemplate(d=self.d, edgespec=self.edgespec)
 
-    def materialize(self) -> RHGBlock:
-        """Materialize the block and return a RHGBlock."""
+    def to_block(self) -> RHGBlock:
         raise NotImplementedError
 
     def trim_spatial_boundaries(self, direction: str) -> None:

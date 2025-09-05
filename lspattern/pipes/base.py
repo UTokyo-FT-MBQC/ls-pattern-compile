@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional, Tuple
+from typing import Optional, Tuple
 
 from graphix_zx.graphstate import BaseGraphState
 from lspattern.consts.consts import PIPEDIRECTION
 from lspattern.mytype import PatchCoordGlobal3D, SpatialEdgeSpec
+from lspattern.tiling.template import ScalableTemplate
 
 
 @dataclass
@@ -20,14 +21,15 @@ class RHGPipe:
     source: PatchCoordGlobal3D
     sink: PatchCoordGlobal3D
     d: int
+
     # Direction of the pipe (spatial or temporal)
     direction: PIPEDIRECTION
     # Template or tiling backing this pipe (implementation-specific)
-    local_template: Any
+    template: ScalableTemplate
     # Optional spatial edge spec for this pipe
     edgespec: Optional[SpatialEdgeSpec] = None
     # Local graph fragment contributed by the pipe
-    local_graph: Optional[BaseGraphState] = None
+    graph_local: Optional[BaseGraphState] = None
     # Optional port/coord registries for compatibility with canvas2
     in_ports: list[int] = field(default_factory=list)
     out_ports: list[int] = field(default_factory=list)

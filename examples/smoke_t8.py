@@ -10,10 +10,11 @@ Runs a minimal flow that exercises the new API:
 
 This script is intentionally lightweight; it prints a few counts and asserts.
 """
+
 from __future__ import annotations
 
 from lspattern.blocks.initialize import InitPlusSkeleton
-from lspattern.canvas2 import RHGCanvas2
+from lspattern.canvas import RHGCanvas
 from lspattern.mytype import PatchCoordGlobal3D
 from lspattern.tiling.template import RotatedPlanarTemplate
 
@@ -42,7 +43,7 @@ def main() -> None:
     assert len(block.out_ports) > 0
 
     # Canvas with Skeleton input
-    canvas = RHGCanvas2("T8Smoke")
+    canvas = RHGCanvas("T8Smoke")
     canvas.add_block(PatchCoordGlobal3D((0, 0, 0)), skel)
     layers = canvas.to_temporal_layers()
     assert 0 in layers and layers[0].local_graph is not None
@@ -60,4 +61,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

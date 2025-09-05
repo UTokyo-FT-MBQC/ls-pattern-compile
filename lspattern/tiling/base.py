@@ -10,12 +10,10 @@ class Tiling:
     """
 
     data_coords: list[TilingCoord2D] = field(default_factory=list)
-    qubit_indices: list[QubitIndex] = field(default_factory=list)
+    coord2qubitindex: dict[TilingCoord2D, QubitIndex] = field(default_factory=dict)
+
     x_coords: list[TilingCoord2D] = field(default_factory=list)
     z_coords: list[TilingCoord2D] = field(default_factory=list)
-
-    def shift_qubit_indices(self, by: int):
-        self.qubit_indices = [qi + by for qi in self.qubit_indices]
 
 
 @dataclass(init=False)
@@ -40,11 +38,12 @@ class ConnectedTiling(Tiling):
         self,
         tilings: list[Tiling] | tuple[Tiling, ...],
         *,
-        shift_qubits: bool = True,
         check_collisions: bool = True,
     ) -> None:
         # Keep references to parts; do not mutate them
         self.parts = list(tilings)
+        self.node_maps: dict[str, dict[TilingCoord2D, QubitIndex]] = {}
+        self.coord2qubitindex: dict[TilingCoord2D, QubitIndex] = {}
 
         # Gather coordinates
         data_list: list[TilingCoord2D] = []
@@ -89,26 +88,33 @@ class ConnectedTiling(Tiling):
                     problems.append(f"data/Z overlap: {sorted(overlap_dz)}")
                 if overlap_xz:
                     problems.append(f"X/Z overlap: {sorted(overlap_xz)}")
-                raise ValueError("ConnectedTiling coordinate collisions: " + "; ".join(problems))
+                raise ValueError(
+                    "ConnectedTiling coordinate collisions: " + "; ".join(problems)
+                )
 
         # Stable de-duplication while preserving part order
         self.data_coords = list(dict.fromkeys(data_list))
         self.x_coords = list(dict.fromkeys(x_list))
         self.z_coords = list(dict.fromkeys(z_list))
 
-        # Build qubit indices without mutating inputs
-        self.qubit_indices = []
-        if shift_qubits:
-            offset = 0
-            for t in self.parts:
-                if not t.qubit_indices:
-                    continue
-                self.qubit_indices.extend([qi + offset for qi in t.qubit_indices])
-                offset += len(t.qubit_indices)
-        else:
-            for t in self.parts:
-                if t.qubit_indices:
-                    self.qubit_indices.extend(t.qubit_indices)
+        # Assign contiguous indices across all coords: data -> X -> Z
+        self.coord2qubitindex = {}
+        for i, c in enumerate(self.data_coords):
+            self.coord2qubitindex[c] = QubitIndex(i)
+        offset = len(self.data_coords)
+        for j, c in enumerate(self.x_coords):
+            self.coord2qubitindex[c] = QubitIndex(offset + j)
+        offset += len(self.x_coords)
+        for k, c in enumerate(self.z_coords):
+            self.coord2qubitindex[c] = QubitIndex(offset + k)
+
+        self.node_maps = {
+            "data": {
+                c: self.data_coords.index(c) for t in self.parts for c in t.data_coords
+            },
+            "x": {c: self.x_coords.index(c) for t in self.parts for c in t.x_coords},
+            "z": {c: self.z_coords.index(c) for t in self.parts for c in t.z_coords},
+        }
 
 
 def _find_duplicates(seq: list[TilingCoord2D]) -> set[TilingCoord2D]:
@@ -120,4 +126,3 @@ def _find_duplicates(seq: list[TilingCoord2D]) -> set[TilingCoord2D]:
         else:
             seen.add(item)
     return dups
-
