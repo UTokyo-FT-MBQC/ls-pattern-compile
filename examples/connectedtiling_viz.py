@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 """
 T10 可視化デモ: 2 ブロック + 1 パイプをレイヤに配置し、
 ConnectedTiling の 2D 表示を行う。
@@ -7,17 +10,16 @@ ConnectedTiling の 2D 表示を行う。
 Run: python examples/connectedtiling_viz.py
 """
 
-import os
-import sys
-
 
 def _ensure_paths() -> None:
-    ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    if ROOT not in sys.path:
-        sys.path.insert(0, ROOT)
-    GX = os.path.join(ROOT, "src", "graphix_zx")
-    if GX not in sys.path:
-        sys.path.insert(0, GX)
+    root = Path(__file__).resolve().parent.parent
+    root_str = str(root)
+    if root_str not in sys.path:
+        sys.path.insert(0, root_str)
+    gx = root / "src" / "graphix_zx"
+    gx_str = str(gx)
+    if gx_str not in sys.path:
+        sys.path.insert(0, gx_str)
 
 
 def main() -> None:

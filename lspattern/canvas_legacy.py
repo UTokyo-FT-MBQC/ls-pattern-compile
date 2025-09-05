@@ -311,12 +311,12 @@ class RHGCanvas:
         # Apply unified parity additions (pairs/caps) specified by the block:
         # entries are (prev_global_center, [curr_local_nodes..]).
         for center_g, locals_list in delta.parity_x_prev_global_curr_local:
-            group = {center_g, *[node_map2[l] for l in locals_list if l in node_map2]}
+            group = {center_g, *[node_map2[local_node] for local_node in locals_list if local_node in node_map2]}
             if len(group) >= 2:
                 self.parity_accum.x_groups.append(group)
 
         for center_g, locals_list in delta.parity_z_prev_global_curr_local:
-            group = {center_g, *[node_map2[l] for l in locals_list if l in node_map2]}
+            group = {center_g, *[node_map2[local_node] for local_node in locals_list if local_node in node_map2]}
             if len(group) >= 2:
                 self.parity_accum.z_groups.append(group)
 
@@ -351,8 +351,8 @@ class RHGCanvas:
 
         # Remove logicals that were consumed (present in inputs but absent in outputs).
         consumed = set(delta.in_ports.keys()) - set(delta.out_ports.keys())
-        for l in consumed:
-            self.logical_registry.boundary_qidx.pop(l, None)
+        for logical_idx in consumed:
+            self.logical_registry.boundary_qidx.pop(logical_idx, None)
 
         # Update z_top heuristic.
         if delta.node_coords:

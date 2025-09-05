@@ -46,10 +46,11 @@ for pipe in pipes:
     canvas.add_pipe(*pipe)
 
 compiled_canvas = CompiledRHGCanvas(
-    layers=layers,
+    layers=canvas.get_layers(),
 )
 pattern = compiled_canvas.compile()
 # %%
+logical_observables = {0: set(range(d))}
 stim_str = stim_compile(
     pattern,
     logical_observables,
@@ -62,7 +63,7 @@ print(stim_str)
 
 
 def create_circuit(pattern: Pattern, noise: float) -> stim.Circuit:
-    logical_observables = {0: {i for i in range(d)}}
+    logical_observables = {0: set(range(d))}
     stim_str = stim_compile(
         pattern,
         logical_observables,

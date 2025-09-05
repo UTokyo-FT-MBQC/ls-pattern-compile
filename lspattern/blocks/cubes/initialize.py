@@ -201,7 +201,8 @@ class InitPlus(RHGBlock):
 
 
 if __name__ == "__main__":
-    # 次にInitpluseのRHGBlockを定義して、materializeして、そのgraph_localをtemplateと同様の色づけてvisualizeして。edgeは黒線でかいて、3Dプロットを使って
+    # 次にInitpluseのRHGBlockを定義して、materializeして、そのgraph_localを
+    # templateと同様の色づけてvisualizeして。edgeは黒線でかいて、3Dプロットを使って
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D  # noqa: F401, ensure 3D is registered
 

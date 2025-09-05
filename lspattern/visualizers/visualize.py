@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
+
+if TYPE_CHECKING:
+    from lspattern.canvas import RHGCanvas
 
 from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z, is_data
 
@@ -13,16 +18,16 @@ def _node_to_coord(canvas) -> dict[int, tuple[int, int, int]]:
 
 
 def visualize_canvas(
-    canvas,
+    canvas: RHGCanvas,
     *,
     indicated_nodes: set[int] | None = None,
-    annotate: bool = False,
     save_path: str | None = None,
     show: bool = True,
     figsize: tuple[int, int] = (6, 6),
     dpi: int = 120,
 ):
     """Visualizes the Raussendorf lattice with nodes colored based on their parity.
+
     Nodes with allowed parities are colored white, others are red.
     Physical edges are drawn in gray.
 
@@ -43,7 +48,6 @@ def visualize_canvas(
 
     """
     node2coord = _node_to_coord(canvas)
-    nodes = list(node2coord.keys())
 
     fig = plt.figure(figsize=figsize, dpi=dpi)
     ax = fig.add_subplot(111, projection="3d")
@@ -53,7 +57,7 @@ def visualize_canvas(
 
     xs, ys, zs = [], [], []
     colors = []
-    for _, (x, y, z) in node2coord.items():
+    for x, y, z in node2coord.values():
         xs.append(x)
         ys.append(y)
         zs.append(z)
@@ -104,17 +108,16 @@ def visualize_canvas(
     # Save figure if path is provided
     if save_path is not None:
         # Create directory if it doesn't exist
-        save_dir = os.path.dirname(save_path)
-        if save_dir and not os.path.exists(save_dir):
-            os.makedirs(save_dir, exist_ok=True)
+        save_path_obj = Path(save_path)
+        save_path_obj.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(save_path, bbox_inches="tight", dpi=dpi)
-        print(f"Figure saved to: {save_path}")
+        # Figure saved successfully
 
     # Show figure if requested and in interactive mode
     if show:
         # Check if we're in a Jupyter notebook
         try:
-            get_ipython()  # type: ignore
+            get_ipython()  # type: ignore[name-defined]
             # In Jupyter, just display the plot
             plt.show()
         except NameError:
@@ -122,6 +125,6 @@ def visualize_canvas(
             if os.environ.get("DISPLAY") or os.name == "nt":
                 plt.show()
             else:
-                print("Display not available. Use save_path parameter to save the figure.")
+                pass  # Display not available, figure not shown
     else:
         plt.close(fig)

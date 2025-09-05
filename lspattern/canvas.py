@@ -286,8 +286,10 @@ class TemporalLayer:
     ) -> None:
         """
         This is the function to add a pipe to the temporal layer.
-        - It adds a pipe between two blocks. Its shift coordinate is given from source and direction derived from source->sink directionality
-        - In addition, it connects two blocks of the same z in PatchCoordGlobal3D (do assert). Accordingly we need to modify
+        - It adds a pipe between two blocks. Its shift coordinate is given from source and direction
+          derived from source->sink directionality
+        - In addition, it connects two blocks of the same z in PatchCoordGlobal3D (do assert).
+          Accordingly we need to modify
         - 1.
 
         """
