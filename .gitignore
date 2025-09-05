@@ -5,7 +5,7 @@ __pycache__/
 .local
 .claude
 *.ipynb
-# .vscode
+.vscode
 
 # C extensions
 *.so
