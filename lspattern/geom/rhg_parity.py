@@ -1,3 +1,5 @@
+"""RHG lattice parity utilities and geometry functions."""
+
 from __future__ import annotations
 
 # Parity rule aligned with the original RHG implementation

@@ -1,3 +1,5 @@
+"""Base classes for pipe blocks."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

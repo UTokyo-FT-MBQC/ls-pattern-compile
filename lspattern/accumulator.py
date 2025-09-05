@@ -1,3 +1,5 @@
+"""Data accumulator classes for measurement scheduling, parity checks, and flow data."""
+
 from dataclasses import dataclass, field
 
 from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal

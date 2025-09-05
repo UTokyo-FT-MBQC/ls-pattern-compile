@@ -1,3 +1,5 @@
+"""General visualization utilities for patterns and graphs."""
+
 from __future__ import annotations
 
 import os

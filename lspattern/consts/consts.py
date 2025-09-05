@@ -1,4 +1,4 @@
-# This class stores some constants
+"""Constants for lspattern library including spatial orientations and pipe directions."""
 
 # 2D spatial orientations
 import enum
@@ -26,6 +26,8 @@ DIRECTIONS3D: list[tuple[int, int, int]] = [
 
 
 class PIPEDIRECTION(enum.Enum):
+    """Enumeration for pipe directions in 3D space."""
+
     LEFT = 0
     TOP = 1
     RIGHT = 2

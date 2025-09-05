@@ -1,3 +1,5 @@
+"""Canvas classes for managing temporal layers and RHG blocks."""
+
 from __future__ import annotations
 
 import contextlib
@@ -35,6 +37,8 @@ if TYPE_CHECKING:
 
 
 class TemporalLayer:
+    """Temporal layer for managing RHG blocks at a specific time slice."""
+
     z: int
     qubit_count: int
     patches: list[PatchCoordGlobal3D]
@@ -295,14 +299,13 @@ class TemporalLayer:
         sink: PatchCoordGlobal3D,
         spatial_pipe: RHGPipe,
     ) -> None:
-        """
-        This is the function to add a pipe to the temporal layer.
+        """Add a pipe between two blocks in the temporal layer.
+
         - It adds a pipe between two blocks. Its shift coordinate is given from source and direction
           derived from source->sink directionality
         - In addition, it connects two blocks of the same z in PatchCoordGlobal3D (do assert).
           Accordingly we need to modify
         - 1.
-
         """
         # Shift pipe-local ids (defensive; concrete pipes may override)
         spatial_pipe.shift_ids(by=self.qubit_count)
@@ -423,6 +426,8 @@ class TemporalLayer:
 
 @dataclass
 class CompiledRHGCanvas:
+    """Compiled RHG canvas containing temporal layers and global graph structure."""
+
     layers: list[TemporalLayer]
 
     global_graph: GraphState | None = None
@@ -472,6 +477,8 @@ class CompiledRHGCanvas:
 
 @dataclass
 class RHGCanvasSkeleton:  # BlockGraph in tqec
+    """RHG canvas skeleton for deferred materialization of blocks and pipes."""
+
     name: str = "Blank Canvas Skeleton"
     # Optional template placeholder for future use
     template: object | None = None
@@ -490,14 +497,11 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
         self.pipes_[start, end] = pipe
 
     def trim_spatial_boundaries(self) -> None:  # noqa: C901, PLR0912
-        """
-        Function trim spatial boundary (tiling from Scalable tiling class)
-            case direction
-            match direction
-            if Xplus then
-            axis to target is max d
-            if Xminus then
-            axis to 0
+        """Trim spatial boundaries of the tiling based on direction.
+
+        Case direction:
+        - If Xplus then axis to target is max d
+        - If Xminus then axis to 0
             target = -1
             for x y ancillas
                 do
@@ -579,6 +583,8 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
 
 @dataclass
 class RHGCanvas:  # TopologicalComputationGraph in tqec
+    """RHG canvas for managing materialized blocks and pipes."""
+
     name: str = "Blank Canvas"
     # blocks pipesは最後までmateiralizeされることはない。してもいいけど。tilingはmaterializeできる
     blocks_: dict[PatchCoordGlobal3D, RHGBlock] = field(default_factory=dict)

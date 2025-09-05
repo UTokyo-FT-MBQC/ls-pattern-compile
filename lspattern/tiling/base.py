@@ -1,3 +1,5 @@
+"""Base tiling classes and data structures."""
+
 from dataclasses import dataclass, field
 
 from lspattern.mytype import QubitIndex, TilingCoord2D

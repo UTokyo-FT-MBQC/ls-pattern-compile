@@ -1,3 +1,5 @@
+"""Base classes for RHG blocks and block skeletons."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -102,6 +104,7 @@ class RHGBlockSkeleton:
     template: ScalableTemplate = field(init=False)
 
     def __post_init__(self) -> None:
+        """Initialize the template after dataclass initialization."""
         self.template = RotatedPlanarTemplate(d=self.d, edgespec=self.edgespec)
 
     def to_block(self) -> RHGBlock:

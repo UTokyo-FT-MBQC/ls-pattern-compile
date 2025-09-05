@@ -1,3 +1,5 @@
+"""Plus state initialization blocks for cube-based patterns."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

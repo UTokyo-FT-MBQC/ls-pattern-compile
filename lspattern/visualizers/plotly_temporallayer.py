@@ -1,3 +1,5 @@
+"""Plotly-based temporal layer visualization."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any

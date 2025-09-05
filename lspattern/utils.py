@@ -1,3 +1,5 @@
+"""Utility functions for coordinate transformations and pipe directions."""
+
 import operator
 
 from lspattern.consts.consts import PIPEDIRECTION

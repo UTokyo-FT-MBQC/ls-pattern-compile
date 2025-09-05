@@ -1,3 +1,5 @@
+"""Measurement blocks for cube-based patterns."""
+
 from __future__ import annotations
 
 import operator

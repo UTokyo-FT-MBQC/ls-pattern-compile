@@ -1,3 +1,5 @@
+"""Template classes for scalable tiling patterns."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -15,6 +17,8 @@ from lspattern.utils import sort_xy
 
 @dataclass(kw_only=True)
 class ScalableTemplate(Tiling):
+    """Base class for scalable tiling templates with configurable edge specifications."""
+
     d: int
     edgespec: SpatialEdgeSpec  # e.g., {"top":"X","bottom":"Z",...}
 
@@ -224,6 +228,8 @@ class ScalableTemplate(Tiling):
 
 
 class RotatedPlanarTemplate(ScalableTemplate):
+    """Rotated planar template for RHG lattice patterns."""
+
     def to_tiling(self) -> dict[str, list[tuple[int, int]]]:  # noqa: C901, PLR0912
         d = self.d
         data_coords: set[tuple[int, int]] = set()

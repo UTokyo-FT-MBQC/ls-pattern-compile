@@ -1,3 +1,5 @@
+"""Tiling utilities and coordinate transformation functions."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

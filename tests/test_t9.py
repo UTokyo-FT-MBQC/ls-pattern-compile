@@ -1,5 +1,5 @@
-"""
-Smoke tests for T9 placement helpers:
+"""Smoke tests for T9 placement helpers.
+
 - Blocks placed at patch (0,0,0) and (1,0,0) do not collide after offset.
 - Vertical adjacency also works.
 - Without offset, collision is detected.
