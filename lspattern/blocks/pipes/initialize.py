@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Optional, Set, Tuple
 
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.graphstate import GraphState
 
+from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
 from lspattern.consts.consts import DIRECTIONS3D, PIPEDIRECTION
 from lspattern.mytype import (
     FlowLocal,
@@ -20,8 +20,6 @@ from lspattern.mytype import (
 from lspattern.tiling.template import RotatedPlanarPipetemplate
 from lspattern.utils import get_direction
 
-from .base import RHGPipe, RHGPipeSkeleton
-
 
 @dataclass
 class InitPlusPipeSkeleton(RHGPipeSkeleton):
@@ -32,11 +30,9 @@ class InitPlusPipeSkeleton(RHGPipeSkeleton):
         - TOP/BOTTOM（垂直）: {LEFT:'O', RIGHT:'O', TOP:'X', BOTTOM:'Z'}
     """
 
-    edgespec: Optional[SpatialEdgeSpec] = None
+    edgespec: SpatialEdgeSpec | None = None
 
-    def to_pipe(
-        self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D
-    ) -> "InitPlusPipe":
+    def to_pipe(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> InitPlusPipe:
         direction = get_direction(source, sink)
         spec = self.edgespec
         if spec is None:
@@ -75,18 +71,18 @@ class InitPlusPipe(RHGPipe):
         z_xy = tiling.get("Z", [])
 
         g = GraphState()
-        coord2node: Dict[PhysCoordLocal3D, NodeIdLocal] = {}
-        node2coord: Dict[NodeIdLocal, PhysCoordLocal3D] = {}
-        node2role: Dict[NodeIdLocal, str] = {}
+        coord2node: dict[PhysCoordLocal3D, NodeIdLocal] = {}
+        node2coord: dict[NodeIdLocal, PhysCoordLocal3D] = {}
+        node2role: dict[NodeIdLocal, str] = {}
 
         # z スライス 0..2d
         max_t = 2 * getattr(self, "d", 0)
-        nodes_by_z: Dict[int, Dict[PhysCoordLocal2D, NodeIdLocal]] = {}
-        for z in range(0, max_t + 1):
-            cur: Dict[PhysCoordLocal2D, NodeIdLocal] = {}
+        nodes_by_z: dict[int, dict[PhysCoordLocal2D, NodeIdLocal]] = {}
+        for z in range(max_t + 1):
+            cur: dict[PhysCoordLocal2D, NodeIdLocal] = {}
 
             # data は全スライス
-            for (x, y) in data_xy:
+            for x, y in data_xy:
                 n = g.add_physical_node()
                 if z != max_t:
                     g.assign_meas_basis(n, PlannerMeasBasis(Plane.XY, 0.0))
@@ -94,28 +90,28 @@ class InitPlusPipe(RHGPipe):
                 coord2node[coord] = n
                 node2coord[n] = coord
                 node2role[n] = "data"
-                cur[(x, y)] = n
+                cur[x, y] = n
 
             # ancilla は最終スライス以外、偶数: X / 奇数: Z
             if z != max_t:
                 if z % 2 == 0:
-                    for (x, y) in x_xy:
+                    for x, y in x_xy:
                         n = g.add_physical_node()
                         g.assign_meas_basis(n, PlannerMeasBasis(Plane.XY, 0.0))
                         coord = (x, y, z)
                         coord2node[coord] = n
                         node2coord[n] = coord
                         node2role[n] = "ancilla_x"
-                        cur[(x, y)] = n
+                        cur[x, y] = n
                 else:
-                    for (x, y) in z_xy:
+                    for x, y in z_xy:
                         n = g.add_physical_node()
                         g.assign_meas_basis(n, PlannerMeasBasis(Plane.XY, 0.0))
                         coord = (x, y, z)
                         coord2node[coord] = n
                         node2coord[n] = coord
                         node2role[n] = "ancilla_z"
-                        cur[(x, y)] = n
+                        cur[x, y] = n
 
             nodes_by_z[z] = cur
 
@@ -157,8 +153,8 @@ class InitPlusPipe(RHGPipe):
         # スケジュール: 偶数タイムスロット=ancilla, 奇数=data（最終は除く）
         schedule_local: ScheduleTuplesLocal = []
         for z, cur in nodes_by_z.items():
-            anc: Set[int] = set()
-            dat: Set[int] = set()
+            anc: set[int] = set()
+            dat: set[int] = set()
             for n in cur.values():
                 r = node2role[n]
                 if r.startswith("ancilla"):
@@ -178,7 +174,7 @@ class InitPlusPipe(RHGPipe):
             ys = [y for _, y in data_xy]
             x_min, x_max = min(xs), max(xs)
             y_min, y_max = min(ys), max(ys)
-            if self.direction in (PIPEDIRECTION.RIGHT, PIPEDIRECTION.LEFT):
+            if self.direction in {PIPEDIRECTION.RIGHT, PIPEDIRECTION.LEFT}:
                 left_x, right_x = x_min, x_max
                 in_x = left_x if self.direction == PIPEDIRECTION.RIGHT else right_x
                 out_x = right_x if self.direction == PIPEDIRECTION.RIGHT else left_x
@@ -188,7 +184,7 @@ class InitPlusPipe(RHGPipe):
                             in_ports.add(n)
                         elif x == out_x:
                             out_ports.add(n)
-            elif self.direction in (PIPEDIRECTION.TOP, PIPEDIRECTION.BOTTOM):
+            elif self.direction in {PIPEDIRECTION.TOP, PIPEDIRECTION.BOTTOM}:
                 bot_y, top_y = y_min, y_max
                 in_y = bot_y if self.direction == PIPEDIRECTION.TOP else top_y
                 out_y = top_y if self.direction == PIPEDIRECTION.TOP else bot_y

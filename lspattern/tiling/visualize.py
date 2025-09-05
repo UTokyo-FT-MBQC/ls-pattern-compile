@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from lspattern.tiling.base import ConnectedTiling
 
 
@@ -10,7 +8,7 @@ def plot_connected_tiling(
     ax=None,
     *,
     show: bool = True,
-    title: Optional[str] = None,
+    title: str | None = None,
 ):
     """2D 散布図で ConnectedTiling を簡易可視化する。
 
@@ -38,7 +36,7 @@ def plot_connected_tiling(
     def _split_xy(points: list[tuple[int, int]]):
         if not points:
             return [], []
-        px, py = zip(*points)
+        px, py = zip(*points, strict=False)
         return list(px), list(py)
 
     dx, dy = _split_xy(data)
@@ -69,7 +67,7 @@ def plot_connected_tiling(
 
 
 def plot_layer_tiling(
-    layer, *, anchor: str = "inner", show: bool = True, title: Optional[str] = None
+    layer, *, anchor: str = "inner", show: bool = True, title: str | None = None
 ):
     """TemporalLayer のブロック/パイプを 2D タイルに再構成して表示する。
 
@@ -80,4 +78,3 @@ def plot_layer_tiling(
     if title is None:
         title = f"TemporalLayer z={getattr(layer, 'z', '?')} (anchor={anchor})"
     return plot_connected_tiling(ct, ax=None, show=show, title=title)
-

@@ -10,7 +10,7 @@ class Tiling:
     """
 
     data_coords: list[TilingCoord2D] = field(default_factory=list)
-    # TODO: do it 
+    # TODO: do it
     # Tilingを継承しているすべてのclassでqubit indexをcoord2qubitindexに置き換える
     coord2qubitindex: dict[TilingCoord2D, QubitIndex] = field(default_factory=dict)
 
@@ -26,9 +26,7 @@ class Tiling:
         if not self.coord2qubitindex:
             return
         delta = int(by)
-        self.coord2qubitindex = {
-            c: QubitIndex(int(qi) + delta) for c, qi in self.coord2qubitindex.items()
-        }
+        self.coord2qubitindex = {c: QubitIndex(int(qi) + delta) for c, qi in self.coord2qubitindex.items()}
 
 
 @dataclass(init=False)
@@ -80,7 +78,6 @@ class ConnectedTiling(Tiling):
                 z_list.extend(t.z_coords)
                 z_set.update(t.z_coords)
 
-        # TODO: 関数の外に出してコードをきれいにする
         if check_collisions:
             _check_collisions_and_raise(
                 data_list,
@@ -105,12 +102,8 @@ class ConnectedTiling(Tiling):
         base_x = len(self.data_coords)
         base_z = base_x + len(self.x_coords)
         self.coord2qubitindex.update({c: QubitIndex(i) for c, i in data_idx.items()})
-        self.coord2qubitindex.update(
-            {c: QubitIndex(base_x + i) for c, i in x_idx.items()}
-        )
-        self.coord2qubitindex.update(
-            {c: QubitIndex(base_z + i) for c, i in z_idx.items()}
-        )
+        self.coord2qubitindex.update({c: QubitIndex(base_x + i) for c, i in x_idx.items()})
+        self.coord2qubitindex.update({c: QubitIndex(base_z + i) for c, i in z_idx.items()})
 
         # Fast node maps using the precomputed index maps
         self.node_maps = {
@@ -161,9 +154,7 @@ def _check_collisions_and_raise(
             problems.append(f"data/Z overlap: {sorted(overlap_dz)}")
         if overlap_xz:
             problems.append(f"X/Z overlap: {sorted(overlap_xz)}")
-        raise ValueError(
-            "ConnectedTiling coordinate collisions: " + "; ".join(problems)
-        )
+        raise ValueError("ConnectedTiling coordinate collisions: " + "; ".join(problems))
 
 
 if __name__ == "__main__":

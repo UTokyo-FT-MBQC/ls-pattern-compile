@@ -1,18 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 # import stim
 # graphix_zx pieces
 from graphix_zx.graphstate import GraphState, compose_in_parallel, compose_sequentially
+
 from lspattern.accumulator import (
     FlowAccumulator,
     ParityAccumulator,
     ScheduleAccumulator,
 )
 from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
-from lspattern.blocks.base2 import RHGPipe, RHGPipeSkeleton
+from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import (
     NodeIdLocal,
@@ -124,6 +124,72 @@ class TemporalLayer:
             "x": dict(ct.node_maps.get("x", {})),
             "z": dict(ct.node_maps.get("z", {})),
         }
+        # Build GraphState for this layer from ConnectedTiling (T12 policy)
+        d = next(iter(dset)) if dset else 0
+        max_t = 2 * d
+        g = GraphState()
+        node2coord = {}
+        coord2node = {}
+        node2role = {}
+
+        data2d = list(ct.data_coords)
+        x2d = list(ct.x_coords)
+        z2d = list(ct.z_coords)
+
+        nodes_by_z = {}
+        for t in range(max_t + 1):
+            cur = {}
+            for (x, y) in data2d:
+                n = g.add_physical_node()
+                node2coord[n] = (x, y, t)
+                coord2node[x, y, t] = n
+                node2role[n] = "data"
+                cur[x, y] = n
+            if t != max_t:
+                if t % 2 == 0:
+                    for (x, y) in x2d:
+                        n = g.add_physical_node()
+                        node2coord[n] = (x, y, t)
+                        coord2node[x, y, t] = n
+                        node2role[n] = "ancilla_x"
+                        cur[x, y] = n
+                else:
+                    for (x, y) in z2d:
+                        n = g.add_physical_node()
+                        node2coord[n] = (x, y, t)
+                        coord2node[x, y, t] = n
+                        node2role[n] = "ancilla_z"
+                        cur[x, y] = n
+            nodes_by_z[t] = cur
+
+        for t, cur in nodes_by_z.items():
+            for (x, y), u in cur.items():
+                for dx, dy, dz in DIRECTIONS3D:
+                    if dz != 0:
+                        continue
+                    v = cur.get((x + dx, y + dy))
+                    if v is not None and v > u:
+                        try:
+                            g.add_physical_edge(u, v)
+                        except Exception:
+                            pass
+
+        for t in range(1, max_t + 1):
+            cur = nodes_by_z[t]
+            prev = nodes_by_z[t - 1]
+            for xy, u in cur.items():
+                v = prev.get(xy)
+                if v is not None:
+                    try:
+                        g.add_physical_edge(u, v)
+                    except Exception:
+                        pass
+
+        self.local_graph = g
+        self.node2coord = node2coord
+        self.coord2node = coord2node
+        self.node2role = node2role
+        self.qubit_count = len(g.physical_nodes)
         return
 
         # 2D 連結（パッチ位置のオフセットは未考慮）
@@ -134,9 +200,9 @@ class TemporalLayer:
         if not tilings:
             self.tiling_node_maps = {}
             return
-        # TODO: fix Bug 
+        # TODO: fix Bug
         # Before this line we assume that template Coord2D are correctly shifted according to block/pipes positions
-        # Need to check 
+        # Need to check
         # tilings does not have position information, this is absolutely wrong.
         ct = ConnectedTiling(tilings, check_collisions=True)
         # base/ConnectedTiling の node_maps をそのまま公開
@@ -148,8 +214,8 @@ class TemporalLayer:
         # TODO: ctはmaterializeするもの。なんかいい感じに設計したい
         # graph, coord2node, ... = ct.materialize()
 
-        ## TODO: input_nodeset, output_nodesetの設定をnodemapをもとに適切に実装する必要がある
-        return 
+        # TODO: input_nodeset, output_nodesetの設定をnodemapをもとに適切に実装する必要がある
+        return
 
     def get_node_maps(self) -> dict[str, dict[tuple[int, int], int]]:
         """ConnectedTiling 由来の node_maps を返す（必要なら遅延計算）。"""
@@ -201,7 +267,7 @@ class TemporalLayer:
     def add_block(self, pos: PatchCoordGlobal3D, block: RHGBlockSkeleton) -> None:
         # Accept either a pre-materialized block or a skeleton.
         if isinstance(block, RHGBlockSkeleton):
-            block = block.materialize()
+            block = block.to_block()
         # Require a template and a materialized local graph
         if getattr(block, "template", None) is None:
             raise ValueError(
@@ -222,6 +288,8 @@ class TemporalLayer:
 
         # Update patch registry (ports will be set after composition)
         self.patches.append(pos)
+        # T12: Do not compose block graphs here; layer graph is built in materialize()
+        return
 
         # Compose this block's graph in parallel with the existing layer graph
         g2: GraphState = getattr(block, "graph_local", None)
@@ -316,7 +384,7 @@ class TemporalLayer:
         )
 
         # ConnectedTiling 用に保持
-        self.pipes_[(source, sink)] = spatial_pipe
+        self.pipes_[source, sink] = spatial_pipe
 
         # Compose the pipe's local graph into the layer graph (if any)
         node_map1: dict[int, int] = {}
@@ -410,7 +478,7 @@ class TemporalLayer:
         for (start, end), pipe in pipes.items():
             self.add_pipe(start, end, pipe)
 
-    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> "TemporalLayer":
+    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> TemporalLayer:
         """Return a copy of this layer with all node ids remapped by `node_map`."""
         new_layer = TemporalLayer(self.z)
         new_layer.qubit_count = self.qubit_count
@@ -448,7 +516,7 @@ class TemporalLayer:
 class CompiledRHGCanvas:
     layers: list[TemporalLayer]
 
-    global_graph: Optional[GraphState] = None
+    global_graph: GraphState | None = None
     coord2node: dict[PhysCoordGlobal3D, int] = field(default_factory=dict)
 
     in_portset: dict[PatchCoordGlobal3D, list[int]] = field(default_factory=dict)
@@ -514,11 +582,11 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
     def add_pipe(
         self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipeSkeleton
     ) -> None:
-        self.pipes_[(start, end)] = pipe
+        self.pipes_[start, end] = pipe
 
     def trim_spatial_boundaries(self) -> None:
         """
-        function trim spatial boundary (tiling from Scalable tiling class)
+        Function trim spatial boundary (tiling from Scalable tiling class)
             case direction
             match direction
             if Xplus then
@@ -599,7 +667,7 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
                     pipe_obj = to_pipe(start, end)
                 except TypeError:
                     pipe_obj = to_pipe()
-            pipes_[(start, end)] = pipe_obj
+            pipes_[start, end] = pipe_obj
 
         canvas = RHGCanvas(name=self.name, blocks_=blocks_, pipes_=pipes_)
         return canvas
@@ -611,7 +679,7 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
     # blocks pipesは最後までmateiralizeされることはない。してもいいけど。tilingはmaterializeできる
     blocks_: dict[PatchCoordGlobal3D, RHGBlock] = field(default_factory=dict)
     pipes_: dict[PipeCoordGlobal3D, RHGPipe] = field(default_factory=dict)
-    layers: Optional[list[TemporalLayer]] = None
+    layers: list[TemporalLayer] | None = None
 
     def add_block(self, position: PatchCoordGlobal3D, block: RHGBlock) -> None:
         self.blocks_[position] = block
@@ -619,7 +687,7 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
     def add_pipe(
         self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipe
     ) -> None:
-        self.pipes_[(start, end)] = pipe
+        self.pipes_[start, end] = pipe
 
     def to_temporal_layers(self) -> dict[int, TemporalLayer]:
         temporal_layers: dict[int, TemporalLayer] = {}
@@ -697,7 +765,6 @@ def add_temporal_layer(
     NOTE: This assumes `next_layer.local_graph` is a canonical GraphState built
     from its blocks/pipes. If it's None, we keep cgraph unchanged.
     """
-
     # If the canvas is empty, this is the first layer.
     if cgraph.global_graph is None:
         new_cgraph = CompiledRHGCanvas(

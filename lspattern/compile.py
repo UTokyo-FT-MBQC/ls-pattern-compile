@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from graphix_zx.qompiler import qompile
 
@@ -8,10 +8,10 @@ from graphix_zx.qompiler import qompile
 def compile_canvas(
     *,
     graph: Any,
-    xflow: Optional[Dict[int, Set[int]]] = None,
-    x_parity: Optional[List[Set[int]]] = None,
-    z_parity: Optional[List[Set[int]]] = None,
-    scheduler: Optional[Any] = None,
+    xflow: dict[int, set[int]] | None = None,
+    x_parity: list[set[int]] | None = None,
+    z_parity: list[set[int]] | None = None,
+    scheduler: Any | None = None,
 ) -> Any:
     """
     Thin wrapper around `graphix_zx.qompile` for an RHG canvas.

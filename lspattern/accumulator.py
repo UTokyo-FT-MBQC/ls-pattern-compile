@@ -1,3 +1,9 @@
+"""Lightweight accumulators for schedules, parities, and flows.
+
+These helpers store simple collections during compilation and offer
+remapping/combination utilities. No runtime behavior is changed by docstrings.
+"""
+
 from dataclasses import dataclass, field
 
 from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal
@@ -37,6 +43,8 @@ def _remap_groups(
 
 @dataclass
 class ScheduleAccumulator:
+    """Collect time-indexed node sets for measurement schedule."""
+
     schedule: dict[int, set[NodeIdGlobal]] = field(default_factory=dict)
 
     def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> "ScheduleAccumulator":
@@ -44,6 +52,11 @@ class ScheduleAccumulator:
 
         Times are preserved; nodes in each time slot are mapped via `node_map`.
         Unknown nodes are kept as-is for robustness.
+
+        Returns
+        -------
+        ScheduleAccumulator
+            A new instance with remapped node ids.
         """
         if not self.schedule:
             return ScheduleAccumulator()
@@ -53,6 +66,7 @@ class ScheduleAccumulator:
         return ScheduleAccumulator(remapped)
 
     def compose_parallel(self, other: "ScheduleAccumulator") -> "ScheduleAccumulator":
+        """Merge two schedules slot-wise without shifting times."""
         new_schedule = self.schedule.copy()
         for t, nodes in other.schedule.items():
             if t in new_schedule:
@@ -62,6 +76,7 @@ class ScheduleAccumulator:
         return ScheduleAccumulator(new_schedule)
 
     def shift_z(self, z_by: int) -> None:
+        """Shift all time slots by `z_by` in-place."""
         new_schedule = {}
         for t, nodes in self.schedule.items():
             new_schedule[t + z_by] = nodes
@@ -70,6 +85,7 @@ class ScheduleAccumulator:
     def compose_sequential(
         self, late_schedule: "ScheduleAccumulator"
     ) -> "ScheduleAccumulator":
+        """Concatenate schedules by placing `late_schedule` after this one."""
         new_schedule = self.schedule.copy()
         late_schedule.shift_z(max(self.schedule.keys()) + 1)
         for t, nodes in late_schedule.schedule.items():
@@ -79,6 +95,8 @@ class ScheduleAccumulator:
 
 @dataclass
 class ParityAccumulator:
+    """Parity check groups for X/Z stabilizers in local id space."""
+
     # Parity check groups (local ids)
     x_checks: list[set[NodeIdLocal]] = field(default_factory=list)
     z_checks: list[set[NodeIdLocal]] = field(default_factory=list)
@@ -86,6 +104,7 @@ class ParityAccumulator:
     def remap_nodes(
         self, node_map: dict[NodeIdLocal, NodeIdLocal]
     ) -> "ParityAccumulator":
+        """Return a new parity accumulator with nodes remapped via `node_map`."""
         # Fast remap via set/list comprehensions
         return ParityAccumulator(
             x_checks=_remap_groups(self.x_checks, node_map),
@@ -95,12 +114,15 @@ class ParityAccumulator:
 
 @dataclass
 class FlowAccumulator:
+    """Directed flow relations between nodes for X/Z types."""
+
     xflow: dict[NodeIdLocal, set[NodeIdLocal]] = field(default_factory=dict)
     zflow: dict[NodeIdLocal, set[NodeIdLocal]] = field(default_factory=dict)
 
     def remap_nodes(
         self, node_map: dict[NodeIdLocal, NodeIdLocal]
     ) -> "FlowAccumulator":
+        """Return a new flow accumulator with ids remapped via `node_map`."""
         # Remap both x/z flows using helper for speed
         return FlowAccumulator(
             xflow=_remap_flow(self.xflow, node_map),

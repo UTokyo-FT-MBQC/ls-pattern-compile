@@ -13,7 +13,8 @@ pytest 等に依存せず、`python -m lspattern.tiling.base_test` で
 - RotatedPlanarTemplate を用いた実地マージ（左右結合の件）
 """
 
-from typing import Iterable
+from collections.abc import Iterable
+
 from lspattern.tiling.base import ConnectedTiling, Tiling
 from lspattern.tiling.template import RotatedPlanarTemplate, merge_pair_spatial
 

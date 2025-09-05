@@ -1,8 +1,11 @@
+"""Base classes for cube-shaped RHG blocks."""
+
 from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
 
 
 class RHGCubeSkeleton(RHGBlockSkeleton):
-    pass
+    """Skeleton for a cube-shaped RHG block."""
+
 
 class RHGCube(RHGBlock):
-    pass
+    """A cube-shaped RHG block."""

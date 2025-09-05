@@ -3,7 +3,6 @@
 # 2D spatial orientations
 import enum
 
-
 DIRECTIONS2D: list[tuple[int, int]] = [
     (-1, -1),  # down left
     (-1, +1),  # down right

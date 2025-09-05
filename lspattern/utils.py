@@ -28,7 +28,7 @@ def get_direction(
 
 def __tuple_sum(l_: tuple, r_: tuple) -> tuple:
     assert len(l_) == len(r_)
-    return tuple(a + b for a, b in zip(l_, r_))
+    return tuple(a + b for a, b in zip(l_, r_, strict=False))
 
 
 # Prepare outputs as sorted lists for determinism

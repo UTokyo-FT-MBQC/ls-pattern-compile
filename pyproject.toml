@@ -88,6 +88,11 @@ docstring-code-format = true
   "D",
 ]
 
+[[tool.ruff.lint.overrides]]
+# Restrict checks in visualizers to fatal errors only
+files = ["lspattern/visualizers/**/*.py"]
+select = ["E9", "F63", "F7", "F82"]
+
 [tool.pytest.ini_options]
 pythonpath = ["lspattern"]
 testpaths = ["tests"]

@@ -32,10 +32,10 @@ def test_layer_viz_no_error() -> None:
     _ensure_paths()
     from lspattern.mytype import PatchCoordGlobal3D
     try:
-        from lspattern.blocks.initialize import InitPlusSkeleton as _BlockSkel
+        from lspattern.blocks.cubes.initialize import InitPlusSkeleton as _BlockSkel
     except Exception:
-        from lspattern.blocks.initialize import InitPlusBlockSkeleton as _BlockSkel
-    from lspattern.pipes.initialize import InitPlusPipeSkeleton
+        from lspattern.blocks.cubes.initialize import InitPlusBlockSkeleton as _BlockSkel
+    from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
     from lspattern.canvas import RHGCanvasSkeleton
     from lspattern.tiling.visualize import plot_layer_tiling
 
@@ -64,9 +64,9 @@ def test_mixed_d_raises() -> None:
     _ensure_paths()
     from lspattern.mytype import PatchCoordGlobal3D
     try:
-        from lspattern.blocks.initialize import InitPlusSkeleton as _BlockSkel2
+        from lspattern.blocks.cubes.initialize import InitPlusSkeleton as _BlockSkel2
     except Exception:
-        from lspattern.blocks.initialize import InitPlusBlockSkeleton as _BlockSkel2
+        from lspattern.blocks.cubes.initialize import InitPlusBlockSkeleton as _BlockSkel2
     from lspattern.canvas import TemporalLayer
 
     d1 = 3

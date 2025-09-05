@@ -25,8 +25,8 @@ def main() -> None:
 
     from lspattern.consts.consts import PIPEDIRECTION
     from lspattern.mytype import PatchCoordGlobal3D
-    from lspattern.blocks.initialize import InitPlusSkeleton
-    from lspattern.pipes.initialize import InitPlusPipeSkeleton
+    from lspattern.blocks.cubes.initialize import InitPlusSkeleton
+    from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
     from lspattern.canvas import RHGCanvasSkeleton
     from lspattern.tiling.visualize import plot_layer_tiling
 
@@ -58,4 +58,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

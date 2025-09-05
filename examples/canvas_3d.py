@@ -16,7 +16,7 @@ import stim
 
 from graphix_zx.pattern import Pattern
 from graphix_zx.stim_compiler import stim_compile
-from lspattern.blocks.initialize import InitPlusBlockSkeleton
+from lspattern.blocks.cubes.initialize import InitPlusBlockSkeleton
 
 sys.path.append(r"C:\Users\qipe\Documents\GitHub\ls-pattern-compile")
 

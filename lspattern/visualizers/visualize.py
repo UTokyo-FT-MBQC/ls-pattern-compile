@@ -1,21 +1,25 @@
 from __future__ import annotations
 
-from typing import Optional, Tuple, Dict, Any, List
-import matplotlib.pyplot as plt
 import os
+import pathlib
+from typing import Any
 
-from lspattern.geom.rhg_parity import is_data, is_ancilla_x, is_ancilla_z
+import matplotlib.pyplot as plt
 
-def _node_to_coord(canvas) -> Dict[int, Tuple[int,int,int]]:
+from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z, is_data
+
+
+def _node_to_coord(canvas: Any) -> dict[int, tuple[int, int, int]]:
     """Invert canvas.coord_to_node -> node -> (x,y,z)."""
-    return { nid: coord for coord, nid in canvas.coord_to_node.items() }
+    return {nid: coord for coord, nid in canvas.coord_to_node.items()}
+
 
 def visualize_canvas(
-    canvas,
+    canvas: Any,
     *,
     indicated_nodes: set[int] | None = None,
     annotate: bool = False,
-    save_path: Optional[str] = None,
+    save_path: str | None = None,
     show: bool = True,
     figsize: tuple[int, int] = (6, 6),
     dpi: int = 120,
@@ -40,19 +44,17 @@ def visualize_canvas(
         Figure resolution in dots per inch, by default 120
 
     """
-
     node2coord = _node_to_coord(canvas)
-    nodes = list(node2coord.keys())
-    
+
     fig = plt.figure(figsize=figsize, dpi=dpi)
     ax = fig.add_subplot(111, projection="3d")
     ax.set_box_aspect((1, 1, 1))  # Set aspect ratio to be equal
     ax.grid(False)
     ax.set_axis_off()
-    
+
     xs, ys, zs = [], [], []
     colors = []
-    for _, (x, y, z) in node2coord.items():
+    for x, y, z in node2coord.values():
         xs.append(x)
         ys.append(y)
         zs.append(z)
@@ -76,7 +78,7 @@ def visualize_canvas(
         depthshade=True,
         label="nodes",
     )
-    
+
     for u, v in canvas.graph.physical_edges:
         # Extract coordinates from coord2node
         x1, y1, z1 = node2coord[u]
@@ -103,17 +105,17 @@ def visualize_canvas(
     # Save figure if path is provided
     if save_path is not None:
         # Create directory if it doesn't exist
-        save_dir = os.path.dirname(save_path)
-        if save_dir and not os.path.exists(save_dir):
-            os.makedirs(save_dir, exist_ok=True)
+        save_dir = pathlib.Path(save_path).parent
+        if str(save_dir) and not save_dir.exists():
+            save_dir.mkdir(exist_ok=True, parents=True)
         fig.savefig(save_path, bbox_inches="tight", dpi=dpi)
-        print(f"Figure saved to: {save_path}")
+        print(f"Figure saved to: {save_path}")  # noqa: T201
 
     # Show figure if requested and in interactive mode
     if show:
         # Check if we're in a Jupyter notebook
         try:
-            get_ipython()  # type: ignore
+            get_ipython()  # type: ignore[name-defined]
             # In Jupyter, just display the plot
             plt.show()
         except NameError:

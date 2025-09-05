@@ -51,12 +51,13 @@ def test_block_and_canvas_layers() -> None:
     d = 3
     edgespec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
     try:
-        from lspattern.blocks.initialize import InitPlusBlockSkeleton  # lazy import
+        from lspattern.blocks.cubes.initialize import InitPlusBlockSkeleton  # lazy import
     except Exception as e:
         print(f"skip block/canvas_layers test (dependency missing): {e}")
         return
 
     from lspattern.canvas import RHGCanvas  # lazy import to avoid hard dep
+
     skel = InitPlusBlockSkeleton(d=d, edgespec=edgespec)
     block = skel.materialize()
     assert_true(block.graph_local is not None and len(block.node2coord) > 0, "block empty")
@@ -75,8 +76,8 @@ def test_pipe_materialize_and_canvas() -> None:
     d = 3
     edgespec = {"TOP": "O", "BOTTOM": "O", "LEFT": "X", "RIGHT": "Z"}
     try:
-        from lspattern.blocks.initialize import InitPlusBlockSkeleton
-        from lspattern.pipes.initialize import InitPlusPipe
+        from lspattern.blocks.cubes.initialize import InitPlusBlockSkeleton
+        from lspattern.blocks.pipes.initialize import InitPlusPipe
     except Exception as e:
         print(f"skip pipe test (dependency missing): {e}")
         return
@@ -91,6 +92,7 @@ def test_pipe_materialize_and_canvas() -> None:
     assert_true(len(pipe.node2coord) > 0, "pipe failed to materialize")
 
     from lspattern.canvas import RHGCanvas  # lazy import
+
     canvas = RHGCanvas("RefactorPipe")
     a = PatchCoordGlobal3D((0, 0, 0))
     b = PatchCoordGlobal3D((1, 0, 0))

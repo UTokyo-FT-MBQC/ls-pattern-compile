@@ -102,7 +102,8 @@ def _create_rhg(
     """Places a node only if the parity pattern (x % 2, y % 2, z % 2) of the integer coordinates (x, y, z)
     is included in `allowed_parities`, and returns the corresponding GraphState and a coordinate-to-node-index mapping.
 
-    Returns:
+    Returns
+    -------
     - graphstate: GraphState
         RHG graphstate
     - coord2node: dict[tuple[int,int,int], int]
@@ -137,17 +138,17 @@ def _create_rhg(
                     # skip output layer if not in data_parities
                     continue
                 node_idx = gs.add_physical_node()
-                coord2node[(x, y, z)] = node_idx
+                coord2node[x, y, z] = node_idx
                 if z == Lz + offsets[2] - 1:  # output layer
                     if parity in data_parities:
-                        gs.register_output(node_idx, coord2qindex[(x, y)])
+                        gs.register_output(node_idx, coord2qindex[x, y])
                     else:
                         gs.assign_meas_basis(node_idx, PlannerMeasBasis(Plane.XY, 0.0))
                 else:
                     if z == offsets[2]:  # input layer
                         if parity in data_parities:
                             q_index = gs.register_input(node_idx)
-                            coord2qindex[(x, y)] = q_index
+                            coord2qindex[x, y] = q_index
                     gs.assign_meas_basis(node_idx, PlannerMeasBasis(Plane.XY, 0.0))
 
                 if parity in data_parities:
@@ -169,7 +170,7 @@ def _create_rhg(
         ]:
             nx, ny, nz = x + dx, y + dy, z + dz
             if (nx, ny, nz) in coord2node:
-                v = coord2node[(nx, ny, nz)]
+                v = coord2node[nx, ny, nz]
                 try:
                     gs.add_physical_edge(u, v)
                 except ValueError:
