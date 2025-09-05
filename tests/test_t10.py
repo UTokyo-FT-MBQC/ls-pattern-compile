@@ -10,18 +10,6 @@ Smoke tests for T10:
 Run: python examples/test_t10.py
 """
 
-import os
-import sys
-
-
-def _ensure_paths() -> None:
-    ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    if ROOT not in sys.path:
-        sys.path.insert(0, ROOT)
-    GX = os.path.join(ROOT, "src", "graphix_zx")
-    if GX not in sys.path:
-        sys.path.insert(0, GX)
-
 
 def assert_true(cond: bool, msg: str) -> None:
     if not cond:
@@ -29,14 +17,13 @@ def assert_true(cond: bool, msg: str) -> None:
 
 
 def test_layer_viz_no_error() -> None:
-    _ensure_paths()
     from lspattern.mytype import PatchCoordGlobal3D
 
     try:
-        from lspattern.blocks.initialize import InitPlusSkeleton as _BlockSkel
+        from lspattern.blocks.cubes.initialize import InitPlusBlockSkeleton as _BlockSkel
     except Exception:
-        from lspattern.blocks.initialize import InitPlusBlockSkeleton as _BlockSkel
-    from lspattern.pipes.initialize import InitPlusPipeSkeleton
+        from lspattern.blocks.cubes.initialize import InitPlusBlockSkeleton as _BlockSkel
+    from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
 
     from lspattern.canvas import RHGCanvasSkeleton
     from lspattern.tiling.visualize import plot_layer_tiling
@@ -63,13 +50,12 @@ def test_layer_viz_no_error() -> None:
 
 
 def test_mixed_d_raises() -> None:
-    _ensure_paths()
     from lspattern.mytype import PatchCoordGlobal3D
 
     try:
-        from lspattern.blocks.initialize import InitPlusSkeleton as _BlockSkel2
+        from lspattern.blocks.cubes.initialize import InitPlusBlockSkeleton as _BlockSkel2
     except Exception:
-        from lspattern.blocks.initialize import InitPlusBlockSkeleton as _BlockSkel2
+        from lspattern.blocks.cubes.initialize import InitPlusBlockSkeleton as _BlockSkel2
     from lspattern.canvas import TemporalLayer
 
     d1 = 3

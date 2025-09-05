@@ -12,18 +12,6 @@ Refactor smoke tests to ensure previous flows still work after unification:
 Run: python examples/test_refactor.py
 """
 
-import os
-import sys
-
-# Ensure repository root is on sys.path when running directly
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)
-# Add vendored graphix_zx (editable path)
-GX = os.path.join(ROOT, "src", "graphix_zx")
-if GX not in sys.path:
-    sys.path.insert(0, GX)
-
 from lspattern.consts.consts import PIPEDIRECTION
 from lspattern.mytype import PatchCoordGlobal3D
 from lspattern.tiling.template import RotatedPlanarTemplate
@@ -76,8 +64,8 @@ def test_pipe_materialize_and_canvas() -> None:
     d = 3
     edgespec = {"TOP": "O", "BOTTOM": "O", "LEFT": "X", "RIGHT": "Z"}
     try:
-        from lspattern.blocks.initialize import InitPlusBlockSkeleton
-        from lspattern.pipes.initialize import InitPlusPipe
+        from lspattern.blocks.cubes.initialize import InitPlusBlockSkeleton
+        from lspattern.blocks.pipes.initialize import InitPlusPipe
     except Exception as e:
         print(f"skip pipe test (dependency missing): {e}")
         return
