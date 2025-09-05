@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
+from typing import Any
 
 import matplotlib.pyplot as plt
 
@@ -8,7 +10,7 @@ from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z
 
 
 def visualize_temporal_layer(
-    layer,
+    layer: Any,
     *,
     indicated_nodes: set[int] | None = None,
     annotate: bool = False,
@@ -16,7 +18,7 @@ def visualize_temporal_layer(
     show: bool = True,
     figsize: tuple[int, int] = (6, 6),
     dpi: int = 120,
-):
+) -> None:
     """Visualize a single TemporalLayer in 3D with parity-based coloring.
 
     Parameters
@@ -71,7 +73,7 @@ def visualize_temporal_layer(
         g["y"].append(y)
         g["z"].append(z)
 
-    def scat(gkey: str, color: str, label: str | None):
+    def scat(gkey: str, color: str, label: str | None) -> None:
         pts = groups[gkey]
         if pts["x"]:
             ax.scatter(
@@ -118,9 +120,8 @@ def visualize_temporal_layer(
 
     # Save figure if requested
     if save_path is not None:
-        save_dir = os.path.dirname(save_path)
-        if save_dir and not os.path.exists(save_dir):
-            os.makedirs(save_dir, exist_ok=True)
+        save_path_obj = Path(save_path)
+        save_path_obj.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(save_path, bbox_inches="tight", dpi=dpi)
         print(f"Figure saved to: {save_path}")
 

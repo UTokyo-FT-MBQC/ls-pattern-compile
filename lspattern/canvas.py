@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import contextlib
+import operator
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 # import stim
 # graphix_zx pieces
@@ -12,14 +15,7 @@ from lspattern.accumulator import (
     ScheduleAccumulator,
 )
 from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
-from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
 from lspattern.consts.consts import DIRECTIONS3D
-from lspattern.mytype import (
-    NodeIdLocal,
-    PatchCoordGlobal3D,
-    PhysCoordGlobal3D,
-    PipeCoordGlobal3D,
-)
 from lspattern.tiling.base import ConnectedTiling
 from lspattern.tiling.template import (
     block_offset_xy,
@@ -27,6 +23,15 @@ from lspattern.tiling.template import (
     pipe_offset_xy,
 )
 from lspattern.utils import get_direction
+
+if TYPE_CHECKING:
+    from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
+    from lspattern.mytype import (
+        NodeIdLocal,
+        PatchCoordGlobal3D,
+        PhysCoordGlobal3D,
+        PipeCoordGlobal3D,
+    )
 
 
 class TemporalLayer:
@@ -55,7 +60,7 @@ class TemporalLayer:
     blocks_: dict[PatchCoordGlobal3D, RHGBlock]
     pipes_: dict[PipeCoordGlobal3D, RHGPipe]
 
-    def __init__(self, z: int):
+    def __init__(self, z: int) -> None:
         self.z = z
         self.qubit_count = 0
         self.patches = []
@@ -114,7 +119,8 @@ class TemporalLayer:
             return
 
         if len(dset) > 1:
-            raise ValueError("TemporalLayer.materialize: mixed code distances (d) are not supported yet")
+            msg = "TemporalLayer.materialize: mixed code distances (d) are not supported yet"
+            raise ValueError(msg)
 
         ct = ConnectedTiling(tilings_abs, check_collisions=True)
         self.tiling_node_maps = {
@@ -150,13 +156,13 @@ class TemporalLayer:
         return
 
     def get_node_maps(self) -> dict[str, dict[tuple[int, int], int]]:
-        """ConnectedTiling 由来の node_maps を返す（必要なら遅延計算）。"""
+        """ConnectedTiling 由来の node_maps を返す（必要なら遅延計算）。."""
         if not getattr(self, "tiling_node_maps", None):
             self.materialize()
         return self.tiling_node_maps
 
     def get_connected_tiling(self, anchor: str = "inner") -> ConnectedTiling:
-        """ブロック/パイプを絶対2D座標に再配置して ConnectedTiling を返す。
+        """ブロック/パイプを絶対2D座標に再配置して ConnectedTiling を返す。.
 
         - materialize() と同等のオフセット計算を一時的に行う（キャッシュは任意）
         - d が混在する場合は ValueError を送出
@@ -192,7 +198,8 @@ class TemporalLayer:
         if not tilings_abs:
             return ConnectedTiling([])
         if len(dset) > 1:
-            raise ValueError("Mixed code distances (d) are not supported in a single layer")
+            msg = "Mixed code distances (d) are not supported in a single layer"
+            raise ValueError(msg)
 
         return ConnectedTiling(tilings_abs, check_collisions=True)
 
@@ -202,13 +209,16 @@ class TemporalLayer:
             block = block.materialize()
         # Require a template and a materialized local graph
         if getattr(block, "template", None) is None:
-            raise ValueError("Block has no template; set block.template before add_block().")
+            msg = "Block has no template; set block.template before add_block()."
+            raise ValueError(msg)
         # TODO: Materialize 方針について再考する
         block.materialize()
         if getattr(block, "graph_local", None) is None:
-            raise ValueError("Block.materialize() did not produce graph_local.")
+            msg = "Block.materialize() did not produce graph_local."
+            raise ValueError(msg)
         if not getattr(block, "node2coord", {}):
-            raise ValueError("Block has empty node2coord after materialize().")
+            msg = "Block has empty node2coord after materialize()."
+            raise ValueError(msg)
 
         # shift coordinates for placement (ids remain local to block graph)
         block.shift_coords(pos)
@@ -264,8 +274,9 @@ class TemporalLayer:
             # Detect coordinate collisions with already-placed blocks/nodes
             if coord in self.coord2node:
                 existing_nn = self.coord2node[coord]
+                msg = f"Coordinate collision: {coord} already occupied by node {existing_nn} when adding block at {pos}."
                 raise ValueError(
-                    f"Coordinate collision: {coord} already occupied by node {existing_nn} when adding block at {pos}."
+                    msg
                 )
             self.node2coord[nn] = coord
             self.coord2node[coord] = nn
@@ -345,9 +356,12 @@ class TemporalLayer:
             nn = node_map2.get(old_n, old_n)
             # Collision check against existing coordinates
             if coord in self.coord2node and self.coord2node[coord] != nn:
-                raise ValueError(
+                msg = (
                     f"Coordinate collision: {coord} already occupied by node {self.coord2node[coord]} "
                     f"when adding pipe {source}->{sink}."
+                )
+                raise ValueError(
+                    msg
                 )
             self.node2coord[nn] = coord
             self.coord2node[coord] = nn
@@ -467,7 +481,7 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
     pipes_: dict[PipeCoordGlobal3D, RHGPipeSkeleton] = field(default_factory=dict)
 
     def materialize(self) -> RHGBlock:
-        "Materialize the internal template assuming that the boundaries are trimmed"
+        "Materialize the internal template assuming that the boundaries are trimmed."
 
     def add_block(self, position: PatchCoordGlobal3D, block: RHGBlockSkeleton) -> None:
         self.blocks_[position] = block
@@ -490,7 +504,7 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
                 if coord.dim(acos) hits the target
                 remove it
             end
-        end
+        end.
         """
         # Iterate spatial pipes and trim facing boundaries of adjacent blocks.
         # Pipes are keyed by ((x,y,z),(x,y,z)); detect spatial adjacency by dx/dy.
@@ -560,8 +574,7 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
                     pipe_obj = to_pipe()
             pipes_[start, end] = pipe_obj
 
-        canvas = RHGCanvas(name=self.name, blocks_=blocks_, pipes_=pipes_)
-        return canvas
+        return RHGCanvas(name=self.name, blocks_=blocks_, pipes_=pipes_)
 
 
 @dataclass
@@ -580,7 +593,7 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
 
     def to_temporal_layers(self) -> dict[int, TemporalLayer]:
         temporal_layers: dict[int, TemporalLayer] = {}
-        for z in range(max(self.blocks_.keys(), key=lambda pos: pos[2])[2] + 1):
+        for z in range(max(self.blocks_.keys(), key=operator.itemgetter(2))[2] + 1):
             blocks = {pos: blk for pos, blk in self.blocks_.items() if pos[2] == z}
             pipes = {(u, v): p for (u, v), p in self.pipes_.items() if u[2] == z and v[2] == z}
 
@@ -646,7 +659,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
     """
     # If the canvas is empty, this is the first layer.
     if cgraph.global_graph is None:
-        new_cgraph = CompiledRHGCanvas(
+        return CompiledRHGCanvas(
             layers=[next_layer],
             global_graph=next_layer.local_graph,
             coord2node=next_layer.coord2node,
@@ -656,7 +669,6 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
             schedule=next_layer.schedule,
             z=next_layer.z,
         )
-        return new_cgraph
 
     graph1 = cgraph.global_graph
     graph2 = next_layer.local_graph
@@ -668,15 +680,12 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
     next_layer = next_layer.remap_nodes(node_map2)
 
     # Create a new CompiledRHGCanvas to hold the merged result.
-    new_layers = cgraph.layers + [next_layer]
+    new_layers = [*cgraph.layers, next_layer]
     new_z = next_layer.z
 
     # Build merged coord2node map (already remapped above)
-    new_coord2node: dict[PhysCoordGlobal3D, int] = {}
-    for coord, nid in cgraph.coord2node.items():
-        new_coord2node[coord] = nid
-    for coord, nid in next_layer.coord2node.items():
-        new_coord2node[coord] = nid
+    new_coord2node: dict[PhysCoordGlobal3D, int] = dict(cgraph.coord2node.items())
+    new_coord2node.update(dict(next_layer.coord2node.items()))
 
     # Remap portsets
     in_portset = {}
@@ -694,11 +703,11 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
 
     # Stitch across time by matching (x, y) at the temporal seam; add CZ edges
     try:
-        prev_last_z = max(c[2] for c in cgraph.coord2node.keys())
+        prev_last_z = max(c[2] for c in cgraph.coord2node)
     except ValueError:
         prev_last_z = None
     try:
-        next_first_z = min(c[2] for c in next_layer.coord2node.keys())
+        next_first_z = min(c[2] for c in next_layer.coord2node)
     except ValueError:
         next_first_z = None
 
@@ -709,10 +718,8 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         for xy, u in prev_xy_to_node.items():
             v = next_xy_to_node.get(xy)
             if v is not None and u != v:
-                try:
+                with contextlib.suppress(Exception):
                     new_graph.add_physical_edge(u, v)
-                except Exception:
-                    pass
                 seam_pairs.append((u, v))
 
     # Merge schedule, flow, parity
@@ -739,7 +746,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         z_checks=cgraph.parity.z_checks + next_layer.parity.z_checks,
     )
 
-    cgraph = CompiledRHGCanvas(
+    return CompiledRHGCanvas(
         layers=new_layers,
         global_graph=new_graph,
         coord2node=new_coord2node,
@@ -751,5 +758,3 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         parity=new_parity,
         z=new_z,
     )
-
-    return cgraph

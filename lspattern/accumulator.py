@@ -35,6 +35,8 @@ def _remap_groups(
 
 @dataclass
 class ScheduleAccumulator:
+    """Accumulator for measurement schedule data."""
+
     schedule: dict[int, set[NodeIdGlobal]] = field(default_factory=dict)
 
     def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> "ScheduleAccumulator":
@@ -51,6 +53,7 @@ class ScheduleAccumulator:
         return ScheduleAccumulator(remapped)
 
     def compose_parallel(self, other: "ScheduleAccumulator") -> "ScheduleAccumulator":
+        """Combine two schedules in parallel, merging overlapping time slots."""
         new_schedule = self.schedule.copy()
         for t, nodes in other.schedule.items():
             if t in new_schedule:
@@ -60,12 +63,14 @@ class ScheduleAccumulator:
         return ScheduleAccumulator(new_schedule)
 
     def shift_z(self, z_by: int) -> None:
+        """Shift all time indices by the given offset."""
         new_schedule = {}
         for t, nodes in self.schedule.items():
             new_schedule[t + z_by] = nodes
         self.schedule = new_schedule
 
     def compose_sequential(self, late_schedule: "ScheduleAccumulator") -> "ScheduleAccumulator":
+        """Combine two schedules sequentially, with late_schedule after self."""
         new_schedule = self.schedule.copy()
         late_schedule.shift_z(max(self.schedule.keys()) + 1)
         for t, nodes in late_schedule.schedule.items():
@@ -75,11 +80,14 @@ class ScheduleAccumulator:
 
 @dataclass
 class ParityAccumulator:
+    """Accumulator for parity check data."""
+
     # Parity check groups (local ids)
     x_checks: list[set[NodeIdLocal]] = field(default_factory=list)
     z_checks: list[set[NodeIdLocal]] = field(default_factory=list)
 
     def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> "ParityAccumulator":
+        """Return a new accumulator with node ids remapped by node_map."""
         # Fast remap via set/list comprehensions
         return ParityAccumulator(
             x_checks=_remap_groups(self.x_checks, node_map),
@@ -89,10 +97,13 @@ class ParityAccumulator:
 
 @dataclass
 class FlowAccumulator:
+    """Accumulator for flow data."""
+
     xflow: dict[NodeIdLocal, set[NodeIdLocal]] = field(default_factory=dict)
     zflow: dict[NodeIdLocal, set[NodeIdLocal]] = field(default_factory=dict)
 
     def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> "FlowAccumulator":
+        """Return a new accumulator with node ids remapped by node_map."""
         # Remap both x/z flows using helper for speed
         return FlowAccumulator(
             xflow=_remap_flow(self.xflow, node_map),

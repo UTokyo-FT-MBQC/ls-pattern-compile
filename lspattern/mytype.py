@@ -85,32 +85,32 @@ EdgeSpec: SpatialEdgeSpec = {
 }
 
 __all__ = [
-    # ids
-    "NodeIdLocal",
-    "NodeIdGlobal",
-    "LogicalIndex",
-    "QubitIndex",
-    # coords
-    "PatchCoordLocal2D",
-    "PatchCoordGlobal3D",
-    "PipeCoordGlobal3D",
-    "PhysCoordLocal3D",
-    "PhysCoordGlobal3D",
-    # sets/maps
-    "NodeSetLocal",
-    "NodeSetGlobal",
-    # block IO
-    "InPortsLocal",
-    "OutPortsLocal",
-    "OutQMapLocal",
-    # schedule/flow
-    "LocalTime",
-    "ScheduleTuplesLocal",
-    "FlowLocal",
-    # parity
-    "ParityCapsLocal",
     # directions
     "BoundarySide",
-    "SpatialEdgeSpec",
     "EdgeSpec",
+    "FlowLocal",
+    # block IO
+    "InPortsLocal",
+    # schedule/flow
+    "LocalTime",
+    "LogicalIndex",
+    "NodeIdGlobal",
+    # ids
+    "NodeIdLocal",
+    "NodeSetGlobal",
+    # sets/maps
+    "NodeSetLocal",
+    "OutPortsLocal",
+    "OutQMapLocal",
+    # parity
+    "ParityCapsLocal",
+    "PatchCoordGlobal3D",
+    # coords
+    "PatchCoordLocal2D",
+    "PhysCoordGlobal3D",
+    "PhysCoordLocal3D",
+    "PipeCoordGlobal3D",
+    "QubitIndex",
+    "ScheduleTuplesLocal",
+    "SpatialEdgeSpec",
 ]

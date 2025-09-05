@@ -5,9 +5,7 @@ from lspattern.mytype import QubitIndex, TilingCoord2D
 
 @dataclass
 class Tiling:
-    """
-    Base class for physical qubit tiling patterns.
-    """
+    """Base class for physical qubit tiling patterns."""
 
     data_coords: list[TilingCoord2D] = field(default_factory=list)
     # TODO: do it
@@ -17,7 +15,7 @@ class Tiling:
     x_coords: list[TilingCoord2D] = field(default_factory=list)
     z_coords: list[TilingCoord2D] = field(default_factory=list)
 
-    def shift_qubit_indices(self, by: int):
+    def shift_qubit_indices(self, by: int) -> None:
         """Shift assigned qubit indices by `by` in-place.
 
         Operates on `coord2qubitindex` which maps tiling coordinates to

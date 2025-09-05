@@ -2,8 +2,8 @@ from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
 
 
 class RHGCubeSkeleton(RHGBlockSkeleton):
-    pass
+    """Cube skeleton implementation."""
 
 
 class RHGCube(RHGBlock):
-    pass
+    """RHG cube block implementation."""

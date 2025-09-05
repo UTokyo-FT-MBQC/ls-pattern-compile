@@ -1,26 +1,33 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.graphstate import GraphState
 
 from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
 from lspattern.consts.consts import DIRECTIONS3D
-from lspattern.mytype import (
-    FlowLocal,
-    NodeIdLocal,
-    NodeSetLocal,
-    PhysCoordGlobal3D,
-    PhysCoordLocal2D,
-    PhysCoordLocal3D,
-    ScheduleTuplesLocal,
-)
 from lspattern.tiling.template import RotatedPlanarTemplate
+
+if TYPE_CHECKING:
+    from lspattern.mytype import (
+        FlowLocal,
+        NodeIdLocal,
+        NodeSetLocal,
+        PhysCoordGlobal3D,
+        PhysCoordLocal2D,
+        PhysCoordLocal3D,
+        ScheduleTuplesLocal,
+    )
 
 
 class InitPlusBlockSkeleton(RHGBlockSkeleton):
+    """Initialize block skeleton for Plus state preparation."""
+
     name: str = __qualname__
 
     def materialize(self) -> RHGBlock:
+        """Materialize the Plus initialization block."""
         tiling = self.template.to_tiling()
         data_indices = self.template.get_data_indices()
 
@@ -82,7 +89,7 @@ class InitPlusBlockSkeleton(RHGBlockSkeleton):
         # In-plane edges (diagonal neighbors per consts) within each layer
         for z, timeslice in nodes_by_z.items():
             for (x, y), src in timeslice.items():
-                for dx, dy, dz in DIRECTIONS3D:
+                for dx, dy, _dz in DIRECTIONS3D:
                     xy_tgt = (x + dx, y + dy)
                     tgt = timeslice.get(xy_tgt)
                     if tgt is not None and tgt > src:
@@ -123,9 +130,8 @@ class InitPlusBlockSkeleton(RHGBlockSkeleton):
                 role = node2role[n]
                 if role.startswith("ancilla"):
                     anc_group.add(n)
-                elif role == "data":
-                    if z != max_t:
-                        data_group.add(n)
+                elif role == "data" and z != max_t:
+                    data_group.add(n)
             if anc_group:
                 schedule_local.append((2 * z, anc_group))
             if data_group:
@@ -133,12 +139,12 @@ class InitPlusBlockSkeleton(RHGBlockSkeleton):
 
         # Out ports are DATA nodes on the final slice
         out_ports: NodeSetLocal = set()
-        for (x, y), n in nodes_by_z[max_t].items():
+        for (_x, _y), n in nodes_by_z[max_t].items():
             if node2role.get(n) == "data":
                 out_ports.add(n)
 
         # Create InitPlus instance
-        block = InitPlus(
+        return InitPlus(
             d=self.d,
             graph_local=g,
             node2coord=node2coord,
@@ -154,10 +160,11 @@ class InitPlusBlockSkeleton(RHGBlockSkeleton):
             edge_spec=self.edgespec,  # Use edgespec from skeleton
             template=self.template,  # Pass the tiling as template
         )
-        return block
 
 
 class InitPlus(RHGBlock):
+    """Plus state initialization block."""
+
     name: str = __qualname__
 
     def materialize(self) -> None:

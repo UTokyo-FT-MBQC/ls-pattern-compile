@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import operator
 from typing import TYPE_CHECKING
 
 from graphix_zx.common import Plane, PlannerMeasBasis
@@ -52,7 +53,8 @@ class Memory(RHGBlock):
                 ys.append(y)
                 zs.append(z)
         if not xs:
-            raise ValueError("Memory.emit: could not find coordinates for boundary nodes.")
+            msg = "Memory.emit: could not find coordinates for boundary nodes."
+            raise ValueError(msg)
 
         x_min, x_max = min(xs), max(xs)
         y_min, y_max = min(ys), max(ys)
@@ -125,10 +127,11 @@ class Memory(RHGBlock):
             first_map = node_at_layer[0]
             prev_qmap = canvas.logical_registry.boundary_qidx.get(lidx, {})
             if not prev_qmap:
-                raise ValueError(f"Memory.emit: boundary_qidx is missing for logical {lidx}")
+                msg = f"Memory.emit: boundary_qidx is missing for logical {lidx}"
+                raise ValueError(msg)
             inv_coord = {nid: coord for coord, nid in canvas.coord_to_node.items()}
             prev_xy_order: list[tuple[int, int]] = []
-            for nid, _q in sorted(prev_qmap.items(), key=lambda kv: kv[1]):
+            for nid, _q in sorted(prev_qmap.items(), key=operator.itemgetter(1)):
                 x, y, _ = inv_coord[nid]
                 prev_xy_order.append((x, y))
             for xy in prev_xy_order:
@@ -182,8 +185,7 @@ class Memory(RHGBlock):
 
         # Lower boundary singleton checks when there was no previous X-layer.
         if not last_x:
-            for n_local in first_x_local.values():
-                x_parity_check_groups.append({n_local})
+            x_parity_check_groups.extend({n_local} for n_local in first_x_local.values())
 
         # Intra-block 2-body ancilla parity checks along z (separated by 2).
         coord2node = {(x, y, z): u for u, (x, y, z) in node_coords.items()}
@@ -192,9 +194,8 @@ class Memory(RHGBlock):
             if is_ancilla_x(x, y, z):
                 if next_ancilla:
                     x_parity_check_groups.append({u, next_ancilla})
-            elif is_ancilla_z(x, y, z):
-                if next_ancilla:
-                    z_parity_check_groups.append({u, next_ancilla})
+            elif is_ancilla_z(x, y, z) and next_ancilla:
+                z_parity_check_groups.append({u, next_ancilla})
 
         # Logical boundary becomes the last slice's DATA nodes.
         out_boundary: set[int] = set()

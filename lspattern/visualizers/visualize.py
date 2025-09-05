@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z, is_data
 
 
-def _node_to_coord(canvas) -> dict[int, tuple[int, int, int]]:
+def _node_to_coord(canvas: RHGCanvas) -> dict[int, tuple[int, int, int]]:
     """Invert canvas.coord_to_node -> node -> (x,y,z)."""
     return {nid: coord for coord, nid in canvas.coord_to_node.items()}
 
@@ -25,7 +25,7 @@ def visualize_canvas(
     show: bool = True,
     figsize: tuple[int, int] = (6, 6),
     dpi: int = 120,
-):
+) -> None:
     """Visualizes the Raussendorf lattice with nodes colored based on their parity.
 
     Nodes with allowed parities are colored white, others are red.

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import operator
 from typing import TYPE_CHECKING
 
 from graphix_zx.common import Plane, PlannerMeasBasis
@@ -42,7 +43,8 @@ class _MeasureBase(RHGBlock):
                 ys.append(y)
                 zs.append(z)
         if not xs:
-            raise ValueError("Measure.emit: could not find coordinates for boundary nodes.")
+            msg = "Measure.emit: could not find coordinates for boundary nodes."
+            raise ValueError(msg)
 
         x_min, x_max = min(xs), max(xs)
         y_min, y_max = min(ys), max(ys)
@@ -64,11 +66,12 @@ class _MeasureBase(RHGBlock):
         # Preserve q_index order using the previous boundary's q_map.
         prev_qmap = canvas.logical_registry.boundary_qidx.get(lidx, {})
         if not prev_qmap:
-            raise ValueError(f"Measure.emit: boundary_qidx is missing for logical {lidx}")
+            msg = f"Measure.emit: boundary_qidx is missing for logical {lidx}"
+            raise ValueError(msg)
 
         inv_coord = {nid: coord for coord, nid in canvas.coord_to_node.items()}
         prev_xy_order: list[tuple[int, int]] = []
-        for nid, _ in sorted(prev_qmap.items(), key=lambda kv: kv[1]):
+        for nid, _ in sorted(prev_qmap.items(), key=operator.itemgetter(1)):
             x, y, _ = inv_coord[nid]
             prev_xy_order.append((x, y))
 

@@ -49,8 +49,7 @@ class ScalableTemplate(Tiling):
             return "O"
 
     def get_data_indices(self) -> dict[TilingCoord2D, TilingConsistentQubitId]:
-        data_index = {coor: i for i, coor in enumerate(sort_xy(self.data_coords))}
-        return data_index
+        return {coor: i for i, coor in enumerate(sort_xy(self.data_coords))}
 
     # ---- Coordinate and index shifting APIs ---------------------------------
     def _shift_lists_inplace(self, dx: int, dy: int) -> None:
@@ -90,10 +89,11 @@ class ScalableTemplate(Tiling):
             dx, dy = int(bx), int(by_)
         elif coordinate == "patch3d":
             # Default block-style behavior: use block offset
-            px, py, _pz = by  # type: ignore[misc]
-            dx, dy = block_offset_xy(self.d, (int(px), int(py), int(_pz)), anchor=anchor)
+            px, py, pz = by  # type: ignore[misc]
+            dx, dy = block_offset_xy(self.d, (int(px), int(py), int(pz)), anchor=anchor)
         else:
-            raise ValueError("coordinate must be one of: tiling2d, phys3d, patch3d")
+            msg = "coordinate must be one of: tiling2d, phys3d, patch3d"
+            raise ValueError(msg)
 
         if inplace:
             self._shift_lists_inplace(dx, dy)
@@ -153,7 +153,8 @@ class ScalableTemplate(Tiling):
                 axis = 0
                 target = 2 * self.d - 1
             case _:
-                raise ValueError("Invalid direction for trim_spatial_boundary")
+                msg = "Invalid direction for trim_spatial_boundary"
+                raise ValueError(msg)
 
         self.x_coords = [p for p in (self.x_coords or []) if p[axis] != target]
         self.z_coords = [p for p in (self.z_coords or []) if p[axis] != target]
@@ -335,7 +336,8 @@ def merge_pair_spatial(
     d_a = getattr(a, "d", None)
     d_b = getattr(b, "d", None)
     if not isinstance(d_a, int) or not isinstance(d_b, int):
-        raise ValueError("Both templates must have integer distance 'd'.")
+        msg = "Both templates must have integer distance 'd'."
+        raise ValueError(msg)
 
     # Ensure coordinates are populated
     if not (a.data_coords or a.x_coords or a.z_coords):
@@ -344,8 +346,9 @@ def merge_pair_spatial(
         b.to_tiling()
 
     diru = direction.upper()
-    if diru not in ("X+", "X-", "Y+", "Y-"):
-        raise ValueError("direction must be one of: X+, X-, Y+, Y-")
+    if diru not in {"X+", "X-", "Y+", "Y-"}:
+        msg = "direction must be one of: X+, X-, Y+, Y-"
+        raise ValueError(msg)
 
     # 1) Trim the seam boundaries
     if diru == "X+":
@@ -428,9 +431,11 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                     pass
 
         elif self._spec("UP") == "O" or self._spec("DOWN") == "O":
-            raise NotImplementedError("Temporal pipe not supported yet")
+            msg = "Temporal pipe not supported yet"
+            raise NotImplementedError(msg)
         else:
-            raise ValueError("This pipe has no connection boundary (EdgeSpec)")
+            msg = "This pipe has no connection boundary (EdgeSpec)"
+            raise ValueError(msg)
 
         result = {"data": sort_xy(data_coords), "X": sort_xy(x_coords), "Z": sort_xy(z_coords)}
         self.data_coords = result["data"]
@@ -460,11 +465,13 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
             dx, dy = int(bx), int(by_)
         elif coordinate == "patch3d":
             if direction is None:
-                raise ValueError("direction is required for patch3d pipe shift")
+                msg = "direction is required for patch3d pipe shift"
+                raise ValueError(msg)
             px, py, pz = by  # type: ignore[misc]
             dx, dy = pipe_offset_xy(self.d, (int(px), int(py), int(pz)), None, direction)
         else:
-            raise ValueError("coordinate must be one of: tiling2d, phys3d, patch3d")
+            msg = "coordinate must be one of: tiling2d, phys3d, patch3d"
+            raise ValueError(msg)
 
         if inplace:
             if getattr(self, "data_coords", None):
@@ -492,25 +499,29 @@ def pipe_offset_xy(
     direction: PIPEDIRECTION,
 ) -> tuple[int, int]:
     sx, sy, sz = source
-    if direction in (PIPEDIRECTION.UP, PIPEDIRECTION.DOWN):
-        raise NotImplementedError("Temporal pipe (UP/DOWN) not supported for 2D tiling placement")
+    if direction in {PIPEDIRECTION.UP, PIPEDIRECTION.DOWN}:
+        msg = "Temporal pipe (UP/DOWN) not supported for 2D tiling placement"
+        raise NotImplementedError(msg)
 
     if sink is not None:
         tx, ty, tz = sink
         if sz != tz:
-            raise ValueError("source and sink must share the same z for spatial pipe")
+            msg = "source and sink must share the same z for spatial pipe"
+            raise ValueError(msg)
         if abs(tx - sx) + abs(ty - sy) != 1:
-            raise ValueError("source and sink must be axis neighbors (Manhattan distance 1)")
+            msg = "source and sink must be axis neighbors (Manhattan distance 1)"
+            raise ValueError(msg)
 
-    if direction in (PIPEDIRECTION.RIGHT, PIPEDIRECTION.LEFT):
+    if direction in {PIPEDIRECTION.RIGHT, PIPEDIRECTION.LEFT}:
         base_x = 2 * d * min(sx, (sink[0] if sink else sx))
         base_y = 2 * d * sy
         return base_x, base_y
-    if direction in (PIPEDIRECTION.TOP, PIPEDIRECTION.BOTTOM):
+    if direction in {PIPEDIRECTION.TOP, PIPEDIRECTION.BOTTOM}:
         base_x = 2 * d * sx
         base_y = 2 * d * min(sy, (sink[1] if sink else sy))
         return base_x, base_y
-    raise ValueError("Invalid direction for pipe offset")
+    msg = "Invalid direction for pipe offset"
+    raise ValueError(msg)
 
 
 if __name__ == "__main__":
@@ -518,7 +529,7 @@ if __name__ == "__main__":
 
     from lspattern.mytype import EdgeSpec
 
-    def set_edgespec(**kw):
+    def set_edgespec(**kw) -> None:
         EdgeSpec.update({"TOP": "O", "BOTTOM": "O", "LEFT": "O", "RIGHT": "O", "UP": "O", "DOWN": "O"})
         EdgeSpec.update({k.upper(): v for k, v in kw.items()})
 

@@ -1,3 +1,5 @@
+import operator
+
 from lspattern.consts.consts import PIPEDIRECTION
 from lspattern.mytype import PatchCoordGlobal3D
 
@@ -21,7 +23,8 @@ def get_direction(source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> PIPED
         case (0, 0, -1):
             return PIPEDIRECTION.DOWN
         case _:
-            raise ValueError("Invalid direction")
+            msg = "Invalid direction"
+            raise ValueError(msg)
 
 
 def __tuple_sum(l_: tuple, r_: tuple) -> tuple:
@@ -31,4 +34,4 @@ def __tuple_sum(l_: tuple, r_: tuple) -> tuple:
 
 # Prepare outputs as sorted lists for determinism
 def sort_xy(points: set[tuple[int, int]]):
-    return sorted(points, key=lambda p: (p[1], p[0]))
+    return sorted(points, key=operator.itemgetter(1, 0))

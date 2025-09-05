@@ -1,30 +1,33 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.graphstate import GraphState
 
 from lspattern.consts.consts import DIRECTIONS3D, PIPEDIRECTION
-from lspattern.mytype import (
-    FlowLocal,
-    NodeIdLocal,
-    NodeSetLocal,
-    PatchCoordGlobal3D,
-    PhysCoordLocal2D,
-    PhysCoordLocal3D,
-    ScheduleTuplesLocal,
-    SpatialEdgeSpec,
-)
 from lspattern.tiling.template import RotatedPlanarPipetemplate
 from lspattern.utils import get_direction
 
 from .base import RHGPipe, RHGPipeSkeleton
 
+if TYPE_CHECKING:
+    from lspattern.mytype import (
+        FlowLocal,
+        NodeIdLocal,
+        NodeSetLocal,
+        PatchCoordGlobal3D,
+        PhysCoordLocal2D,
+        PhysCoordLocal3D,
+        ScheduleTuplesLocal,
+        SpatialEdgeSpec,
+    )
+
 
 @dataclass
 class InitPlusPipeSkeleton(RHGPipeSkeleton):
-    """InitPlus 相当の Pipe Skeleton。
+    """InitPlus 相当の Pipe Skeleton。.
 
     edgespec を省略した場合、方向に応じた既定値を用いる：
         - RIGHT/LEFT（水平）: {TOP:'O', BOTTOM:'O', LEFT:'X', RIGHT:'Z'}
@@ -37,13 +40,14 @@ class InitPlusPipeSkeleton(RHGPipeSkeleton):
         direction = get_direction(source, sink)
         spec = self.edgespec
         if spec is None:
-            if direction in (PIPEDIRECTION.RIGHT, PIPEDIRECTION.LEFT):
+            if direction in {PIPEDIRECTION.RIGHT, PIPEDIRECTION.LEFT}:
                 spec = {"TOP": "O", "BOTTOM": "O", "LEFT": "X", "RIGHT": "Z"}
-            elif direction in (PIPEDIRECTION.TOP, PIPEDIRECTION.BOTTOM):
+            elif direction in {PIPEDIRECTION.TOP, PIPEDIRECTION.BOTTOM}:
                 spec = {"LEFT": "O", "RIGHT": "O", "TOP": "X", "BOTTOM": "Z"}
             else:
                 # 時間方向は未対応
-                raise NotImplementedError("Temporal pipe (UP/DOWN) is not supported")
+                msg = "Temporal pipe (UP/DOWN) is not supported"
+                raise NotImplementedError(msg)
         return InitPlusPipe(d=self.d, edgespec=spec, direction=direction)
 
 
@@ -54,7 +58,7 @@ class InitPlusPipe(RHGPipe):
         edgespec: SpatialEdgeSpec,
         direction: PIPEDIRECTION,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(d=d, edgespec=edgespec, direction=direction, **kwargs)
         self.template = RotatedPlanarPipetemplate(d=d, edgespec=edgespec)
         self.materialize()
@@ -175,7 +179,7 @@ class InitPlusPipe(RHGPipe):
             ys = [y for _, y in data_xy]
             x_min, x_max = min(xs), max(xs)
             y_min, y_max = min(ys), max(ys)
-            if self.direction in (PIPEDIRECTION.RIGHT, PIPEDIRECTION.LEFT):
+            if self.direction in {PIPEDIRECTION.RIGHT, PIPEDIRECTION.LEFT}:
                 left_x, right_x = x_min, x_max
                 in_x = left_x if self.direction == PIPEDIRECTION.RIGHT else right_x
                 out_x = right_x if self.direction == PIPEDIRECTION.RIGHT else left_x
@@ -185,7 +189,7 @@ class InitPlusPipe(RHGPipe):
                             in_ports.add(n)
                         elif x == out_x:
                             out_ports.add(n)
-            elif self.direction in (PIPEDIRECTION.TOP, PIPEDIRECTION.BOTTOM):
+            elif self.direction in {PIPEDIRECTION.TOP, PIPEDIRECTION.BOTTOM}:
                 bot_y, top_y = y_min, y_max
                 in_y = bot_y if self.direction == PIPEDIRECTION.TOP else top_y
                 out_y = top_y if self.direction == PIPEDIRECTION.TOP else bot_y

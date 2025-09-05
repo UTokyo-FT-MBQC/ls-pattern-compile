@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from lspattern.tiling.base import ConnectedTiling
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from lspattern.tiling.base import ConnectedTiling
 
 
 def plot_connected_tiling(
@@ -10,7 +13,7 @@ def plot_connected_tiling(
     show: bool = True,
     title: str | None = None,
 ):
-    """2D 散布図で ConnectedTiling を簡易可視化する。
+    """2D 散布図で ConnectedTiling を簡易可視化する。.
 
     - 色分け: data=白, X=緑, Z=青
     - 軸ラベル/方眼/凡例を付加
@@ -19,7 +22,8 @@ def plot_connected_tiling(
     try:
         import matplotlib.pyplot as plt
     except Exception as e:  # pragma: no cover
-        raise RuntimeError("matplotlib が必要です。`pip install matplotlib` を実行してください") from e
+        msg = "matplotlib が必要です。`pip install matplotlib` を実行してください"
+        raise RuntimeError(msg) from e
 
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=(6, 6))
@@ -65,7 +69,7 @@ def plot_connected_tiling(
 
 
 def plot_layer_tiling(layer, *, anchor: str = "inner", show: bool = True, title: str | None = None):
-    """TemporalLayer のブロック/パイプを 2D タイルに再構成して表示する。
+    """TemporalLayer のブロック/パイプを 2D タイルに再構成して表示する。.
 
     - `layer.get_connected_tiling(anchor)` を用いて ConnectedTiling を得る
     - `plot_connected_tiling` で描画

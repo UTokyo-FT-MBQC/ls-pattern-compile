@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 def visualize_temporal_layer_plotly(
@@ -26,8 +29,9 @@ def visualize_temporal_layer_plotly(
     try:
         import plotly.graph_objects as go
     except Exception as e:  # pragma: no cover
+        msg = "plotly is required for visualize_temporal_layer_plotly.\nInstall via `pip install plotly`."
         raise RuntimeError(
-            "plotly is required for visualize_temporal_layer_plotly.\nInstall via `pip install plotly`."
+            msg
         ) from e
 
     # Lazy import parity helpers
@@ -72,7 +76,7 @@ def visualize_temporal_layer_plotly(
 
     for n, coord in node2coord.items():
         role = node_roles.get(n) if node_roles else None
-        if role not in ("data", "ancilla_x", "ancilla_z"):
+        if role not in {"data", "ancilla_x", "ancilla_z"}:
             role = infer_role(coord)
         if ancilla_mode == "x" and role == "ancilla_z":
             continue
@@ -96,12 +100,12 @@ def visualize_temporal_layer_plotly(
                 y=pts["y"],
                 z=pts["z"],
                 mode="markers",
-                marker=dict(
-                    size=spec["size"],
-                    color=spec["color"],
-                    line=dict(color=spec["line_color"], width=1),
-                    opacity=0.9,
-                ),
+                marker={
+                    "size": spec["size"],
+                    "color": spec["color"],
+                    "line": {"color": spec["line_color"], "width": 1},
+                    "opacity": 0.9,
+                },
                 name=spec["name"],
                 text=[f"Node {n}: {role}" for n in pts["nodes"]],
                 hovertemplate="<b>%{text}</b><br>x: %{x}<br>y: %{y}<br>z: %{z}<extra></extra>",
@@ -127,7 +131,7 @@ def visualize_temporal_layer_plotly(
                     y=edge_y,
                     z=edge_z,
                     mode="lines",
-                    line=dict(color="black", width=edge_width),
+                    line={"color": "black", "width": edge_width},
                     name="Edges",
                     showlegend=False,
                     hoverinfo="none",
@@ -151,7 +155,7 @@ def visualize_temporal_layer_plotly(
                 y=yin,
                 z=zin,
                 mode="markers",
-                marker=dict(size=10, color="red", symbol="diamond"),
+                marker={"size": 10, "color": "red", "symbol": "diamond"},
                 name="Input",
                 text=[f"Input node {n}" for n in in_nodes],
                 hovertemplate="<b>%{text}</b><br>x: %{x}<br>y: %{y}<br>z: %{z}<extra></extra>",
@@ -168,7 +172,7 @@ def visualize_temporal_layer_plotly(
                 y=yout,
                 z=zout,
                 mode="markers",
-                marker=dict(size=10, color="darkred", symbol="diamond"),
+                marker={"size": 10, "color": "darkred", "symbol": "diamond"},
                 name="Output",
                 text=[f"Output node {n}" for n in out_nodes],
                 hovertemplate="<b>%{text}</b><br>x: %{x}<br>y: %{y}<br>z: %{z}<extra></extra>",
@@ -176,23 +180,23 @@ def visualize_temporal_layer_plotly(
         )
 
     # Layout
-    scene = dict(
-        xaxis_title="X",
-        yaxis_title="Y",
-        zaxis_title="Z",
-        aspectmode="cube",
-        camera=dict(eye=dict(x=1.5, y=1.5, z=1.5)),
-    )
+    scene = {
+        "xaxis_title": "X",
+        "yaxis_title": "Y",
+        "zaxis_title": "Z",
+        "aspectmode": "cube",
+        "camera": {"eye": {"x": 1.5, "y": 1.5, "z": 1.5}},
+    }
     if reverse_axes:
-        scene["xaxis"] = dict(autorange="reversed")
-        scene["yaxis"] = dict(autorange="reversed")
+        scene["xaxis"] = {"autorange": "reversed"}
+        scene["yaxis"] = {"autorange": "reversed"}
 
     fig.update_layout(
         title=f"Temporal Layer z={getattr(layer, 'z', '?')}",
         scene=scene,
         width=width,
         height=height,
-        margin=dict(l=0, r=0, b=0, t=40),
+        margin={"l": 0, "r": 0, "b": 0, "t": 40},
     )
 
     return fig
