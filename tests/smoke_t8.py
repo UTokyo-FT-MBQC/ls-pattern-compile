@@ -14,7 +14,6 @@ This script is intentionally lightweight; it prints a few counts and asserts.
 from __future__ import annotations
 
 from lspattern.blocks.cubes.initialize import InitPlusBlockSkeleton
-
 from lspattern.canvas import RHGCanvas
 from lspattern.mytype import PatchCoordGlobal3D
 from lspattern.tiling.template import RotatedPlanarTemplate

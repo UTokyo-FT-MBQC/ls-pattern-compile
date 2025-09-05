@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from lspattern.blocks.cubes.initialize import InitPlusBlockSkeleton
 from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
-
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.mytype import PatchCoordGlobal3D
 from lspattern.tiling.visualize import plot_layer_tiling
