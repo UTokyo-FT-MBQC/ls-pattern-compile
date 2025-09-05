@@ -14,10 +14,12 @@ import pymatching
 import stim
 from graphix_zx.pattern import Pattern, print_pattern
 from graphix_zx.stim_compiler import stim_compile
-from lspattern.visualize import visualize_canvas
 
-from lspattern.blocks import InitPlus, MeasureX, Memory
+from lspattern.blocks.cubes.initialize import InitPlus
+from lspattern.blocks.cubes.measure import MeasureX
+from lspattern.blocks.cubes.memory import Memory
 from lspattern.canvas import RHGCanvas
+from lspattern.visualizers.visualize import visualize_canvas
 
 # %%
 d = 2

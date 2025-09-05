@@ -9,25 +9,21 @@ Usage:
 
 # %%
 import pathlib
-import sys
 
 import pymatching
 import stim
 from graphix_zx.pattern import Pattern
 from graphix_zx.stim_compiler import stim_compile
-from lspattern.blocks.initialize import InitPlusBlockSkeleton
 
-sys.path.append(r"C:\Users\qipe\Documents\GitHub\ls-pattern-compile")
-
-from lspattern.canvas2 import CompiledRHGCanvas, RHGCanvas2
-
+from lspattern.blocks.cubes.initialize import InitPlusBlockSkeleton
+from lspattern.canvas import CompiledRHGCanvas, RHGCanvas
 from lspattern.mytype import PatchCoordGlobal3D
 
 # %%
 d = 3
 r = 3
 
-canvas = RHGCanvas2("Memory X")
+canvas = RHGCanvas("Memory X")
 
 edgespec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
 edgespec_trimmed = {"LEFT": "O", "RIGHT": "O", "TOP": "O", "BOTTOM": "O"}
