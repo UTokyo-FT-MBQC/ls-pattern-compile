@@ -1,3 +1,6 @@
+# 以下のコードが動くようにtemporal connectionを実行するコードを書いて
+# Example
+
 #!/usr/bin/env python3
 """T17 debug: build a small RHG canvas and compile to CompiledRHGCanvas.
 
@@ -35,6 +38,8 @@ def build_skeleton() -> RHGCanvasSkeleton:
     cubes: Dict[PatchCoordGlobal3D, InitPlusCubeSkeleton] = {
         PatchCoordGlobal3D((0, 0, 0)): InitPlusCubeSkeleton(d=3, edgespec=edgespec),
         PatchCoordGlobal3D((1, 1, 0)): InitPlusCubeSkeleton(d=3, edgespec=edgespec_open),
+        PatchCoordGlobal3D((1, 1, 1)): InitPlusCubeSkeleton(d=3, edgespec=edgespec_open),
+        PatchCoordGlobal3D((1, 1, 2)): InitPlusCubeSkeleton(d=3, edgespec=edgespec_open),
         PatchCoordGlobal3D((2, 2, 0)): InitPlusCubeSkeleton(d=3, edgespec=edgespec),
     }
     for pos, cube in cubes.items():

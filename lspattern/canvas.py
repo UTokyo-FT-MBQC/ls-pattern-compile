@@ -175,20 +175,7 @@ class TemporalLayer:
                         coord2node[x, y, t] = n
                         node2role[n] = "ancilla_z"
                         cur[x, y] = n
-            elif t == max_t:
-                # assign only data qubits which is output nodes
-                # implement this algorithm. Make sure to register output with XY=0 angle
-                for x, y in data2d:
-                    n = g.add_physical_node()
-                    node2coord[n] = (x, y, t)
-                    coord2node[x, y, t] = n
-                    node2role[n] = "output"
-                    cur[x, y] = n
-                    # Assign XY-plane, angle 0 measurement if available
-
-                    g.assign_meas_basis(n, PlannerMeasBasis(Plane.XY, 0.0))
-                    # Register as output if the API is available
-                    g.register_output(n)  # type: ignore[arg-type]
+            # No special handling for final t: already added data nodes above.
 
             nodes_by_z[t] = cur
 
@@ -607,7 +594,8 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
     new_graph, node_map1, node_map2 = compose_sequentially(graph1, graph2)
     # Remap registries for both sides into the composed id-space
     cgraph = cgraph.remap_nodes(node_map1)
-    # Remap next_layer coord2node into composed id-space`n    next_layer.coord2node = {c: node_map2.get(n, n) for c, n in next_layer.coord2node.items()}
+    # Remap next_layer coord2node into composed id-space
+    next_layer.coord2node = {c: node_map2.get(n, n) for c, n in next_layer.coord2node.items()}
 
     # Create a new CompiledRHGCanvas to hold the merged result.
     new_layers = cgraph.layers + [next_layer]

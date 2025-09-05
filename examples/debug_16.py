@@ -31,28 +31,28 @@ def to_temporal_layers_from_skeleton(sk: RHGCanvasSkeleton) -> dict[int, Tempora
     - Converts skeleton blocks to blocks via to_block()
     - Calls layer.materialize() to build local graphs
     """
-    if not sk.blocks_:
+    if not sk.cubes_:
         return {}
 
-    max_z = max(pos[2] for pos in sk.blocks_.keys())
+    max_z = max(pos[2] for pos in sk.cubes_.keys())
     layers: dict[int, TemporalLayer] = {}
     for z in range(max_z + 1):
         layer = TemporalLayer(z)
 
-        # Blocks at this z (minimal block-like: d + template only)
-        blocks_z = {}
-        for pos, skblk in sk.blocks_.items():
+        # Cubes at this z (minimal block-like: d + template only)
+        cubes_z = {}
+        for pos, skblk in sk.cubes_.items():
             if pos[2] != z:
                 continue
             d = int(getattr(skblk, "d", 3))
             edgespec = getattr(skblk, "edgespec", {})
             tmpl = RotatedPlanarBlockTemplate(d=d, edgespec=edgespec)
             _ = tmpl.to_tiling()
-            blocks_z[pos] = type("_B", (), {"d": d, "template": tmpl})()
+            cubes_z[pos] = type("_B", (), {"d": d, "template": tmpl})()
 
-        if blocks_z:
+        if cubes_z:
             # Directly assign to layer internals to avoid extra requirements
-            layer.blocks_ = blocks_z  # type: ignore[attr-defined]
+            layer.cubes_ = cubes_z  # type: ignore[attr-defined]
 
         # Build local graph/state
         layer.materialize()
@@ -71,15 +71,15 @@ def main() -> None:
     # Place a few init blocks on z=0
     # Store skeleton-like entries directly (only d and edgespec are used here)
     B = type("_SK", (), {})
-    sk.blocks_[PatchCoordGlobal3D((0, 0, 0))] = B()
-    sk.blocks_[PatchCoordGlobal3D((1, 1, 0))] = B()
-    sk.blocks_[PatchCoordGlobal3D((2, 2, 0))] = B()
-    sk.blocks_[PatchCoordGlobal3D((0, 0, 0))].d = d
-    sk.blocks_[PatchCoordGlobal3D((0, 0, 0))].edgespec = edgespec_all
-    sk.blocks_[PatchCoordGlobal3D((1, 1, 0))].d = d
-    sk.blocks_[PatchCoordGlobal3D((1, 1, 0))].edgespec = edgespec_open
-    sk.blocks_[PatchCoordGlobal3D((2, 2, 0))].d = d
-    sk.blocks_[PatchCoordGlobal3D((2, 2, 0))].edgespec = edgespec_all
+    sk.cubes_[PatchCoordGlobal3D((0, 0, 0))] = B()
+    sk.cubes_[PatchCoordGlobal3D((1, 1, 0))] = B()
+    sk.cubes_[PatchCoordGlobal3D((2, 2, 0))] = B()
+    sk.cubes_[PatchCoordGlobal3D((0, 0, 0))].d = d
+    sk.cubes_[PatchCoordGlobal3D((0, 0, 0))].edgespec = edgespec_all
+    sk.cubes_[PatchCoordGlobal3D((1, 1, 0))].d = d
+    sk.cubes_[PatchCoordGlobal3D((1, 1, 0))].edgespec = edgespec_open
+    sk.cubes_[PatchCoordGlobal3D((2, 2, 0))].d = d
+    sk.cubes_[PatchCoordGlobal3D((2, 2, 0))].edgespec = edgespec_all
 
     # Build layers and compile
     layers = to_temporal_layers_from_skeleton(sk)
