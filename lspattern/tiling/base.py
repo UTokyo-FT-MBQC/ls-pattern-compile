@@ -123,7 +123,7 @@ def _find_duplicates(seq: list[TilingCoord2D]) -> set[TilingCoord2D]:
     return dups
 
 
-def _check_collisions_and_raise(
+def _check_collisions_and_raise(  # noqa: PLR0913
     data_list: list[TilingCoord2D],
     x_list: list[TilingCoord2D],
     z_list: list[TilingCoord2D],

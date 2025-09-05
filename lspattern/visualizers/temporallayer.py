@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z
 
 
-def visualize_temporal_layer(
+def visualize_temporal_layer(  # noqa: C901, PLR0912, PLR0913
     layer: Any,
     *,
     indicated_nodes: set[int] | None = None,

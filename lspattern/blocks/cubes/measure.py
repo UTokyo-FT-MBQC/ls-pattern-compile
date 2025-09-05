@@ -29,7 +29,7 @@ class _MeasureBase(RHGBlock):
         self.logical = logical
         self.basis = PlannerMeasBasis(Plane.XY, 0.0) if basis == "X" else PlannerMeasBasis(Plane.ZX, 0.0)
 
-    def emit(self, canvas: RHGCanvas) -> BlockDelta:
+    def emit(self, canvas: RHGCanvas) -> BlockDelta:  # noqa: C901, PLR0912, PLR0914
         lidx = self.logical
         boundary = canvas.logical_registry.require_boundary(lidx)
 

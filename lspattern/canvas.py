@@ -161,7 +161,7 @@ class TemporalLayer:
             self.materialize()
         return self.tiling_node_maps
 
-    def get_connected_tiling(self, anchor: str = "inner") -> ConnectedTiling:
+    def get_connected_tiling(self, anchor: str = "inner") -> ConnectedTiling:  # noqa: C901
         """Relocate blocks/pipes to absolute 2D coordinates and return ConnectedTiling.
 
         - Perform offset calculations equivalent to materialize() (caching optional)
@@ -203,7 +203,7 @@ class TemporalLayer:
 
         return ConnectedTiling(tilings_abs, check_collisions=True)
 
-    def add_block(self, pos: PatchCoordGlobal3D, block: RHGBlockSkeleton) -> None:
+    def add_block(self, pos: PatchCoordGlobal3D, block: RHGBlockSkeleton) -> None:  # noqa: C901, PLR0912, PLR0915
         # Accept either a pre-materialized block or a skeleton.
         if isinstance(block, RHGBlockSkeleton):
             block = block.materialize()
@@ -289,7 +289,7 @@ class TemporalLayer:
 
         self.qubit_count = len(self.local_graph.physical_nodes)
 
-    def add_pipe(
+    def add_pipe(  # noqa: C901, PLR0912, PLR0915
         self,
         source: PatchCoordGlobal3D,
         sink: PatchCoordGlobal3D,
@@ -489,7 +489,7 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
     def add_pipe(self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipeSkeleton) -> None:
         self.pipes_[start, end] = pipe
 
-    def trim_spatial_boundaries(self) -> None:
+    def trim_spatial_boundaries(self) -> None:  # noqa: C901, PLR0912
         """
         Function trim spatial boundary (tiling from Scalable tiling class)
             case direction
@@ -643,7 +643,7 @@ def to_temporal_layer(
     return layer
 
 
-def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pipes: list[RHGPipe]) -> CompiledRHGCanvas:
+def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pipes: list[RHGPipe]) -> CompiledRHGCanvas:  # noqa: C901, PLR0912, PLR0914
     """Compose the compiled canvas with the next temporal layer.
 
     Follows the legacy-canvas pattern:

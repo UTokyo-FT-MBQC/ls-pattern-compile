@@ -17,7 +17,7 @@ def _node_to_coord(canvas: RHGCanvas) -> dict[int, tuple[int, int, int]]:
     return {nid: coord for coord, nid in canvas.coord_to_node.items()}
 
 
-def visualize_canvas(
+def visualize_canvas(  # noqa: C901, PLR0912, PLR0913
     canvas: RHGCanvas,
     *,
     indicated_nodes: set[int] | None = None,

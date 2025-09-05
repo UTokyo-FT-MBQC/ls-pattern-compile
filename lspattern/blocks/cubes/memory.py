@@ -39,7 +39,7 @@ class Memory(RHGBlock):
         self.logical = logical
         self.rounds = rounds
 
-    def emit(self, canvas: RHGCanvas) -> BlockDelta:
+    def emit(self, canvas: RHGCanvas) -> BlockDelta:  # noqa: C901, PLR0912, PLR0914, PLR0915
         """Emit the memory block to the canvas.
 
         Raises

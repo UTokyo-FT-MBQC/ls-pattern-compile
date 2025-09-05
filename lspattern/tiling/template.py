@@ -159,7 +159,7 @@ class ScalableTemplate(Tiling):
         self.x_coords = [p for p in (self.x_coords or []) if p[axis] != target]
         self.z_coords = [p for p in (self.z_coords or []) if p[axis] != target]
 
-    def visualize_tiling(self, ax: Any = None, show: bool = True, title_suffix: str | None = None) -> None:
+    def visualize_tiling(self, ax: Any = None, show: bool = True, title_suffix: str | None = None) -> None:  # noqa: C901, PLR0914
         """Visualize the tiling using matplotlib.
 
         - data qubits: white-filled circles with black edge
@@ -224,7 +224,7 @@ class ScalableTemplate(Tiling):
 
 
 class RotatedPlanarTemplate(ScalableTemplate):
-    def to_tiling(self) -> dict[str, list[tuple[int, int]]]:
+    def to_tiling(self) -> dict[str, list[tuple[int, int]]]:  # noqa: C901, PLR0912
         d = self.d
         data_coords: set[tuple[int, int]] = set()
         x_coords: set[tuple[int, int]] = set()
@@ -375,7 +375,7 @@ def merge_pair_spatial(
 
 
 class RotatedPlanarPipetemplate(ScalableTemplate):
-    def to_tiling(self) -> dict[str, list[tuple[int, int]]]:
+    def to_tiling(self) -> dict[str, list[tuple[int, int]]]:  # noqa: C901
         d = self.d
         data_coords: set[tuple[int, int]] = set()
         x_coords: set[tuple[int, int]] = set()

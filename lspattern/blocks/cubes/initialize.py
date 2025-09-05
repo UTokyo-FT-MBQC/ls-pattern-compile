@@ -26,7 +26,7 @@ class InitPlusBlockSkeleton(RHGBlockSkeleton):
 
     name: str = __qualname__
 
-    def materialize(self) -> RHGBlock:
+    def materialize(self) -> RHGBlock:  # noqa: C901, PLR0912, PLR0914, PLR0915
         """Materialize the Plus initialization block."""
         tiling = self.template.to_tiling()
         data_indices = self.template.get_data_indices()

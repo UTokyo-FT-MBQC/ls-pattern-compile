@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
 
-def visualize_temporal_layer_plotly(
+def visualize_temporal_layer_plotly(  # noqa: C901, PLR0912, PLR0913
     layer: Any,
     *,
     node_roles: dict[int, str] | None = None,
