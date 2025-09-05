@@ -2,10 +2,8 @@
 
 from dataclasses import dataclass, field
 
-# import stim
-# graphix_zx pieces
 from graphix_zx.graphstate import GraphState, compose_in_parallel, compose_sequentially
-
+from graphix_zx.common import Plane, PlannerMeasBasis
 from lspattern.accumulator import (
     FlowAccumulator,
     ParityAccumulator,
@@ -179,8 +177,18 @@ class TemporalLayer:
                         cur[x, y] = n
             elif t == max_t:
                 # assign only data qubits which is output nodes
-                # TODO: implement this algorithm. Make sure to register output with XY=0 angle
-                pass
+                # implement this algorithm. Make sure to register output with XY=0 angle
+                for x, y in data2d:
+                    n = g.add_physical_node()
+                    node2coord[n] = (x, y, t)
+                    coord2node[x, y, t] = n
+                    node2role[n] = "output"
+                    cur[x, y] = n
+                    # Assign XY-plane, angle 0 measurement if available
+
+                    g.assign_meas_basis(n, PlannerMeasBasis(Plane.XY, 0.0))
+                    # Register as output if the API is available
+                    g.register_output(n)  # type: ignore[arg-type]
 
             nodes_by_z[t] = cur
 
@@ -246,21 +254,12 @@ class TemporalLayer:
             self.materialize()
         return self.tiling_node_maps
 
-    def add_cube(self, pos: PatchCoordGlobal3D, cube_skel: RHGCubeSkeleton) -> None:
-        # Accept skeleton and convert to cube (template container). No materialization here.
-        cube = cube_skel.to_block()
-
+    def add_cube(self, pos: PatchCoordGlobal3D, cube: RHGCube) -> None:
+        """Add a materialized cube to this temporal layer and place it at `pos`."""
         self.cubes_[pos] = cube
         self.patches.append(pos)
-        # shift coordinates for placement (ids remain local to cube graph)
+        # Shift only coordinates for placement (template keeps local ids)
         cube.shift_coords(pos)
-
-        # ConnectedTiling 用に保持
-        self.cubes_[pos] = cube
-
-        # Update patch registry (ports will be set after composition)
-        self.patches.append(pos)
-        # T12: Do not compose cube graphs here; layer graph is built in materialize()
         return
 
     def add_pipe(
@@ -269,27 +268,10 @@ class TemporalLayer:
         sink: PatchCoordGlobal3D,
         spatial_pipe: RHGPipe,
     ) -> None:
-        node_map = {}
-        new_layer = TemporalLayer(self.z)
-        new_layer.qubit_count = self.qubit_count
-        new_layer.patches = self.patches.copy()
-        new_layer.lines = self.lines.copy()
-
-        new_layer.in_portset = {pos: [node_map.get(n, n) for n in nodes] for pos, nodes in self.in_portset.items()}
-        new_layer.out_portset = {pos: [node_map.get(n, n) for n in nodes] for pos, nodes in self.out_portset.items()}
-        new_layer.in_ports = [node_map.get(n, n) for n in self.in_ports]
-        new_layer.out_ports = [node_map.get(n, n) for n in self.out_ports]
-
-        if self.local_graph is not None:
-            new_layer.local_graph = self.local_graph.remap_nodes(node_map)
-        new_layer.node2coord = {node_map.get(n, n): c for n, c in self.node2coord.items()}
-        new_layer.coord2node = {c: node_map.get(n, n) for c, n in self.coord2node.items()}
-        new_layer.node2role = {node_map.get(n, n): r for n, r in self.node2role.items()}
-
-        new_layer.schedule = self.schedule.remap_nodes(node_map)
-        new_layer.flow = self.flow.remap_nodes(node_map)
-        new_layer.parity = self.parity.remap_nodes(node_map)
-        return new_layer
+        """Register a spatial pipe within this layer between `source` and `sink`."""
+        self.pipes_[(source, sink)] = spatial_pipe
+        self.lines.append((source, sink))
+        return
 
 
 @dataclass  # noqa: E302
@@ -518,7 +500,7 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
             cubes_[pos] = c.to_block()
         pipes_ = {}
         for (start, end), p in trimmed_pipes_skeleton.items():
-            pipes_[start, end] = p.to_block()
+            pipes_[start, end] = p.to_block(start, end)
 
         canvas = RHGCanvas(name=self.name, cubes_=cubes_, pipes_=pipes_)
         return canvas
@@ -576,8 +558,8 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
 
 def to_temporal_layer(
     z: int,
-    cubes: dict[PatchCoordGlobal3D, RHGCubeSkeleton],
-    pipes: dict[PipeCoordGlobal3D, RHGPipeSkeleton],
+    cubes: dict[PatchCoordGlobal3D, RHGCube],
+    pipes: dict[PipeCoordGlobal3D, RHGPipe],
 ) -> TemporalLayer:
     # 1) Make empty TemporalLayer instance
     layer = TemporalLayer(z)
