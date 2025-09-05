@@ -10,7 +10,6 @@ decorator==5.2.1
 executing==2.2.0
 fastjsonschema==2.21.2
 fonttools==4.59.0
-# -e git+https://github.com/TeamGraphix/graphix-zx@25759c65da4a6b85cab88b175bed8ffe75e1c134#egg=graphix_zx&subdirectory=..\..\..\src\graphix-zx
 immutabledict==4.2.1
 iniconfig==2.1.0
 ipykernel==6.30.1
@@ -26,8 +25,6 @@ jupyterlab_widgets==3.0.15
 kiwisolver==1.4.8
 matplotlib
 matplotlib-inline==0.1.7
-mypy==1.17.0
-mypy_extensions==1.1.0
 narwhals==2.3.0
 nbformat==5.10.4
 nest-asyncio==1.6.0
@@ -50,15 +47,12 @@ pure_eval==0.2.3
 Pygments==2.19.2
 PyMatching>=2
 pyparsing==3.2.3
-pyright==1.1.403
-pytest==8.4.1
 python-dateutil==2.9.0.post0
 pytz==2025.2
 pywin32==311
 pyzmq==27.0.1
 referencing==0.36.2
 rpds-py==0.27.1
-ruff==0.12.4
 scipy==1.16.1
 sinter>=1
 six==1.17.0
@@ -70,4 +64,3 @@ typing_extensions
 tzdata==2025.2
 wcwidth==0.2.13
 widgetsnbextension==4.0.14
-
