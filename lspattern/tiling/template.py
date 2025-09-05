@@ -30,6 +30,7 @@ class ScalableTemplate(Tiling):
     trimmed: bool = False
 
     def to_tiling(self) -> dict[str, list[tuple[int, int]]]:
+        """Convert template to tiling format."""
         raise NotImplementedError
 
     def _spec(self, side: str) -> str:
@@ -53,6 +54,7 @@ class ScalableTemplate(Tiling):
             return "O"
 
     def get_data_indices(self) -> dict[TilingCoord2D, TilingConsistentQubitId]:
+        """Get mapping from data coordinates to qubit indices."""
         return {coor: i for i, coor in enumerate(sort_xy(self.data_coords))}
 
     # ---- Coordinate and index shifting APIs ---------------------------------
@@ -231,6 +233,7 @@ class RotatedPlanarTemplate(ScalableTemplate):
     """Rotated planar template for RHG lattice patterns."""
 
     def to_tiling(self) -> dict[str, list[tuple[int, int]]]:  # noqa: C901, PLR0912
+        """Generate tiling coordinates for rotated planar template."""
         d = self.d
         data_coords: set[tuple[int, int]] = set()
         x_coords: set[tuple[int, int]] = set()
@@ -316,6 +319,7 @@ def block_offset_xy(
     *,
     anchor: Literal["seam", "inner"] = "seam",
 ) -> tuple[int, int]:
+    """Calculate the XY offset for positioning a block in the tiling."""
     px, py, _pz = patch
     base_x = 2 * d * int(px)
     base_y = 2 * d * int(py)
@@ -381,7 +385,10 @@ def merge_pair_spatial(
 
 
 class RotatedPlanarPipetemplate(ScalableTemplate):
+    """Rotated planar template for pipe patterns."""
+
     def to_tiling(self) -> dict[str, list[tuple[int, int]]]:  # noqa: C901
+        """Generate tiling coordinates for pipe template."""
         d = self.d
         data_coords: set[tuple[int, int]] = set()
         x_coords: set[tuple[int, int]] = set()
@@ -458,6 +465,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         direction: PIPEDIRECTION | None = None,
         inplace: bool = True,
     ) -> RotatedPlanarPipetemplate:
+        """Shift pipe coordinates by the specified offset."""
         if not (self.data_coords or self.x_coords or self.z_coords):
             self.to_tiling()
 
@@ -495,6 +503,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         return new
 
     def shift_qindex(self, by: int, *, inplace: bool = True) -> RotatedPlanarPipetemplate:
+        """Shift qubit indices by the specified amount."""
         return super().shift_qindex(by, inplace=inplace)  # type: ignore[return-value]
 
 
@@ -504,6 +513,7 @@ def pipe_offset_xy(
     sink: tuple[int, int, int] | None,
     direction: PIPEDIRECTION,
 ) -> tuple[int, int]:
+    """Calculate the XY offset for positioning a pipe in the tiling."""
     sx, sy, sz = source
     if direction in {PIPEDIRECTION.UP, PIPEDIRECTION.DOWN}:
         msg = "Temporal pipe (UP/DOWN) not supported for 2D tiling placement"
@@ -536,6 +546,7 @@ if __name__ == "__main__":
     from lspattern.mytype import EdgeSpec
 
     def set_edgespec(**kw) -> None:
+        """Set edge specifications for the template."""
         EdgeSpec.update({"TOP": "O", "BOTTOM": "O", "LEFT": "O", "RIGHT": "O", "UP": "O", "DOWN": "O"})
         EdgeSpec.update({k.upper(): v for k, v in kw.items()})
 

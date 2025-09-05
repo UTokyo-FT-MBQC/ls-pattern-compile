@@ -89,6 +89,7 @@ class TemporalLayer:
         self.tiling_node_maps = {}
 
     def materialize(self) -> None:
+        """Materialize the temporal layer by combining blocks and pipes into a single graph."""
         # TODO: 2次元結合 -> populateの構想
         # Allow untrimmed templates for single-block layers; trimming is handled
         # earlier at the skeleton-canvas stage when applicable.
@@ -208,6 +209,7 @@ class TemporalLayer:
         return ConnectedTiling(tilings_abs, check_collisions=True)
 
     def add_block(self, pos: PatchCoordGlobal3D, block: RHGBlockSkeleton) -> None:  # noqa: C901, PLR0912, PLR0915
+        """Add a block to the temporal layer at the specified position."""
         # Accept either a pre-materialized block or a skeleton.
         if isinstance(block, RHGBlockSkeleton):
             block = block.materialize()
@@ -393,10 +395,12 @@ class TemporalLayer:
             self.qubit_count = len(self.local_graph.physical_nodes)
 
     def add_blocks(self, blocks: dict[PatchCoordGlobal3D, RHGBlockSkeleton]) -> None:
+        """Add multiple blocks to the temporal layer."""
         for pos, block in blocks.items():
             self.add_block(pos, block)
 
     def add_pipes(self, pipes: dict[PipeCoordGlobal3D, RHGBlockSkeleton]) -> None:
+        """Add multiple pipes to the temporal layer."""
         for (start, end), pipe in pipes.items():
             self.add_pipe(start, end, pipe)
 
@@ -447,6 +451,7 @@ class CompiledRHGCanvas:
     #     pass
 
     def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> CompiledRHGCanvas:
+        """Remap node IDs using the provided mapping."""
         new_cgraph = CompiledRHGCanvas(
             layers=self.layers.copy(),
             global_graph=self.global_graph.remap_nodes(node_map),
@@ -488,12 +493,14 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
     pipes_: dict[PipeCoordGlobal3D, RHGPipeSkeleton] = field(default_factory=dict)
 
     def materialize(self) -> RHGBlock:
-        "Materialize the internal template assuming that the boundaries are trimmed."
+        """Materialize the internal template assuming that the boundaries are trimmed."""
 
     def add_block(self, position: PatchCoordGlobal3D, block: RHGBlockSkeleton) -> None:
+        """Add a block at the specified position."""
         self.blocks_[position] = block
 
     def add_pipe(self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipeSkeleton) -> None:
+        """Add a pipe between start and end positions."""
         self.pipes_[start, end] = pipe
 
     def trim_spatial_boundaries(self) -> None:  # noqa: C901, PLR0912
@@ -553,6 +560,7 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
                 continue
 
     def to_canvas(self) -> RHGCanvas:
+        """Convert the skeleton canvas to a concrete canvas."""
         self.trim_spatial_boundaries()
 
         trimmed_blocks_skeleton = self.blocks_.copy()
@@ -592,12 +600,15 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
     layers: list[TemporalLayer] | None = None
 
     def add_block(self, position: PatchCoordGlobal3D, block: RHGBlock) -> None:
+        """Add a block at the specified position."""
         self.blocks_[position] = block
 
     def add_pipe(self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipe) -> None:
+        """Add a pipe between start and end positions."""
         self.pipes_[start, end] = pipe
 
     def to_temporal_layers(self) -> dict[int, TemporalLayer]:
+        """Convert the canvas to temporal layers."""
         temporal_layers: dict[int, TemporalLayer] = {}
         for z in range(max(self.blocks_.keys(), key=operator.itemgetter(2))[2] + 1):
             blocks = {pos: blk for pos, blk in self.blocks_.items() if pos[2] == z}
@@ -609,6 +620,7 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
         return temporal_layers
 
     def compile(self) -> CompiledRHGCanvas:
+        """Compile the canvas into a compiled RHG canvas."""
         temporal_layers = self.to_temporal_layers()
         # Initialize an empty compiled canvas with required accumulators
         cgraph = CompiledRHGCanvas(
@@ -638,6 +650,7 @@ def to_temporal_layer(
     blocks: dict[PatchCoordGlobal3D, RHGBlockSkeleton],
     pipes: dict[PipeCoordGlobal3D, RHGBlockSkeleton],
 ) -> TemporalLayer:
+    """Create a temporal layer from blocks and pipes at the given z coordinate."""
     # 1) Make empty TemporalLayer instance
     layer = TemporalLayer(z)
 

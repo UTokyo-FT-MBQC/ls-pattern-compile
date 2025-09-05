@@ -69,6 +69,7 @@ class InitPlusPipe(RHGPipe):
         self.materialize()
 
     def materialize(self) -> None:  # noqa: C901, PLR0912, PLR0914, PLR0915
+        """Materialize the pipe by creating graph structure and coordinates."""
         # 既に materialize 済みならスキップ
         if getattr(self, "graph_local", None) and getattr(self, "node2coord", None):
             if self.graph_local is not None and self.node2coord:

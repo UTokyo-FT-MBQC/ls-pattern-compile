@@ -46,7 +46,8 @@ class Memory(RHGBlock):
 
         Raises
         ------
-            ValueError: If boundary conditions are invalid.
+        ValueError
+            If boundary conditions are invalid.
         """
         lidx = self.logical
         boundary = canvas.logical_registry.require_boundary(lidx)

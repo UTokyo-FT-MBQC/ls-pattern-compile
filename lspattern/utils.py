@@ -7,6 +7,7 @@ from lspattern.mytype import PatchCoordGlobal3D
 
 
 def get_direction(source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> PIPEDIRECTION:
+    """Get the pipe direction from source to sink coordinates."""
     dx = sink[0] - source[0]
     dy = sink[1] - source[1]
     dz = sink[2] - source[2]
@@ -36,4 +37,5 @@ def __tuple_sum(l_: tuple, r_: tuple) -> tuple:
 
 # Prepare outputs as sorted lists for determinism
 def sort_xy(points: set[tuple[int, int]]):
+    """Sort 2D points by (y, x) coordinates for determinism."""
     return sorted(points, key=operator.itemgetter(1, 0))

@@ -10,20 +10,25 @@ ANCILLA_X_PARITY = (1, 0, 1)
 
 
 def parity3(x: int, y: int, z: int) -> tuple[int, int, int]:
+    """Calculate parity for 3D coordinates."""
     return (x & 1, y & 1, z & 1)
 
 
 def is_allowed(x: int, y: int, z: int) -> bool:
+    """Check if the coordinate has an allowed parity for RHG lattice."""
     return parity3(x, y, z) in ALLOWED_PARITIES
 
 
 def is_data(x: int, y: int, z: int) -> bool:
+    """Check if the coordinate corresponds to a data qubit."""
     return parity3(x, y, z) in DATA_PARITIES
 
 
 def is_ancilla_x(x: int, y: int, z: int) -> bool:
+    """Check if the coordinate corresponds to an X ancilla qubit."""
     return parity3(x, y, z) == ANCILLA_X_PARITY
 
 
 def is_ancilla_z(x: int, y: int, z: int) -> bool:
+    """Check if the coordinate corresponds to a Z ancilla qubit."""
     return parity3(x, y, z) == ANCILLA_Z_PARITY
