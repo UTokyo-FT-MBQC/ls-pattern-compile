@@ -5,6 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
 
+from graphix_zx.graphstate import GraphState
+from lspattern.consts.consts import DIRECTIONS3D
+from lspattern.accumulator import (
+    FlowAccumulator,
+    ParityAccumulator,
+    ScheduleAccumulator,
+)
+from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D
 from lspattern.tiling.template import (
     RotatedPlanarCubeTemplate,
     ScalableTemplate,
@@ -63,8 +71,11 @@ class RHGBlock:
     edge_spec: SpatialEdgeSpec = field(default_factory=dict)
     # source
     source: PatchCoordGlobal3D = field(default_factory=lambda: (0, 0, 0))
+    sink: PatchCoordGlobal3D | None = None
     # When it is Pipe, we have sink and direction (Not implemented here)
-    template: ScalableTemplate = field(default_factory=lambda: ScalableTemplate(d=3, edgespec={}))  # evaluated
+    template: ScalableTemplate = field(
+        default_factory=lambda: ScalableTemplate(d=3, edgespec={})
+    )  # evaluated
 
     # Ports for this block's current logical patch boundary (qubit index sets)
     # classical output ports. One group represents one logical result (to be XORed)
@@ -72,11 +83,28 @@ class RHGBlock:
     out_ports: set[QubitIndexLocal] = field(default_factory=set)
     cout_ports: list[set[QubitIndexLocal]] = field(default_factory=list)
 
+    schedule: ScheduleAccumulator = field(
+        init=False, default_factory=ScheduleAccumulator
+    )
+    flow: FlowAccumulator = field(init=False, default_factory=FlowAccumulator)
+    parity: ParityAccumulator = field(init=False, default_factory=ParityAccumulator)
+
+    local_graph: GraphState = field(init=False, default_factory=GraphState)
+    node2coord: dict[NodeIdLocal, PhysCoordGlobal3D] = field(
+        init=False, default_factory=dict
+    )
+    coord2node: dict[PhysCoordGlobal3D, NodeIdLocal] = field(
+        init=False, default_factory=dict
+    )
+    node2role: dict[NodeIdLocal, str] = field(init=False, default_factory=dict)
+
     def __post_init__(self) -> None:
         # Sync template parameters (d, edgespec)
         edgespec = self.edge_spec
         if self.template is None:
-            self.template = RotatedPlanarCubeTemplate(d=int(self.d), edgespec=edgespec or {})
+            self.template = RotatedPlanarCubeTemplate(
+                d=int(self.d), edgespec=edgespec or {}
+            )
         else:
             # Ensure d matches
             self.template.d = int(self.d)
@@ -151,7 +179,87 @@ class RHGBlock:
         self.set_in_ports()
         self.set_out_ports()
         self.set_cout_ports()
+        # Build the local RHG graph (nodes/edges and coordinate maps) here.
+        # This mirrors the per-block logic used in TemporalLayer.compile,
+        # but scoped to this block's tiling only.
 
+        # Collect 2D coordinates from the evaluated template
+        data2d = list(self.template.data_coords or [])
+        x2d = list(self.template.x_coords or [])
+        z2d = list(self.template.z_coords or [])
+
+        # Construct a 3D RHG slab of height ~2*d (T12 policy)
+        d_val = int(self.d)
+        max_t = 2 * d_val
+        z0 = int(self.source[2]) * (2 * d_val)  # base z-offset per block
+
+        g = GraphState()
+        node2coord: dict[int, tuple[int, int, int]] = {}
+        coord2node: dict[tuple[int, int, int], int] = {}
+        node2role: dict[int, str] = {}
+
+        # Assign nodes at each time slice
+        nodes_by_z: dict[int, dict[tuple[int, int], int]] = {}
+        for t_local in range(max_t + 1):
+            t = z0 + t_local
+            cur: dict[tuple[int, int], int] = {}
+            if t_local != max_t:
+                # Data nodes every slice except the final sentinel layer
+                for (x, y) in data2d:
+                    n = g.add_physical_node()
+                    node2coord[n] = (int(x), int(y), int(t))
+                    coord2node[(int(x), int(y), int(t))] = n
+                    node2role[n] = "data"
+                    cur[(int(x), int(y))] = n
+                # Interleave ancillas X/Z by time parity
+                if (t_local % 2) == 0:
+                    for (x, y) in x2d:
+                        n = g.add_physical_node()
+                        node2coord[n] = (int(x), int(y), int(t))
+                        coord2node[(int(x), int(y), int(t))] = n
+                        node2role[n] = "ancilla_x"
+                        cur[(int(x), int(y))] = n
+                else:
+                    for (x, y) in z2d:
+                        n = g.add_physical_node()
+                        node2coord[n] = (int(x), int(y), int(t))
+                        coord2node[(int(x), int(y), int(t))] = n
+                        node2role[n] = "ancilla_z"
+                        cur[(int(x), int(y))] = n
+            nodes_by_z[t] = cur
+
+        # Intra-slice spatial edges (diagonal neighbors in rotated layout)
+        for t, cur in nodes_by_z.items():
+            for (x, y), u in cur.items():
+                for dx, dy, dz in DIRECTIONS3D:
+                    if dz != 0:
+                        continue
+                    xy2 = (x + dx, y + dy)
+                    v = cur.get(xy2)
+                    if v is not None and v > u:
+                        try:
+                            g.add_physical_edge(u, v)
+                        except Exception:
+                            pass
+
+        # Inter-slice temporal edges (same XY across consecutive t)
+        t_keys = sorted(nodes_by_z.keys())
+        for i in range(1, len(t_keys)):
+            cur = nodes_by_z[t_keys[i]]
+            prev = nodes_by_z[t_keys[i - 1]]
+            for xy, u in cur.items():
+                v = prev.get(xy)
+                if v is not None:
+                    try:
+                        g.add_physical_edge(u, v)
+                    except Exception:
+                        pass
+
+        # Store results on the block
+        self.local_graph = g
+        self.node2coord = node2coord
+        self.coord2node = coord2node
+        self.node2role = node2role
         return self
 
     # --- Compatibility aliases -------------------------------------------------
@@ -171,6 +279,116 @@ class RHGBlock:
     @edgespec.setter
     def edgespec(self, v: SpatialEdgeSpec | None) -> None:
         self.edge_spec = v
+
+    @staticmethod
+    def _boundary_nodes_from_coordmap(
+        coord2node: dict[PhysCoordGlobal3D, int],
+        node2role: dict[int, str] | None,
+        *,
+        face: str,
+        depth: list[int] | None = None,
+    ) -> dict[str, list[PhysCoordGlobal3D]]:
+        """Fast boundary selection utility shared by RHG structures.
+
+        Parameters
+        ----------
+        coord2node : dict[PhysCoordGlobal3D, int]
+            Mapping from physical coordinates to node ids.
+        node2role : dict[int, str] | None
+            Optional mapping from node id to role string
+            (e.g., 'ancilla_x', 'ancilla_z'). If absent/empty, all
+            selected nodes are returned under 'data'.
+        face : {'x+','x-','y+','y-','z+','z-'}
+            Boundary face to query.
+        depth : list[int] | None
+            Non-negative offsets inward from the selected face. Negative
+            inputs are clamped to 0.
+
+        Returns
+        -------
+        dict[str, list[PhysCoordGlobal3D]]
+            Selected coordinates grouped by role: keys 'data', 'xcheck', 'zcheck'.
+        """
+        if not coord2node:
+            return {"data": [], "xcheck": [], "zcheck": []}
+
+        # Normalize and validate inputs
+        f = face.strip().lower()
+        if f not in ("x+", "x-", "y+", "y-", "z+", "z-"):
+            raise ValueError("face must be one of: x+/x-/y+/y-/z+/z-")
+        depths = [d if (isinstance(d, int) and d >= 0) else 0 for d in (depth or [0])]
+
+        # Compute bounds once
+        # Avoid repeated attribute lookups for speed
+        coords = list(coord2node.keys())
+        xs = [c[0] for c in coords]
+        ys = [c[1] for c in coords]
+        zs = [c[2] for c in coords]
+        xmin, xmax = (min(xs), max(xs))
+        ymin, ymax = (min(ys), max(ys))
+        zmin, zmax = (min(zs), max(zs))
+
+        # Determine axis and target levels for quick membership tests
+        if f[0] == "x":
+            axis = 0
+            if f[1] == "+":
+                targets = {xmax - d for d in depths}
+            else:
+                targets = {xmin + d for d in depths}
+        elif f[0] == "y":
+            axis = 1
+            if f[1] == "+":
+                targets = {ymax - d for d in depths}
+            else:
+                targets = {ymin + d for d in depths}
+        else:  # f[0] == 'z'
+            axis = 2
+            if f[1] == "+":
+                targets = {zmax - d for d in depths}
+            else:
+                targets = {zmin + d for d in depths}
+
+        # Group results by role (if available)
+        has_roles = bool(node2role)
+        data: list[PhysCoordGlobal3D] = []
+        xcheck: list[PhysCoordGlobal3D] = []
+        zcheck: list[PhysCoordGlobal3D] = []
+
+        if has_roles:
+            roles = node2role or {}
+            for coord in coords:
+                if coord[axis] not in targets:
+                    continue
+                role = (roles.get(coord2node[coord]) or "").lower()
+                if role == "ancilla_x":
+                    xcheck.append(coord)
+                elif role == "ancilla_z":
+                    zcheck.append(coord)
+                else:
+                    data.append(coord)
+        else:
+            # No role information: return all as data for the selected face
+            append = data.append
+            for coord in coords:
+                if coord[axis] in targets:
+                    append(coord)
+
+        return {"data": data, "xcheck": xcheck, "zcheck": zcheck}
+
+    def get_boundary_nodes(
+        self,
+        *,
+        face: str,
+        depth: list[int] | None = None,
+    ) -> dict[str, list[PhysCoordGlobal3D]]:
+        """Boundary query after temporal composition on the compiled canvas.
+
+        Operates on the global coord2node map using the same semantics as
+        TemporalLayer.get_boundary_nodes.
+        """
+        return self._boundary_nodes_from_coordmap(
+            self.coord2node, self.node2role, face=face, depth=depth
+        )
 
 
 @dataclass

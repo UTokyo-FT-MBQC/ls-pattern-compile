@@ -211,6 +211,11 @@ def visualize_schedule_mpl(
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
         ax.set_title("Schedule (slices)")
+        # Enforce equal XY aspect
+        try:
+            ax.set_aspect("equal", adjustable="box")
+        except Exception:
+            pass
         ax.legend()
 
     if save_path is not None:
@@ -471,7 +476,14 @@ def visualize_schedule_plotly(
             fig.add_trace(
                 go.Scatter(x=xs, y=ys, mode="markers", marker=dict(color=colors[i % len(colors)], size=7), name=f"t={t}")
             )
-    fig.update_layout(title="Schedule (slices)", xaxis_title="X", yaxis_title="Y")
+    # Enforce equal XY aspect using scale anchors
+    fig.update_layout(
+        title="Schedule (slices)",
+        xaxis_title="X",
+        yaxis_title="Y",
+        xaxis=dict(scaleanchor="y", scaleratio=1),
+        yaxis=dict(constrain="domain"),
+    )
     return fig
 
 
@@ -585,4 +597,3 @@ def visualize_temporal_layer_2x2_plotly(layer):
     )
 
     return fig
-

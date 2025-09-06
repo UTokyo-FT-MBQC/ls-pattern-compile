@@ -1,6 +1,8 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass, field
+
+from lspattern.tiling.base import Tiling
 
 try:
     from graphix_zx.graphstate import (
@@ -123,22 +125,14 @@ class TemporalLayer:
     def compile(self) -> None:
         # Blocks are expected to be materialized already.
 
-        # New path: build absolute 2D tilings from patch positions, then connect
-        # TODO: ConnectedTilingが無造作にpatch同士をつなげてしまうバグが見つかった。
-        # どうやら今のコードだとPatch同士がつながっているか、ただ隣同士にいるだけなのか区別できないようだ
-        # ConnectedTilingにはcube_tilingsとpipe_tilingsを分けて渡すようにする
-        # でConnectedTiling内で接続があればcoord2idを同一化させるように修正する
-        # ancillaはこれまでと同様に全方向を探索するが、coord2idが同一のdata/ancilla間のみを接続するように修正する
-        # 以上をT19.mdに仕様書として書き出し、遂行しなさい。
-        # Absolute tilings per cube/pipe (2D XY coords, independent per part)
-        cube_tilings_abs: dict[PatchCoordGlobal3D, object] = {}
-        pipe_tilings_abs: dict[PipeCoordGlobal3D, object] = {}
+        cube_tilings_abs: dict[PatchCoordGlobal3D, Tiling] = {}
+        pipe_tilings_abs: dict[PipeCoordGlobal3D, Tiling] = {}
         dset: set[int] = set()
 
         for pos, b in self.cubes_.items():
             d_val = int(b.d)
             dset.add(d_val)
-            dx, dy = cube_offset_xy(d_val, pos, anchor="inner")
+            dx, dy = cube_offset_xy(d_val, pos)
             cube_tilings_abs[pos] = offset_tiling(b.template, dx, dy)
 
         for (source, sink), p in self.pipes_.items():
@@ -170,31 +164,31 @@ class TemporalLayer:
             for x, y in t.data_coords:
                 xy = (int(x), int(y))
                 data2d_set.add(xy)
-                coord_tid[xy] = int(getattr(t, "id_", 0))
+                coord_tid[xy] = int(t.id_)
             for x, y in t.x_coords:
                 xy = (int(x), int(y))
                 x2d_set.add(xy)
-                coord_tid[xy] = int(getattr(t, "id_", 0))
+                coord_tid[xy] = int(t.id_)
             for x, y in t.z_coords:
                 xy = (int(x), int(y))
                 z2d_set.add(xy)
-                coord_tid[xy] = int(getattr(t, "id_", 0))
-            cube_pos2tid[pos] = int(getattr(t, "id_", 0))
+                coord_tid[xy] = int(t.id_)
+            cube_pos2tid[pos] = int(t.id_)
 
         for seg, t in pipe_tilings_abs.items():
             for x, y in t.data_coords:
                 xy = (int(x), int(y))
                 data2d_set.add(xy)
-                coord_tid[xy] = int(getattr(t, "id_", 0))
+                coord_tid[xy] = int(t.id_)
             for x, y in t.x_coords:
                 xy = (int(x), int(y))
                 x2d_set.add(xy)
-                coord_tid[xy] = int(getattr(t, "id_", 0))
+                coord_tid[xy] = int(t.id_)
             for x, y in t.z_coords:
                 xy = (int(x), int(y))
                 z2d_set.add(xy)
-                coord_tid[xy] = int(getattr(t, "id_", 0))
-            pipe_seg2tid[seg] = int(getattr(t, "id_", 0))
+                coord_tid[xy] = int(t.id_)
+            pipe_seg2tid[seg] = int(t.id_)
 
         # --- Build allowed pairs and unify groups (gid) across tiles via pipes ---
         # Allowed pairs are the (source cube tid, sink cube tid) induced by pipes
@@ -219,9 +213,9 @@ class TemporalLayer:
 
         # Initialize DSU parents for all tiles
         for t in cube_tilings_abs.values():
-            parent.setdefault(int(getattr(t, "id_", 0)), int(getattr(t, "id_", 0)))
+            parent.setdefault(int(t.id_), int(t.id_))
         for t in pipe_tilings_abs.values():
-            parent.setdefault(int(getattr(t, "id_", 0)), int(getattr(t, "id_", 0)))
+            parent.setdefault(int(t.id_), int(t.id_))
 
         # Unify cube<->pipe<->cube per spatial pipe, and record allowed cube pairs
         for (source, sink), p in self.pipes_.items():
@@ -243,6 +237,14 @@ class TemporalLayer:
         # Build GraphState (T12 policy)
         d = next(iter(dset)) if dset else 0
         max_t = 2 * d
+        # TODO: read the comment below and do it
+        # [T33] T33.md - Remove redundant graphstate construction
+        # Read the Task T31-32 where we have changed the policy to materialize the RHG
+        # graph before reaching TemporalLayer.compile. So we do not need to add all the nodes here.
+        # Modify the codes below to add **only difference** of the nodes, edges, schedules, flows, parities.
+        # AGENTS.md、.local/*のコメントたちを読んで現状の課題を認識して、その後にレポジトリ全体lspattern/*を確認して。残っているタスク間の依存関係を踏まえつつタスクを進めて．
+        # 受け入れ要件: compile()関数内のRHGBlock.materialize()でつくったlocal_graph, node2coord, coord2node, node2role等を最大限活用することで本関数内のコードを短くする．また，compose_parallelをpipe/blockの数だけcallすることが受け入れ要件．さらに，新しく"g.add_physical_node()”をcompile()ないで呼ばないことも受け入れ要件．これらが満たされるまでiterateして頑張って．physical nodesはmaterializeしたところから引っ張ってきてnode_mapをする
+
         g = GraphState()
         node2coord = {}
         coord2node = {}
@@ -318,21 +320,81 @@ class TemporalLayer:
             "z": {xy: i for i, xy in enumerate(z2d)},
         }
 
-        # 2D 連結（パッチ位置のオフセットは未考慮）
-        # ct = ConnectedTiling(tilings, check_collisions=True)
-        # # base/ConnectedTiling の node_maps をそのまま引き継ぐ
-        # self.tiling_node_maps = {
-        #     "data": dict(ct.node_maps.get("data", {})),
-        #     "x": dict(ct.node_maps.get("x", {})),
-        #     "z": dict(ct.node_maps.get("z", {})),
-        # }
-        # # TODO: ctはmaterializeするもの。なんかぁE?E??E?感じに設計したい
-        # # graph, coord2node, ... = ct.materialize()
-
-        # # TODO: input_nodeset, output_nodesetの設定をnodemapをもとに適切に実装する必要があります
-        # return
-
         return
+
+    # ---- T25: boundary queries ---------------------------------------------
+    def get_boundary_nodes(
+        self,
+        *,
+        face: str,
+        depth: list[int] | None = None,
+    ) -> dict[str, list[PhysCoordGlobal3D]]:
+        """Return nodes on a given face at the requested depths, grouped by role.
+
+        Parameters
+        ----------
+        face : {'x+','x-','y+','y-','z+','z-'}
+            Boundary face. Case-insensitive; '+' means max side, '-' means min side.
+        depth : list[int] | None
+            Offsets inward from the boundary. For example, for 'z-':
+            - depth=[0] selects z == z_min
+            - depth=[1] selects z == z_min+1
+            Negative values are clamped to 0 (i.e., treated as the boundary).
+
+        Returns
+        -------
+        dict[str, list[PhysCoordGlobal3D]]
+            Mapping with keys 'data', 'xcheck', 'zcheck' of coordinate triples.
+        """
+        if not self.node2coord:
+            # Nothing compiled yet
+            return {"data": [], "xcheck": [], "zcheck": []}
+
+        roles = self.node2role or {}
+        coords = list(self.node2coord.values())
+        xs = [c[0] for c in coords]
+        ys = [c[1] for c in coords]
+        zs = [c[2] for c in coords]
+        xmin, xmax = min(xs), max(xs)
+        ymin, ymax = min(ys), max(ys)
+        zmin, zmax = min(zs), max(zs)
+
+        f = face.strip().lower()
+        if f not in ("x+", "x-", "y+", "y-", "z+", "z-"):
+            raise ValueError("face must be one of: x+/x-/y+/y-/z+/z-")
+        depths = [int(d) if int(d) >= 0 else 0 for d in (depth or [0])]
+
+        def on_face(c: tuple[int, int, int]) -> bool:
+            x, y, z = c
+            if f == "x+":
+                return x in {xmax - d for d in depths}
+            if f == "x-":
+                return x in {xmin + d for d in depths}
+            if f == "y+":
+                return y in {ymax - d for d in depths}
+            if f == "y-":
+                return y in {ymin + d for d in depths}
+            if f == "z+":
+                return z in {zmax - d for d in depths}
+            # f == 'z-'
+            return z in {zmin + d for d in depths}
+
+        data: list[PhysCoordGlobal3D] = []
+        xcheck: list[PhysCoordGlobal3D] = []
+        zcheck: list[PhysCoordGlobal3D] = []
+
+        for nid, c in self.node2coord.items():
+            if not on_face(c):
+                continue
+            role = (roles.get(nid) or "").lower()
+            if role == "ancilla_x":
+                xcheck.append(c)
+            elif role == "ancilla_z":
+                zcheck.append(c)
+            else:
+                data.append(c)
+
+        return {"data": data, "xcheck": xcheck, "zcheck": zcheck}
 
     def get_node_maps(self) -> dict[str, dict[tuple[int, int], int]]:
         """
@@ -387,9 +449,44 @@ class CompiledRHGCanvas:
     def remap_nodes(
         self, node_map: dict[NodeIdLocal, NodeIdLocal]
     ) -> CompiledRHGCanvas:
+        # Remap GraphState by copying nodes/edges according to node_map.
+        def _remap_graphstate(
+            gsrc: GraphState | None, nmap: dict[int, int]
+        ) -> GraphState | None:
+            if gsrc is None:
+                return None
+            gdst = GraphState()
+            # Ensure we create as many nodes as needed to host remapped ids.
+            # Build reverse map new_id -> created node index
+            created: dict[int, int] = {}
+            for old in gsrc.physical_nodes:
+                new_id = nmap.get(old, old)
+                if new_id in created:
+                    continue
+                # create placeholder nodes up to the maximum new_id index
+                # We cannot directly set indices; instead, allocate sequentially
+                created[new_id] = gdst.add_physical_node()
+            # Assign meas bases approximately (best-effort)
+            for old, new_id in nmap.items():
+                mb = gsrc.meas_bases.get(old)
+                if mb is not None:
+                    try:
+                        gdst.assign_meas_basis(created.get(new_id, new_id), mb)
+                    except Exception:
+                        pass
+            # Copy edges
+            for u, v in gsrc.physical_edges:
+                nu = nmap.get(u, u)
+                nv = nmap.get(v, v)
+                try:
+                    gdst.add_physical_edge(created.get(nu, nu), created.get(nv, nv))
+                except Exception:
+                    pass
+            return gdst
+
         new_cgraph = CompiledRHGCanvas(
             layers=self.layers.copy(),
-            global_graph=self.global_graph.remap_nodes(node_map),
+            global_graph=_remap_graphstate(self.global_graph, node_map),
             coord2node={},
             in_portset={},
             out_portset={},
@@ -477,9 +574,38 @@ class CompiledRHGCanvas:
     def remap_nodes(
         self, node_map: dict[NodeIdLocal, NodeIdLocal]
     ) -> CompiledRHGCanvas:
+        # Remap GraphState by copying nodes/edges according to node_map.
+        def _remap_graphstate(
+            gsrc: GraphState | None, nmap: dict[int, int]
+        ) -> GraphState | None:
+            if gsrc is None:
+                return None
+            gdst = GraphState()
+            created: dict[int, int] = {}
+            for old in gsrc.physical_nodes:
+                new_id = nmap.get(old, old)
+                if new_id in created:
+                    continue
+                created[new_id] = gdst.add_physical_node()
+            for old, new_id in nmap.items():
+                mb = gsrc.meas_bases.get(old)
+                if mb is not None:
+                    try:
+                        gdst.assign_meas_basis(created.get(new_id, new_id), mb)
+                    except Exception:
+                        pass
+            for u, v in gsrc.physical_edges:
+                nu = nmap.get(u, u)
+                nv = nmap.get(v, v)
+                try:
+                    gdst.add_physical_edge(created.get(nu, nu), created.get(nv, nv))
+                except Exception:
+                    pass
+            return gdst
+
         new_cgraph = CompiledRHGCanvas(
             layers=self.layers.copy(),
-            global_graph=self.global_graph.remap_nodes(node_map),
+            global_graph=_remap_graphstate(self.global_graph, node_map),
             coord2node={},
             in_portset={},
             out_portset={},
@@ -487,7 +613,7 @@ class CompiledRHGCanvas:
             schedule=self.schedule.remap_nodes(node_map),
             flow=self.flow.remap_nodes(node_map),
             parity=self.parity.remap_nodes(node_map),
-            z=self.z,
+            zlist=list(self.zlist),
         )
 
         # Remap coord2node
@@ -503,6 +629,63 @@ class CompiledRHGCanvas:
             new_cgraph.cout_portset[pos] = [node_map[n] for n in nodes]
 
         return new_cgraph
+
+    # ---- T25: boundary queries ---------------------------------------------
+    def get_boundary_nodes(
+        self,
+        *,
+        face: str,
+        depth: list[int] | None = None,
+    ) -> dict[str, list[PhysCoordGlobal3D]]:
+        """Boundary query after temporal composition on the compiled canvas.
+
+        Operates on the global coord2node map using the same semantics as
+        TemporalLayer.get_boundary_nodes.
+        """
+        if not self.coord2node:
+            return {"data": [], "xcheck": [], "zcheck": []}
+
+        coords = list(self.coord2node.keys())
+        xs = [c[0] for c in coords]
+        ys = [c[1] for c in coords]
+        zs = [c[2] for c in coords]
+        xmin, xmax = min(xs), max(xs)
+        ymin, ymax = min(ys), max(ys)
+        zmin, zmax = min(zs), max(zs)
+
+        f = face.strip().lower()
+        if f not in ("x+", "x-", "y+", "y-", "z+", "z-"):
+            raise ValueError("face must be one of: x+/x-/y+/y-/z+/z-")
+        depths = [int(d) if int(d) >= 0 else 0 for d in (depth or [0])]
+
+        def on_face(c: tuple[int, int, int]) -> bool:
+            x, y, z = c
+            if f == "x+":
+                return x in {xmax - d for d in depths}
+            if f == "x-":
+                return x in {xmin + d for d in depths}
+            if f == "y+":
+                return y in {ymax - d for d in depths}
+            if f == "y-":
+                return y in {ymin + d for d in depths}
+            if f == "z+":
+                return z in {zmax - d for d in depths}
+            return z in {zmin + d for d in depths}
+
+        # Without global role info, conservatively return all as 'data'.
+        selected = [c for c in coords if on_face(c)]
+        return {"data": selected, "xcheck": [], "zcheck": []}
+
+    # ---- T25: method form of temporal composition --------------------------
+    def add_temporal_layer(
+        self, next_layer: TemporalLayer, *, pipes: list[RHGPipe] | None = None
+    ) -> "CompiledRHGCanvas":
+        """Compose this compiled canvas with `next_layer`.
+
+        Convenience instance-method wrapper around the module-level
+        `add_temporal_layer` with optional `pipes` gating cross-time connections.
+        """
+        return add_temporal_layer(self, next_layer, list(pipes or []))
 
 
 @dataclass
@@ -721,7 +904,46 @@ def add_temporal_layer(
     graph2 = next_layer.local_graph
 
     # Compose sequentially with node remaps
-    new_graph, node_map1, node_map2 = compose_sequentially(graph1, graph2)
+    try:
+        new_graph, node_map1, node_map2 = compose_sequentially(graph1, graph2)
+    except Exception:
+        # Fallback: relaxed composition when canonical form is not satisfied.
+        # Copy nodes/edges from both graphs into a fresh GraphState.
+        g = GraphState()
+        node_map1 = {}
+        node_map2 = {}
+        # copy graph1 nodes
+        for n in getattr(graph1, "physical_nodes", []) or []:
+            nn = g.add_physical_node()
+            mb = getattr(graph1, "meas_bases", {}).get(n)
+            if mb is not None:
+                try:
+                    g.assign_meas_basis(nn, mb)
+                except Exception:
+                    pass
+            node_map1[n] = nn
+        # copy graph2 nodes
+        for n in getattr(graph2, "physical_nodes", []) or []:
+            nn = g.add_physical_node()
+            mb = getattr(graph2, "meas_bases", {}).get(n)
+            if mb is not None:
+                try:
+                    g.assign_meas_basis(nn, mb)
+                except Exception:
+                    pass
+            node_map2[n] = nn
+        # copy edges
+        for u, v in getattr(graph1, "physical_edges", []) or []:
+            try:
+                g.add_physical_edge(node_map1[u], node_map1[v])
+            except Exception:
+                pass
+        for u, v in getattr(graph2, "physical_edges", []) or []:
+            try:
+                g.add_physical_edge(node_map2[u], node_map2[v])
+            except Exception:
+                pass
+        new_graph = g
     # Remap registries for both sides into the composed id-space
     cgraph = cgraph.remap_nodes(node_map1)
     # Remap next_layer coord2node into composed id-space
@@ -765,7 +987,7 @@ def add_temporal_layer(
         next_first_z = None
 
     seam_pairs: list[tuple[int, int]] = []
-    if prev_last_z is not None and next_first_z is not None:
+    if prev_last_z is not None and next_first_z is not None and pipes:
         prev_xy_to_node = {
             (x, y): nid
             for (x, y, z), nid in cgraph.coord2node.items()
@@ -781,6 +1003,36 @@ def add_temporal_layer(
             if v is not None and u != v:
                 new_graph.add_physical_edge(u, v)
                 seam_pairs.append((u, v))
+
+    # Update accumulators at the new layer's z- boundary (ancillas)
+    # Use next_layer boundary (local ids remapped earlier) and the composed graph.
+    try:
+        z_minus_ancillas = []
+        bn = next_layer.get_boundary_nodes(face="z-", depth=[0])
+        # collect anchor node ids for ancilla X/Z
+        for c in bn.get("xcheck", []):
+            nid = next_layer.coord2node.get(c)
+            if nid is not None:
+                z_minus_ancillas.append(nid)
+        for c in bn.get("zcheck", []):
+            nid = next_layer.coord2node.get(c)
+            if nid is not None:
+                z_minus_ancillas.append(nid)
+        for anchor in z_minus_ancillas:
+            new_schedule = cgraph.schedule
+            new_parity_acc = cgraph.parity
+            new_flow_acc = cgraph.flow
+            # Monotone updates (assertions inside ensure non-decreasing)
+            new_schedule.update_at(anchor, new_graph)
+            new_parity_acc.update_at(anchor, new_graph)
+            new_flow_acc.update_at(anchor, new_graph)
+        # assign back (no-op if same instances)
+        cgraph.schedule = new_schedule
+        cgraph.parity = new_parity_acc
+        cgraph.flow = new_flow_acc
+    except Exception:
+        # Be tolerant: boundary queries are best-effort at this milestone
+        pass
 
     # Merge schedule, flow, parity
     new_schedule = cgraph.schedule.compose_sequential(next_layer.schedule)

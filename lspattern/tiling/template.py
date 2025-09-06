@@ -60,14 +60,13 @@ class ScalableTemplate(Tiling):
         by: tuple[int, int] | tuple[int, int, int],
         *,
         coordinate: Literal["tiling2d", "phys3d", "patch3d"] = "tiling2d",
-        anchor: Literal["seam", "inner"] = "seam",
         inplace: bool = True,
     ) -> ScalableTemplate:
         """Shift template 2D coords based on the given coordinate system.
 
         - tiling2d: by=(dx,dy) used directly
         - phys3d: by=(x,y,z), uses (x,y)
-        - patch3d: by=(px,py,pz), converts to (dx,dy) via block offset rule
+        - patch3d: by=(px,py,pz), converts to (dx,dy) via block offset rule (INNER)
 
         Note: Pipe-specific patch3d handling is defined in subclass override.
         """
@@ -83,9 +82,9 @@ class ScalableTemplate(Tiling):
             bx, by_, _bz = by  # type: ignore[misc]
             dx, dy = int(bx), int(by_)
         elif coordinate == "patch3d":
-            # Default block-style behavior: use block offset
+            # Default block-style behavior (INNER offset)
             px, py, _pz = by  # type: ignore[misc]
-            dx, dy = cube_offset_xy(self.d, (int(px), int(py), int(_pz)), anchor=anchor)
+            dx, dy = cube_offset_xy(self.d, (int(px), int(py), int(_pz)))
         else:
             raise ValueError("coordinate must be one of: tiling2d, phys3d, patch3d")
 
@@ -151,7 +150,9 @@ class ScalableTemplate(Tiling):
         self.x_coords = [p for p in (self.x_coords or []) if p[axis] != target]
         self.z_coords = [p for p in (self.z_coords or []) if p[axis] != target]
 
-    def visualize_tiling(self, ax=None, show: bool = True, title_suffix: str | None = None) -> None:
+    def visualize_tiling(
+        self, ax=None, show: bool = True, title_suffix: str | None = None
+    ) -> None:
         """Visualize the tiling using matplotlib.
 
         - data qubits: white-filled circles with black edge
@@ -179,11 +180,35 @@ class ScalableTemplate(Tiling):
         zx, zy = unpack(zs)
 
         if dx:
-            ax.scatter(dx, dy, s=120, facecolors="white", edgecolors="black", linewidths=1.8, label="data")
+            ax.scatter(
+                dx,
+                dy,
+                s=120,
+                facecolors="white",
+                edgecolors="black",
+                linewidths=1.8,
+                label="data",
+            )
         if xx:
-            ax.scatter(xx, xy, s=90, color="#2ecc71", edgecolors="#1e8449", linewidths=1.0, label="X")
+            ax.scatter(
+                xx,
+                xy,
+                s=90,
+                color="#2ecc71",
+                edgecolors="#1e8449",
+                linewidths=1.0,
+                label="X",
+            )
         if zx:
-            ax.scatter(zx, zy, s=90, color="#3498db", edgecolors="#1f618d", linewidths=1.0, label="Z")
+            ax.scatter(
+                zx,
+                zy,
+                s=90,
+                color="#3498db",
+                edgecolors="#1f618d",
+                linewidths=1.0,
+                label="Z",
+            )
 
         all_x = (dx or []) + (xx or []) + (zx or [])
         all_y = (dy or []) + (xy or []) + (zy or [])
@@ -263,7 +288,15 @@ class RotatedPlanarCubeTemplate(ScalableTemplate):
             case _:
                 pass
 
-        result = {"data": sort_xy(data_coords), "X": sort_xy(x_coords), "Z": sort_xy(z_coords)}
+        result = {
+            "data": sort_xy(data_coords),
+            "X": sort_xy(x_coords),
+            "Z": sort_xy(z_coords),
+        }
+        # Sanity: ensure no X/Z overlap within this template
+        if x_coords & z_coords:
+            overlap = sorted(x_coords & z_coords)[:10]
+            raise ValueError(f"RotatedPlanarCubeTemplate X/Z overlap: sample={overlap}")
         self.data_coords = result["data"]
         self.x_coords = result["X"]
         self.z_coords = result["Z"]
@@ -273,7 +306,9 @@ class RotatedPlanarCubeTemplate(ScalableTemplate):
 # --- Spatial merge helper APIs (Trim -> Merge -> Unify) ---------------------
 
 
-def _offset_coords(coords: list[tuple[int, int]] | None, dx: int, dy: int) -> list[tuple[int, int]]:
+def _offset_coords(
+    coords: list[tuple[int, int]] | None, dx: int, dy: int
+) -> list[tuple[int, int]]:
     if not coords:
         return []
     return [(x + dx, y + dy) for (x, y) in coords]
@@ -299,14 +334,11 @@ def offset_tiling(t: Tiling, dx: int, dy: int) -> Tiling:
 def cube_offset_xy(
     d: int,
     patch: tuple[int, int, int],
-    *,
-    anchor: Literal["seam", "inner"] = "seam",
 ) -> tuple[int, int]:
     px, py, _pz = patch
-    base_x = 2 * d * int(px)
-    base_y = 2 * d * int(py)
-    if anchor == "inner":
-        return base_x + 2, base_y + 2
+    base_x = 2 * (d + 1) * int(px)
+    base_y = 2 * (d + 1) * int(py)
+    # INNER anchor only (global policy)
     return base_x, base_y
 
 
@@ -377,7 +409,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         if is_x_dir:
             # Pipe along Y (vertical), x fixed at 0
             data_coords.update((0, y) for y in range(0, 2 * d, 2))
-            for n in range(d - 2):
+            for n in range(d - 1):
                 y = 2 * n + 1
                 x_coords.add((((-1) ** n), y))
                 z_coords.add((-((-1) ** n), y))
@@ -400,7 +432,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         elif is_y_dir:
             # Pipe along X (horizontal), y fixed at 0
             data_coords.update((x, 0) for x in range(0, 2 * d, 2))
-            for n in range(d - 2):
+            for n in range(d - 1):
                 x = 2 * n + 1
                 x_coords.add((x, (-1) ** n))
                 z_coords.add((x, -((-1) ** n)))
@@ -425,7 +457,15 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         else:
             raise ValueError("This pipe has no connection boundary (EdgeSpec)")
 
-        result = {"data": sort_xy(data_coords), "X": sort_xy(x_coords), "Z": sort_xy(z_coords)}
+        result = {
+            "data": sort_xy(data_coords),
+            "X": sort_xy(x_coords),
+            "Z": sort_xy(z_coords),
+        }
+        # Sanity: ensure no X/Z overlap within pipe template
+        if x_coords & z_coords:
+            overlap = sorted(x_coords & z_coords)[:10]
+            raise ValueError(f"RotatedPlanarPipetemplate X/Z overlap: sample={overlap}")
         self.data_coords = result["data"]
         self.x_coords = result["X"]
         self.z_coords = result["Z"]
@@ -455,7 +495,9 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
             if direction is None:
                 raise ValueError("direction is required for patch3d pipe shift")
             px, py, pz = by  # type: ignore[misc]
-            dx, dy = pipe_offset_xy(self.d, (int(px), int(py), int(pz)), None, direction)
+            dx, dy = pipe_offset_xy(
+                self.d, (int(px), int(py), int(pz)), None, direction
+            )
         else:
             raise ValueError("coordinate must be one of: tiling2d, phys3d, patch3d")
 
@@ -474,44 +516,59 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         new.z_coords = t.z_coords
         return new
 
-    def shift_qindex(self, by: int, *, inplace: bool = True) -> RotatedPlanarPipetemplate:
+    def shift_qindex(
+        self, by: int, *, inplace: bool = True
+    ) -> RotatedPlanarPipetemplate:
         return super().shift_qindex(by, inplace=inplace)  # type: ignore[return-value]
 
 
 def pipe_offset_xy(
     d: int,
     source: tuple[int, int, int],
-    sink: tuple[int, int, int] | None,
+    sink: tuple[int, int, int],
     direction: PIPEDIRECTION,
-    *,
-    anchor: Literal["seam", "inner"] = "inner",
 ) -> tuple[int, int]:
-    sx, sy, sz = source
+    """Convert a pipe defined by (source, sink, direction) in patch3d to (dx, dy).
+    Note: source and sink are patch3d coordinates (px,py,pz).
+    - direction: one of PIPEDIRECTION.LEFT/RIGHT/TOP/BOTTOM/UP/DOWN
+    - For LEFT/RIGHT, the pipe runs along Y (vertical), x fixed at seam
+    - For TOP/BOTTOM, the pipe runs along X (horizontal), y fixed at seam
+    - For UP/DOWN, NotImplementedError (temporal pipe not supported yet)
+    - The source and sink must be axis neighbors (Manhattan distance 1)
+    - The source and sink must share the same z for spatial pipes
+    - The returned (dx, dy) is the offset to apply to the pipe template's
+        internal (0,0) anchor to place it correctly in the global tiling.
+    """
     if direction in (PIPEDIRECTION.UP, PIPEDIRECTION.DOWN):
-        raise NotImplementedError("Temporal pipe (UP/DOWN) not supported for 2D tiling placement")
+        raise NotImplementedError(
+            "Temporal pipe (UP/DOWN) not supported for 2D tiling placement"
+        )
+    if source[2] != sink[2]:
+        raise ValueError("source and sink must share the same z for spatial pipe")
+    if abs(sink[0] - source[0]) + abs(sink[1] - source[1]) != 1:
+        raise ValueError(
+            "source and sink must be axis neighbors (Manhattan distance 1)"
+        )
 
-    if sink is not None:
-        tx, ty, tz = sink
-        if sz != tz:
-            raise ValueError("source and sink must share the same z for spatial pipe")
-        if abs(tx - sx) + abs(ty - sy) != 1:
-            raise ValueError("source and sink must be axis neighbors (Manhattan distance 1)")
+    if direction in [PIPEDIRECTION.LEFT, PIPEDIRECTION.BOTTOM]:
+        source, sink = sink, source
 
-    if direction in (PIPEDIRECTION.RIGHT, PIPEDIRECTION.LEFT):
-        base_x = 2 * d * min(sx, (sink[0] if sink else sx))
-        base_y = 2 * d * sy
-        if anchor == "inner":
-            base_x += 2
-            base_y += 2
+    # Aligned to RIGHT direction
+    if direction in [PIPEDIRECTION.RIGHT, PIPEDIRECTION.LEFT]:
+        tx, ty = sink[0], sink[1]
+        base_x = (2 * d + 2) * tx - 2  # RIGHT direction -> tx > sx
+        base_y = (2 * d + 2) * ty  # RIGHT direction -> ty == sy
         return base_x, base_y
-    if direction in (PIPEDIRECTION.TOP, PIPEDIRECTION.BOTTOM):
-        base_x = 2 * d * sx
-        base_y = 2 * d * min(sy, (sink[1] if sink else sy))
-        if anchor == "inner":
-            base_x += 2
-            base_y += 2
+
+    if direction in [PIPEDIRECTION.TOP, PIPEDIRECTION.BOTTOM]:
+        # Place pipe along the seam center between patches in Y at an even row
+        # to preserve even parity for data coords after offset.
+        tx, ty = sink[0], sink[1]
+        base_x = (2 * d + 2) * tx  # TOP direction -> sx == tx
+        base_y = (2 * d + 2) * ty - 2  # TOP direction -> sy < ty
         return base_x, base_y
-    raise ValueError("Invalid direction for pipe offset")
+
+    raise ValueError(f"Invalid direction for pipe offset: {direction}")
 
 
 if __name__ == "__main__":
@@ -520,7 +577,16 @@ if __name__ == "__main__":
     from lspattern.mytype import EdgeSpec
 
     def set_edgespec(**kw):
-        EdgeSpec.update({"TOP": "O", "BOTTOM": "O", "LEFT": "O", "RIGHT": "O", "UP": "O", "DOWN": "O"})
+        EdgeSpec.update(
+            {
+                "TOP": "O",
+                "BOTTOM": "O",
+                "LEFT": "O",
+                "RIGHT": "O",
+                "UP": "O",
+                "DOWN": "O",
+            }
+        )
         EdgeSpec.update({k.upper(): v for k, v in kw.items()})
 
     SHOW_BLOCK = False
@@ -549,10 +615,22 @@ if __name__ == "__main__":
     if SHOW_PIPE:
         d = 7
         pipe_cfgs = [
-            ("Pipe X: TOP=X, BOTTOM=Z", {"TOP": "X", "BOTTOM": "Z", "LEFT": "O", "RIGHT": "O"}),
-            ("Pipe X: TOP=Z, BOTTOM=X", {"TOP": "Z", "BOTTOM": "X", "LEFT": "O", "RIGHT": "O"}),
-            ("Pipe Y: LEFT=X, RIGHT=Z", {"LEFT": "X", "RIGHT": "Z", "TOP": "O", "BOTTOM": "O"}),
-            ("Pipe Y: LEFT=Z, RIGHT=X", {"LEFT": "Z", "RIGHT": "X", "TOP": "O", "BOTTOM": "O"}),
+            (
+                "Pipe X: TOP=X, BOTTOM=Z",
+                {"TOP": "X", "BOTTOM": "Z", "LEFT": "O", "RIGHT": "O"},
+            ),
+            (
+                "Pipe X: TOP=Z, BOTTOM=X",
+                {"TOP": "Z", "BOTTOM": "X", "LEFT": "O", "RIGHT": "O"},
+            ),
+            (
+                "Pipe Y: LEFT=X, RIGHT=Z",
+                {"LEFT": "X", "RIGHT": "Z", "TOP": "O", "BOTTOM": "O"},
+            ),
+            (
+                "Pipe Y: LEFT=Z, RIGHT=X",
+                {"LEFT": "Z", "RIGHT": "X", "TOP": "O", "BOTTOM": "O"},
+            ),
         ]
 
         fig2, axes2 = plt.subplots(2, 2, figsize=(10, 10))
