@@ -1,12 +1,148 @@
 """Lightweight accumulators for schedules, parities, and flows.
 
 These helpers store simple collections during compilation and offer
-remapping/combination utilities. No runtime behavior is changed by docstrings.
+remapping/combination utilities. In T23 we also add a common
+``update_at(anchor, graph_local, *, allowed_pairs=None)`` API used by
+TemporalLayer sweeps.
+
+Design notes
+------------
+- ``graph_local`` may be either a GraphState-like object (duck-typed by
+  ``neighbors(node)``) or an object carrying ``local_graph``,
+  ``node2coord`` and ``node2role`` (e.g., TemporalLayer). The helpers below
+  attempt to extract the richest available context.
+- ``allowed_pairs`` is an optional filter. In this milestone it is treated as a
+  set of node-id pairs ``{(u,v), ...}`` (order-agnostic). If not provided, all
+  neighbor relations are accepted.
+- All ``update_at`` implementations are monotone (non-decreasing). Each method
+  asserts that the total cardinality of stored relations does not shrink.
 """
 
 from dataclasses import dataclass, field
+from typing import Iterable, Mapping, Sequence
 
 from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal
+
+
+# -----------------------------------------------------------------------------
+# Shared helpers and base class
+# -----------------------------------------------------------------------------
+
+class BaseAccumulator:
+    """Common utilities for accumulator ``update_at`` implementations.
+
+    Subclasses should implement ``update_at`` and use helper methods here to
+    access graph context and enforce non-decreasing updates.
+    """
+
+    # ---- context helpers --------------------------------------------------
+    @staticmethod
+    def _extract_context(graph_local):
+        """Return a tuple (graph, node2coord, node2role).
+
+        Accepts either a GraphState-like object (with ``neighbors``) or an
+        object that carries a ``local_graph`` (e.g., TemporalLayer). Missing
+        pieces are returned as ``None``.
+        """
+
+        # TemporalLayer-like: has local_graph and rich maps
+        if hasattr(graph_local, "local_graph"):
+            graph = getattr(graph_local, "local_graph")
+            node2coord = getattr(graph_local, "node2coord", None)
+            node2role = getattr(graph_local, "node2role", None)
+            return graph, node2coord, node2role
+
+        # GraphState-like: just neighbors
+        graph = graph_local
+        node2coord = getattr(graph_local, "node2coord", None)
+        node2role = getattr(graph_local, "node2role", None)
+        return graph, node2coord, node2role
+
+    @staticmethod
+    def _is_classical_output(node: int, graph) -> bool:
+        """Heuristic classical-output check.
+
+        Treat a node as classical output if it appears in ``graph.output_node_indices``.
+        The GraphState in src/graphix_zx exposes this as a property; we also
+        allow duck-typing with a plain mapping.
+        """
+
+        try:
+            out = getattr(graph, "output_node_indices")
+            # GraphState.property returns a dict, but envs may shadow it. Be tolerant.
+            if callable(out):  # defensive: shouldn't happen
+                out = out()
+            if isinstance(out, Mapping):
+                return int(node) in set(out.keys())
+        except Exception:
+            pass
+        return False
+
+    @staticmethod
+    def _neighbors(node: int, graph) -> set[int]:
+        """Return neighbor set from a GraphState-like object."""
+        if not hasattr(graph, "neighbors"):
+            return set()
+        try:
+            return set(graph.neighbors(int(node)))
+        except Exception:
+            return set()
+
+    @staticmethod
+    def _node_time(node: int, node2coord: Mapping[int, Sequence[int]] | None) -> int | None:
+        """Return the z-time if coordinates are available."""
+        if node2coord is None:
+            return None
+        coord = node2coord.get(int(node)) if isinstance(node2coord, Mapping) else None
+        if coord is None:
+            return None
+        try:
+            return int(coord[2])
+        except Exception:
+            return None
+
+    @staticmethod
+    def _role_of(node: int, node2role: Mapping[int, str] | None) -> str | None:
+        if node2role is None:
+            return None
+        try:
+            return str(node2role.get(int(node)))
+        except Exception:
+            return None
+
+    @staticmethod
+    def _allows(u: int, v: int, allowed_pairs: Iterable[tuple[int, int]] | None) -> bool:
+        """Return True if the pair is allowed (or no filter provided).
+
+        This milestone treats allowed_pairs as node-id pairs. Order-agnostic.
+        Future work may lift this to tiling-id pairs.
+        """
+        if not allowed_pairs:
+            return True
+        uv = (int(u), int(v))
+        vu = (int(v), int(u))
+        try:
+            ap = set((int(a), int(b)) for (a, b) in allowed_pairs)
+        except Exception:
+            return True
+        return uv in ap or vu in ap
+
+    # ---- monotonicity helpers ---------------------------------------------
+    @staticmethod
+    def _size_of_flow(flow: FlowLocal) -> int:
+        return sum(len(vs) for vs in flow.values())
+
+    @staticmethod
+    def _size_of_groups(groups: list[set[int]]) -> int:
+        return sum(len(g) for g in groups)
+
+    @staticmethod
+    def _size_of_schedule(schedule: dict[int, set[int]]) -> int:
+        return sum(len(v) for v in schedule.values())
+
+    # Subclasses should override
+    def update_at(self, anchor: int, graph_local, *, allowed_pairs=None) -> None:  # pragma: no cover - interface
+        raise NotImplementedError
 
 
 # Flow helpers (node maps guaranteed to contain all keys)
@@ -42,7 +178,7 @@ def _remap_groups(
 
 
 @dataclass
-class ScheduleAccumulator:
+class ScheduleAccumulator(BaseAccumulator):
     """Collect time-indexed node sets for measurement schedule."""
 
     schedule: dict[int, set[NodeIdGlobal]] = field(default_factory=dict)
@@ -92,9 +228,33 @@ class ScheduleAccumulator:
             new_schedule[t] = new_schedule.get(t, set()).union(nodes)
         return ScheduleAccumulator(new_schedule)
 
+    # ---- T23: update API ---------------------------------------------------
+    def update_at(self, anchor: int, graph_local, *, allowed_pairs=None) -> None:
+        """Record the measurement of ``anchor`` at its time slice.
+
+        Uses node2coord if available to place the node into the correct t-slot.
+        Ignores classical outputs. Monotonic (non-decreasing) by construction.
+        """
+        graph, node2coord, _roles = self._extract_context(graph_local)
+
+        if self._is_classical_output(anchor, graph):
+            return
+
+        before = self._size_of_schedule(self.schedule)
+
+        t = self._node_time(anchor, node2coord)
+        if t is None:
+            # Fallback to a single bucket 0 when time is unknown
+            t = 0
+
+        self.schedule.setdefault(int(t), set()).add(int(anchor))
+
+        after = self._size_of_schedule(self.schedule)
+        assert after >= before, "ScheduleAccumulator must be non-decreasing"
+
 
 @dataclass
-class ParityAccumulator:
+class ParityAccumulator(BaseAccumulator):
     """Parity check groups for X/Z stabilizers in local id space."""
 
     # Parity check groups (local ids)
@@ -111,9 +271,55 @@ class ParityAccumulator:
             z_checks=_remap_groups(self.z_checks, node_map),
         )
 
+    # ---- T23: update API ---------------------------------------------------
+    def update_at(self, anchor: int, graph_local, *, allowed_pairs=None) -> None:
+        """Update parity groups by sweeping neighbors around an ancilla node.
+
+        - For an X-ancilla, add the set of adjacent data nodes to ``x_checks``.
+        - For a Z-ancilla, add the set of adjacent data nodes to ``z_checks``.
+        - Skip classical outputs.
+        - Non-decreasing is enforced by assertion.
+        """
+        graph, _coords, roles = self._extract_context(graph_local)
+
+        if self._is_classical_output(anchor, graph):
+            return
+
+        role = (self._role_of(anchor, roles) or "").lower()
+        if not role.startswith("ancilla"):
+            return  # only ancillas define parity groups
+
+        # Before size
+        before = self._size_of_groups(self.x_checks) + self._size_of_groups(self.z_checks)
+
+        # Neighbor filter: keep data nodes and allowed pairs only
+        nbrs = self._neighbors(anchor, graph)
+
+        def _is_data(n: int) -> bool:
+            r = (self._role_of(n, roles) or "").lower()
+            return r == "data"
+
+        group = {int(n) for n in nbrs if _is_data(n) and self._allows(anchor, n, allowed_pairs)}
+        if not group:
+            # Nothing to add; still enforce non-decreasing
+            after = self._size_of_groups(self.x_checks) + self._size_of_groups(self.z_checks)
+            assert after >= before
+            return
+
+        if "ancilla_x" in role:
+            self.x_checks.append(group)
+        elif "ancilla_z" in role:
+            self.z_checks.append(group)
+        else:
+            # Unknown ancilla kind; conservatively append to both for visibility
+            self.x_checks.append(group)
+
+        after = self._size_of_groups(self.x_checks) + self._size_of_groups(self.z_checks)
+        assert after >= before, "ParityAccumulator must be non-decreasing"
+
 
 @dataclass
-class FlowAccumulator:
+class FlowAccumulator(BaseAccumulator):
     """Directed flow relations between nodes for X/Z types."""
 
     xflow: dict[NodeIdLocal, set[NodeIdLocal]] = field(default_factory=dict)
@@ -135,3 +341,81 @@ class FlowAccumulator:
             xflow=_merge_flow(self.xflow, other.xflow),
             zflow=_merge_flow(self.zflow, other.zflow),
         )
+
+    # ---- T23: update API ---------------------------------------------------
+    def update_at(self, anchor: int, graph_local, *, allowed_pairs=None) -> None:
+        """Update X/Z flow from an ancilla to its data neighbors.
+
+        A minimal, monotone definition suitable for T23:
+        - For X-ancilla: add directed edges anchor -> data_nbr into ``xflow``.
+        - For Z-ancilla: add directed edges anchor -> data_nbr into ``zflow``.
+        - Skip classical outputs.
+        """
+        graph, _coords, roles = self._extract_context(graph_local)
+
+        if self._is_classical_output(anchor, graph):
+            return
+
+        role = (self._role_of(anchor, roles) or "").lower()
+        if not role.startswith("ancilla"):
+            return
+
+        before = self._size_of_flow(self.xflow) + self._size_of_flow(self.zflow)
+
+        nbrs = self._neighbors(anchor, graph)
+
+        def _is_data(n: int) -> bool:
+            r = (self._role_of(n, roles) or "").lower()
+            return r == "data"
+
+        targets = [int(n) for n in nbrs if _is_data(n) and self._allows(anchor, n, allowed_pairs)]
+
+        if "ancilla_x" in role:
+            self.xflow.setdefault(int(anchor), set()).update(targets)
+        elif "ancilla_z" in role:
+            self.zflow.setdefault(int(anchor), set()).update(targets)
+        else:
+            # Unknown ancilla kind; do nothing further
+            pass
+
+        after = self._size_of_flow(self.xflow) + self._size_of_flow(self.zflow)
+        assert after >= before, "FlowAccumulator must be non-decreasing"
+
+
+# -----------------------------------------------------------------------------
+# Minimal detector accumulator (stub for T23)
+# -----------------------------------------------------------------------------
+
+@dataclass
+class DetectorAccumulator(BaseAccumulator):
+    """Minimal detector grouping by ancilla.
+
+    This stub collects for each ancilla the set of neighboring data nodes at
+    the same time slice (if time information is available, we ignore it for now).
+    """
+
+    detectors: dict[int, set[int]] = field(default_factory=dict)
+
+    def update_at(self, anchor: int, graph_local, *, allowed_pairs=None) -> None:
+        graph, _coords, roles = self._extract_context(graph_local)
+        if self._is_classical_output(anchor, graph):
+            return
+
+        role = (self._role_of(anchor, roles) or "").lower()
+        if not role.startswith("ancilla"):
+            return
+
+        before = sum(len(v) for v in self.detectors.values())
+
+        nbrs = self._neighbors(anchor, graph)
+
+        def _is_data(n: int) -> bool:
+            r = (self._role_of(n, roles) or "").lower()
+            return r == "data"
+
+        group = {int(n) for n in nbrs if _is_data(n) and self._allows(anchor, n, allowed_pairs)}
+        if group:
+            self.detectors.setdefault(int(anchor), set()).update(group)
+
+        after = sum(len(v) for v in self.detectors.values())
+        assert after >= before, "DetectorAccumulator must be non-decreasing"

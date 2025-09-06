@@ -42,6 +42,7 @@ class InitPlusPipe(RHGPipe):
         edgespec: SpatialEdgeSpec,
         direction: PIPEDIRECTION,
     ):
-        super().__init__(d=d, edgespec=edgespec, direction=direction)
+        # RHGPipe(dataclass) の __init__ は direction を引数に受け取らない
+        super().__init__(d=d, edge_spec=edgespec)
+        self.direction = direction
         self.template = RotatedPlanarPipetemplate(d=d, edgespec=edgespec)
-

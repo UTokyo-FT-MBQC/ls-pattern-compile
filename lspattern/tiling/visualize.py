@@ -29,9 +29,9 @@ def plot_connected_tiling(
         fig = ax.figure
 
     # 座標取得（tuple[int,int]）
-    data = list(getattr(ct, "data_coords", []) or [])
-    xs = list(getattr(ct, "x_coords", []) or [])
-    zs = list(getattr(ct, "z_coords", []) or [])
+    data = list(ct.data_coords or [])
+    xs = list(ct.x_coords or [])
+    zs = list(ct.z_coords or [])
 
     def _split_xy(points: list[tuple[int, int]]):
         if not points:
@@ -76,5 +76,5 @@ def plot_layer_tiling(
     """
     ct = layer.get_connected_tiling(anchor=anchor)
     if title is None:
-        title = f"TemporalLayer z={getattr(layer, 'z', '?')} (anchor={anchor})"
+        title = f"TemporalLayer z={layer.z} (anchor={anchor})"
     return plot_connected_tiling(ct, ax=None, show=show, title=title)

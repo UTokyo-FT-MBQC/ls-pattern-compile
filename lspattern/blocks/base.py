@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
 
 from lspattern.tiling.template import (
-    RotatedPlanarBlockTemplate,
+    RotatedPlanarCubeTemplate,
     ScalableTemplate,
 )
 
@@ -75,14 +75,14 @@ class RHGBlock:
     def __post_init__(self) -> None:
         # Sync template parameters (d, edgespec)
         edgespec = self.edge_spec
-        if getattr(self, "template", None) is None:
-            self.template = RotatedPlanarBlockTemplate(d=int(self.d), edgespec=edgespec or {})
+        if self.template is None:
+            self.template = RotatedPlanarCubeTemplate(d=int(self.d), edgespec=edgespec or {})
         else:
             # Ensure d matches
             self.template.d = int(self.d)
             # Prefer explicit edge_spec if provided; otherwise adopt from template
             if edgespec is None:
-                edgespec = getattr(self.template, "edgespec", {})
+                edgespec = self.template.edgespec
                 self.edge_spec = edgespec  # keep alias in sync
 
         # Trim spatial boundaries for explicitly open sides and precompute tiling
@@ -126,6 +126,33 @@ class RHGBlock:
 
         by_template: PatchCoordLocal2D = (dx, dy)
         self.template.shift_coords(by_template)
+
+    def materialize(self) -> "RHGBlock":
+        """Finalize this block's template and initialize ports.
+
+        - Sync `template.d` with `self.d`.
+        - Ensure template edgespec mirrors `self.edge_spec` if provided.
+        - Build tiling via `template.to_tiling()`.
+        - Invoke port initialization hooks (`set_in_ports`, `set_out_ports`, `set_cout_ports`).
+        """
+        # Keep core parameters in sync
+        self.template.d = int(self.d)
+        if self.edge_spec is not None:
+            # Align template's edgespec with the block-side alias
+            try:
+                self.template.edgespec = dict(self.edge_spec)
+            except Exception:
+                self.template.edgespec = self.edge_spec  # type: ignore[assignment]
+
+        # Evaluate tiling coordinates (data/X/Z)
+        self.template.to_tiling()
+
+        # Initialize logical port sets (child classes may override these hooks)
+        self.set_in_ports()
+        self.set_out_ports()
+        self.set_cout_ports()
+
+        return self
 
     # --- Compatibility aliases -------------------------------------------------
     # Some parts of the codebase use `edgespec` while this class had `edge_spec`.

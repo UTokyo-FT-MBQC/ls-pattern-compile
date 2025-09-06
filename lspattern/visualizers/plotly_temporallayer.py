@@ -13,6 +13,10 @@ def visualize_temporal_layer_plotly(
     width: int = 800,
     height: int = 600,
     reverse_axes: bool = True,
+    show_axes: bool = True,
+    show_grid: bool = True,
+    aspectmode: str = "data",  # 'data' | 'cube' | 'auto' | 'manual'
+    aspectratio: tuple[float, float, float] | None = None,
 ):
     """Interactive 3D Plotly visualization for a TemporalLayer.
 
@@ -44,8 +48,8 @@ def visualize_temporal_layer_plotly(
     # Lazy import parity helpers
     from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z, is_data
 
-    node2coord: dict[int, tuple[int, int, int]] = getattr(layer, "node2coord", {}) or {}
-    g = getattr(layer, "local_graph", None)
+    node2coord: dict[int, tuple[int, int, int]] = layer.node2coord or {}
+    g = layer.local_graph
 
     # Color mapping consistent with the notebook
     color_map = {
@@ -81,7 +85,7 @@ def visualize_temporal_layer_plotly(
 
     # 役割は優先して TemporalLayer.node2role から取得（引数未指定時）
     if node_roles is None:
-        node_roles = getattr(layer, "node2role", {}) or None
+        node_roles = layer.node2role or None
 
     for n, coord in node2coord.items():
         role = node_roles.get(n) if node_roles else None
@@ -148,11 +152,12 @@ def visualize_temporal_layer_plotly(
             )
 
     # Highlight input/output nodes if present
-    try:
-        in_nodes: Iterable[int] = list(getattr(g, "input_node_indices", {}).keys())
-        out_nodes: Iterable[int] = list(getattr(g, "output_node_indices", {}).keys())
-    except Exception:
-        in_nodes, out_nodes = [], []
+    if g is not None:
+        in_nodes: Iterable[int] = list(g.input_node_indices.keys())
+        out_nodes: Iterable[int] = list(g.output_node_indices.keys())
+    else:
+        in_nodes = []
+        out_nodes = []
 
     if in_nodes:
         xin = [node2coord[n][0] for n in in_nodes if n in node2coord]
@@ -189,19 +194,44 @@ def visualize_temporal_layer_plotly(
         )
 
     # Layout
-    scene = dict(
+    # 軸とレイアウト
+    scene: dict = dict(
         xaxis_title="X",
         yaxis_title="Y",
         zaxis_title="Z",
-        aspectmode="cube",
+        aspectmode=str(aspectmode),
         camera=dict(eye=dict(x=1.5, y=1.5, z=1.5)),
     )
+    if aspectmode == "manual" and aspectratio is not None:
+        ax, ay, az = aspectratio
+        scene["aspectratio"] = dict(x=float(ax), y=float(ay), z=float(az))
     if reverse_axes:
         scene["xaxis"] = dict(autorange="reversed")
         scene["yaxis"] = dict(autorange="reversed")
 
+    # 軸の見た目制御
+    def _axis_cfg(base: dict | None = None):
+        base = dict(base or {})
+        if show_axes:
+            base.update(
+                dict(
+                    showgrid=bool(show_grid),
+                    zeroline=True,
+                    showline=True,
+                    mirror=True,
+                    ticks="outside",
+                )
+            )
+        else:
+            base.update(dict(visible=False))
+        return base
+
+    scene["xaxis"] = _axis_cfg(scene.get("xaxis"))
+    scene["yaxis"] = _axis_cfg(scene.get("yaxis"))
+    scene["zaxis"] = _axis_cfg(scene.get("zaxis"))
+
     fig.update_layout(
-        title=f"Temporal Layer z={getattr(layer, 'z', '?')}",
+        title=f"Temporal Layer z={layer.z}",
         scene=scene,
         width=width,
         height=height,

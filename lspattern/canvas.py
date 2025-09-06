@@ -2,7 +2,26 @@
 
 from dataclasses import dataclass, field
 
-from graphix_zx.graphstate import GraphState, compose_in_parallel, compose_sequentially
+try:
+    from graphix_zx.graphstate import (
+        GraphState,
+        compose_in_parallel,
+        compose_sequentially,
+    )
+except Exception:  # fallback for repo-local execution without install
+    import sys as _sys, pathlib as _pathlib
+
+    _ROOT = _pathlib.Path(__file__).resolve().parents[1]
+    _SRC = _ROOT / "src"
+    _SRC_GRAPHIX = _SRC / "graphix_zx"
+    for _p in (str(_SRC_GRAPHIX), str(_SRC)):
+        if _p not in _sys.path:
+            _sys.path.insert(0, _p)
+    from graphix_zx.graphstate import (
+        GraphState,
+        compose_in_parallel,
+        compose_sequentially,
+    )
 from graphix_zx.common import Plane, PlannerMeasBasis
 from lspattern.accumulator import (
     FlowAccumulator,
@@ -18,7 +37,6 @@ from lspattern.mytype import (
     PhysCoordGlobal3D,
     PipeCoordGlobal3D,
 )
-from lspattern.tiling.base import ConnectedTiling
 from lspattern.tiling.template import (
     cube_offset_xy,
     offset_tiling,
@@ -102,11 +120,8 @@ class TemporalLayer:
         for (source, sink), pipe in pipes.items():
             self.add_pipe(source, sink, pipe)
 
-    def materialize(self) -> None:
-        for b in self.cubes_.values():
-            b.template.to_tiling()
-        for p in self.pipes_.values():
-            p.template.to_tiling()
+    def compile(self) -> None:
+        # Blocks are expected to be materialized already.
 
         # New path: build absolute 2D tilings from patch positions, then connect
         # TODO: ConnectedTilingが無造作にpatch同士をつなげてしまうバグが見つかった。
@@ -115,40 +130,117 @@ class TemporalLayer:
         # でConnectedTiling内で接続があればcoord2idを同一化させるように修正する
         # ancillaはこれまでと同様に全方向を探索するが、coord2idが同一のdata/ancilla間のみを接続するように修正する
         # 以上をT19.mdに仕様書として書き出し、遂行しなさい。
-        cube_tilings_abs: list = []
-        pipe_tilings_abs: list = []
+        # Absolute tilings per cube/pipe (2D XY coords, independent per part)
+        cube_tilings_abs: dict[PatchCoordGlobal3D, object] = {}
+        pipe_tilings_abs: dict[PipeCoordGlobal3D, object] = {}
         dset: set[int] = set()
 
         for pos, b in self.cubes_.items():
-            if getattr(b, "template", None) is None:
-                continue
-            d_val = int(getattr(b, "d", getattr(b.template, "d", 0)))
+            d_val = int(b.d)
             dset.add(d_val)
             dx, dy = cube_offset_xy(d_val, pos, anchor="inner")
-            cube_tilings_abs.append(offset_tiling(b.template, dx, dy))
+            cube_tilings_abs[pos] = offset_tiling(b.template, dx, dy)
 
         for (source, sink), p in self.pipes_.items():
-            if getattr(p, "template", None) is None:
-                continue
-            d_val = int(getattr(p, "d", getattr(p.template, "d", 0)))
+            d_val = int(p.d)
             dset.add(d_val)
             direction = get_direction(source, sink)
             dx, dy = pipe_offset_xy(d_val, source, sink, direction)
-            pipe_tilings_abs.append(offset_tiling(p.template, dx, dy))
+            pipe_tilings_abs[(source, sink)] = offset_tiling(p.template, dx, dy)
 
         if len(dset) > 1:
-            msg = "TemporalLayer.materialize: mixed code distances (d) are not supported yet"
+            msg = (
+                "TemporalLayer.compile: mixed code distances (d) are not supported yet"
+            )
             raise MixedCodeDistanceError(msg)
 
-        ct = ConnectedTiling(cube_tilings_abs, pipe_tilings_abs, check_collisions=True)
-        # Expose for debugging/inspection
-        self._connected_tiling = ct
-        self.tiling_node_maps = {
-            "data": dict(ct.node_maps.get("data", {})),
-            "x": dict(ct.node_maps.get("x", {})),
-            "z": dict(ct.node_maps.get("z", {})),
-        }
-        # Build GraphState for this layer from ConnectedTiling (T12 policy)
+        # Aggregate absolute 2D coords and patch groups
+        data2d_set: set[tuple[int, int]] = set()
+        x2d_set: set[tuple[int, int]] = set()
+        z2d_set: set[tuple[int, int]] = set()
+        # Mapping XY -> tiling group id (computed via union of tiles connected by pipes)
+        coord_gid: dict[tuple[int, int], int] = {}
+        # Mapping XY -> tiling id (per-part unique id_)
+        coord_tid: dict[tuple[int, int], int] = {}
+        # Track tile ids for cubes/pipes separately
+        cube_pos2tid: dict[PatchCoordGlobal3D, int] = {}
+        pipe_seg2tid: dict[PipeCoordGlobal3D, int] = {}
+
+        for pos, t in cube_tilings_abs.items():
+            for x, y in t.data_coords:
+                xy = (int(x), int(y))
+                data2d_set.add(xy)
+                coord_tid[xy] = int(getattr(t, "id_", 0))
+            for x, y in t.x_coords:
+                xy = (int(x), int(y))
+                x2d_set.add(xy)
+                coord_tid[xy] = int(getattr(t, "id_", 0))
+            for x, y in t.z_coords:
+                xy = (int(x), int(y))
+                z2d_set.add(xy)
+                coord_tid[xy] = int(getattr(t, "id_", 0))
+            cube_pos2tid[pos] = int(getattr(t, "id_", 0))
+
+        for seg, t in pipe_tilings_abs.items():
+            for x, y in t.data_coords:
+                xy = (int(x), int(y))
+                data2d_set.add(xy)
+                coord_tid[xy] = int(getattr(t, "id_", 0))
+            for x, y in t.x_coords:
+                xy = (int(x), int(y))
+                x2d_set.add(xy)
+                coord_tid[xy] = int(getattr(t, "id_", 0))
+            for x, y in t.z_coords:
+                xy = (int(x), int(y))
+                z2d_set.add(xy)
+                coord_tid[xy] = int(getattr(t, "id_", 0))
+            pipe_seg2tid[seg] = int(getattr(t, "id_", 0))
+
+        # --- Build allowed pairs and unify groups (gid) across tiles via pipes ---
+        # Allowed pairs are the (source cube tid, sink cube tid) induced by pipes
+        allowed_pairs: set[tuple[int, int]] = set()
+        # Union-Find (DSU) over tiling ids to compute connected groups
+        parent: dict[int, int] = {}
+
+        def find(a: int) -> int:
+            parent.setdefault(a, a)
+            if parent[a] != a:
+                parent[a] = find(parent[a])
+            return parent[a]
+
+        def union(a: int, b: int) -> None:
+            ra, rb = find(a), find(b)
+            if ra == rb:
+                return
+            # unify to the smaller id for determinism
+            m = min(ra, rb)
+            parent[ra] = m
+            parent[rb] = m
+
+        # Initialize DSU parents for all tiles
+        for t in cube_tilings_abs.values():
+            parent.setdefault(int(getattr(t, "id_", 0)), int(getattr(t, "id_", 0)))
+        for t in pipe_tilings_abs.values():
+            parent.setdefault(int(getattr(t, "id_", 0)), int(getattr(t, "id_", 0)))
+
+        # Unify cube<->pipe<->cube per spatial pipe, and record allowed cube pairs
+        for (source, sink), p in self.pipes_.items():
+            tid_src = cube_pos2tid.get(source)
+            tid_snk = cube_pos2tid.get(sink)
+            tid_pipe = pipe_seg2tid.get((source, sink))
+            if tid_src is None or tid_snk is None or tid_pipe is None:
+                continue
+            union(tid_src, tid_pipe)
+            union(tid_pipe, tid_snk)
+            allowed_pairs.add((tid_src, tid_snk))
+
+        # Map each XY coord to its unified group id (gid)
+        for xy, tid in coord_tid.items():
+            gid = find(int(tid)) if tid is not None else None
+            if gid is not None:
+                coord_gid[xy] = int(gid)
+
+        # Build GraphState (T12 policy)
         d = next(iter(dset)) if dset else 0
         max_t = 2 * d
         g = GraphState()
@@ -156,9 +248,9 @@ class TemporalLayer:
         coord2node = {}
         node2role = {}
 
-        data2d = list(ct.data_coords)
-        x2d = list(ct.x_coords)
-        z2d = list(ct.z_coords)
+        data2d = sorted(data2d_set)
+        x2d = sorted(x2d_set)
+        z2d = sorted(z2d_set)
 
         nodes_by_z: dict[int, dict[tuple[int, int], int]] = {}
         for t in range(max_t + 1):
@@ -189,13 +281,10 @@ class TemporalLayer:
 
             nodes_by_z[t] = cur
 
-        # Helper: connect only within same patch group when coord2id is available
+        # Helper: allowed to connect if two coords belong to the same unified tiling-group
         def _same_gid(xy1: tuple[int, int], xy2: tuple[int, int]) -> bool:
-            c2i = getattr(ct, "coord2id", {}) or {}
-            if not c2i:
-                return True  # legacy behavior
-            g1 = c2i.get(xy1)
-            g2 = c2i.get(xy2)
+            g1 = coord_gid.get(xy1)
+            g2 = coord_gid.get(xy2)
             return (g1 is not None) and (g1 == g2)
 
         for t, cur in nodes_by_z.items():
@@ -206,6 +295,7 @@ class TemporalLayer:
                     xy2 = (x + dx, y + dy)
                     v = cur.get(xy2)
                     if v is not None and v > u and _same_gid((x, y), xy2):
+                        # Connect CZ only within unified groups (includes cube<->pipe<->cube)
                         g.add_physical_edge(u, v)
 
         for t in range(1, max_t + 1):
@@ -221,6 +311,12 @@ class TemporalLayer:
         self.coord2node = coord2node
         self.node2role = node2role
         self.qubit_count = len(g.physical_nodes)
+        # simple node_maps for inspection
+        self.tiling_node_maps = {
+            "data": {xy: i for i, xy in enumerate(data2d)},
+            "x": {xy: i for i, xy in enumerate(x2d)},
+            "z": {xy: i for i, xy in enumerate(z2d)},
+        }
 
         # 2D 連結（パッチ位置のオフセットは未考慮）
         # ct = ConnectedTiling(tilings, check_collisions=True)
@@ -230,7 +326,7 @@ class TemporalLayer:
         #     "x": dict(ct.node_maps.get("x", {})),
         #     "z": dict(ct.node_maps.get("z", {})),
         # }
-        # # TODO: ctはmaterializeするもの。なんかぁE�E��E�感じに設計したい
+        # # TODO: ctはmaterializeするもの。なんかぁE?E??E?感じに設計したい
         # # graph, coord2node, ... = ct.materialize()
 
         # # TODO: input_nodeset, output_nodesetの設定をnodemapをもとに適切に実装する必要があります
@@ -246,16 +342,14 @@ class TemporalLayer:
         -------
             dict[str, dict[tuple[int, int], int]]: The node_maps from ConnectedTiling.
         """
-        if not getattr(self, "tiling_node_maps", None):
-            self.materialize()
+        if not self.tiling_node_maps:
+            self.compile()
         return self.tiling_node_maps
 
     def add_cube(self, pos: PatchCoordGlobal3D, cube: RHGCube) -> None:
         """Add a materialized cube to this temporal layer and place it at `pos`."""
         self.cubes_[pos] = cube
         self.patches.append(pos)
-        # Shift only coordinates for placement (template keeps local ids)
-        cube.shift_coords(pos)
         return
 
     def add_pipe(
@@ -290,7 +384,9 @@ class CompiledRHGCanvas:
     # def generate_stim_circuit(self) -> stim.Circuit:
     #     pass
 
-    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> CompiledRHGCanvas:
+    def remap_nodes(
+        self, node_map: dict[NodeIdLocal, NodeIdLocal]
+    ) -> CompiledRHGCanvas:
         new_cgraph = CompiledRHGCanvas(
             layers=self.layers.copy(),
             global_graph=self.global_graph.remap_nodes(node_map),
@@ -373,12 +469,14 @@ class CompiledRHGCanvas:
     schedule: ScheduleAccumulator = field(default_factory=ScheduleAccumulator)
     flow: FlowAccumulator = field(default_factory=FlowAccumulator)
     parity: ParityAccumulator = field(default_factory=ParityAccumulator)
-    z: int = 0
+    zlist: list[int] = field(default_factory=list)
 
     # def generate_stim_circuit(self) -> stim.Circuit:
     #     pass
 
-    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> CompiledRHGCanvas:
+    def remap_nodes(
+        self, node_map: dict[NodeIdLocal, NodeIdLocal]
+    ) -> CompiledRHGCanvas:
         new_cgraph = CompiledRHGCanvas(
             layers=self.layers.copy(),
             global_graph=self.global_graph.remap_nodes(node_map),
@@ -423,7 +521,9 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
     def add_cube(self, position: PatchCoordGlobal3D, cube: RHGCubeSkeleton) -> None:
         self.cubes_[position] = cube
 
-    def add_pipe(self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipeSkeleton) -> None:
+    def add_pipe(
+        self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipeSkeleton
+    ) -> None:
         self.pipes_[start, end] = pipe
 
     def trim_spatial_boundaries(self) -> None:
@@ -513,14 +613,20 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
     def add_cube(self, position: PatchCoordGlobal3D, cube: RHGCube) -> None:
         self.cubes_[position] = cube
 
-    def add_pipe(self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipe) -> None:
+    def add_pipe(
+        self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipe
+    ) -> None:
         self.pipes_[start, end] = pipe
 
     def to_temporal_layers(self) -> dict[int, TemporalLayer]:
         temporal_layers: dict[int, TemporalLayer] = {}
         for z in range(max(self.cubes_.keys(), key=lambda pos: pos[2])[2] + 1):
             cubes = {pos: c for pos, c in self.cubes_.items() if pos[2] == z}
-            pipes = {(u, v): p for (u, v), p in self.pipes_.items() if u[2] == z and v[2] == z}
+            pipes = {
+                (u, v): p
+                for (u, v), p in self.pipes_.items()
+                if u[2] == z and v[2] == z
+            }
 
             layer = to_temporal_layer(z, cubes, pipes)
             temporal_layers[z] = layer
@@ -540,14 +646,18 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
             schedule=ScheduleAccumulator(),
             flow=FlowAccumulator(),
             parity=ParityAccumulator(),
-            z=0,
+            zlist=[],
         )
 
         # Compose layers in increasing temporal order, wiring any cross-layer pipes
         for z in sorted(temporal_layers.keys()):
             layer = temporal_layers[z]
             # Select pipes whose start.z is the current compiled z and end.z is the next layer z
-            pipes: list[RHGPipe] = [pipe for (u, v), pipe in self.pipes_.items() if u[2] == cgraph.z and v[2] == z]
+            pipes: list[RHGPipe] = [
+                pipe
+                for (u, v), pipe in self.pipes_.items()
+                if u[2] == cgraph.z and v[2] == z
+            ]
             cgraph = add_temporal_layer(cgraph, layer, pipes)
         return cgraph
 
@@ -560,15 +670,21 @@ def to_temporal_layer(
     # 1) Make empty TemporalLayer instance
     layer = TemporalLayer(z)
 
-    layer.add_cubes(cubes)
-    layer.add_pipes(pipes)
+    # materialize blocks before adding
+    cubes_mat = {pos: blk.materialize() for pos, blk in cubes.items()}
+    pipes_mat = {(u, v): p.materialize() for (u, v), p in pipes.items()}
 
-    # call materialize here
-    layer.materialize()
+    layer.add_cubes(cubes_mat)
+    layer.add_pipes(pipes_mat)
+
+    # compile this layer
+    layer.compile()
     return layer
 
 
-def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pipes: list[RHGPipe]) -> CompiledRHGCanvas:
+def add_temporal_layer(
+    cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pipes: list[RHGPipe]
+) -> CompiledRHGCanvas:
     """Compose the compiled canvas with the next temporal layer.
 
     Follows the legacy-canvas pattern:
@@ -597,7 +713,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
             out_portset=next_layer.out_portset,
             cout_portset=next_layer.cout_portset,
             schedule=next_layer.schedule,
-            z=next_layer.z,
+            zlist=[next_layer.z],
         )
         return new_cgraph
 
@@ -609,7 +725,9 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
     # Remap registries for both sides into the composed id-space
     cgraph = cgraph.remap_nodes(node_map1)
     # Remap next_layer coord2node into composed id-space
-    next_layer.coord2node = {c: node_map2.get(n, n) for c, n in next_layer.coord2node.items()}
+    next_layer.coord2node = {
+        c: node_map2.get(n, n) for c, n in next_layer.coord2node.items()
+    }
 
     # Create a new CompiledRHGCanvas to hold the merged result.
     new_layers = cgraph.layers + [next_layer]
@@ -648,8 +766,16 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
 
     seam_pairs: list[tuple[int, int]] = []
     if prev_last_z is not None and next_first_z is not None:
-        prev_xy_to_node = {(x, y): nid for (x, y, z), nid in cgraph.coord2node.items() if z == prev_last_z}
-        next_xy_to_node = {(x, y): nid for (x, y, z), nid in next_layer.coord2node.items() if z == next_first_z}
+        prev_xy_to_node = {
+            (x, y): nid
+            for (x, y, z), nid in cgraph.coord2node.items()
+            if z == prev_last_z
+        }
+        next_xy_to_node = {
+            (x, y): nid
+            for (x, y, z), nid in next_layer.coord2node.items()
+            if z == next_first_z
+        }
         for xy, u in prev_xy_to_node.items():
             v = next_xy_to_node.get(xy)
             if v is not None and u != v:

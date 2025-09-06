@@ -9,7 +9,7 @@ from lspattern.mytype import (
     TilingConsistentQubitId,
     TilingCoord2D,
 )
-from lspattern.tiling.base import ConnectedTiling, Tiling
+from lspattern.tiling.base import Tiling
 from lspattern.utils import sort_xy
 
 
@@ -31,22 +31,16 @@ class ScalableTemplate(Tiling):
     def _spec(self, side: str) -> str:
         """Return standardized spec value ("X"/"Z"/"O").
 
-        Accepts side in any case (e.g., "left"/"LEFT"). Falls back to "O".
+        Accepts side in any case (e.g., "left"/"LEFT"). Defaults to "O".
         """
         v = None
         if isinstance(self.edgespec, dict):
-            v = self.edgespec.get(side.lower())
+            v = self.edgespec.get(side.upper())
             if v is None:
-                v = self.edgespec.get(side.upper())
+                v = self.edgespec.get(side.lower())
         if v is None:
-            try:
-                v = getattr(self.edgespec, side.upper())  # type: ignore[attr-defined]
-            except Exception:
-                v = "O"
-        try:
-            return str(v).upper()
-        except Exception:
-            return "O"
+            v = "O"
+        return str(v).upper()
 
     def get_data_indices(self) -> dict[TilingCoord2D, TilingConsistentQubitId]:
         data_index = {coor: i for i, coor in enumerate(sort_xy(self.data_coords))}
@@ -54,11 +48,11 @@ class ScalableTemplate(Tiling):
 
     # ---- Coordinate and index shifting APIs ---------------------------------
     def _shift_lists_inplace(self, dx: int, dy: int) -> None:
-        if getattr(self, "data_coords", None):
+        if self.data_coords:
             self.data_coords = [(x + dx, y + dy) for (x, y) in self.data_coords]
-        if getattr(self, "x_coords", None):
+        if self.x_coords:
             self.x_coords = [(x + dx, y + dy) for (x, y) in self.x_coords]
-        if getattr(self, "z_coords", None):
+        if self.z_coords:
             self.z_coords = [(x + dx, y + dy) for (x, y) in self.z_coords]
 
     def shift_coords(
@@ -113,9 +107,8 @@ class ScalableTemplate(Tiling):
         This is optional; ConnectedTiling rebuilds indexes, but callers may
         use this for standalone composition.
         """
-        data_indices = getattr(self, "data_indices", None)
-        if data_indices is not None:
-            shifted = [int(i) + int(by) for i in data_indices]
+        if self.data_indices:
+            shifted = [int(i) + int(by) for i in self.data_indices]
             if inplace:
                 self.data_indices = shifted
             else:
@@ -167,9 +160,9 @@ class ScalableTemplate(Tiling):
         """
         import matplotlib.pyplot as plt
 
-        data = list(getattr(self, "data_coords", []) or [])
-        xs = list(getattr(self, "x_coords", []) or [])
-        zs = list(getattr(self, "z_coords", []) or [])
+        data = list(self.data_coords or [])
+        xs = list(self.x_coords or [])
+        zs = list(self.z_coords or [])
 
         created_fig = None
         if ax is None:
@@ -206,7 +199,7 @@ class ScalableTemplate(Tiling):
         ax.set_xlabel("x")
         ax.set_ylabel("y")
 
-        title_core = f"d={getattr(self, 'd', '?')}"
+        title_core = f"d={self.d}"
         if title_suffix:
             title_core += f" | {title_suffix}"
         ax.set_title(title_core)
@@ -222,7 +215,7 @@ class ScalableTemplate(Tiling):
             plt.show()
 
 
-class RotatedPlanarBlockTemplate(ScalableTemplate):
+class RotatedPlanarCubeTemplate(ScalableTemplate):
     def to_tiling(self) -> dict[str, list[tuple[int, int]]]:
         d = self.d
         data_coords: set[tuple[int, int]] = set()
@@ -292,9 +285,9 @@ def _copy_with_offset(t: Tiling, dx: int, dy: int) -> Tiling:
     Does not mutate the input instance.
     """
     return Tiling(
-        data_coords=_offset_coords(getattr(t, "data_coords", []), dx, dy),
-        x_coords=_offset_coords(getattr(t, "x_coords", []), dx, dy),
-        z_coords=_offset_coords(getattr(t, "z_coords", []), dx, dy),
+        data_coords=_offset_coords(t.data_coords, dx, dy),
+        x_coords=_offset_coords(t.x_coords, dx, dy),
+        z_coords=_offset_coords(t.z_coords, dx, dy),
     )
 
 
@@ -323,7 +316,7 @@ def merge_pair_spatial(
     direction: str,
     *,
     check_collisions: bool = True,
-) -> ConnectedTiling:
+) -> Tiling:
     """Trim the facing boundaries of `a` and `b`, then merge their tilings.
 
     - direction: one of "X+", "X-", "Y+", "Y-" (case-insensitive)
@@ -332,8 +325,8 @@ def merge_pair_spatial(
     - Returns a ConnectedTiling which stably de-duplicates within-type coords
       and optionally checks for across-type overlaps.
     """
-    d_a = getattr(a, "d", None)
-    d_b = getattr(b, "d", None)
+    d_a = a.d
+    d_b = b.d
     if not isinstance(d_a, int) or not isinstance(d_b, int):
         raise ValueError("Both templates must have integer distance 'd'.")
 
@@ -467,11 +460,11 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
             raise ValueError("coordinate must be one of: tiling2d, phys3d, patch3d")
 
         if inplace:
-            if getattr(self, "data_coords", None):
+            if self.data_coords:
                 self.data_coords = [(x + dx, y + dy) for (x, y) in self.data_coords]
-            if getattr(self, "x_coords", None):
+            if self.x_coords:
                 self.x_coords = [(x + dx, y + dy) for (x, y) in self.x_coords]
-            if getattr(self, "z_coords", None):
+            if self.z_coords:
                 self.z_coords = [(x + dx, y + dy) for (x, y) in self.z_coords]
             return self
         t = offset_tiling(self, dx, dy)
@@ -490,6 +483,8 @@ def pipe_offset_xy(
     source: tuple[int, int, int],
     sink: tuple[int, int, int] | None,
     direction: PIPEDIRECTION,
+    *,
+    anchor: Literal["seam", "inner"] = "inner",
 ) -> tuple[int, int]:
     sx, sy, sz = source
     if direction in (PIPEDIRECTION.UP, PIPEDIRECTION.DOWN):
@@ -505,10 +500,16 @@ def pipe_offset_xy(
     if direction in (PIPEDIRECTION.RIGHT, PIPEDIRECTION.LEFT):
         base_x = 2 * d * min(sx, (sink[0] if sink else sx))
         base_y = 2 * d * sy
+        if anchor == "inner":
+            base_x += 2
+            base_y += 2
         return base_x, base_y
     if direction in (PIPEDIRECTION.TOP, PIPEDIRECTION.BOTTOM):
         base_x = 2 * d * sx
         base_y = 2 * d * min(sy, (sink[1] if sink else sy))
+        if anchor == "inner":
+            base_x += 2
+            base_y += 2
         return base_x, base_y
     raise ValueError("Invalid direction for pipe offset")
 
@@ -537,7 +538,7 @@ if __name__ == "__main__":
         fig, axes = plt.subplots(2, 2, figsize=(10, 10))
         for (label, spec), ax in zip(configs, axes.ravel(), strict=False):
             set_edgespec(**spec)
-            template = RotatedPlanarBlockTemplate(d=d, edgespec=spec)
+            template = RotatedPlanarCubeTemplate(d=d, edgespec=spec)
             template.to_tiling()
             template.visualize_tiling(ax=ax, show=False, title_suffix=label)
 

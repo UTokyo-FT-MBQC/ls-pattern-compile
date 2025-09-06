@@ -18,7 +18,7 @@ if ROOT not in sys.path:
 
 from lspattern.tiling.base import ConnectedTiling, Tiling
 from lspattern.tiling.template import (
-    RotatedPlanarBlockTemplate,
+    RotatedPlanarCubeTemplate,
     RotatedPlanarPipetemplate,
     cube_offset_xy,
     pipe_offset_xy,
@@ -27,9 +27,9 @@ from lspattern.tiling.template import (
 from lspattern.consts.consts import PIPEDIRECTION
 
 
-def mk_block_template(d: int) -> RotatedPlanarBlockTemplate:
+def mk_block_template(d: int) -> RotatedPlanarCubeTemplate:
     edgespec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
-    t = RotatedPlanarBlockTemplate(d=d, edgespec=edgespec)
+    t = RotatedPlanarCubeTemplate(d=d, edgespec=edgespec)
     t.to_tiling()
     return t
 

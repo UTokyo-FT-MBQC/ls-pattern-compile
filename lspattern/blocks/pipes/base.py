@@ -49,7 +49,7 @@ class RHGPipe(RHGBlock):
     sink: PatchCoordGlobal3D = field(default_factory=lambda: (0, 0, 1))
     direction: PIPEDIRECTION = field(init=False)
 
-    template: ScalableTemplate = field(default_factory=dict)
+    template: ScalableTemplate = field(default_factory=lambda: ScalableTemplate(d=3, edgespec={}))
 
     in_ports: set[QubitIndexLocal] = field(default_factory=set)
     out_ports: set[QubitIndexLocal] = field(default_factory=set)
@@ -60,12 +60,23 @@ class RHGPipe(RHGBlock):
         self.direction = get_direction(self.source, self.sink)
 
     def shift_coords(self, by: PatchCoordGlobal3D) -> None:
-        """Shift the patch coordinates and update the template coordinates accordingly."""
+        """Shift the patch coordinates and update the template coordinates accordingly.
+
+        For pipes, prefer a patch3d-aware shift that uses the current
+        `direction` to determine how XY offsets are derived for the tiling.
+        Falls back to a plain tiling2d shift if the template doesn't support
+        the pipe-specific signature.
+        """
         osx, osy, osz = self.source
         osx2, osy2, osz2 = self.sink
         dx, dy, dz = by
         self.source = (osx + dx, osy + dy, osz + dz)
         self.sink = (osx2 + dx, osy2 + dy, osz2 + dz)
 
-        by_template: PatchCoordLocal2D = (by[0], by[1])
-        self.template.shift_coords(by_template)
+        # Try pipe-specific patch3d rule (RotatedPlanarPipetemplate supports this)
+        try:
+            self.template.shift_coords(by, coordinate="patch3d", direction=self.direction)  # type: ignore[arg-type]
+        except TypeError:
+            # Fallback: treat as a raw 2D tiling shift
+            by_template: PatchCoordLocal2D = (by[0], by[1])
+            self.template.shift_coords(by_template)

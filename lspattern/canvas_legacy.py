@@ -180,8 +180,8 @@ class ScheduleAccumulator:
           * prepare_time: all non-input nodes at time 0
           * measure_time: timeline's t_global as is; input nodes at min(t_global) or 1 if empty
         """
-        all_nodes = set(getattr(graph, "physical_nodes", set()))
-        input_nodes = set(getattr(graph, "input_node_indices", {}).keys())
+        all_nodes = set(graph.physical_nodes)
+        input_nodes = set(graph.input_node_indices.keys())
 
         # Prepare at time 0 (non-input nodes).
         prep_time = dict.fromkeys(all_nodes - input_nodes, 0)
@@ -261,7 +261,7 @@ class RHGCanvas:
             self.coord_to_node[coord] = n_local
 
         # Identity remap for the initial graph.
-        initial_nodes = getattr(self.graph, "physical_nodes", set())
+        initial_nodes = self.graph.physical_nodes
         id_map = {n: n for n in initial_nodes}
 
         # Accumulators.

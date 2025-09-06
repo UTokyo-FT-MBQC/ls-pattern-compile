@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from lspattern.blocks.cubes.base import RHGCubeSkeleton, RHGCube
-from lspattern.tiling.template import RotatedPlanarBlockTemplate
+from lspattern.tiling.template import RotatedPlanarCubeTemplate
 
 
 class InitPlusCubeSkeleton(RHGCubeSkeleton):
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     INTERACTIVE = True  # interactive plot
 
     # Build template and block
-    template = RotatedPlanarBlockTemplate(d=d, edgespec=edgespec)
+    template = RotatedPlanarCubeTemplate(d=d, edgespec=edgespec)
     _ = template.to_tiling()  # populate internal coords for indices
 
     block = InitPlus(d=d, template=template)

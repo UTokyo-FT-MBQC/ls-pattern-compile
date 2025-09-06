@@ -15,8 +15,11 @@ def visualize_temporal_layer(
     annotate: bool = False,
     save_path: str | None = None,
     show: bool = True,
+    ax=None,
     figsize: tuple[int, int] = (6, 6),
     dpi: int = 120,
+    show_axes: bool = True,
+    show_grid: bool = True,
 ):
     """Visualize a single TemporalLayer in 3D with parity-based coloring.
 
@@ -37,16 +40,25 @@ def visualize_temporal_layer(
     dpi : int
         Matplotlib figure DPI.
     """
-    node2coord: dict[int, tuple[int, int, int]] = getattr(layer, "node2coord", {}) or {}
+    node2coord: dict[int, tuple[int, int, int]] = layer.node2coord or {}
 
-    fig = plt.figure(figsize=figsize, dpi=dpi)
-    ax = fig.add_subplot(111, projection="3d")
+    created_fig = False
+    if ax is None:
+        fig = plt.figure(figsize=figsize, dpi=dpi)
+        ax = fig.add_subplot(111, projection="3d")
+        created_fig = True
+    else:
+        fig = ax.get_figure()
     ax.set_box_aspect((1, 1, 1))
-    ax.grid(False)
-    ax.set_axis_off()
+    # 軸とグリッドの表示制御（デフォルトON）
+    if show_axes:
+        ax.set_axis_on()
+    else:
+        ax.set_axis_off()
+    ax.grid(bool(show_grid))
 
     # 役割ベースでグルーピングして凡例を表示（z 偶奇による分岐は行わない）
-    roles: dict[int, str] = getattr(layer, "node2role", {}) or {}
+    roles: dict[int, str] = layer.node2role or {}
     groups: dict[str, dict[str, list]] = {
         "data": {"x": [], "y": [], "z": []},
         "ancilla_x": {"x": [], "y": [], "z": []},
@@ -85,11 +97,12 @@ def visualize_temporal_layer(
             )
 
     scat("data", "white", "data")
-    scat("ancilla_x", "blue", "ancilla X")
-    scat("ancilla_z", "green", "ancilla Z")
+    # unify palette with Plotly temporallayer: X=green, Z=blue
+    scat("ancilla_x", "#2ecc71", "ancilla X")
+    scat("ancilla_z", "#3498db", "ancilla Z")
 
     # Draw edges if we have a local graph
-    local_graph = getattr(layer, "local_graph", None)
+    local_graph = layer.local_graph
     if local_graph is not None and hasattr(local_graph, "physical_edges"):
         for u, v in local_graph.physical_edges:
             if u in node2coord and v in node2coord:
@@ -123,7 +136,7 @@ def visualize_temporal_layer(
         fig.savefig(save_path, bbox_inches="tight", dpi=dpi)
         print(f"Figure saved to: {save_path}")
 
-    if show:
+    if show and created_fig:
         # In Jupyter show() is fine; in headless skip
         try:
             get_ipython()  # type: ignore[name-defined]
@@ -133,6 +146,9 @@ def visualize_temporal_layer(
                 plt.show()
             else:
                 print("Display not available; use save_path to save the figure.")
+    elif created_fig is False:
+        # When embedding into external figure, do not manage closing.
+        pass
     else:
         plt.close(fig)
 

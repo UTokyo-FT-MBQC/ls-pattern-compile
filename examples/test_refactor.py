@@ -26,7 +26,7 @@ if GX not in sys.path:
 
 from lspattern.consts.consts import PIPEDIRECTION
 from lspattern.mytype import PatchCoordGlobal3D
-from lspattern.tiling.template import RotatedPlanarBlockTemplate
+from lspattern.tiling.template import RotatedPlanarCubeTemplate
 
 
 def assert_true(cond: bool, msg: str) -> None:
@@ -37,7 +37,7 @@ def assert_true(cond: bool, msg: str) -> None:
 def test_template_and_trim() -> None:
     d = 3
     edgespec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
-    tmpl = RotatedPlanarBlockTemplate(d=d, edgespec=edgespec)
+    tmpl = RotatedPlanarCubeTemplate(d=d, edgespec=edgespec)
     t = tmpl.to_tiling()
     assert_true(len(t["data"]) > 0 and (len(t["X"]) + len(t["Z"]) > 0), "tiling empty")
     z_before = len(tmpl.z_coords)
@@ -51,14 +51,14 @@ def test_block_and_canvas_layers() -> None:
     d = 3
     edgespec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
     try:
-        from lspattern.blocks.cubes.initialize import InitPlusBlockSkeleton  # lazy import
+        from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton  # lazy import
     except Exception as e:
         print(f"skip block/canvas_layers test (dependency missing): {e}")
         return
 
     from lspattern.canvas import RHGCanvas  # lazy import to avoid hard dep
 
-    skel = InitPlusBlockSkeleton(d=d, edgespec=edgespec)
+    skel = InitPlusCubeSkeleton(d=d, edgespec=edgespec)
     block = skel.to_block()
     t = block.template.to_tiling()
     assert_true(len(t.get("data", [])) > 0, "block template empty")
@@ -77,7 +77,7 @@ def test_pipe_materialize_and_canvas() -> None:
     d = 3
     edgespec = {"TOP": "O", "BOTTOM": "O", "LEFT": "X", "RIGHT": "Z"}
     try:
-        from lspattern.blocks.cubes.initialize import InitPlusBlockSkeleton
+        from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
         from lspattern.blocks.pipes.initialize import InitPlusPipe
     except Exception as e:
         print(f"skip pipe test (dependency missing): {e}")
@@ -85,8 +85,8 @@ def test_pipe_materialize_and_canvas() -> None:
 
     # Build two blocks and a RIGHT pipe between them
     block_spec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
-    skel_a = InitPlusBlockSkeleton(d=d, edgespec=block_spec)
-    skel_b = InitPlusBlockSkeleton(d=d, edgespec=block_spec)
+    skel_a = InitPlusCubeSkeleton(d=d, edgespec=block_spec)
+    skel_b = InitPlusCubeSkeleton(d=d, edgespec=block_spec)
 
     pipe = InitPlusPipe(d=d, edgespec=edgespec, direction=PIPEDIRECTION.RIGHT)
     # Should have local nodes from template

@@ -13,10 +13,10 @@ This script is intentionally lightweight; it prints a few counts and asserts.
 
 from __future__ import annotations
 
-from lspattern.blocks.cubes.initialize import InitPlusBlockSkeleton
+from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.canvas import RHGCanvas
 from lspattern.mytype import PatchCoordGlobal3D
-from lspattern.tiling.template import RotatedPlanarBlockTemplate
+from lspattern.tiling.template import RotatedPlanarCubeTemplate
 
 
 def main() -> None:
@@ -24,7 +24,7 @@ def main() -> None:
     edgespec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
 
     # Template -> tiling
-    tmpl = RotatedPlanarBlockTemplate(d=d, edgespec=edgespec)
+    tmpl = RotatedPlanarCubeTemplate(d=d, edgespec=edgespec)
     t = tmpl.to_tiling()
     assert len(t["data"]) > 0 and (len(t["X"]) + len(t["Z"]) > 0), "tiling is empty"
 
@@ -36,7 +36,7 @@ def main() -> None:
     assert z_after <= z_before, "trim did not reduce/equal Z ancillas as expected"
 
     # Skeleton -> block
-    skel = InitPlusBlockSkeleton(d=d, edgespec=edgespec)
+    skel = InitPlusCubeSkeleton(d=d, edgespec=edgespec)
     block = skel.materialize()
     assert block.graph_local is not None and len(block.node2coord) > 0
     assert len(block.schedule_local) > 0

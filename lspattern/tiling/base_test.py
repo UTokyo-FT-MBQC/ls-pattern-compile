@@ -16,7 +16,7 @@ pytest 等に依存せず、`python -m lspattern.tiling.base_test` で
 from collections.abc import Iterable
 
 from lspattern.tiling.base import ConnectedTiling, Tiling
-from lspattern.tiling.template import RotatedPlanarBlockTemplate, merge_pair_spatial
+from lspattern.tiling.template import RotatedPlanarCubeTemplate, merge_pair_spatial
 
 
 def _mk_tiling(
@@ -76,9 +76,9 @@ def test_pair_merge_with_templates() -> None:
     d = 3
 
     # 2つのテンプレートを用意し、to_tiling() で 2D 座標を作る
-    t1 = RotatedPlanarBlockTemplate(d=d, edgespec=edgespec)
+    t1 = RotatedPlanarCubeTemplate(d=d, edgespec=edgespec)
     t1.to_tiling()
-    t2 = RotatedPlanarBlockTemplate(d=d, edgespec=edgespec)
+    t2 = RotatedPlanarCubeTemplate(d=d, edgespec=edgespec)
     t2.to_tiling()
 
     # 右方向に隣接させる（境界は自動 trim、オフセットは 2*d）
