@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
 from itertools import count
 
-from lspattern.mytype import QubitIndex, TilingCoord2D
+from lspattern.mytype import PatchCoordGlobal3D, QubitIndex, TilingCoord2D, TilingId
+from lspattern.consts.consts import DIRECTIONS2D
 
 
 def _next_tiling_id() -> int:
@@ -29,7 +30,7 @@ class Tiling:
     Base class for physical qubit tiling patterns.
     """
 
-    id_: int = 0  # unique identifier, auto-assigned on init
+    id_: TilingId = field(init=False)  # unique identifier, auto-assigned on init
     data_coords: list[TilingCoord2D] = field(default_factory=list)
     coord2qubitindex: dict[TilingCoord2D, QubitIndex] = field(default_factory=dict)
     coord2id: dict[TilingCoord2D, int] = field(default_factory=dict)
@@ -41,7 +42,18 @@ class Tiling:
         # Assign a globally unique, incrementing id
         self.id_ = _next_tiling_id()
 
-    def shift_qubit_indices(self, by: int):
+    def set_ids(self, id_: int) -> None:
+        """
+        Set the same group id for all coordinates in coord2id.
+
+        Parameters
+        ----------
+        id_ : int
+            The group id to assign to all coordinates.
+        """
+        self.coord2id = dict.fromkeys(self.coord2id, id_)
+
+    def shift_qubit_indices(self, by: int) -> None:
         """Shift assigned qubit indices by `by` in-place.
 
         Operates on `coord2qubitindex` which maps tiling coordinates to
@@ -69,20 +81,27 @@ class ConnectedTiling(Tiling):
         ct = ConnectedTiling(tilings, shift_qubits=True, check_collisions=True)
     """
 
-    parts: list[Tiling]
+    cube_parts: dict[PatchCoordGlobal3D, Tiling] = field(default_factory=dict)
+    pipe_parts: dict[tuple[PatchCoordGlobal3D, PatchCoordGlobal3D], Tiling] = field(default_factory=dict)
+    node_maps: dict[PatchCoordGlobal3D, dict[TilingCoord2D, QubitIndex], int] = field(default_factory=dict)
 
     def __init__(
         self,
-        tilings: list[Tiling] | tuple[Tiling, ...],
+        cube_tilings: dict[PatchCoordGlobal3D, Tiling],
+        pipe_tilings: dict[tuple[PatchCoordGlobal3D, PatchCoordGlobal3D], Tiling],
         *,
         check_collisions: bool = True,
     ) -> None:
         # Assign unique id for this ConnectedTiling instance as well
         self.id_ = _next_tiling_id()
+
         # Keep references to parts; do not mutate them
-        self.parts = list(tilings)
-        self.node_maps: dict[str, dict[TilingCoord2D, QubitIndex]] = {}
-        self.coord2qubitindex: dict[TilingCoord2D, QubitIndex] = {}
+        self.cube_parts = cube_tilings
+        self.pipe_parts = pipe_tilings
+
+        self.node_maps = {}
+        self.coord2qubitindex = {}
+        self.coord2id = {}
 
         # Gather coordinates
         data_list: list[TilingCoord2D] = []
@@ -93,7 +112,7 @@ class ConnectedTiling(Tiling):
         x_set: set[TilingCoord2D] = set()
         z_set: set[TilingCoord2D] = set()
 
-        for t in self.parts:
+        for t in [*cube_tilings.values(), *pipe_tilings.values()]:
             if t.data_coords:
                 data_list.extend(t.data_coords)
                 data_set.update(t.data_coords)
@@ -130,6 +149,34 @@ class ConnectedTiling(Tiling):
         self.coord2qubitindex.update({c: QubitIndex(i) for c, i in data_idx.items()})
         self.coord2qubitindex.update({c: QubitIndex(base_x + i) for c, i in x_idx.items()})
         self.coord2qubitindex.update({c: QubitIndex(base_z + i) for c, i in z_idx.items()})
+
+        # Merge cube and pipe tiling ids to minimum of the connected group
+        # Build coord2id (patch grouping) later, after pipes are processed
+        # TODO: Implement this algorithm キョウプロかんがある
+        # アルゴリズムは以下の通り
+        """
+        for (source_pos, sink_pos), p in pipe_tilings.items():
+            min_id = min(
+                cube_tilings[source_pos].id_, cube_tilings[sink_pos].id_, p.id_
+            )
+            cube_tilings[source_pos].set_ids(min_id)
+            cube_tilings[sink_pos].set_ids(min_id)
+            p.set_ids(min_id)
+        end
+        """
+        # このアルゴリズムには問題があり、それは
+        # ...です
+        self.coord2id = {}
+        for p in pipes:
+            # ここsource ,sinkは元のTilingには入っていないが、
+            # "同じpatch groupならくっつける"をどうやって実装しようか悩む
+            source, sink = p.source, p.sink
+        for c in cubes:
+            self.coord2id.update(c.coord2id)
+        for p in pipes:
+            self.coord2id.update(p.coord2id)
+
+        #
 
         # Fast node maps using the precomputed index maps
         self.node_maps = {

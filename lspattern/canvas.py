@@ -115,7 +115,8 @@ class TemporalLayer:
         # でConnectedTiling内で接続があればcoord2idを同一化させるように修正する
         # ancillaはこれまでと同様に全方向を探索するが、coord2idが同一のdata/ancilla間のみを接続するように修正する
         # 以上をT19.mdに仕様書として書き出し、遂行しなさい。
-        tilings_abs: list = []
+        cube_tilings_abs: list = []
+        pipe_tilings_abs: list = []
         dset: set[int] = set()
 
         for pos, b in self.cubes_.items():
@@ -124,7 +125,7 @@ class TemporalLayer:
             d_val = int(getattr(b, "d", getattr(b.template, "d", 0)))
             dset.add(d_val)
             dx, dy = cube_offset_xy(d_val, pos, anchor="inner")
-            tilings_abs.append(offset_tiling(b.template, dx, dy))
+            cube_tilings_abs.append(offset_tiling(b.template, dx, dy))
 
         for (source, sink), p in self.pipes_.items():
             if getattr(p, "template", None) is None:
@@ -133,13 +134,15 @@ class TemporalLayer:
             dset.add(d_val)
             direction = get_direction(source, sink)
             dx, dy = pipe_offset_xy(d_val, source, sink, direction)
-            tilings_abs.append(offset_tiling(p.template, dx, dy))
+            pipe_tilings_abs.append(offset_tiling(p.template, dx, dy))
 
         if len(dset) > 1:
             msg = "TemporalLayer.materialize: mixed code distances (d) are not supported yet"
             raise MixedCodeDistanceError(msg)
 
-        ct = ConnectedTiling(tilings_abs, check_collisions=True)
+        ct = ConnectedTiling(cube_tilings_abs, pipe_tilings_abs, check_collisions=True)
+        # Expose for debugging/inspection
+        self._connected_tiling = ct
         self.tiling_node_maps = {
             "data": dict(ct.node_maps.get("data", {})),
             "x": dict(ct.node_maps.get("x", {})),
@@ -186,13 +189,23 @@ class TemporalLayer:
 
             nodes_by_z[t] = cur
 
+        # Helper: connect only within same patch group when coord2id is available
+        def _same_gid(xy1: tuple[int, int], xy2: tuple[int, int]) -> bool:
+            c2i = getattr(ct, "coord2id", {}) or {}
+            if not c2i:
+                return True  # legacy behavior
+            g1 = c2i.get(xy1)
+            g2 = c2i.get(xy2)
+            return (g1 is not None) and (g1 == g2)
+
         for t, cur in nodes_by_z.items():
             for (x, y), u in cur.items():
                 for dx, dy, dz in DIRECTIONS3D:
                     if dz != 0:
                         continue
-                    v = cur.get((x + dx, y + dy))
-                    if v is not None and v > u:
+                    xy2 = (x + dx, y + dy)
+                    v = cur.get(xy2)
+                    if v is not None and v > u and _same_gid((x, y), xy2):
                         g.add_physical_edge(u, v)
 
         for t in range(1, max_t + 1):

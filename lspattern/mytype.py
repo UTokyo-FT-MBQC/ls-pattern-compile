@@ -26,6 +26,7 @@ LogicalIndex = NewType("LogicalIndex", int)
 QubitIndex = NewType("QubitIndex", int)
 QubitIndexLocal = NewType("QubitIndexLocal", int)
 
+TilingId = NewType("TilingId", int)
 # ---------------------------------------------------------------------
 # Coordinates
 # ---------------------------------------------------------------------
