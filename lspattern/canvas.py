@@ -234,85 +234,135 @@ class TemporalLayer:
             if gid is not None:
                 coord_gid[xy] = int(gid)
 
-        # Build GraphState (T12 policy)
-        d = next(iter(dset)) if dset else 0
-        max_t = 2 * d
-        # TODO: read the comment below and do it
-        # [T33] T33.md - Remove redundant graphstate construction
-        # Read the Task T31-32 where we have changed the policy to materialize the RHG
-        # graph before reaching TemporalLayer.compile. So we do not need to add all the nodes here.
-        # Modify the codes below to add **only difference** of the nodes, edges, schedules, flows, parities.
-        # AGENTS.md、.local/*のコメントたちを読んで現状の課題を認識して、その後にレポジトリ全体lspattern/*を確認して。残っているタスク間の依存関係を踏まえつつタスクを進めて．
-        # 受け入れ要件: compile()関数内のRHGBlock.materialize()でつくったlocal_graph, node2coord, coord2node, node2role等を最大限活用することで本関数内のコードを短くする．また，compose_parallelをpipe/blockの数だけcallすることが受け入れ要件．さらに，新しく"g.add_physical_node()”をcompile()ないで呼ばないことも受け入れ要件．これらが満たされるまでiterateして頑張って．physical nodesはmaterializeしたところから引っ張ってきてnode_mapをする
+        # Build GraphState by composing pre-materialized block graphs in parallel (T33)
+        # Acceptance: do not create new nodes here; use compose_in_parallel per block/pipe.
+        # 今度は新たにcz spanningをするアルゴリズムが消滅した．
+        # Helper to remap existing registries by a node map
+        def _remap_current_regs(node_map: dict[int, int]) -> None:
+            if not node_map:
+                return
+            self.node2coord = {node_map.get(n, n): c for n, c in self.node2coord.items()}
+            self.coord2node = {c: node_map.get(n, n) for c, n in self.coord2node.items()}
+            self.node2role = {node_map.get(n, n): r for n, r in self.node2role.items()}
+            # Portsets and flat lists
+            for p, nodes in list(self.in_portset.items()):
+                self.in_portset[p] = [node_map.get(n, n) for n in nodes]
+            for p, nodes in list(self.out_portset.items()):
+                self.out_portset[p] = [node_map.get(n, n) for n in nodes]
+            for p, nodes in list(self.cout_portset.items()):
+                self.cout_portset[p] = [node_map.get(n, n) for n in nodes]
+            self.in_ports = [node_map.get(n, n) for n in self.in_ports]
+            self.out_ports = [node_map.get(n, n) for n in self.out_ports]
 
-        g = GraphState()
-        node2coord = {}
-        coord2node = {}
-        node2role = {}
+        g: GraphState | None = None
+        self.node2coord = {}
+        self.coord2node = {}
+        self.node2role = {}
 
+        # Compose cube graphs
+        for pos, blk in self.cubes_.items():
+            d_val = int(blk.d)
+            # XY offset for rotated planar layout
+            dx, dy = cube_offset_xy(d_val, pos)
+            # Target base z for this layer/block
+            z_base = int(pos[2]) * (2 * d_val)
+
+            g2 = blk.local_graph
+            # Defensive: ensure materialized
+            if g2 is None:
+                blk = blk.materialize()
+                g2 = blk.local_graph
+
+            if g is None:
+                g = g2
+                node_map1: dict[int, int] = {}
+                node_map2: dict[int, int] = {n: n for n in getattr(g2, "physical_nodes", [])}
+            else:
+                g_new, node_map1, node_map2 = compose_in_parallel(g, g2)
+                _remap_current_regs(node_map1)
+                g = g_new
+
+            # Compute z-shift from block-local coords to target z_base
+            try:
+                bmin_z = min(c[2] for c in blk.node2coord.values())
+            except ValueError:
+                bmin_z = z_base
+            z_shift = int(z_base - bmin_z)
+
+            # Ingest coords/roles via node_map2 with XY/Z shift
+            for old_n, coord in blk.node2coord.items():
+                new_n = node_map2.get(old_n)
+                if new_n is None:
+                    continue
+                x, y, z = int(coord[0]) + int(dx), int(coord[1]) + int(dy), int(coord[2]) + z_shift
+                c_new = (x, y, z)
+                self.node2coord[new_n] = c_new
+                self.coord2node[c_new] = new_n
+            for old_n, role in blk.node2role.items():
+                new_n = node_map2.get(old_n)
+                if new_n is not None:
+                    self.node2role[new_n] = role
+
+            # Ports (if any) per position
+            if getattr(blk, "in_ports", None):
+                self.in_portset[pos] = [node_map2[n] for n in blk.in_ports if n in node_map2]
+                self.in_ports.extend(self.in_portset[pos])
+            if getattr(blk, "out_ports", None):
+                self.out_portset[pos] = [node_map2[n] for n in blk.out_ports if n in node_map2]
+                self.out_ports.extend(self.out_portset[pos])
+            if getattr(blk, "cout_ports", None):
+                self.cout_portset[pos] = [node_map2[n] for n in sum((list(s) for s in blk.cout_ports), []) if n in node_map2]
+
+        # Compose pipe graphs (spatial pipes in this layer)
+        for (source, sink), pipe in self.pipes_.items():
+            d_val = int(pipe.d)
+            direction = get_direction(source, sink)
+            dx, dy = pipe_offset_xy(d_val, source, sink, direction)
+            z_base = int(source[2]) * (2 * d_val)
+
+            g2 = pipe.local_graph
+            if g2 is None:
+                pipe = pipe.materialize()
+                g2 = pipe.local_graph
+
+            if g is None:
+                g = g2
+                node_map1 = {}
+                node_map2 = {n: n for n in getattr(g2, "physical_nodes", [])}
+            else:
+                g_new, node_map1, node_map2 = compose_in_parallel(g, g2)
+                _remap_current_regs(node_map1)
+                g = g_new
+
+            try:
+                bmin_z = min(c[2] for c in pipe.node2coord.values())
+            except ValueError:
+                bmin_z = z_base
+            z_shift = int(z_base - bmin_z)
+
+            for old_n, coord in pipe.node2coord.items():
+                new_n = node_map2.get(old_n)
+                if new_n is None:
+                    continue
+                x, y, z = int(coord[0]) + int(dx), int(coord[1]) + int(dy), int(coord[2]) + z_shift
+                c_new = (x, y, z)
+                self.node2coord[new_n] = c_new
+                self.coord2node[c_new] = new_n
+            for old_n, role in pipe.node2role.items():
+                new_n = node_map2.get(old_n)
+                if new_n is not None:
+                    self.node2role[new_n] = role
+
+        # Finalize
+        if g is None:
+            g = GraphState()
+        self.local_graph = g
+        self.qubit_count = len(getattr(g, "physical_nodes", []) or [])
+
+        # Preserve tiling node maps for inspection
         data2d = sorted(data2d_set)
         x2d = sorted(x2d_set)
         z2d = sorted(z2d_set)
-
-        nodes_by_z: dict[int, dict[tuple[int, int], int]] = {}
-        for t in range(max_t + 1):
-            cur = {}
-            if t != max_t:
-                # normal node assignment
-                for x, y in data2d:
-                    n = g.add_physical_node()
-                    node2coord[n] = (x, y, t)
-                    coord2node[x, y, t] = n
-                    node2role[n] = "data"
-                    cur[x, y] = n
-                if t % 2 == 0:
-                    for x, y in x2d:
-                        n = g.add_physical_node()
-                        node2coord[n] = (x, y, t)
-                        coord2node[x, y, t] = n
-                        node2role[n] = "ancilla_x"
-                        cur[x, y] = n
-                else:
-                    for x, y in z2d:
-                        n = g.add_physical_node()
-                        node2coord[n] = (x, y, t)
-                        coord2node[x, y, t] = n
-                        node2role[n] = "ancilla_z"
-                        cur[x, y] = n
-            # No special handling for final t: already added data nodes above.
-
-            nodes_by_z[t] = cur
-
-        # Helper: allowed to connect if two coords belong to the same unified tiling-group
-        def _same_gid(xy1: tuple[int, int], xy2: tuple[int, int]) -> bool:
-            g1 = coord_gid.get(xy1)
-            g2 = coord_gid.get(xy2)
-            return (g1 is not None) and (g1 == g2)
-
-        for t, cur in nodes_by_z.items():
-            for (x, y), u in cur.items():
-                for dx, dy, dz in DIRECTIONS3D:
-                    if dz != 0:
-                        continue
-                    xy2 = (x + dx, y + dy)
-                    v = cur.get(xy2)
-                    if v is not None and v > u and _same_gid((x, y), xy2):
-                        # Connect CZ only within unified groups (includes cube<->pipe<->cube)
-                        g.add_physical_edge(u, v)
-
-        for t in range(1, max_t + 1):
-            cur = nodes_by_z[t]
-            prev = nodes_by_z[t - 1]
-            for xy, u in cur.items():
-                v = prev.get(xy)
-                if v is not None:
-                    g.add_physical_edge(u, v)
-
-        self.local_graph = g
-        self.node2coord = node2coord
-        self.coord2node = coord2node
-        self.node2role = node2role
-        self.qubit_count = len(g.physical_nodes)
         # simple node_maps for inspection
         self.tiling_node_maps = {
             "data": {xy: i for i, xy in enumerate(data2d)},
