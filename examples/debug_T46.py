@@ -24,75 +24,98 @@ Temporal OFF edges=EEEE, nodes=FFFF
 """
 
 # %%
-from __future__ import annotations
+
+import pathlib
+import sys
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+SRC_GRAPHIX = SRC / "graphix_zx"
+for p in (SRC, SRC_GRAPHIX):
+    if str(p) not in sys.path:
+        sys.path.insert(0, str(p))
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
-from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
-from lspattern.canvas import RHGCanvasSkeleton
+from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
+from lspattern.canvas import CompiledRHGCanvas, RHGCanvas, RHGCanvasSkeleton
 from lspattern.mytype import PatchCoordGlobal3D
 
-
-def build_spatial_case(pipe_on: bool = True, d: int = 3):
-    sk = RHGCanvasSkeleton("T46 spatial case")
-    a: PatchCoordGlobal3D = (0, 0, 0)
-    b: PatchCoordGlobal3D = (1, 0, 0)
-
-    # Horizontal connect の参考 edgespec（Agents 付録）
-    edgespec_cube_1 = {"LEFT": "X", "RIGHT": "O", "TOP": "Z", "BOTTOM": "Z"}
-    edgespec_cube_2 = {"LEFT": "O", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
-    edgespec_pipe_3 = {"LEFT": "O", "RIGHT": "O", "TOP": "Z", "BOTTOM": "Z"}
-
-    sk.add_cube(a, InitPlusCubeSkeleton(d=d, edgespec=edgespec_cube_1))
-    sk.add_cube(b, InitPlusCubeSkeleton(d=d, edgespec=edgespec_cube_2))
-    if pipe_on:
-        sk.add_pipe(a, b, InitPlusPipeSkeleton(d=d, edgespec=edgespec_pipe_3))
-    canvas = sk.to_canvas()
-    cgraph = canvas.compile()
-    g = cgraph.global_graph
-    edges = len(getattr(g, "physical_edges", []) or [])
-    nodes = len(getattr(g, "physical_nodes", []) or [])
-    return cgraph, nodes, edges
-
-
-def build_temporal_case(pipe_on: bool = True, d: int = 3):
-    sk = RHGCanvasSkeleton("T46 temporal case")
-    a0: PatchCoordGlobal3D = (0, 0, 0)
-    a1: PatchCoordGlobal3D = (0, 0, 1)
-
-    # キューブは上下のみを開き、左右は閉じる例（Agents 付録を参考）
-    edgespec_top_open = {"LEFT": "X", "RIGHT": "X", "TOP": "O", "BOTTOM": "Z"}
-    edgespec_bottom_open = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "O"}
-    # パイプ（時間方向）は左右 X を維持し、上下を Open
-    edgespec_pipe_t = {"LEFT": "X", "RIGHT": "X", "TOP": "O", "BOTTOM": "O"}
-
-    sk.add_cube(a0, InitPlusCubeSkeleton(d=d, edgespec=edgespec_top_open))
-    sk.add_cube(a1, InitPlusCubeSkeleton(d=d, edgespec=edgespec_bottom_open))
-    if pipe_on:
-        sk.add_pipe(a0, a1, InitPlusPipeSkeleton(d=d, edgespec=edgespec_pipe_t))
-    canvas = sk.to_canvas()
-    cgraph = canvas.compile()
-    g = cgraph.global_graph
-    edges = len(getattr(g, "physical_edges", []) or [])
-    nodes = len(getattr(g, "physical_nodes", []) or [])
-    return cgraph, nodes, edges
-
-
 # %%
-if __name__ == "__main__":
-    # Spatial
-    cg_on, n_on, e_on = build_spatial_case(pipe_on=True)
-    cg_off, n_off, e_off = build_spatial_case(pipe_on=False)
-    print(f"Spatial ON  edges={e_on}, nodes={n_on}")
-    print(f"Spatial OFF edges={e_off}, nodes={n_off}")
+d = 3
+r = 3
 
-    # Temporal
-    ct_on, n2_on, e2_on = build_temporal_case(pipe_on=True)
-    ct_off, n2_off, e2_off = build_temporal_case(pipe_on=False)
-    print(f"Temporal ON  edges={e2_on}, nodes={n2_on}")
-    print(f"Temporal OFF edges={e2_off}, nodes={n2_off}")
 
-    # 簡易差分（参考表示）
-    print("-- Diff summary --")
-    print(f"Spatial edge diff: {e_on - e_off}")
-    print(f"Temporal edge diff: {e2_on - e2_off}")
+def visualizer_connection():
+    canvass = RHGCanvasSkeleton("Memory X")
 
+    edgespec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
+    edgespec_trimmed = {"LEFT": "O", "RIGHT": "O", "TOP": "O", "BOTTOM": "O"}
+    # tmpl = RotatedPlanarTemplate(d=3, edgespec=edgespec)
+    # _ = tmpl.to_tiling()
+    blocks = [
+        (PatchCoordGlobal3D((0, 0, 0)), InitPlusCubeSkeleton(d=3, edgespec=edgespec)),
+        (PatchCoordGlobal3D((0, 0, 1)), MemoryCubeSkeleton(d=3, edgespec=edgespec)),
+        (PatchCoordGlobal3D((2, 2, 0)), InitPlusCubeSkeleton(d=3, edgespec=edgespec)),
+    ]
+    pipes = [(PatchCoordGlobal3D((0, 0, 0)), PatchCoordGlobal3D((0, 0, 1)))]
+
+    for block in blocks:
+        # RHGCanvasSkeleton は skeleton を受け取り、to_canvas() で block 化します
+        canvass.add_cube(*block)
+    for pipe in pipes:
+        canvass.add_pipe(*pipe)
+
+    canvas = canvass.to_canvas()
+    temporal_layer = canvas.to_temporal_layers()
+
+    compiled_canvas: CompiledRHGCanvas = canvas.compile()
+    nnodes = (
+        len(getattr(compiled_canvas.global_graph, "physical_nodes", []) or [])
+        if compiled_canvas.global_graph
+        else 0
+    )
+    print(
+        {
+            "layers": len(temporal_layer),
+            "nodes": nnodes,
+            "coord_map": len(compiled_canvas.coord2node),
+        }
+    )
+
+
+def visualizer_noconnection():
+    canvass = RHGCanvasSkeleton("Memory X")
+
+    edgespec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
+    edgespec_trimmed = {"LEFT": "O", "RIGHT": "O", "TOP": "O", "BOTTOM": "O"}
+    # tmpl = RotatedPlanarTemplate(d=3, edgespec=edgespec)
+    # _ = tmpl.to_tiling()
+    blocks = [
+        (PatchCoordGlobal3D((0, 0, 0)), InitPlusCubeSkeleton(d=3, edgespec=edgespec)),
+        (PatchCoordGlobal3D((0, 0, 1)), MemoryCubeSkeleton(d=3, edgespec=edgespec)),
+        (PatchCoordGlobal3D((2, 2, 0)), InitPlusCubeSkeleton(d=3, edgespec=edgespec)),
+    ]
+    pipes = []  # No temporal pipe
+
+    for block in blocks:
+        # RHGCanvasSkeleton は skeleton を受け取り、to_canvas() で block 化します
+        canvass.add_cube(*block)
+    for pipe in pipes:
+        canvass.add_pipe(*pipe)
+
+    canvas = canvass.to_canvas()
+    temporal_layer = canvas.to_temporal_layers()
+
+    compiled_canvas: CompiledRHGCanvas = canvas.compile()
+    nnodes = (
+        len(getattr(compiled_canvas.global_graph, "physical_nodes", []) or [])
+        if compiled_canvas.global_graph
+        else 0
+    )
+    print(
+        {
+            "layers": len(temporal_layer),
+            "nodes": nnodes,
+            "coord_map": len(compiled_canvas.coord2node),
+        }
+    )

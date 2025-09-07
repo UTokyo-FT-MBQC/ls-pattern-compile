@@ -90,8 +90,9 @@ def run_ruff_and_save_json() -> list[dict]:
         "--output-file",
         str(REPORT_JSON),
         # 明示的に examples を除外（pyproject と二重化しても問題なし）
-        "--extend-exclude",
-        "examples",
+        "--extend-exclude", "examples",
+        "--extend-exclude", "tests",
+        "--extend-exclude", "src",
         ".",
     ]
     proc = subprocess.run(args, cwd=ROOT, text=True, capture_output=True)

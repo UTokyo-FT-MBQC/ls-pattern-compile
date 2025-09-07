@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-import os
-
-from lspattern.tiling.base import Tiling
 
 try:
     from graphix_zx.graphstate import (
@@ -12,7 +9,8 @@ try:
         compose_sequentially,
     )
 except Exception:  # fallback for repo-local execution without install
-    import sys as _sys, pathlib as _pathlib
+    import sys as _sys
+    import pathlib as _pathlib
 
     _ROOT = _pathlib.Path(__file__).resolve().parents[1]
     _SRC = _ROOT / "src"
@@ -25,7 +23,8 @@ except Exception:  # fallback for repo-local execution without install
         compose_in_parallel,
         compose_sequentially,
     )
-from graphix_zx.common import Plane, PlannerMeasBasis
+# Local usage in this module does not require Plane/PlannerMeasBasis
+# from graphix_zx.common import Plane, PlannerMeasBasis
 from lspattern.accumulator import (
     FlowAccumulator,
     ParityAccumulator,
@@ -40,16 +39,15 @@ from lspattern.mytype import (
     PhysCoordGlobal3D,
     PipeCoordGlobal3D,
     QubitGroupIdGlobal,
-    QubitGroupIdLocal,
-    TilingCoord2D,
-    TilingId,
+    # QubitGroupIdLocal,
+    # TilingCoord2D,
+    # TilingId,
 )
 from lspattern.tiling.template import (
     cube_offset_xy,
-    offset_tiling,
     pipe_offset_xy,
 )
-from lspattern.utils import get_direction, __tuple_sum, is_allowed_pair, UnionFind
+from lspattern.utils import get_direction, is_allowed_pair, UnionFind
 
 
 class MixedCodeDistanceError(Exception):
@@ -140,7 +138,6 @@ class TemporalLayer:
         self.cubes_[pos] = cube
         self.patches.append(pos)
 
-        return
 
     def add_pipe(
         self,
@@ -149,9 +146,8 @@ class TemporalLayer:
         spatial_pipe: RHGPipe,
     ) -> None:
         """Register a spatial pipe within this layer between `source` and `sink`."""
-        self.pipes_[(source, sink)] = spatial_pipe
+        self.pipes_[source, sink] = spatial_pipe
         self.lines.append((source, sink))
-        return
 
     def _update_qubit_group_index(self) -> None:
         """This is internal function called inside compile() to update qubit group index mapping."""
@@ -160,10 +156,7 @@ class TemporalLayer:
         pass
 
     def compile(self) -> None:
-        # Aggregate absolute 2D coords and patch groups
-        data2d_set: set[tuple[int, int]] = set()
-        x2d_set: set[tuple[int, int]] = set()
-        z2d_set: set[tuple[int, int]] = set()
+        # Aggregate absolute 2D coords and patch groups (reserved for future use)
         # XY(2D) -> gid mapping used for same-z gating
         coord_gid_2d: dict[tuple[int, int], QubitGroupIdGlobal] = {}
         allowed_gid_pairs: set[tuple[QubitGroupIdGlobal, QubitGroupIdGlobal]] = set()
@@ -174,16 +167,16 @@ class TemporalLayer:
         # 1) Initialize
         for c in self.cubes_.values():
             uf.add(QubitGroupIdGlobal(c.get_tiling_id()))
-        for p in self.pipes_.values():
-            uf.add(QubitGroupIdGlobal(p.get_tiling_id()))
+        for pipe in self.pipes_.values():
+            uf.add(QubitGroupIdGlobal(pipe.get_tiling_id()))
         # 2) Union-Find: Unify cube<->pipe<->cube per spatial pipe, and record allowed cube pairs
-        for (source, sink), p in self.pipes_.items():
+        for (source, sink) in self.pipes_.keys():
             uf.union(
                 QubitGroupIdGlobal(self.cubes_[source].get_tiling_id()),
-                QubitGroupIdGlobal(self.pipes_[(source, sink)].get_tiling_id()),
+                QubitGroupIdGlobal(self.pipes_[source, sink].get_tiling_id()),
             )
             uf.union(
-                QubitGroupIdGlobal(self.pipes_[(source, sink)].get_tiling_id()),
+                QubitGroupIdGlobal(self.pipes_[source, sink].get_tiling_id()),
                 QubitGroupIdGlobal(self.cubes_[sink].get_tiling_id()),
             )
         # 3) set_tiling_id
@@ -198,7 +191,7 @@ class TemporalLayer:
             self.pipes_[pos] = pipe
             coord2gid.update(pipe.coord2gid)
 
-        for (source, sink), p in self.pipes_.items():
+        for (source, sink) in self.pipes_.keys():
             allowed_gid_pairs.add(
                 (
                     QubitGroupIdGlobal(self.cubes_[source].get_tiling_id()),
@@ -295,7 +288,8 @@ class TemporalLayer:
             if getattr(blk, "cout_ports", None):
                 self.cout_portset[pos] = [
                     node_map2[n]
-                    for n in sum((list(s) for s in blk.cout_ports), [])
+                    for s in blk.cout_ports
+                    for n in s
                     if n in node_map2
                 ]
 
@@ -955,10 +949,10 @@ def add_temporal_layer(
         new_graph = g
     # Remap registries for both sides into the composed id-space
     cgraph = cgraph.remap_nodes(node_map1)
-    # Remap next_layer coord2node into composed id-space
-    next_layer.coord2node = {
-        c: node_map2.get(n, n) for c, n in next_layer.coord2node.items()
-    }
+    # Remap next_layer registries into composed id-space
+    next_layer.coord2node = {c: node_map2.get(n, n) for c, n in next_layer.coord2node.items()}
+    next_layer.node2coord = {node_map2.get(n, n): c for n, c in next_layer.node2coord.items()}
+    next_layer.node2role = {node_map2.get(n, n): r for n, r in next_layer.node2role.items()}
 
     # Create a new CompiledRHGCanvas to hold the merged result.
     new_layers = cgraph.layers + [next_layer]
@@ -991,35 +985,36 @@ def add_temporal_layer(
     for pos, pipe in [*cgraph.pipes_.items(), *next_layer.pipes_.items()]:
         new_coord2gid.update(pipe.coord2gid)
 
-    # Build seam node pairs (prev out ports -> next in ports) and add physical edges
-    # Always ON: do not expose any toggle; connect only where a temporal pipe is present.
+    # Build seam node pairs by XY identity at z- (prev) and z+ (next) boundaries
+    # Always ON: do not expose any toggle; connect only when temporal pipes exist.
     seam_pairs_nodes: set[tuple[int, int]] = set()
-    # Portsets already remapped into composed id-space above
-    prev_out = out_portset  # type: ignore[assignment]
-    next_in = in_portset  # type: ignore[assignment]
-    for pipe in pipes:
-        src = tuple(pipe.source)
-        dst = tuple(pipe.sink)
-        src_nodes = list(prev_out.get(src, []))
-        dst_nodes = list(next_in.get(dst, []))
-        if not src_nodes or not dst_nodes:
-            continue
-        # Deterministic pairing: sort by node id
-        src_nodes_sorted = sorted(int(n) for n in src_nodes)
-        dst_nodes_sorted = sorted(int(n) for n in dst_nodes)
-        m = min(len(src_nodes_sorted), len(dst_nodes_sorted))
-        for i in range(m):
-            u = int(src_nodes_sorted[i])
-            v = int(dst_nodes_sorted[i])
-            a, b = (u, v) if u < v else (v, u)
-            if a == b:
-                continue
-            seam_pairs_nodes.add((a, b))
-            try:
-                new_graph.add_physical_edge(a, b)
-            except Exception:
-                # Edge may already exist; ignore
-                pass
+    if pipes:
+        # prev layer top (max z)
+        if cgraph.coord2node:
+            prev_zmax = max(c[2] for c in cgraph.coord2node.keys())
+        else:
+            prev_zmax = None
+        # next layer bottom (min z)
+        if next_layer.coord2node:
+            next_zmin = min(c[2] for c in next_layer.coord2node.keys())
+        else:
+            next_zmin = None
+
+        if prev_zmax is not None and next_zmin is not None:
+            prev_xy_to_node = { (int(x),int(y)) : nid for (x,y,z), nid in cgraph.coord2node.items() if int(z)==int(prev_zmax) }
+            next_xy_to_node = { (int(x),int(y)) : nid for (x,y,z), nid in next_layer.coord2node.items() if int(z)==int(next_zmin) }
+            common_xy = set(prev_xy_to_node.keys()) & set(next_xy_to_node.keys())
+            for xy in sorted(common_xy):
+                u = int(prev_xy_to_node[xy])
+                v = int(next_xy_to_node[xy])
+                a, b = (u, v) if u < v else (v, u)
+                if a == b:
+                    continue
+                seam_pairs_nodes.add((a, b))
+                try:
+                    new_graph.add_physical_edge(a, b)
+                except Exception:
+                    pass
 
     # Update accumulators at the new layer's z- boundary (ancillas)
     # Use next_layer boundary (local ids remapped earlier) and the composed graph.
