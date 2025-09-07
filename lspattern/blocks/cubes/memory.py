@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+# ruff: noqa: I001
+
 from lspattern.blocks.cubes.base import RHGCubeSkeleton, RHGCube
 
 
@@ -8,7 +10,7 @@ class MemoryCubeSkeleton(RHGCubeSkeleton):
 
     name: str = __qualname__
 
-    def to_block(self) -> "MemoryCube":
+    def to_block(self) -> MemoryCube:
         """Materialize to a MemoryCube (template evaluated, no local graph yet)."""
         # Apply spatial open-boundary trimming if specified
         for direction in ["LEFT", "RIGHT", "TOP", "BOTTOM"]:
@@ -35,7 +37,8 @@ class MemoryCube(RHGCube):
         # テンプレートの data インデックスを取得
         idx_map = self.template.get_data_indices()
         indices = set(idx_map.values())
-        assert len(indices) > 0, "Memory: in_ports は空であってはならない"
+        if len(indices) == 0:
+            raise AssertionError("Memory: in_ports は空であってはならない")
         self.in_ports = indices
 
     def set_out_ports(self) -> None:
@@ -51,7 +54,7 @@ class MemoryCube(RHGCube):
         return super().set_cout_ports()
 
 
-# NOTE: Below is the legacy implementation of the Memory operation read this as a reference from the viewpoint of detector graph, parity, flow and scheduling. Do not reproduce its RHG lattice construction. Follow the new RHG construction in lspattern/blocks/cubes/initialize.py instead.
+# NOTE: Legacy Memory implementation below (reference only; not executed)
 
 # class MemoryCubeSkeleton(RHGCubeSkeleton):
 #     """Extend a logical patch upward by `rounds` time-slices on the RHG lattice.

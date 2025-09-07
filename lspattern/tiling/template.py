@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+# ruff: noqa: I001  # import layout acceptable; avoid heavy reordering for clarity
+
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -83,8 +85,8 @@ class ScalableTemplate(Tiling):
             dx, dy = int(bx), int(by_)
         elif coordinate == "patch3d":
             # Default block-style behavior (INNER offset)
-            px, py, _pz = by  # type: ignore[misc]
-            dx, dy = cube_offset_xy(self.d, (int(px), int(py), int(_pz)))
+            px, py, pz = by  # type: ignore[misc]
+            dx, dy = cube_offset_xy(self.d, (int(px), int(py), int(pz)))
         else:
             raise ValueError("coordinate must be one of: tiling2d, phys3d, patch3d")
 
@@ -159,7 +161,7 @@ class ScalableTemplate(Tiling):
         - X faces: green circles
         - Z faces: blue circles
         """
-        import matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt  # noqa: PLC0415
 
         data = list(self.data_coords or [])
         xs = list(self.x_coords or [])
@@ -235,8 +237,7 @@ class ScalableTemplate(Tiling):
         if created_fig is not None:
             created_fig.tight_layout()
         if show and created_fig is not None:
-            import matplotlib.pyplot as plt  # local import to avoid confusion
-
+            import matplotlib.pyplot as plt  # noqa: PLC0415
             plt.show()
 
 
@@ -369,7 +370,7 @@ def merge_pair_spatial(
         b.to_tiling()
 
     diru = direction.upper()
-    if diru not in ("X+", "X-", "Y+", "Y-"):
+    if diru not in {"X+", "X-", "Y+", "Y-"}:
         raise ValueError("direction must be one of: X+, X-, Y+, Y-")
 
     # 1) Trim the seam boundaries
@@ -393,7 +394,16 @@ def merge_pair_spatial(
     # 2) Build offset copies and merge
     a_copy = _copy_with_offset(a, 0, 0)
     b_copy = _copy_with_offset(b, *off_b)
-    return ConnectedTiling([a_copy, b_copy], check_collisions=check_collisions)
+    # Minimal merged tiling without requiring ConnectedTiling class
+    data = list(dict.fromkeys((a_copy.data_coords or []) + (b_copy.data_coords or [])))
+    xs = list(dict.fromkeys((a_copy.x_coords or []) + (b_copy.x_coords or [])))
+    zs = list(dict.fromkeys((a_copy.z_coords or []) + (b_copy.z_coords or [])))
+    if check_collisions:
+        s_data, s_x, s_z = set(data), set(xs), set(zs)
+        if s_x & s_z:
+            overlap = sorted(s_x & s_z)[:10]
+            raise ValueError(f"merge_pair_spatial X/Z overlap: sample={overlap}")
+    return Tiling(data_coords=sort_xy(data), x_coords=sort_xy(xs), z_coords=sort_xy(zs))
 
 
 class RotatedPlanarPipetemplate(ScalableTemplate):

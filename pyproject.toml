@@ -120,6 +120,9 @@ docstring-code-format = true
   "T201", # print
   "D",
 ]
+"lspattern/tiling/base_test.py" = [
+  "S101",
+]
 
 
 

@@ -23,7 +23,7 @@ class InitPlusPipeSkeleton(RHGPipeSkeleton):
 
     edgespec: SpatialEdgeSpec | None = None
 
-    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> "InitPlusPipe":
+    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> InitPlusPipe:
         direction = get_direction(source, sink)
         spec = self.edgespec
 

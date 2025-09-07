@@ -2,17 +2,31 @@
 
 from __future__ import annotations
 
+# ruff: noqa: I001  # imports layout is special due to optional dependency fallback
+
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
 
-from graphix_zx.graphstate import GraphState
+try:
+    from graphix_zx.graphstate import GraphState
+except Exception:
+    # Fallback for repo-local execution without install
+    import sys as _sys
+    import pathlib as _pathlib
+    _ROOT = _pathlib.Path(__file__).resolve().parents[2]
+    _SRC = _ROOT / "src"
+    _SRC_GRAPHIX = _SRC / "graphix-zx"
+    for _p in (str(_SRC_GRAPHIX), str(_SRC)):
+        if _p not in _sys.path:
+            _sys.path.insert(0, _p)
+    from graphix_zx.graphstate import GraphState
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.accumulator import (
     FlowAccumulator,
     ParityAccumulator,
     ScheduleAccumulator,
 )
-from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D, QubitGroupIdLocal
+from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D
 from lspattern.tiling.template import (
     RotatedPlanarCubeTemplate,
     ScalableTemplate,
@@ -151,7 +165,7 @@ class RHGBlock:
         by_template: PatchCoordLocal2D = (dx, dy)
         self.template.shift_coords(by_template)
 
-    def materialize(self) -> "RHGBlock":
+    def materialize(self) -> RHGBlock:
         """Finalize this block's template and initialize ports.
 
         - Sync `template.d` with `self.d`.
@@ -199,42 +213,43 @@ class RHGBlock:
         for t_local in range(max_t + 1):
             t = z0 + t_local
             cur: dict[tuple[int, int], int] = {}
-            assert self.final_layer is not None
+            if self.final_layer is None:
+                raise AssertionError("final_layer must be set")
             if t_local == max_t and self.final_layer == "O":
                 # add data node only if it is not measurement node
                 for x, y in data2d:
                     n = g.add_physical_node()
                     node2coord[n] = (int(x), int(y), int(t))
-                    coord2node[(int(x), int(y), int(t))] = n
+                    coord2node[int(x), int(y), int(t)] = n
                     node2role[n] = "data"
-                    cur[(int(x), int(y))] = n
+                    cur[int(x), int(y)] = n
             else:
                 # Data nodes every slice except the final sentinel layer
                 for x, y in data2d:
                     n = g.add_physical_node()
                     node2coord[n] = (int(x), int(y), int(t))
-                    coord2node[(int(x), int(y), int(t))] = n
+                    coord2node[int(x), int(y), int(t)] = n
                     node2role[n] = "data"
-                    cur[(int(x), int(y))] = n
+                    cur[int(x), int(y)] = n
                 # Interleave ancillas X/Z by time parity
                 if (t_local % 2) == 0:
                     for x, y in x2d:
                         n = g.add_physical_node()
                         node2coord[n] = (int(x), int(y), int(t))
-                        coord2node[(int(x), int(y), int(t))] = n
+                        coord2node[int(x), int(y), int(t)] = n
                         node2role[n] = "ancilla_x"
-                        cur[(int(x), int(y))] = n
+                        cur[int(x), int(y)] = n
                 else:
                     for x, y in z2d:
                         n = g.add_physical_node()
                         node2coord[n] = (int(x), int(y), int(t))
-                        coord2node[(int(x), int(y), int(t))] = n
+                        coord2node[int(x), int(y), int(t)] = n
                         node2role[n] = "ancilla_z"
-                        cur[(int(x), int(y))] = n
+                        cur[int(x), int(y)] = n
             nodes_by_z[t] = cur
 
         # Intra-slice spatial edges (diagonal neighbors in rotated layout)
-        for t, cur in nodes_by_z.items():
+        for cur in nodes_by_z.values():
             for (x, y), u in cur.items():
                 for dx, dy, dz in DIRECTIONS3D:
                     if dz != 0:
@@ -277,13 +292,13 @@ class RHGBlock:
                 # Optional: map XY to node ids at z- / z+
                 xy_to_innode: dict[tuple[int, int], int] = {}
                 xy_to_outnode: dict[tuple[int, int], int] = {}
-                for x, y in xy_to_q.keys():
+                for x, y in xy_to_q:
                     n_in = coord2node.get((int(x), int(y), int(zmin)))
                     n_out = coord2node.get((int(x), int(y), int(zmax)))
                     if n_in is not None:
-                        xy_to_innode[(int(x), int(y))] = n_in
+                        xy_to_innode[int(x), int(y)] = n_in
                     if n_out is not None:
-                        xy_to_outnode[(int(x), int(y))] = n_out
+                        xy_to_outnode[int(x), int(y)] = n_out
 
                 # Register inputs
                 xy_to_lidx: dict[tuple[int, int], int] = {}
@@ -296,7 +311,7 @@ class RHGBlock:
                         n_in = xy_to_innode.get((int(xy[0]), int(xy[1])))
                         if n_in is not None:
                             lidx = g.register_input(n_in)
-                            xy_to_lidx[(int(xy[0]), int(xy[1]))] = lidx
+                            xy_to_lidx[int(xy[0]), int(xy[1])] = lidx
 
                 # Register outputs (reuse input logical index when possible)
                 if self.out_ports:

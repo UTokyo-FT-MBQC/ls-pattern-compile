@@ -1,5 +1,11 @@
+from __future__ import annotations
+
 from lspattern.consts.consts import PIPEDIRECTION
-from lspattern.mytype import PatchCoordGlobal3D, QubitGroupIdLocal, TilingId
+from lspattern.mytype import (
+    PatchCoordGlobal3D,
+    QubitGroupIdLocal,
+    TilingId,
+)
 
 
 def get_direction(
@@ -26,13 +32,14 @@ def get_direction(
             raise ValueError("Invalid direction")
 
 
-def __tuple_sum(l_: tuple, r_: tuple) -> tuple:
-    assert len(l_) == len(r_)
+def __tuple_sum(l_: tuple[int, ...], r_: tuple[int, ...]) -> tuple[int, ...]:
+    if len(l_) != len(r_):
+        raise AssertionError("tuple lengths must match")
     return tuple(a + b for a, b in zip(l_, r_, strict=False))
 
 
 # Prepare outputs as sorted lists for determinism
-def sort_xy(points: set[tuple[int, int]]):
+def sort_xy(points: set[tuple[int, int]]) -> list[tuple[int, int]]:
     return sorted(points, key=lambda p: (p[1], p[0]))
 
 
@@ -94,19 +101,37 @@ if __name__ == "__main__":
     # Representatives should be minimal in each set
     r135 = {uf.find(1), uf.find(3), uf.find(5)}
     r24 = {uf.find(2), uf.find(4)}
-    assert len(r135) == 1 and min(r135) == 1, f"UF group {r135} should be rep=1"
-    assert len(r24) == 1 and min(r24) == 2, f"UF group {r24} should be rep=2"
+    if not (len(r135) == 1 and min(r135) == 1):
+        raise AssertionError(f"UF group {r135} should be rep=1")
+    EXPECTED_REP2 = 2
+    if not (len(r24) == 1 and min(r24) == EXPECTED_REP2):
+        raise AssertionError(f"UF group {r24} should be rep=2")
 
     # Test get_direction
-    assert get_direction((0, 0, 0), (1, 0, 0)).name == "RIGHT"
-    assert get_direction((0, 0, 0), (0, 1, 0)).name == "TOP"
-    assert get_direction((1, 1, 0), (1, 1, -1)).name == "DOWN"
+    p0: PatchCoordGlobal3D = PatchCoordGlobal3D((0, 0, 0))
+    px: PatchCoordGlobal3D = PatchCoordGlobal3D((1, 0, 0))
+    py: PatchCoordGlobal3D = PatchCoordGlobal3D((0, 1, 0))
+    pm: PatchCoordGlobal3D = PatchCoordGlobal3D((1, 1, -1))
+    p11: PatchCoordGlobal3D = PatchCoordGlobal3D((1, 1, 0))
+    if get_direction(p0, px).name != "RIGHT":
+        raise AssertionError("direction RIGHT failed")
+    if get_direction(p0, py).name != "TOP":
+        raise AssertionError("direction TOP failed")
+    if get_direction(p11, pm).name != "DOWN":
+        raise AssertionError("direction DOWN failed")
 
     # Test is_allowed_pair
-    allow = {(1, 2), (3, 3)}
-    assert is_allowed_pair(1, 2, allow)
-    assert is_allowed_pair(2, 1, allow)
-    assert is_allowed_pair(3, 3, allow)
-    assert not is_allowed_pair(1, 3, allow)
+    allow: set[tuple[QubitGroupIdLocal, QubitGroupIdLocal]] = {
+        (QubitGroupIdLocal(1), QubitGroupIdLocal(2)),
+        (QubitGroupIdLocal(3), QubitGroupIdLocal(3)),
+    }
+    if not is_allowed_pair(QubitGroupIdLocal(1), QubitGroupIdLocal(2), allow):
+        raise AssertionError("pair (1,2) should be allowed")
+    if not is_allowed_pair(QubitGroupIdLocal(2), QubitGroupIdLocal(1), allow):
+        raise AssertionError("pair (2,1) should be allowed")
+    if not is_allowed_pair(QubitGroupIdLocal(3), QubitGroupIdLocal(3), allow):
+        raise AssertionError("pair (3,3) should be allowed")
+    if is_allowed_pair(QubitGroupIdLocal(1), QubitGroupIdLocal(3), allow):
+        raise AssertionError("pair (1,3) should not be allowed")
 
     print("[utils] All tests passed.")

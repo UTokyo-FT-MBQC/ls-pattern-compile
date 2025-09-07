@@ -3,6 +3,7 @@
 Contains block skeletons and concrete implementations (cubes, pipes).
 """
 
-__all__ = [
+# Public symbols for star-imports
+__all__: list[str] = [
     # Subpackages are exported implicitly once imported by users
 ]

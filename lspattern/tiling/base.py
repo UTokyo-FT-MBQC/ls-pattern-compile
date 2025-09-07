@@ -1,8 +1,9 @@
 from dataclasses import dataclass, field
 from itertools import count
 
-from lspattern.mytype import PatchCoordGlobal3D, QubitIndex, TilingCoord2D, QubitGroupIdLocal
-from lspattern.consts.consts import DIRECTIONS2D
+# ruff: noqa: I001
+
+from lspattern.mytype import QubitIndex, TilingCoord2D, QubitGroupIdLocal
 
 
 def _next_tiling_id() -> int:

@@ -18,7 +18,7 @@ class MemoryPipeSkeleton(RHGPipeSkeleton):
 
     edgespec: SpatialEdgeSpec | None = None
 
-    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> "MemoryPipe":
+    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> MemoryPipe:
         direction = get_direction(source, sink)
         spec = self.edgespec
         block = MemoryPipe(
@@ -50,7 +50,8 @@ class MemoryPipe(RHGPipe):
         # Pipe: data の全インデックスを in とする（z- 側相当）
         idx_map = self.template.get_data_indices()
         indices = set(idx_map.values())
-        assert len(indices) > 0, "MemoryPipe: in_ports は空であってはならない"
+        if len(indices) == 0:
+            raise AssertionError("MemoryPipe: in_ports は空であってはならない")
         self.in_ports = indices
 
     def set_out_ports(self) -> None:

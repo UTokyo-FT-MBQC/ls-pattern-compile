@@ -19,7 +19,8 @@ Design notes
 """
 
 from dataclasses import dataclass, field
-from typing import Iterable, Mapping, Sequence
+# ruff: noqa: I001  # import grouping intentionally simple
+from collections.abc import Iterable, Mapping, Sequence
 
 from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal
 
@@ -47,9 +48,17 @@ class BaseAccumulator:
 
         # TemporalLayer-like: has local_graph and rich maps
         if hasattr(graph_local, "local_graph"):
-            graph = getattr(graph_local, "local_graph")
-            node2coord = getattr(graph_local, "node2coord", None)
-            node2role = getattr(graph_local, "node2role", None)
+            graph = graph_local.local_graph  # type: ignore[attr-defined]
+            node2coord = (
+                graph_local.node2coord  # type: ignore[attr-defined]
+                if hasattr(graph_local, "node2coord")
+                else None
+            )
+            node2role = (
+                graph_local.node2role  # type: ignore[attr-defined]
+                if hasattr(graph_local, "node2role")
+                else None
+            )
             return graph, node2coord, node2role
 
         # GraphState-like: just neighbors
@@ -68,14 +77,11 @@ class BaseAccumulator:
         """
 
         try:
-            out = getattr(graph, "output_node_indices")
-            # GraphState.property returns a dict, but envs may shadow it. Be tolerant.
-            if callable(out):  # defensive: shouldn't happen
-                out = out()
+            out = graph.output_node_indices  # type: ignore[attr-defined]
             if isinstance(out, Mapping):
-                return int(node) in set(out.keys())
+                return int(node) in set(out)
         except Exception:
-            pass
+            return False
         return False
 
     @staticmethod
@@ -250,7 +256,8 @@ class ScheduleAccumulator(BaseAccumulator):
         self.schedule.setdefault(int(t), set()).add(int(anchor))
 
         after = self._size_of_schedule(self.schedule)
-        assert after >= before, "ScheduleAccumulator must be non-decreasing"
+        if after < before:
+            raise AssertionError("ScheduleAccumulator must be non-decreasing")
 
 
 @dataclass
@@ -303,7 +310,8 @@ class ParityAccumulator(BaseAccumulator):
         if not group:
             # Nothing to add; still enforce non-decreasing
             after = self._size_of_groups(self.x_checks) + self._size_of_groups(self.z_checks)
-            assert after >= before
+            if after < before:
+                raise AssertionError("ParityAccumulator must be non-decreasing")
             return
 
         if "ancilla_x" in role:
@@ -315,7 +323,8 @@ class ParityAccumulator(BaseAccumulator):
             self.x_checks.append(group)
 
         after = self._size_of_groups(self.x_checks) + self._size_of_groups(self.z_checks)
-        assert after >= before, "ParityAccumulator must be non-decreasing"
+        if after < before:
+            raise AssertionError("ParityAccumulator must be non-decreasing")
 
 
 @dataclass
@@ -379,7 +388,8 @@ class FlowAccumulator(BaseAccumulator):
             pass
 
         after = self._size_of_flow(self.xflow) + self._size_of_flow(self.zflow)
-        assert after >= before, "FlowAccumulator must be non-decreasing"
+        if after < before:
+            raise AssertionError("FlowAccumulator must be non-decreasing")
 
 
 # -----------------------------------------------------------------------------
@@ -418,4 +428,5 @@ class DetectorAccumulator(BaseAccumulator):
             self.detectors.setdefault(int(anchor), set()).update(group)
 
         after = sum(len(v) for v in self.detectors.values())
-        assert after >= before, "DetectorAccumulator must be non-decreasing"
+        if after < before:
+            raise AssertionError("DetectorAccumulator must be non-decreasing")

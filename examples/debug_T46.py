@@ -28,13 +28,14 @@ Temporal OFF edges=EEEE, nodes=FFFF
 import pathlib
 import sys
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = pathlib.Path("./").resolve().parents[1]
 SRC = ROOT / "src"
 SRC_GRAPHIX = SRC / "graphix_zx"
-for p in (SRC, SRC_GRAPHIX):
+for p in (ROOT, SRC, SRC_GRAPHIX):
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
 
+from lspattern.blocks.pipes.memory import MemoryPipeSkeleton
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvas, RHGCanvasSkeleton
@@ -57,7 +58,7 @@ def visualizer_connection():
         (PatchCoordGlobal3D((0, 0, 1)), MemoryCubeSkeleton(d=3, edgespec=edgespec)),
         (PatchCoordGlobal3D((2, 2, 0)), InitPlusCubeSkeleton(d=3, edgespec=edgespec)),
     ]
-    pipes = [(PatchCoordGlobal3D((0, 0, 0)), PatchCoordGlobal3D((0, 0, 1)))]
+    pipes = [(PatchCoordGlobal3D((0, 0, 0)), PatchCoordGlobal3D((0, 0, 1)), MemoryPipeSkeleton(d=3, edgespec=edgespec))]
 
     for block in blocks:
         # RHGCanvasSkeleton は skeleton を受け取り、to_canvas() で block 化します
@@ -74,10 +75,16 @@ def visualizer_connection():
         if compiled_canvas.global_graph
         else 0
     )
+    nedges = (
+        len(getattr(compiled_canvas.global_graph, "physical_edges", []) or [])
+        if compiled_canvas.global_graph
+        else 0
+    )
     print(
         {
             "layers": len(temporal_layer),
             "nodes": nnodes,
+            "edges": nedges,
             "coord_map": len(compiled_canvas.coord2node),
         }
     )
@@ -100,8 +107,8 @@ def visualizer_noconnection():
     for block in blocks:
         # RHGCanvasSkeleton は skeleton を受け取り、to_canvas() で block 化します
         canvass.add_cube(*block)
-    for pipe in pipes:
-        canvass.add_pipe(*pipe)
+    # for pipe in pipes:
+        # canvass.add_pipe(*pipe)
 
     canvas = canvass.to_canvas()
     temporal_layer = canvas.to_temporal_layers()
@@ -112,10 +119,24 @@ def visualizer_noconnection():
         if compiled_canvas.global_graph
         else 0
     )
+    nedges = (
+        len(getattr(compiled_canvas.global_graph, "physical_edges", []) or [])
+        if compiled_canvas.global_graph
+        else 0
+    )
     print(
         {
             "layers": len(temporal_layer),
             "nodes": nnodes,
+            "edges": nedges,
             "coord_map": len(compiled_canvas.coord2node),
         }
     )
+
+# %%
+print("Temporal ON")
+visualizer_connection()
+
+# %%
+print("Temporal OFF")
+visualizer_noconnection()

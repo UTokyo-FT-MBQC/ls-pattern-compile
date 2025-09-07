@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+# ruff: noqa: I001
+
 from lspattern.blocks.cubes.base import RHGCubeSkeleton, RHGCube
 from lspattern.tiling.template import RotatedPlanarCubeTemplate
 
@@ -54,8 +56,7 @@ class InitPlus(RHGCube):
 
 
 if __name__ == "__main__":
-    # 谺｡縺ｫInitpluse縺ｮRHGBlock繧貞ｮ夂ｾｩ縺励※縲［aterialize縺励※縲√◎縺ｮgraph_local繧稚emplate縺ｨ蜷梧ｧ倥・濶ｲ縺･縺代※visualize縺励※縲Ｆdge縺ｯ鮟堤ｷ壹〒縺九＞縺ｦ縲・D繝励Ο繝・ヨ繧剃ｽｿ縺｣縺ｦ
-    import matplotlib.pyplot as plt
+    # NOTE: Interactive 3D preview code omitted for brevity
     from mpl_toolkits.mplot3d import Axes3D  # noqa: F401, ensure 3D is registered
 
     # Hardcoded options (edit here as needed)
