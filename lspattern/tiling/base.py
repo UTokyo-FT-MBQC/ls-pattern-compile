@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from itertools import count
 
-from lspattern.mytype import PatchCoordGlobal3D, QubitIndex, TilingCoord2D, TilingId
+from lspattern.mytype import PatchCoordGlobal3D, QubitIndex, TilingCoord2D, QubitGroupIdLocal
 from lspattern.consts.consts import DIRECTIONS2D
 
 
@@ -30,7 +30,7 @@ class Tiling:
     Base class for physical qubit tiling patterns.
     """
 
-    id_: TilingId = field(init=False)  # unique identifier, auto-assigned on init
+    id_: QubitGroupIdLocal = field(init=False)  # unique identifier, auto-assigned on init
     data_coords: list[TilingCoord2D] = field(default_factory=list)
     coord2qubitindex: dict[TilingCoord2D, QubitIndex] = field(default_factory=dict)
     coord2id: dict[TilingCoord2D, int] = field(default_factory=dict)

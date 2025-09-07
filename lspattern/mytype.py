@@ -27,19 +27,20 @@ QubitIndex = NewType("QubitIndex", int)
 QubitIndexLocal = NewType("QubitIndexLocal", int)
 
 TilingId = NewType("TilingId", int)
+QubitGroupIdLocal = NewType("QubitGroupIdLocal", int)
+QubitGroupIdGlobal = NewType("QubitGroupIdGlobal", int)
 # ---------------------------------------------------------------------
 # Coordinates
 # ---------------------------------------------------------------------
 # Tiling coordinate
 
 TilingCoord2D = NewType("TilingCoord2D", tuple[int, int])
-TilingConsistentQubitId = NewType("TilingConsistentQubitId", int)
 
 # Patch coordinates are 2D integer anchors (x0, y0).
 PatchCoordLocal2D = NewType("PatchCoordLocal2D", tuple[int, int])
 PatchCoordGlobal3D = NewType("PatchCoordGlobal3D", tuple[int, int, int])
 PipeCoordGlobal3D = NewType(
-    "PipeCoordGlobal3D", tuple[tuple[int, int, int], tuple[int, int, int]]
+    "PipeCoordGlobal3D", tuple[PatchCoordGlobal3D, PatchCoordGlobal3D]
 )
 
 # Physical qubit coordinates are 3D integer positions (x, y, z).

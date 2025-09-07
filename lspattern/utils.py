@@ -1,5 +1,5 @@
 from lspattern.consts.consts import PIPEDIRECTION
-from lspattern.mytype import PatchCoordGlobal3D
+from lspattern.mytype import PatchCoordGlobal3D, QubitGroupIdLocal, TilingId
 
 
 def get_direction(
@@ -34,3 +34,79 @@ def __tuple_sum(l_: tuple, r_: tuple) -> tuple:
 # Prepare outputs as sorted lists for determinism
 def sort_xy(points: set[tuple[int, int]]):
     return sorted(points, key=lambda p: (p[1], p[0]))
+
+
+def is_allowed_pair(
+    u: QubitGroupIdLocal | TilingId,
+    v: QubitGroupIdLocal | TilingId,
+    allowed_pairs: (
+        set[tuple[QubitGroupIdLocal, QubitGroupIdLocal]]
+        | set[tuple[TilingId, TilingId]]
+    ),
+) -> bool:
+    m, M = min(u, v), max(u, v)
+    return (m, M) in allowed_pairs
+
+
+class UnionFind:
+    """Simple Union-Find (Disjoint Set Union) with path compression.
+
+    Unions always attach the larger representative to the smaller one to keep
+    group ids deterministic (min representative), matching prior behavior.
+    """
+
+    def __init__(self) -> None:
+        self.parent: dict[int, int] = {}
+
+    def add(self, a: int) -> None:
+        a = int(a)
+        if a not in self.parent:
+            self.parent[a] = a
+
+    def find(self, a: int) -> int:
+        a = int(a)
+        self.add(a)
+        p = self.parent[a]
+        if p != a:
+            self.parent[a] = self.find(p)
+        return self.parent[a]
+
+    def union(self, a: int, b: int) -> None:
+        ra, rb = self.find(a), self.find(b)
+        if ra == rb:
+            return
+        m = min(ra, rb)
+        self.parent[ra] = m
+        self.parent[rb] = m
+
+
+if __name__ == "__main__":
+    # Simple self-test for utils
+    print("[utils] Running self-test...")
+
+    # Test UnionFind determinism and connectivity
+    uf = UnionFind()
+    for i in range(1, 6):
+        uf.add(i)
+    uf.union(1, 3)
+    uf.union(3, 5)
+    uf.union(2, 4)
+    # Representatives should be minimal in each set
+    r135 = {uf.find(1), uf.find(3), uf.find(5)}
+    r24 = {uf.find(2), uf.find(4)}
+    assert len(r135) == 1 and min(r135) == 1, f"UF group {r135} should be rep=1"
+    assert len(r24) == 1 and min(r24) == 2, f"UF group {r24} should be rep=2"
+
+    # Test get_direction
+    assert get_direction((0, 0, 0), (1, 0, 0)).name == "RIGHT"
+    assert get_direction((0, 0, 0), (0, 1, 0)).name == "TOP"
+    assert get_direction((1, 1, 0), (1, 1, -1)).name == "DOWN"
+
+    # Test is_allowed_pair
+    allow = {(1, 2), (3, 3)}
+    assert is_allowed_pair(1, 2, allow)
+    assert is_allowed_pair(2, 1, allow)
+    assert is_allowed_pair(3, 3, allow)
+    assert not is_allowed_pair(1, 3, allow)
+
+    print("[utils] All tests passed.")

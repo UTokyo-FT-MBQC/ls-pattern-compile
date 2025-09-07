@@ -15,8 +15,9 @@ def visualize_temporal_layer_plotly(
     reverse_axes: bool = True,
     show_axes: bool = True,
     show_grid: bool = True,
-    aspectmode: str = "data",  # 'data' | 'cube' | 'auto' | 'manual'
-    aspectratio: tuple[float, float, float] | None = None,
+    aspectmode: str = "cube",  # kept for backward-compat; ignored internally
+    input_nodes: Iterable[int] | None = None,
+    output_nodes: Iterable[int] | None = None,
 ):
     """Interactive 3D Plotly visualization for a TemporalLayer.
 
@@ -152,59 +153,57 @@ def visualize_temporal_layer_plotly(
             )
 
     # Highlight input/output nodes if present
-    if g is not None:
-        in_nodes: Iterable[int] = list(g.input_node_indices.keys())
-        out_nodes: Iterable[int] = list(g.output_node_indices.keys())
-    else:
-        in_nodes = []
-        out_nodes = []
+    # Determine inputs/outputs: prefer explicit args, fall back to GraphState
+    if input_nodes is None:
+        input_nodes = list(g.input_node_indices.keys()) if g is not None else []
+    if output_nodes is None:
+        output_nodes = list(g.output_node_indices.keys()) if g is not None else []
 
-    if in_nodes:
-        xin = [node2coord[n][0] for n in in_nodes if n in node2coord]
-        yin = [node2coord[n][1] for n in in_nodes if n in node2coord]
-        zin = [node2coord[n][2] for n in in_nodes if n in node2coord]
+    if input_nodes:
+        xin = [node2coord[n][0] for n in input_nodes if n in node2coord]
+        yin = [node2coord[n][1] for n in input_nodes if n in node2coord]
+        zin = [node2coord[n][2] for n in input_nodes if n in node2coord]
         fig.add_trace(
             go.Scatter3d(
                 x=xin,
                 y=yin,
                 z=zin,
                 mode="markers",
-                marker=dict(size=10, color="red", symbol="diamond"),
+                marker=dict(size=10, color="white", line=dict(color="red", width=2), symbol="diamond"),
                 name="Input",
-                text=[f"Input node {n}" for n in in_nodes],
+                text=[f"Input node {n}" for n in input_nodes],
                 hovertemplate="<b>%{text}</b><br>x: %{x}<br>y: %{y}<br>z: %{z}<extra></extra>",
             )
         )
 
-    if out_nodes:
-        xout = [node2coord[n][0] for n in out_nodes if n in node2coord]
-        yout = [node2coord[n][1] for n in out_nodes if n in node2coord]
-        zout = [node2coord[n][2] for n in out_nodes if n in node2coord]
+    if output_nodes:
+        xout = [node2coord[n][0] for n in output_nodes if n in node2coord]
+        yout = [node2coord[n][1] for n in output_nodes if n in node2coord]
+        zout = [node2coord[n][2] for n in output_nodes if n in node2coord]
         fig.add_trace(
             go.Scatter3d(
                 x=xout,
                 y=yout,
                 z=zout,
                 mode="markers",
-                marker=dict(size=10, color="darkred", symbol="diamond"),
+                marker=dict(size=10, color="red", line=dict(color="darkred", width=2), symbol="diamond"),
                 name="Output",
-                text=[f"Output node {n}" for n in out_nodes],
+                text=[f"Output node {n}" for n in output_nodes],
                 hovertemplate="<b>%{text}</b><br>x: %{x}<br>y: %{y}<br>z: %{z}<extra></extra>",
             )
         )
 
     # Layout
     # 軸とレイアウト
+    # Always fix aspect ratio to 1:1:1 regardless of cube/pipe/data ranges
     scene: dict = dict(
         xaxis_title="X",
         yaxis_title="Y",
         zaxis_title="Z",
-        aspectmode=str(aspectmode),
+        aspectmode="manual",
+        aspectratio=dict(x=1.0, y=1.0, z=1.0),
         camera=dict(eye=dict(x=1.5, y=1.5, z=1.5)),
     )
-    if aspectmode == "manual" and aspectratio is not None:
-        ax, ay, az = aspectratio
-        scene["aspectratio"] = dict(x=float(ax), y=float(ay), z=float(az))
     if reverse_axes:
         scene["xaxis"] = dict(autorange="reversed")
         scene["yaxis"] = dict(autorange="reversed")

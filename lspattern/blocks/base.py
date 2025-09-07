@@ -12,7 +12,7 @@ from lspattern.accumulator import (
     ParityAccumulator,
     ScheduleAccumulator,
 )
-from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D
+from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D, QubitGroupIdLocal
 from lspattern.tiling.template import (
     RotatedPlanarCubeTemplate,
     ScalableTemplate,
@@ -29,41 +29,35 @@ if TYPE_CHECKING:
 
 @dataclass
 class RHGBlock:
-    """
-    Represents a block in the RHG lattice with input/output ports, trimmed edges, and an evaluated template.
+    """Self-contained RHG slab used as a lattice-surgery building block.
 
-    # The only difference from RHGBlockSleketon is that this class is
-    # has: input/output ports
-    # edges trimmed
-    # evaluated template
+    This class wraps a scalable tiling template together with block-level
+    metadata (code distance, spatial edge spec, anchor coordinates and ports),
+    and provides materialization into a local 3D RHG graph with roles tagged
+    for data and X/Z ancillas.
 
     Attributes
     ----------
     d : int
-        The code distance or size parameter.
+        Code distance (also controls temporal height ``2*d`` when materialized).
     edge_spec : SpatialEdgeSpec | None
-        The spatial edge specification for the block.
+        Spatial edge specification; alias available via the ``edgespec`` property.
+    source : PatchCoordGlobal3D
+        3D anchor of this block; ``z`` controls the slab's temporal offset.
+    sink : PatchCoordGlobal3D | None
+        Optional secondary anchor (unused in the base block implementation).
     template : ScalableTemplate
-        The evaluated template for the block.
-    in_ports : QubitIndexLocal
-        The input ports for the block's logical patch boundary.
-    out_ports : QubitIndexLocal
-        The output ports for the block's logical patch boundary.
-    cout_ports : list[QubitIndexLocal]
-        The classical output ports, grouped for logical results.
-
-    Methods
-    -------
-    set_in_ports()
-        Set the input ports for the block.
-    set_out_ports()
-        Set the output ports for the block.
-    set_cout_ports()
-        Set the classical output ports for the block.
-    shift_ids(by: int)
-        Shift the qubit indices in the template by a specified integer offset.
-    shift_coords(by: PatchCoordGlobal3D)
-        Shift the patch coordinates and update the template coordinates accordingly.
+        Backing scalable tiling; evaluated during init/materialization.
+    in_ports, out_ports : set[QubitIndexLocal]
+        Logical boundary port sets for this block.
+    cout_ports : list[set[QubitIndexLocal]]
+        Grouped classical output ports (one group per logical result).
+    local_graph : GraphState
+        Local RHG graph constructed by ``materialize()``.
+    node2coord, coord2node : dict
+        Bidirectional maps between node ids and 3D coordinates.
+    node2role : dict[int, str]
+        Role of each node: ``'data'``, ``'ancilla_x'`` or ``'ancilla_z'``.
     """
 
     name: ClassVar[str] = __qualname__
@@ -97,6 +91,8 @@ class RHGBlock:
         init=False, default_factory=dict
     )
     node2role: dict[NodeIdLocal, str] = field(init=False, default_factory=dict)
+
+    final_layer: str = None  # "M", "MX", "MZ", "MY" or "O" (open, no measurement)
 
     def __post_init__(self) -> None:
         # Sync template parameters (d, edgespec)
@@ -203,9 +199,18 @@ class RHGBlock:
         for t_local in range(max_t + 1):
             t = z0 + t_local
             cur: dict[tuple[int, int], int] = {}
-            if t_local != max_t:
+            assert self.final_layer is not None
+            if t_local == max_t and self.final_layer == "O":
+                # add data node only if it is not measurement node
+                for x, y in data2d:
+                    n = g.add_physical_node()
+                    node2coord[n] = (int(x), int(y), int(t))
+                    coord2node[(int(x), int(y), int(t))] = n
+                    node2role[n] = "data"
+                    cur[(int(x), int(y))] = n
+            else:
                 # Data nodes every slice except the final sentinel layer
-                for (x, y) in data2d:
+                for x, y in data2d:
                     n = g.add_physical_node()
                     node2coord[n] = (int(x), int(y), int(t))
                     coord2node[(int(x), int(y), int(t))] = n
@@ -213,14 +218,14 @@ class RHGBlock:
                     cur[(int(x), int(y))] = n
                 # Interleave ancillas X/Z by time parity
                 if (t_local % 2) == 0:
-                    for (x, y) in x2d:
+                    for x, y in x2d:
                         n = g.add_physical_node()
                         node2coord[n] = (int(x), int(y), int(t))
                         coord2node[(int(x), int(y), int(t))] = n
                         node2role[n] = "ancilla_x"
                         cur[(int(x), int(y))] = n
                 else:
-                    for (x, y) in z2d:
+                    for x, y in z2d:
                         n = g.add_physical_node()
                         node2coord[n] = (int(x), int(y), int(t))
                         coord2node[(int(x), int(y), int(t))] = n
@@ -255,11 +260,70 @@ class RHGBlock:
                     except Exception:
                         pass
 
+        # Register GraphState input/output nodes when ports are defined, so that
+        # visualizers relying on GraphState registries can highlight them
+        try:
+            # Determine z- (min) and z+ (max) among DATA nodes only
+            data_coords_all = [
+                c for n, c in node2coord.items() if node2role.get(n) == "data"
+            ]
+            if data_coords_all:
+                zmin = min(c[2] for c in data_coords_all)
+                zmax = max(c[2] for c in data_coords_all)
+
+                # XY -> local qubit index based on evaluated template
+                xy_to_q = self.template.get_data_indices()
+
+                # Optional: map XY to node ids at z- / z+
+                xy_to_innode: dict[tuple[int, int], int] = {}
+                xy_to_outnode: dict[tuple[int, int], int] = {}
+                for x, y in xy_to_q.keys():
+                    n_in = coord2node.get((int(x), int(y), int(zmin)))
+                    n_out = coord2node.get((int(x), int(y), int(zmax)))
+                    if n_in is not None:
+                        xy_to_innode[(int(x), int(y))] = n_in
+                    if n_out is not None:
+                        xy_to_outnode[(int(x), int(y))] = n_out
+
+                # Register inputs
+                xy_to_lidx: dict[tuple[int, int], int] = {}
+                if self.in_ports:
+                    inv_q_to_xy = {q: xy for xy, q in xy_to_q.items()}
+                    for qidx in self.in_ports:
+                        xy = inv_q_to_xy.get(qidx)
+                        if xy is None:
+                            continue
+                        n_in = xy_to_innode.get((int(xy[0]), int(xy[1])))
+                        if n_in is not None:
+                            lidx = g.register_input(n_in)
+                            xy_to_lidx[(int(xy[0]), int(xy[1]))] = lidx
+
+                # Register outputs (reuse input logical index when possible)
+                if self.out_ports:
+                    inv_q_to_xy = {q: xy for xy, q in xy_to_q.items()}
+                    for qidx in self.out_ports:
+                        xy = inv_q_to_xy.get(qidx)
+                        if xy is None:
+                            continue
+                        n_out = xy_to_outnode.get((int(xy[0]), int(xy[1])))
+                        if n_out is not None:
+                            lidx = xy_to_lidx.get((int(xy[0]), int(xy[1])))
+                            if lidx is None:
+                                # If there was no corresponding input, use template's
+                                # qubit index as logical index for output registration.
+                                lidx = int(qidx)
+                            g.register_output(n_out, int(lidx))
+        except Exception as e:
+            # Visualization aid only; avoid breaking materialization pipelines
+            print(f"Warning: failed to register I/O nodes on RHGBlock: {e}")
+            pass
+
         # Store results on the block
         self.local_graph = g
         self.node2coord = node2coord
         self.coord2node = coord2node
         self.node2role = node2role
+        self.coord2gid = {pos: self.template.id_ for pos in node2coord.values()}
         return self
 
     # --- Compatibility aliases -------------------------------------------------
@@ -279,6 +343,24 @@ class RHGBlock:
     @edgespec.setter
     def edgespec(self, v: SpatialEdgeSpec | None) -> None:
         self.edge_spec = v
+
+    def get_tiling_id(self) -> int:
+        """Get the base qubit index of the underlying template."""
+        tid = self.template.id_
+        gids = set(self.coord2gid.values())
+        assert all(gid == tid for gid in gids)
+        return self.template.id_
+
+    def set_tiling_id(self, new_id: int) -> None:
+        """Update the qubit indices in the underlying template by a specified id.
+
+        Parameters
+        ----------
+        new_id : int
+            The new base qubit index for the template.
+        """
+        self.template.id_ = new_id
+        self.coord2gid = {pos: new_id for pos in self.coord2gid.keys()}
 
     @staticmethod
     def _boundary_nodes_from_coordmap(

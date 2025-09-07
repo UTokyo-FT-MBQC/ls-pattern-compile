@@ -32,6 +32,8 @@ class InitPlusPipeSkeleton(RHGPipeSkeleton):
             edgespec=spec,
             direction=direction,
         )
+        # Init 系は最終層は測定せず開放（O）
+        block.final_layer = "O"
         return block
 
 
@@ -46,3 +48,16 @@ class InitPlusPipe(RHGPipe):
         super().__init__(d=d, edge_spec=edgespec)
         self.direction = direction
         self.template = RotatedPlanarPipetemplate(d=d, edgespec=edgespec)
+
+    def set_in_ports(self) -> None:
+        # Init pipe: 入力ポートは持たない
+        return super().set_in_ports()
+
+    def set_out_ports(self) -> None:
+        # Init pipe: 出力はテンプレートの data 全インデックス
+        idx_map = self.template.get_data_indices()
+        self.out_ports = set(idx_map.values())
+
+    def set_cout_ports(self) -> None:
+        # 古典出力はなし
+        return super().set_cout_ports()

@@ -25,6 +25,16 @@ lspattern = "lspattern"
 [tool.ruff]
 target-version = "py313"
 line-length = 120
+extend-exclude = [
+  # Visualizers are not lint targets for now
+  "lspattern/visualizers/*",
+  # T48: temporarily exclude legacy/experimental modules
+  "lspattern/canvas_legacy.py",
+  "lspattern/canvas_parallel_hint.py",
+  "lspattern/ops.py",
+  "lspattern/rhg.py",
+  "lspattern/rhg2.py",
+]
 
 [tool.ruff.lint]
 preview = true
@@ -59,9 +69,6 @@ ignore = [
   "FBT",     # boolean-trap
   "FIX",     # fixme
   "PLR0904", # too-many-public-methods
-]
-exclude = [
-  "lspattern/visualizers/*",
 ]
 
 [tool.ruff.lint.pylint]
@@ -102,10 +109,20 @@ markers = "slow: mark test as slow"
 [tool.mypy]
 strict = true
 ignore_missing_imports = true
-files = ["lspattern", "tests", "examples"]
+files = ["lspattern"]
+# T48: exclude legacy/experimental modules from type checking
+exclude = "lspattern/(canvas_legacy.py|canvas_parallel_hint.py|ops.py|rhg.py|rhg2.py)$"
 
 [tool.pyright]
 include = ["lspattern", "tests", "examples"]
+exclude = [
+  # T48: temporarily exclude legacy/experimental modules
+  "lspattern/canvas_legacy.py",
+  "lspattern/canvas_parallel_hint.py",
+  "lspattern/ops.py",
+  "lspattern/rhg.py",
+  "lspattern/rhg2.py",
+]
 reportUnknownArgumentType = "information"
 reportUnknownLambdaType = "information"
 reportUnknownMemberType = "information"

@@ -1,60 +1,57 @@
 from __future__ import annotations
 
-from graphix_zx.common import Plane, PlannerMeasBasis
-from graphix_zx.graphstate import BaseGraphState, GraphState
-
-from lspattern.blocks.cubes.base import RHGCubeSkeleton
-from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z, is_data
-from lspattern.canvas import RHGCanvas
+from lspattern.blocks.cubes.base import RHGCubeSkeleton, RHGCube
 
 
 class MemoryCubeSkeleton(RHGCubeSkeleton):
-    """Skeleton for memory extension blocks in cube-shaped RHG structures."""
+    """Skeleton for memory (time-extension) blocks in cube-shaped RHG structures."""
 
     name: str = __qualname__
 
-    def to_block(self) -> MemoryCube:
-        """
-        Return a template-holding block (no local graph state).
-
-        Returns
-        -------
-            MemoryCube: A block containing the template with no local graph state.
-        """
+    def to_block(self) -> "MemoryCube":
+        """Materialize to a MemoryCube (template evaluated, no local graph yet)."""
+        # Apply spatial open-boundary trimming if specified
         for direction in ["LEFT", "RIGHT", "TOP", "BOTTOM"]:
-            if self.edgespec[direction] == "O":
+            if str(self.edgespec.get(direction, "O")).upper() == "O":
                 self.trim_spatial_boundary(direction)
+        # Evaluate template coordinates
         self.template.to_tiling()
 
         block = MemoryCube(
             d=self.d,
             edge_spec=self.edgespec,
             template=self.template,
-            logical=self.logical,
-            rounds=self.rounds,
         )
-
+        # Memory 系も最終層は開放（O）: 次段へ受け渡し
+        block.final_layer = "O"
         return block
 
 
 class MemoryCube(RHGCube):
     name: str = __qualname__
 
-    def set_in_ports(self):
-        # sets all lowest z data qubits as input
-        ...
+    def set_in_ports(self) -> None:
+        """Memory: 全 data（z- 側相当）を入力ポートに割当てる。"""
+        # テンプレートの data インデックスを取得
+        idx_map = self.template.get_data_indices()
+        indices = set(idx_map.values())
+        assert len(indices) > 0, "Memory: in_ports は空であってはならない"
+        self.in_ports = indices
 
-    def set_cout_ports(self):
-        # sets all hightest z data qubits as output
-        assert self.graph_local is not None
-        ...
+    def set_out_ports(self) -> None:
+        """Memory: 全 data（z 側相当）を出力ポートに割当てる。
 
-    def set_cout_ports(self):
-        # sets no classical output ports
+        位置は in_ports と同一集合（時間延長で同一 (x,y) を受け渡す想定）。
+        """
+        idx_map = self.template.get_data_indices()
+        self.out_ports = set(idx_map.values())
+
+    def set_cout_ports(self) -> None:
+        """Memory: 古典出力は持たない。"""
         return super().set_cout_ports()
 
-   
-# NOTE: Below is the legacy implementation of the Memory operation read this as a reference from the viewpoint of detector graph, parity, flow and scheduling. Do not reporoduce its RHG lattice constuction. Folloow the new RHG construction in lspattern/blocks/cubes/initialize.py instead.
+
+# NOTE: Below is the legacy implementation of the Memory operation read this as a reference from the viewpoint of detector graph, parity, flow and scheduling. Do not reproduce its RHG lattice construction. Follow the new RHG construction in lspattern/blocks/cubes/initialize.py instead.
 
 # class MemoryCubeSkeleton(RHGCubeSkeleton):
 #     """Extend a logical patch upward by `rounds` time-slices on the RHG lattice.

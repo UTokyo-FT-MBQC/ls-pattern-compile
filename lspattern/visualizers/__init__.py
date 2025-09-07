@@ -2,6 +2,8 @@
 
 from .temporallayer import visualize_temporal_layer
 from .plotly_temporallayer import visualize_temporal_layer_plotly
+from .compiled_canvas import visualize_compiled_canvas
+from .plotly_compiled_canvas import visualize_compiled_canvas_plotly
 from .accumulators import (
     visualize_parity_mpl,
     visualize_flow_mpl,
@@ -19,6 +21,9 @@ __all__ = [
     # temporallayer
     "visualize_temporal_layer",
     "visualize_temporal_layer_plotly",
+    # compiled canvas
+    "visualize_compiled_canvas",
+    "visualize_compiled_canvas_plotly",
     # accumulators mpl
     "visualize_parity_mpl",
     "visualize_flow_mpl",

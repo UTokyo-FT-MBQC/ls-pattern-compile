@@ -12,6 +12,8 @@ def visualize_temporal_layer(
     layer,
     *,
     indicated_nodes: set[int] | None = None,
+    input_nodes: set[int] | None = None,
+    output_nodes: set[int] | None = None,
     annotate: bool = False,
     save_path: str | None = None,
     show: bool = True,
@@ -116,6 +118,40 @@ def visualize_temporal_layer(
             if nid in node2coord:
                 x, y, z = node2coord[nid]
                 ax.scatter(x, y, z, c="black", edgecolors="black", s=55)
+
+    # Highlight input/output nodes with legend
+    if input_nodes:
+        xin = [node2coord[n][0] for n in input_nodes if n in node2coord]
+        yin = [node2coord[n][1] for n in input_nodes if n in node2coord]
+        zin = [node2coord[n][2] for n in input_nodes if n in node2coord]
+        if xin:
+            ax.scatter(
+                xin,
+                yin,
+                zin,
+                s=70,
+                facecolors="white",
+                edgecolors="#e74c3c",  # softer red
+                linewidths=1.8,
+                marker="D",
+                label="Input",
+            )
+    if output_nodes:
+        xout = [node2coord[n][0] for n in output_nodes if n in node2coord]
+        yout = [node2coord[n][1] for n in output_nodes if n in node2coord]
+        zout = [node2coord[n][2] for n in output_nodes if n in node2coord]
+        if xout:
+            ax.scatter(
+                xout,
+                yout,
+                zout,
+                s=70,
+                c="#e74c3c",          # softer red fill
+                edgecolors="#c0392b",  # darker red edge
+                linewidths=1.8,
+                marker="D",
+                label="Output",
+            )
 
     # Optional annotations
     if annotate:

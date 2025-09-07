@@ -30,6 +30,9 @@ class InitPlusCubeSkeleton(RHGCubeSkeleton):
             template=self.template,
         )
 
+        # Init 系は最終層は測定せず開放（O）
+        block.final_layer = "O"
+
         return block
 
 
@@ -40,9 +43,10 @@ class InitPlus(RHGCube):
         # Init plus sets no input ports
         return super().set_in_ports()
 
-    def set_cout_ports(self):
-        # sets all hightest z data qubits as output
-        ...
+    def set_out_ports(self):
+        # Init: 最終スライス（z+）の data を出力ポート（テンプレートの data 全インデックス）とみなす
+        idx_map = self.template.get_data_indices()
+        self.out_ports = set(idx_map.values())
 
     def set_cout_ports(self):
         # sets no classical output ports

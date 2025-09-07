@@ -6,7 +6,7 @@ from typing import Literal
 from lspattern.consts.consts import PIPEDIRECTION
 from lspattern.mytype import (
     SpatialEdgeSpec,
-    TilingConsistentQubitId,
+    QubitIndexLocal,
     TilingCoord2D,
 )
 from lspattern.tiling.base import Tiling
@@ -42,7 +42,7 @@ class ScalableTemplate(Tiling):
             v = "O"
         return str(v).upper()
 
-    def get_data_indices(self) -> dict[TilingCoord2D, TilingConsistentQubitId]:
+    def get_data_indices(self) -> dict[TilingCoord2D, QubitIndexLocal]:
         data_index = {coor: i for i, coor in enumerate(sort_xy(self.data_coords))}
         return data_index
 
