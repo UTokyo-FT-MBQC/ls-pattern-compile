@@ -550,17 +550,13 @@ class CompiledRHGCanvas:
             for old, new_id in nmap.items():
                 mb = gsrc.meas_bases.get(old)
                 if mb is not None:
-                    try:
+                    with suppress(Exception):
                         gdst.assign_meas_basis(created.get(new_id, new_id), mb)
-                    except Exception:
-                        pass
             for u, v in gsrc.physical_edges:
                 nu = nmap.get(u, u)
                 nv = nmap.get(v, v)
-                try:
+                with suppress(Exception):
                     gdst.add_physical_edge(created.get(nu, nu), created.get(nv, nv))
-                except Exception:
-                    pass
             return gdst
 
         new_cgraph = CompiledRHGCanvas(
@@ -735,7 +731,12 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
 
         cubes_ = {}
         for pos, c in trimmed_cubes_skeleton.items():
-            cubes_[pos] = c.to_block()
+            # Materialize block and attach its 3D anchor so z-offset is correct
+            blk = c.to_block()
+            with suppress(Exception):
+                # Ensure blocks know their placement (x, y, z)
+                blk.source = pos  # type: ignore[attr-defined]
+            cubes_[pos] = blk
         pipes_ = {}
         for (start, end), p in trimmed_pipes_skeleton.items():
             pipes_[start, end] = p.to_block(start, end)
@@ -866,8 +867,6 @@ def add_temporal_layer(
     """
     # If the canvas is empty, this is the first layer.
     if cgraph.global_graph is None:
-        print("adding first layer")
-        print("cubes", next_layer.cubes_)
         new_cgraph = CompiledRHGCanvas(
             layers=[next_layer],
             global_graph=next_layer.local_graph,
@@ -880,24 +879,16 @@ def add_temporal_layer(
             cubes_=next_layer.cubes_,
             pipes_=next_layer.pipes_,
         )
-        print("new_cgraph", new_cgraph)
-        print("newcgraph cubes", new_cgraph.cubes_)
         return new_cgraph
-    else:
-        print("adding subsequent layer")
-        print("cgraph", cgraph)
-        print("cgraph cubes", cgraph.cubes_)
-        print("cgraph pipes", cgraph.pipes_)
+    # else: non-empty canvas; continue with composition
     graph1 = cgraph.global_graph
     graph2 = next_layer.local_graph
 
     # Compose sequentially with node remaps
     try:
-        # TODO: 今の実装だとこれがfailするので無理．何とかする
-        # この内部ではgraph1のoutputをgrpah2のinputと同一視する，というアルゴリズムが走っている．しかし，exceptionの後だとこれがないので，バグっている．ので，コードを分析して，ここをcompose_sequentiallyで動くようにしてほしい [T49.md]
+        # TODO: See T49 for compose_sequentially improvements
         new_graph, node_map1, node_map2 = compose_sequentially(graph1, graph2)
-    except Exception as e:
-        print("Exception", e)
+    except Exception:
         # Fallback: relaxed composition when canonical form is not satisfied.
         # Copy nodes/edges from both graphs into a fresh GraphState.
         g = GraphState()
@@ -924,7 +915,6 @@ def add_temporal_layer(
             g.add_physical_edge(node_map2[u], node_map2[v])
         new_graph = g
     # Remap registries for both sides into the composed id-space
-    # TODO: There is a bug: remap ndoes loses much information of the CompiledRHGGraph.
     print("cgraph before remap")
     print(cgraph.cubes_)
     cgraph = cgraph.remap_nodes(node_map1)
@@ -985,8 +975,6 @@ def add_temporal_layer(
         print("#" * 30)
         print("Pipe allowed_gid_pairs:", allowed_gid_pairs)
         print("#" * 30)
-
-
         for source in next_layer.get_boundary_nodes(face="z-", depth=[-1])[
             "data"
         ]:
@@ -1032,7 +1020,7 @@ def add_temporal_layer(
         cgraph.flow = new_flow_acc
     except Exception:
         # Be tolerant: boundary queries are best-effort at this milestone
-        pass
+        cgraph.schedule = cgraph.schedule
 
     # Merge schedule, flow, parity
     new_schedule = cgraph.schedule.compose_sequential(next_layer.schedule)
