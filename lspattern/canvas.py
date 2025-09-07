@@ -869,11 +869,6 @@ def add_temporal_layer(
 ) -> CompiledRHGCanvas:
     """Compose the compiled canvas with the next temporal layer.
 
-    Follows the legacy-canvas pattern:
-      - If there is no existing global graph, ingest the layer as-is.
-      - Otherwise, compose sequentially and remap existing registries via node_map1,
-        then ingest the layer's locals via node_map2.
-
     Additionally, if temporal pipes are provided, connect corresponding out->in
     port nodes by adding CZ edges (modeled as physical edges here) between paired nodes.
 
