@@ -17,7 +17,7 @@ def _next_tiling_id() -> int:
 
 def reset_tiling_id_counter(start_at: int = 1) -> None:
     """Reset the global Tiling id counter (primarily for tests)."""
-    global _TILING_ID_COUNTER
+    global _TILING_ID_COUNTER  # noqa: PLW0603
     _TILING_ID_COUNTER = count(int(start_at))
 
 

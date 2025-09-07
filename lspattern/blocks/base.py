@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
+from contextlib import suppress
 
 try:
     from graphix_zx.graphstate import GraphState
@@ -182,8 +183,15 @@ class RHGBlock:
             except Exception:
                 self.template.edgespec = self.edge_spec  # type: ignore[assignment]
 
-        # Evaluate tiling coordinates (data/X/Z)
-        self.template.to_tiling()
+        # Evaluate tiling coordinates (data/X/Z) only when not yet populated.
+        # This preserves any absolute XY shifts applied upstream (e.g.,
+        # to_temporal_layer() shifts templates before materialization).
+        if not (
+            getattr(self.template, "data_coords", None)
+            or getattr(self.template, "x_coords", None)
+            or getattr(self.template, "z_coords", None)
+        ):
+            self.template.to_tiling()
 
         # Initialize logical port sets (child classes may override these hooks)
         self.set_in_ports()
@@ -257,10 +265,8 @@ class RHGBlock:
                     xy2 = (x + dx, y + dy)
                     v = cur.get(xy2)
                     if v is not None and v > u:
-                        try:
+                        with suppress(Exception):
                             g.add_physical_edge(u, v)
-                        except Exception:
-                            pass
 
         # Inter-slice temporal edges (same XY across consecutive t)
         t_keys = sorted(nodes_by_z.keys())
@@ -270,14 +276,12 @@ class RHGBlock:
             for xy, u in cur.items():
                 v = prev.get(xy)
                 if v is not None:
-                    try:
+                    with suppress(Exception):
                         g.add_physical_edge(u, v)
-                    except Exception:
-                        pass
 
         # Register GraphState input/output nodes when ports are defined, so that
         # visualizers relying on GraphState registries can highlight them
-        try:
+        try:  # noqa: PLR1702
             # Determine z- (min) and z+ (max) among DATA nodes only
             data_coords_all = [
                 c for n, c in node2coord.items() if node2role.get(n) == "data"
@@ -363,7 +367,11 @@ class RHGBlock:
         """Get the base qubit index of the underlying template."""
         tid = self.template.id_
         gids = set(self.coord2gid.values())
-        assert all(gid == tid for gid in gids)
+        if not all(gid == tid for gid in gids):
+            raise AssertionError("coord2gid mismatch with template id")
+
+        # OVERWRITE
+        self.set_tiling_id(tid)
         return self.template.id_
 
     def set_tiling_id(self, new_id: int) -> None:
@@ -375,7 +383,7 @@ class RHGBlock:
             The new base qubit index for the template.
         """
         self.template.id_ = new_id
-        self.coord2gid = {pos: new_id for pos in self.coord2gid.keys()}
+        self.coord2gid = {pos: new_id for pos in self.coord2gid}
 
     @staticmethod
     def _boundary_nodes_from_coordmap(
@@ -411,7 +419,7 @@ class RHGBlock:
 
         # Normalize and validate inputs
         f = face.strip().lower()
-        if f not in ("x+", "x-", "y+", "y-", "z+", "z-"):
+        if f not in {"x+", "x-", "y+", "y-", "z+", "z-"}:
             raise ValueError("face must be one of: x+/x-/y+/y-/z+/z-")
         depths = [d if (isinstance(d, int) and d >= 0) else 0 for d in (depth or [0])]
 
@@ -428,22 +436,13 @@ class RHGBlock:
         # Determine axis and target levels for quick membership tests
         if f[0] == "x":
             axis = 0
-            if f[1] == "+":
-                targets = {xmax - d for d in depths}
-            else:
-                targets = {xmin + d for d in depths}
+            targets = {xmax - d for d in depths} if f[1] == "+" else {xmin + d for d in depths}
         elif f[0] == "y":
             axis = 1
-            if f[1] == "+":
-                targets = {ymax - d for d in depths}
-            else:
-                targets = {ymin + d for d in depths}
+            targets = {ymax - d for d in depths} if f[1] == "+" else {ymin + d for d in depths}
         else:  # f[0] == 'z'
             axis = 2
-            if f[1] == "+":
-                targets = {zmax - d for d in depths}
-            else:
-                targets = {zmin + d for d in depths}
+            targets = {zmax - d for d in depths} if f[1] == "+" else {zmin + d for d in depths}
 
         # Group results by role (if available)
         has_roles = bool(node2role)

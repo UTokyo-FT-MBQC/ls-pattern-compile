@@ -3,10 +3,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from graphix_zx.common import Plane, PlannerMeasBasis
-from graphix_zx.graphstate import BaseGraphState, GraphState
+from graphix_zx.graphstate import BaseGraphState, GraphState  # noqa: F401
 
 from lspattern.blocks.base import RHGBlock
-from lspattern.geom.rhg_parity import is_data
+from lspattern.geom.rhg_parity import is_data  # noqa: F401
 
 if TYPE_CHECKING:
     from lspattern.canvas import RHGCanvas
@@ -28,7 +28,7 @@ class _MeasureBase(RHGBlock):
         self.logical = logical
         self.basis = PlannerMeasBasis(Plane.XY, 0.0) if basis == "X" else PlannerMeasBasis(Plane.ZX, 0.0)
 
-    def emit(self, canvas: RHGCanvas):  # noqa: ANN001
+    def emit(self, canvas: RHGCanvas):
         # This detailed implementation is out of scope for this milestone.
         # Kept as a placeholder to satisfy imports without runtime use.
         raise NotImplementedError("Measure blocks are not implemented in this build")

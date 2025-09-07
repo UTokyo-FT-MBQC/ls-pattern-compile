@@ -44,14 +44,28 @@ def sort_xy(points: set[tuple[int, int]]) -> list[tuple[int, int]]:
 
 
 def is_allowed_pair(
-    u: QubitGroupIdLocal | TilingId,
-    v: QubitGroupIdLocal | TilingId,
+    u: QubitGroupIdLocal | TilingId | None,
+    v: QubitGroupIdLocal | TilingId | None,
     allowed_pairs: (
         set[tuple[QubitGroupIdLocal, QubitGroupIdLocal]]
         | set[tuple[TilingId, TilingId]]
     ),
 ) -> bool:
-    m, M = min(u, v), max(u, v)
+    """Return True if an (unordered) pair is allowed.
+
+    - None-safe: if either ``u`` or ``v`` is None, returns False.
+    - Normalizes to ``int`` for comparison to be robust against NewType wrappers.
+    """
+    if u is None or v is None:
+        return False
+    try:
+        uu, vv = int(u), int(v)
+    except Exception:
+        return False
+    # empty set => nothing allowed
+    if not allowed_pairs:
+        return False
+    m, M = (uu, vv) if uu <= vv else (vv, uu)
     return (m, M) in allowed_pairs
 
 

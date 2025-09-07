@@ -755,13 +755,29 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
 
     def add_cube(self, position: PatchCoordGlobal3D, cube: RHGCube) -> None:
         self.cubes_[position] = cube
+        # Reset one-shot guard so layers can be rebuilt after topology changes
+        try:
+            self._to_temporal_layers_called = False  # type: ignore[attr-defined]
+        except Exception:
+            pass
 
     def add_pipe(
         self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipe
     ) -> None:
         self.pipes_[start, end] = pipe
+        # Reset one-shot guard so layers can be rebuilt after topology changes
+        try:
+            self._to_temporal_layers_called = False  # type: ignore[attr-defined]
+        except Exception:
+            pass
 
     def to_temporal_layers(self) -> dict[int, TemporalLayer]:
+        # Disallow multiple calls to prevent duplicate XY shifts on templates.
+        if getattr(self, "_to_temporal_layers_called", False):
+            raise RuntimeError(
+                "RHGCanvas.to_temporal_layers() can be called at most once per canvas. "
+                "Rebuild the canvas (or use RHGCanvasSkeleton.to_canvas()) before calling again."
+            )
         temporal_layers: dict[int, TemporalLayer] = {}
         for z in range(max(self.cubes_.keys(), key=lambda pos: pos[2])[2] + 1):
             cubes = {pos: c for pos, c in self.cubes_.items() if pos[2] == z}
@@ -774,6 +790,10 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
             layer = to_temporal_layer(z, cubes, pipes)
             temporal_layers[z] = layer
 
+        try:
+            self._to_temporal_layers_called = True  # type: ignore[attr-defined]
+        except Exception:
+            pass
         return temporal_layers
 
     def compile(self) -> CompiledRHGCanvas:

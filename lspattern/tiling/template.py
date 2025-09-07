@@ -399,9 +399,9 @@ def merge_pair_spatial(
     xs = list(dict.fromkeys((a_copy.x_coords or []) + (b_copy.x_coords or [])))
     zs = list(dict.fromkeys((a_copy.z_coords or []) + (b_copy.z_coords or [])))
     if check_collisions:
-        s_data, s_x, s_z = set(data), set(xs), set(zs)
-        if s_x & s_z:
-            overlap = sorted(s_x & s_z)[:10]
+        overlap_set = set(xs) & set(zs)
+        if overlap_set:
+            overlap = sorted(overlap_set)[:10]
             raise ValueError(f"merge_pair_spatial X/Z overlap: sample={overlap}")
     return Tiling(data_coords=sort_xy(data), x_coords=sort_xy(xs), z_coords=sort_xy(zs))
 
@@ -549,7 +549,7 @@ def pipe_offset_xy(
     - The returned (dx, dy) is the offset to apply to the pipe template's
         internal (0,0) anchor to place it correctly in the global tiling.
     """
-    if direction in (PIPEDIRECTION.UP, PIPEDIRECTION.DOWN):
+    if direction in {PIPEDIRECTION.UP, PIPEDIRECTION.DOWN}:
         raise NotImplementedError(
             "Temporal pipe (UP/DOWN) not supported for 2D tiling placement"
         )
@@ -560,17 +560,17 @@ def pipe_offset_xy(
             "source and sink must be axis neighbors (Manhattan distance 1)"
         )
 
-    if direction in [PIPEDIRECTION.LEFT, PIPEDIRECTION.BOTTOM]:
+    if direction in {PIPEDIRECTION.LEFT, PIPEDIRECTION.BOTTOM}:
         source, sink = sink, source
 
     # Aligned to RIGHT direction
-    if direction in [PIPEDIRECTION.RIGHT, PIPEDIRECTION.LEFT]:
+    if direction in {PIPEDIRECTION.RIGHT, PIPEDIRECTION.LEFT}:
         tx, ty = sink[0], sink[1]
         base_x = (2 * d + 2) * tx - 2  # RIGHT direction -> tx > sx
         base_y = (2 * d + 2) * ty  # RIGHT direction -> ty == sy
         return base_x, base_y
 
-    if direction in [PIPEDIRECTION.TOP, PIPEDIRECTION.BOTTOM]:
+    if direction in {PIPEDIRECTION.TOP, PIPEDIRECTION.BOTTOM}:
         # Place pipe along the seam center between patches in Y at an even row
         # to preserve even parity for data coords after offset.
         tx, ty = sink[0], sink[1]

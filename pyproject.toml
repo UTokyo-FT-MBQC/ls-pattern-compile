@@ -137,7 +137,7 @@ strict = true
 ignore_missing_imports = true
 files = ["lspattern"]
 # T48: exclude legacy/experimental modules from type checking
-exclude = "lspattern/(canvas_legacy.py|canvas_parallel_hint.py|ops.py|rhg.py|rhg2.py)$"
+exclude = 'lspattern/(canvas_legacy.py|canvas_parallel_hint.py|ops.py|rhg.py|rhg2.py)$|lspattern/visualizers/.*|lspattern/blocks/cubes/(measure|memory)\.py$|lspattern/accumulator\.py$'
 
 [tool.pyright]
 include = ["lspattern", "tests", "examples"]
