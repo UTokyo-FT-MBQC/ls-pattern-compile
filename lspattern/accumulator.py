@@ -82,7 +82,7 @@ class BaseAccumulator:
             out = graph.output_node_indices  # type: ignore[attr-defined]
             if isinstance(out, Mapping):
                 return int(node) in set(out)
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             return False
         return False
 
@@ -93,7 +93,7 @@ class BaseAccumulator:
             return set()
         try:
             return set(graph.neighbors(int(node)))
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             return set()
 
     @staticmethod
@@ -106,7 +106,7 @@ class BaseAccumulator:
             return None
         try:
             return int(coord[2])
-        except Exception:
+        except (IndexError, TypeError, ValueError):
             return None
 
     @staticmethod
@@ -115,7 +115,7 @@ class BaseAccumulator:
             return None
         try:
             return str(node2role.get(int(node)))
-        except Exception:
+        except (TypeError, ValueError):
             return None
 
     @staticmethod
@@ -130,8 +130,8 @@ class BaseAccumulator:
         uv = (int(u), int(v))
         vu = (int(v), int(u))
         try:
-            ap = set((int(a), int(b)) for (a, b) in allowed_pairs)
-        except Exception:
+            ap = {(int(a), int(b)) for (a, b) in allowed_pairs}
+        except (TypeError, ValueError):
             return True
         return uv in ap or vu in ap
 
@@ -233,7 +233,7 @@ class ScheduleAccumulator(BaseAccumulator):
         return ScheduleAccumulator(new_schedule)
 
     # ---- T23: update API ---------------------------------------------------
-    def update_at(self, anchor: int, graph_local, *, allowed_pairs=None) -> None:
+    def update_at(self, anchor: int, graph_local, *, _allowed_pairs=None) -> None:
         """Record the measurement of ``anchor`` at its time slice.
 
         Uses node2coord if available to place the node into the correct t-slot.
@@ -255,7 +255,8 @@ class ScheduleAccumulator(BaseAccumulator):
 
         after = self._size_of_schedule(self.schedule)
         if after < before:
-            raise AssertionError("ScheduleAccumulator must be non-decreasing")
+            msg = "ScheduleAccumulator must be non-decreasing"
+            raise AssertionError(msg)
 
 
 @dataclass
@@ -307,7 +308,8 @@ class ParityAccumulator(BaseAccumulator):
             # Nothing to add; still enforce non-decreasing
             after = self._size_of_groups(self.x_checks) + self._size_of_groups(self.z_checks)
             if after < before:
-                raise AssertionError("ParityAccumulator must be non-decreasing")
+                msg = "ParityAccumulator must be non-decreasing"
+                raise AssertionError(msg)
             return
 
         if "ancilla_x" in role:
@@ -320,7 +322,8 @@ class ParityAccumulator(BaseAccumulator):
 
         after = self._size_of_groups(self.x_checks) + self._size_of_groups(self.z_checks)
         if after < before:
-            raise AssertionError("ParityAccumulator must be non-decreasing")
+            msg = "ParityAccumulator must be non-decreasing"
+            raise AssertionError(msg)
 
 
 @dataclass

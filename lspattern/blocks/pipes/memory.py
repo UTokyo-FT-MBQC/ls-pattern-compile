@@ -51,7 +51,8 @@ class MemoryPipe(RHGPipe):
         idx_map = self.template.get_data_indices()
         indices = set(idx_map.values())
         if len(indices) == 0:
-            raise AssertionError("MemoryPipe: in_ports は空であってはならない")
+            msg = "MemoryPipe: in_ports は空であってはならない"
+            raise AssertionError(msg)
         self.in_ports = indices
 
     def set_out_ports(self) -> None:

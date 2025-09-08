@@ -200,7 +200,8 @@ class RHGBlock:
             t = z0 + t_local
             cur: dict[tuple[int, int], int] = {}
             if self.final_layer is None:
-                raise AssertionError("final_layer must be set")
+                msg = "final_layer must be set"
+                raise AssertionError(msg)
             if t_local == max_t and self.final_layer == "O":
                 # add data node only if it is not measurement node
                 for x, y in data2d:
@@ -343,7 +344,8 @@ class RHGBlock:
         tid = self.template.id_
         gids = set(self.coord2gid.values())
         if not all(gid == tid for gid in gids):
-            raise AssertionError("coord2gid mismatch with template id")
+            msg = "coord2gid mismatch with template id"
+            raise AssertionError(msg)
 
         # OVERWRITE
         self.set_tiling_id(tid)
@@ -395,7 +397,8 @@ class RHGBlock:
         # Normalize and validate inputs
         f = face.strip().lower()
         if f not in {"x+", "x-", "y+", "y-", "z+", "z-"}:
-            raise ValueError("face must be one of: x+/x-/y+/y-/z+/z-")
+            msg = "face must be one of: x+/x-/y+/y-/z+/z-"
+            raise ValueError(msg)
         depths = [d if (isinstance(d, int) and d >= 0) else 0 for d in (depth or [0])]
 
         # Compute bounds once

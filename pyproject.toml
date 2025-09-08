@@ -71,6 +71,7 @@ ignore = [
   "D",       # docstring
   "DOC",     # document
   "PLR09",   # too-many-*
+  "T201",    # print
 ]
 
 [tool.ruff.lint.pylint]
