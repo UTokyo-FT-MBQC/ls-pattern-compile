@@ -56,7 +56,6 @@ def visualize_compiled_canvas(  # noqa: C901
         created_fig = True
     else:
         temp_fig = ax.get_figure()
-        assert temp_fig is not None
         # mypy doesn't understand matplotlib's Figure hierarchy properly
         fig = temp_fig  # type: ignore[assignment]
 
@@ -146,6 +145,4 @@ def visualize_compiled_canvas(  # noqa: C901
     if created_fig and show:
         plt.show()
 
-    result = ax.get_figure()
-    assert result is not None
-    return result  # type: ignore[return-value]
+    return ax.get_figure()  # type: ignore[return-value]
