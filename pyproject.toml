@@ -28,32 +28,16 @@ line-length = 120
 extend-exclude = [
   # Visualizers are not lint targets for now
   "lspattern/visualizers/*",
-  # T48: temporarily exclude legacy/experimental modules
-  "lspattern/canvas_legacy.py",
-  "lspattern/canvas_parallel_hint.py",
   "lspattern/ops.py",
   "lspattern/rhg.py",
-  "lspattern/rhg2.py",
   # T48: exclude non-library content from lint scope
   "examples/**",
   "tests/**",
-  "src/**",
 ]
 
 [tool.ruff.lint]
 preview = true
-# T48: pragmatic baseline instead of ALL
-select = [
-  "E", "F", "W",  # pycodestyle/pyflakes
-  "I",              # isort
-  "S",              # security
-  "B",              # bugbear
-  "PERF",           # performance
-  "UP",             # pyupgrade
-  "SIM",            # simplification
-  "PL",             # pylint (selected)
-  "RUF",            # ruff-specific
-]
+select = ["ALL"]
 ignore = [
   # Conflicts with ruff format
   "COM812",
@@ -84,14 +68,9 @@ ignore = [
   "FBT",     # boolean-trap
   "FIX",     # fixme
   "PLR0904", # too-many-public-methods
-  # T48: relax non-critical rules for now
-  "RUF001", "RUF002", "RUF003",   # ambiguous unicode in JP docs
-  "D",                              # docstring style not enforced now
-  "ANN",                            # presence enforced via mypy
-  "C901",                           # complex function
-  "PLR09",                          # too-many-*
-  "TC001",                          # typing-only imports
-  "E402",                           # import at top
+  "D",       # docstring
+  "DOC",     # document
+  "PLR09",   # too-many-*
 ]
 
 [tool.ruff.lint.pylint]
@@ -120,9 +99,6 @@ docstring-code-format = true
   "T201", # print
   "D",
 ]
-"lspattern/tiling/base_test.py" = [
-  "S101",
-]
 
 
 
@@ -136,19 +112,9 @@ markers = "slow: mark test as slow"
 strict = true
 ignore_missing_imports = true
 files = ["lspattern"]
-# T48: exclude legacy/experimental modules from type checking
-exclude = 'lspattern/(canvas_legacy.py|canvas_parallel_hint.py|ops.py|rhg.py|rhg2.py)$|lspattern/visualizers/.*|lspattern/blocks/cubes/(measure|memory)\.py$|lspattern/accumulator\.py$'
 
 [tool.pyright]
 include = ["lspattern", "tests", "examples"]
-exclude = [
-  # T48: temporarily exclude legacy/experimental modules
-  "lspattern/canvas_legacy.py",
-  "lspattern/canvas_parallel_hint.py",
-  "lspattern/ops.py",
-  "lspattern/rhg.py",
-  "lspattern/rhg2.py",
-]
 reportUnknownArgumentType = "information"
 reportUnknownLambdaType = "information"
 reportUnknownMemberType = "information"
