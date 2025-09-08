@@ -113,10 +113,12 @@ if __name__ == "__main__":
     r135 = {uf.find(1), uf.find(3), uf.find(5)}
     r24 = {uf.find(2), uf.find(4)}
     if not (len(r135) == 1 and min(r135) == 1):
-        raise AssertionError(f"UF group {r135} should be rep=1")
+        msg = f"UF group {r135} should be rep=1"
+        raise AssertionError(msg)
     EXPECTED_REP2 = 2
     if not (len(r24) == 1 and min(r24) == EXPECTED_REP2):
-        raise AssertionError(f"UF group {r24} should be rep=2")
+        msg = f"UF group {r24} should be rep=2"
+        raise AssertionError(msg)
 
     # Test get_direction
     p0: PatchCoordGlobal3D = PatchCoordGlobal3D((0, 0, 0))

@@ -3,10 +3,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from graphix_zx.common import Plane, PlannerMeasBasis
-from graphix_zx.graphstate import BaseGraphState, GraphState  # noqa: F401
+from graphix_zx.graphstate import BaseGraphState, GraphState
 
 from lspattern.blocks.base import RHGBlock
-from lspattern.geom.rhg_parity import is_data  # noqa: F401
+from lspattern.geom.rhg_parity import is_data
 
 if TYPE_CHECKING:
     from lspattern.canvas import RHGCanvas

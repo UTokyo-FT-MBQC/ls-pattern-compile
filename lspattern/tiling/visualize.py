@@ -17,7 +17,7 @@ def plot_connected_tiling(
     - `ax` 未指定なら新規に作成
     """
     try:
-        import matplotlib.pyplot as plt  # noqa: PLC0415
+        import matplotlib.pyplot as plt
     except Exception as e:  # pragma: no cover
         msg = "matplotlib が必要です。`pip install matplotlib` を実行してください"
         raise RuntimeError(msg) from e

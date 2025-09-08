@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-# ruff: noqa: I001  # import layout acceptable; avoid heavy reordering for clarity
+# import layout acceptable; avoid heavy reordering for clarity
 
 from dataclasses import dataclass, field
 from typing import Literal
@@ -161,7 +161,7 @@ class ScalableTemplate(Tiling):
         - X faces: green circles
         - Z faces: blue circles
         """
-        import matplotlib.pyplot as plt  # noqa: PLC0415
+        import matplotlib.pyplot as plt
 
         data = list(self.data_coords or [])
         xs = list(self.x_coords or [])
@@ -237,7 +237,7 @@ class ScalableTemplate(Tiling):
         if created_fig is not None:
             created_fig.tight_layout()
         if show and created_fig is not None:
-            import matplotlib.pyplot as plt  # noqa: PLC0415
+            import matplotlib.pyplot as plt
 
             plt.show()
 
@@ -298,7 +298,8 @@ class RotatedPlanarCubeTemplate(ScalableTemplate):
         # Sanity: ensure no X/Z overlap within this template
         if x_coords & z_coords:
             overlap = sorted(x_coords & z_coords)[:10]
-            raise ValueError(f"RotatedPlanarCubeTemplate X/Z overlap: sample={overlap}")
+            msg = f"RotatedPlanarCubeTemplate X/Z overlap: sample={overlap}"
+            raise ValueError(msg)
         self.data_coords = result["data"]
         self.x_coords = result["X"]
         self.z_coords = result["Z"]
@@ -403,7 +404,8 @@ def merge_pair_spatial(
         overlap_set = set(xs) & set(zs)
         if overlap_set:
             overlap = sorted(overlap_set)[:10]
-            raise ValueError(f"merge_pair_spatial X/Z overlap: sample={overlap}")
+            msg = f"merge_pair_spatial X/Z overlap: sample={overlap}"
+            raise ValueError(msg)
     return Tiling(data_coords=sort_xy(data), x_coords=sort_xy(xs), z_coords=sort_xy(zs))
 
 
@@ -478,7 +480,8 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         # Sanity: ensure no X/Z overlap within pipe template
         if x_coords & z_coords:
             overlap = sorted(x_coords & z_coords)[:10]
-            raise ValueError(f"RotatedPlanarPipetemplate X/Z overlap: sample={overlap}")
+            msg = f"RotatedPlanarPipetemplate X/Z overlap: sample={overlap}"
+            raise ValueError(msg)
         self.data_coords = result["data"]
         self.x_coords = result["X"]
         self.z_coords = result["Z"]
@@ -578,7 +581,8 @@ def pipe_offset_xy(
         base_y = (2 * d + 2) * ty - 2  # TOP direction -> sy < ty
         return base_x, base_y
 
-    raise ValueError(f"Invalid direction for pipe offset: {direction}")
+    msg = f"Invalid direction for pipe offset: {direction}"
+    raise ValueError(msg)
 
 
 if __name__ == "__main__":

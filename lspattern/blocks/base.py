@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-# ruff: noqa: I001  # imports layout is special due to optional dependency fallback
+# imports layout is special due to optional dependency fallback
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
@@ -260,7 +260,7 @@ class RHGBlock:
 
         # Register GraphState input/output nodes when ports are defined, so that
         # visualizers relying on GraphState registries can highlight them
-        try:  # noqa: PLR1702
+        try:
             # Determine z- (min) and z+ (max) among DATA nodes only
             data_coords_all = [c for n, c in node2coord.items() if node2role.get(n) == "data"]
             if data_coords_all:

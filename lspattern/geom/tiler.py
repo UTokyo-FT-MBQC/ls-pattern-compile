@@ -75,7 +75,8 @@ class PatchTiler:
         within the scan limit.
         """
         if logical in self._occupied:
-            raise ValueError(f"logical {logical} is already placed at {self._occupied[logical]}")
+            msg = f"logical {logical} is already placed at {self._occupied[logical]}"
+            raise ValueError(msg)
 
         rect = Rect(0, 0, dx, dy)
         x = 0
@@ -103,9 +104,11 @@ class PatchTiler:
         """Reserve an explicit rectangle for a logical index (raises if it collides)."""
         rect = Rect(x0, y0, dx, dy)
         if not self._fits(rect):
-            raise ValueError(f"Requested reservation collides with existing patches: {rect}")
+            msg = f"Requested reservation collides with existing patches: {rect}"
+            raise ValueError(msg)
         if logical in self._occupied:
-            raise ValueError(f"logical {logical} is already placed at {self._occupied[logical]}")
+            msg = f"logical {logical} is already placed at {self._occupied[logical]}"
+            raise ValueError(msg)
         self._occupied[logical] = rect
 
     def get(self, logical: int) -> Rect:

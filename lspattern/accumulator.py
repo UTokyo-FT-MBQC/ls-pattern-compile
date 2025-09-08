@@ -20,7 +20,7 @@ Design notes
 
 from dataclasses import dataclass, field
 
-# ruff: noqa: I001  # import grouping intentionally simple
+# import grouping intentionally simple
 from collections.abc import Iterable, Mapping, Sequence
 
 from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal

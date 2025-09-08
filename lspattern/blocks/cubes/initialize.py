@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-# ruff: noqa: I001
 
 from lspattern.blocks.cubes.base import RHGCubeSkeleton, RHGCube
 from lspattern.tiling.template import RotatedPlanarCubeTemplate
@@ -57,7 +56,7 @@ class InitPlus(RHGCube):
 
 if __name__ == "__main__":
     # NOTE: Interactive 3D preview code omitted for brevity
-    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401, ensure 3D is registered
+    from mpl_toolkits.mplot3d import Axes3D
 
     # Hardcoded options (edit here as needed)
     d = 3

@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from itertools import count
 
-# ruff: noqa: I001
 
 from lspattern.mytype import QubitIndex, TilingCoord2D, QubitGroupIdLocal
 
@@ -17,7 +16,7 @@ def _next_tiling_id() -> int:
 
 def reset_tiling_id_counter(start_at: int = 1) -> None:
     """Reset the global Tiling id counter (primarily for tests)."""
-    global _TILING_ID_COUNTER  # noqa: PLW0603
+    global _TILING_ID_COUNTER
     _TILING_ID_COUNTER = count(int(start_at))
 
 

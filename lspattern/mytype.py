@@ -14,7 +14,7 @@ changing runtime representations.
 
 from __future__ import annotations
 
-# ruff: noqa: RUF022, I001
+# ruff: noqa: RUF022
 
 from typing import Literal, NewType
 

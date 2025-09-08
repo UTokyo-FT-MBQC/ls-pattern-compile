@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-# ruff: noqa: I001
 
 from lspattern.blocks.cubes.base import RHGCubeSkeleton, RHGCube
 

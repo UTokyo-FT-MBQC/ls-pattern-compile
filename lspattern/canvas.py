@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-# ruff: noqa: I001  # import layout is intentionally non-standard due to optional deps fallback
+# import layout is intentionally non-standard due to optional deps fallback
 
 from dataclasses import dataclass, field
 from contextlib import suppress
