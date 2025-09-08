@@ -2,12 +2,13 @@ from __future__ import annotations
 
 # import layout acceptable; avoid heavy reordering for clarity
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import matplotlib.pyplot as plt
 
 from lspattern.consts.consts import PIPEDIRECTION
 from lspattern.mytype import (
+    EdgeSpecValue,
     QubitIndexLocal,
     SpatialEdgeSpec,
     TilingCoord2D,
@@ -15,16 +16,21 @@ from lspattern.mytype import (
 from lspattern.tiling.base import Tiling
 from lspattern.utils import sort_xy
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from matplotlib.axes import Axes
+
 
 @dataclass(kw_only=True)
 class ScalableTemplate(Tiling):
     d: int
     edgespec: SpatialEdgeSpec  # e.g., {"top":"X","bottom":"Z",...}
 
-    data_coords: list[tuple[int, int]] = field(default_factory=list)
-    data_indices: list[int] = field(default_factory=list)
-    x_coords: list[tuple[int, int]] = field(default_factory=list)
-    z_coords: list[tuple[int, int]] = field(default_factory=list)
+    data_coords: list[TilingCoord2D] = field(default_factory=list)
+    data_indices: list[QubitIndexLocal] = field(default_factory=list)
+    x_coords: list[TilingCoord2D] = field(default_factory=list)
+    z_coords: list[TilingCoord2D] = field(default_factory=list)
 
     trimmed: bool = False
 
@@ -46,16 +52,18 @@ class ScalableTemplate(Tiling):
         return str(v).upper()
 
     def get_data_indices(self) -> dict[TilingCoord2D, QubitIndexLocal]:
-        return {coor: i for i, coor in enumerate(sort_xy(self.data_coords))}
+        coord_set = {(coord[0], coord[1]) for coord in self.data_coords}
+        sorted_coords = sort_xy(coord_set)
+        return {TilingCoord2D(coor): QubitIndexLocal(i) for i, coor in enumerate(sorted_coords)}
 
     # ---- Coordinate and index shifting APIs ---------------------------------
     def _shift_lists_inplace(self, dx: int, dy: int) -> None:
         if self.data_coords:
-            self.data_coords = [(x + dx, y + dy) for (x, y) in self.data_coords]
+            self.data_coords = [TilingCoord2D((x + dx, y + dy)) for (x, y) in self.data_coords]
         if self.x_coords:
-            self.x_coords = [(x + dx, y + dy) for (x, y) in self.x_coords]
+            self.x_coords = [TilingCoord2D((x + dx, y + dy)) for (x, y) in self.x_coords]
         if self.z_coords:
-            self.z_coords = [(x + dx, y + dy) for (x, y) in self.z_coords]
+            self.z_coords = [TilingCoord2D((x + dx, y + dy)) for (x, y) in self.z_coords]
 
     def shift_coords(
         self,
@@ -97,7 +105,7 @@ class ScalableTemplate(Tiling):
         # create a shallow Tiling copy with shifted coordinates
         t = offset_tiling(self, dx, dy)
         # rebuild a new instance of the same class, carrying d/edgespec
-        new = type(self)(d=self.d, edgespec=self.edgespec)  # type: ignore[call-arg]
+        new = type(self)(d=self.d, edgespec=self.edgespec)
         new.data_coords = t.data_coords
         new.x_coords = t.x_coords
         new.z_coords = t.z_coords
@@ -110,11 +118,11 @@ class ScalableTemplate(Tiling):
         use this for standalone composition.
         """
         if self.data_indices:
-            shifted = [int(i) + int(by) for i in self.data_indices]
+            shifted = [QubitIndexLocal(int(i) + int(by)) for i in self.data_indices]
             if inplace:
                 self.data_indices = shifted
             else:
-                new = type(self)(d=self.d, edgespec=self.edgespec)  # type: ignore[call-arg]
+                new = type(self)(d=self.d, edgespec=self.edgespec)
                 new.data_coords = list(self.data_coords)
                 new.x_coords = list(self.x_coords)
                 new.z_coords = list(self.z_coords)
@@ -154,7 +162,7 @@ class ScalableTemplate(Tiling):
         self.x_coords = [p for p in (self.x_coords or []) if p[axis] != target]
         self.z_coords = [p for p in (self.z_coords or []) if p[axis] != target]
 
-    def visualize_tiling(self, ax: plt.Axes | None = None, show: bool = True, title_suffix: str | None = None) -> None:  # noqa: C901
+    def visualize_tiling(self, ax: Axes | None = None, show: bool = True, title_suffix: str | None = None) -> None:  # noqa: C901
         """Visualize the tiling using matplotlib.
 
         - data qubits: white-filled circles with black edge
@@ -162,15 +170,15 @@ class ScalableTemplate(Tiling):
         - Z faces: blue circles
         """
 
-        data = list(self.data_coords or [])
-        xs = list(self.x_coords or [])
-        zs = list(self.z_coords or [])
+        data = [(coord[0], coord[1]) for coord in (self.data_coords or [])]
+        xs = [(coord[0], coord[1]) for coord in (self.x_coords or [])]
+        zs = [(coord[0], coord[1]) for coord in (self.z_coords or [])]
 
         created_fig = None
         if ax is None:
             created_fig, ax = plt.subplots(figsize=(6, 6))
 
-        def unpack(coords: list[tuple[int, int]]):
+        def unpack(coords: list[tuple[int, int]]) -> tuple[list[int], list[int]]:
             if not coords:
                 return [], []
             x_vals, y_vals = zip(*coords, strict=False)
@@ -240,7 +248,7 @@ class ScalableTemplate(Tiling):
 
 
 class RotatedPlanarCubeTemplate(ScalableTemplate):
-    def to_tiling(self) -> dict[str, list[tuple[int, int]]]:
+    def to_tiling(self) -> dict[str, list[tuple[int, int]]]:  # noqa: C901
         d = self.d
         data_coords: set[tuple[int, int]] = set()
         x_coords: set[tuple[int, int]] = set()
@@ -297,19 +305,19 @@ class RotatedPlanarCubeTemplate(ScalableTemplate):
             overlap = sorted(x_coords & z_coords)[:10]
             msg = f"RotatedPlanarCubeTemplate X/Z overlap: sample={overlap}"
             raise ValueError(msg)
-        self.data_coords = result["data"]
-        self.x_coords = result["X"]
-        self.z_coords = result["Z"]
+        self.data_coords = [TilingCoord2D(coord) for coord in result["data"]]
+        self.x_coords = [TilingCoord2D(coord) for coord in result["X"]]
+        self.z_coords = [TilingCoord2D(coord) for coord in result["Z"]]
         return result
 
 
 # --- Spatial merge helper APIs (Trim -> Merge -> Unify) ---------------------
 
 
-def _offset_coords(coords: list[tuple[int, int]] | None, dx: int, dy: int) -> list[tuple[int, int]]:
+def _offset_coords(coords: Sequence[TilingCoord2D] | None, dx: int, dy: int) -> list[TilingCoord2D]:
     if not coords:
         return []
-    return [(x + dx, y + dy) for (x, y) in coords]
+    return [TilingCoord2D((x + dx, y + dy)) for (x, y) in coords]
 
 
 def _copy_with_offset(t: Tiling, dx: int, dy: int) -> Tiling:
@@ -394,20 +402,30 @@ def merge_pair_spatial(
     a_copy = _copy_with_offset(a, 0, 0)
     b_copy = _copy_with_offset(b, *off_b)
     # Minimal merged tiling without requiring ConnectedTiling class
-    data = list(dict.fromkeys((a_copy.data_coords or []) + (b_copy.data_coords or [])))
-    xs = list(dict.fromkeys((a_copy.x_coords or []) + (b_copy.x_coords or [])))
-    zs = list(dict.fromkeys((a_copy.z_coords or []) + (b_copy.z_coords or [])))
+    data_list = (a_copy.data_coords or []) + (b_copy.data_coords or [])
+    xs_list = (a_copy.x_coords or []) + (b_copy.x_coords or [])
+    zs_list = (a_copy.z_coords or []) + (b_copy.z_coords or [])
+
+    data = list(dict.fromkeys(data_list))
+    xs = list(dict.fromkeys(xs_list))
+    zs = list(dict.fromkeys(zs_list))
+
     if check_collisions:
         overlap_set = set(xs) & set(zs)
         if overlap_set:
             overlap = sorted(overlap_set)[:10]
             msg = f"merge_pair_spatial X/Z overlap: sample={overlap}"
             raise ValueError(msg)
-    return Tiling(data_coords=sort_xy(data), x_coords=sort_xy(xs), z_coords=sort_xy(zs))
+
+    return Tiling(
+        data_coords=[TilingCoord2D(coord) for coord in sort_xy(set(data))],
+        x_coords=[TilingCoord2D(coord) for coord in sort_xy(set(xs))],
+        z_coords=[TilingCoord2D(coord) for coord in sort_xy(set(zs))],
+    )
 
 
 class RotatedPlanarPipetemplate(ScalableTemplate):
-    def to_tiling(self) -> dict[str, list[tuple[int, int]]]:
+    def to_tiling(self) -> dict[str, list[tuple[int, int]]]:  # noqa: C901
         d = self.d
         data_coords: set[tuple[int, int]] = set()
         x_coords: set[tuple[int, int]] = set()
@@ -479,9 +497,9 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
             overlap = sorted(x_coords & z_coords)[:10]
             msg = f"RotatedPlanarPipetemplate X/Z overlap: sample={overlap}"
             raise ValueError(msg)
-        self.data_coords = result["data"]
-        self.x_coords = result["X"]
-        self.z_coords = result["Z"]
+        self.data_coords = [TilingCoord2D(coord) for coord in result["data"]]
+        self.x_coords = [TilingCoord2D(coord) for coord in result["X"]]
+        self.z_coords = [TilingCoord2D(coord) for coord in result["Z"]]
         return result
 
     # Pipe-specific shift including patch3d to (dx,dy) conversion.
@@ -509,18 +527,19 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                 msg = "direction is required for patch3d pipe shift"
                 raise ValueError(msg)
             px, py, pz = by  # type: ignore[misc]
-            dx, dy = pipe_offset_xy(self.d, (int(px), int(py), int(pz)), None, direction)
+            source_sink = (int(px), int(py), int(pz))
+            dx, dy = pipe_offset_xy(self.d, source_sink, source_sink, direction)
         else:
             msg = "coordinate must be one of: tiling2d, phys3d, patch3d"
             raise ValueError(msg)
 
         if inplace:
             if self.data_coords:
-                self.data_coords = [(x + dx, y + dy) for (x, y) in self.data_coords]
+                self.data_coords = [TilingCoord2D((x + dx, y + dy)) for (x, y) in self.data_coords]
             if self.x_coords:
-                self.x_coords = [(x + dx, y + dy) for (x, y) in self.x_coords]
+                self.x_coords = [TilingCoord2D((x + dx, y + dy)) for (x, y) in self.x_coords]
             if self.z_coords:
-                self.z_coords = [(x + dx, y + dy) for (x, y) in self.z_coords]
+                self.z_coords = [TilingCoord2D((x + dx, y + dy)) for (x, y) in self.z_coords]
             return self
         t = offset_tiling(self, dx, dy)
         new = RotatedPlanarPipetemplate(d=self.d, edgespec=self.edgespec)
@@ -587,7 +606,7 @@ if __name__ == "__main__":
 
     from lspattern.mytype import EdgeSpec
 
-    def set_edgespec(**kw):
+    def set_edgespec(**kw: EdgeSpecValue) -> None:
         EdgeSpec.update(
             {
                 "TOP": "O",
@@ -605,7 +624,7 @@ if __name__ == "__main__":
 
     if SHOW_BLOCK:
         d = 3
-        configs = [
+        configs: list[tuple[str, SpatialEdgeSpec]] = [
             ("L/R=X, T/B=Z", {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}),
             ("L/R=Z, T/B=X", {"LEFT": "Z", "RIGHT": "Z", "TOP": "X", "BOTTOM": "X"}),
             ("All X", {"LEFT": "X", "RIGHT": "X", "TOP": "X", "BOTTOM": "X"}),
@@ -625,7 +644,7 @@ if __name__ == "__main__":
 
     if SHOW_PIPE:
         d = 7
-        pipe_cfgs = [
+        pipe_cfgs: list[tuple[str, SpatialEdgeSpec]] = [
             (
                 "Pipe X: TOP=X, BOTTOM=Z",
                 {"TOP": "X", "BOTTOM": "Z", "LEFT": "O", "RIGHT": "O"},
