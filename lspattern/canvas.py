@@ -4,6 +4,7 @@ from contextlib import suppress
 
 # import layout is intentionally non-standard due to optional deps fallback
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from graphix_zx.graphstate import (
     GraphState,
@@ -12,8 +13,6 @@ from graphix_zx.graphstate import (
 )
 
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
-from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
-from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import (
     NodeIdLocal,
@@ -24,6 +23,10 @@ from lspattern.mytype import (
 )
 from lspattern.tiling.template import cube_offset_xy, pipe_offset_xy
 from lspattern.utils import UnionFind, get_direction, is_allowed_pair
+
+if TYPE_CHECKING:
+    from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
+    from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
 
 
 class MixedCodeDistanceError(Exception):

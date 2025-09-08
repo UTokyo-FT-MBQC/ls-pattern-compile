@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import matplotlib.pyplot as plt
 
-from lspattern.tiling.base import ConnectedTiling
+if TYPE_CHECKING:
+    from lspattern.tiling.base import ConnectedTiling
 
 
 def plot_connected_tiling(

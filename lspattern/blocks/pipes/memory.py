@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
-from lspattern.consts.consts import PIPEDIRECTION
-from lspattern.mytype import PatchCoordGlobal3D, SpatialEdgeSpec
 from lspattern.tiling.template import RotatedPlanarPipetemplate
 from lspattern.utils import get_direction
+
+if TYPE_CHECKING:
+    from lspattern.consts.consts import PIPEDIRECTION
+    from lspattern.mytype import PatchCoordGlobal3D, SpatialEdgeSpec
 
 
 @dataclass

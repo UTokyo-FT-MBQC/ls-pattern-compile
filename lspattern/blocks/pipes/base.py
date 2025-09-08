@@ -1,19 +1,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
-from lspattern.consts.consts import PIPEDIRECTION
-from lspattern.mytype import (
-    PatchCoordGlobal3D,
-    PatchCoordLocal2D,
-    QubitIndexLocal,
-    SpatialEdgeSpec,
-)
 from lspattern.tiling.template import (
     ScalableTemplate,
 )
 from lspattern.utils import get_direction
+
+if TYPE_CHECKING:
+    from lspattern.consts.consts import PIPEDIRECTION
+    from lspattern.mytype import (
+        PatchCoordGlobal3D,
+        PatchCoordLocal2D,
+        QubitIndexLocal,
+        SpatialEdgeSpec,
+    )
 
 
 @dataclass

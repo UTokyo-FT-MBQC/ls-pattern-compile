@@ -16,7 +16,6 @@ from lspattern.accumulator import (
     ScheduleAccumulator,
 )
 from lspattern.consts.consts import DIRECTIONS3D
-from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D
 from lspattern.tiling.template import (
     RotatedPlanarCubeTemplate,
     ScalableTemplate,
@@ -24,8 +23,10 @@ from lspattern.tiling.template import (
 
 if TYPE_CHECKING:
     from lspattern.mytype import (
+        NodeIdLocal,
         PatchCoordGlobal3D,
         PatchCoordLocal2D,
+        PhysCoordGlobal3D,
         QubitIndexLocal,
         SpatialEdgeSpec,
     )
