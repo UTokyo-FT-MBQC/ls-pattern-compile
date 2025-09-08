@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 def plot_connected_tiling(
     ct: ConnectedTiling,
-    ax=None,
+    ax: plt.Axes | None = None,
     *,
     show: bool = True,
     title: str | None = None,

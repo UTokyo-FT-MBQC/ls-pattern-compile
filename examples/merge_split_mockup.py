@@ -8,13 +8,14 @@ Merge and Splitのmockup
 """
 
 # %%
-
+import matplotlib.pyplot as plt
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.memory import MemoryPipeSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.mytype import PatchCoordGlobal3D
+from lspattern.visualizers import visualize_compiled_canvas, visualize_compiled_canvas_plotly
 
 # %%
 d = 3
@@ -88,7 +89,6 @@ for pipe in pipes:
     canvass.add_pipe(*pipe)
 
 canvas = canvass.to_canvas()
-# temporal_layer = canvas.to_temporal_layers()
 
 compiled_canvas: CompiledRHGCanvas = canvas.compile()
 nnodes = len(getattr(compiled_canvas.global_graph, "physical_nodes", []) or []) if compiled_canvas.global_graph else 0
@@ -103,13 +103,11 @@ print(
 )
 
 # %%
-from lspattern.visualizers import visualize_compiled_canvas
 
 fig = visualize_compiled_canvas(compiled_canvas, show=True, show_edges=True)
 # fig  # This would display the figure in Jupyter
 
 # %%
-import matplotlib.pyplot as plt
 
 vals = compiled_canvas.coord2node
 vals2d = set((x, y) for (x, y, z) in vals)
@@ -118,7 +116,6 @@ plt.gca().set_aspect("equal", "box")
 plt.show()
 
 # %%
-from lspattern.visualizers import visualize_compiled_canvas_plotly
 
 fig3d = visualize_compiled_canvas_plotly(compiled_canvas, show_edges=True)
 fig3d.show()

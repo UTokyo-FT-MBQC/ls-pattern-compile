@@ -30,6 +30,7 @@ extend-exclude = [
   "lspattern/visualizers/*",
   "lspattern/ops.py",
   "lspattern/rhg.py",
+  "lspattern/compile.py",
   # T48: exclude non-library content from lint scope
   "examples/**",
   "tests/**",

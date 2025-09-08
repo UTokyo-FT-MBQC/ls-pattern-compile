@@ -155,7 +155,7 @@ class ScalableTemplate(Tiling):
         self.x_coords = [p for p in (self.x_coords or []) if p[axis] != target]
         self.z_coords = [p for p in (self.z_coords or []) if p[axis] != target]
 
-    def visualize_tiling(self, ax=None, show: bool = True, title_suffix: str | None = None) -> None:
+    def visualize_tiling(self, ax: plt.Axes | None = None, show: bool = True, title_suffix: str | None = None) -> None:  # noqa: C901
         """Visualize the tiling using matplotlib.
 
         - data qubits: white-filled circles with black edge
