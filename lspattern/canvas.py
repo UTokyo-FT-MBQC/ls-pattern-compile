@@ -738,18 +738,14 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
     def add_cube(self, position: PatchCoordGlobal3D, cube: RHGCube) -> None:
         self.cubes_[position] = cube
         # Reset one-shot guard so layers can be rebuilt after topology changes
-        try:
+        with suppress(AttributeError):
             self._to_temporal_layers_called = False  # type: ignore[attr-defined]
-        except AttributeError:
-            pass
 
     def add_pipe(self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipe) -> None:
         self.pipes_[start, end] = pipe
         # Reset one-shot guard so layers can be rebuilt after topology changes
-        try:
+        with suppress(AttributeError):
             self._to_temporal_layers_called = False  # type: ignore[attr-defined]
-        except AttributeError:
-            pass
 
     def to_temporal_layers(self) -> dict[int, TemporalLayer]:
         # Disallow multiple calls to prevent duplicate XY shifts on templates.
@@ -768,10 +764,8 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
             layer = to_temporal_layer(z, cubes, pipes)
             temporal_layers[z] = layer
 
-        try:
+        with suppress(AttributeError):
             self._to_temporal_layers_called = True  # type: ignore[attr-defined]
-        except AttributeError:
-            pass
         return temporal_layers
 
     def compile(self) -> CompiledRHGCanvas:
