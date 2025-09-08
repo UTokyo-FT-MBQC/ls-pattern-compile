@@ -21,4 +21,3 @@ def test_T43_compile_two_layers_smoke():
     global_nodes = len(getattr(cgraph.global_graph, "physical_nodes", []) or [])
     assert global_nodes > 0
     assert list(getattr(cgraph, "zlist", [])) == [0, 1]
-

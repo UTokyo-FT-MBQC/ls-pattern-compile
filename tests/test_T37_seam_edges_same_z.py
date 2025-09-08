@@ -66,4 +66,3 @@ def test_T37_vertical_seam_edges_present():
     sk.add_pipe(a, b, InitPlusPipeSkeleton(d=d, edgespec=edgespec_pipe_v))
     layer = sk.to_canvas().to_temporal_layers()[0]
     assert _cross_region_edge_count(layer) > 0
-

@@ -6,4 +6,3 @@ def test_T42_gating_toggle_deprecated():
     # Placeholder to document that T42's ON/OFF env toggle semantics are obsolete.
     # The production code always gates using allowed pairs; behavior verified in T46 tests.
     pass
-
