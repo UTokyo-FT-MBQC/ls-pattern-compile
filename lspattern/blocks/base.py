@@ -160,7 +160,7 @@ class RHGBlock:
             # Align template's edgespec with the block-side alias
             try:
                 self.template.edgespec = dict(self.edge_spec)
-            except Exception:
+            except (TypeError, ValueError):
                 self.template.edgespec = self.edge_spec  # type: ignore[assignment]
 
         # Evaluate tiling coordinates (data/X/Z) only when not yet populated.
@@ -311,7 +311,7 @@ class RHGBlock:
                                 # qubit index as logical index for output registration.
                                 lidx = int(qidx)
                             g.register_output(n_out, int(lidx))
-        except Exception as e:
+        except (ValueError, KeyError, AttributeError) as e:
             # Visualization aid only; avoid breaking materialization pipelines
             print(f"Warning: failed to register I/O nodes on RHGBlock: {e}")
 

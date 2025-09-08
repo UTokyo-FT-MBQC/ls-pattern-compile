@@ -46,8 +46,7 @@ class ScalableTemplate(Tiling):
         return str(v).upper()
 
     def get_data_indices(self) -> dict[TilingCoord2D, QubitIndexLocal]:
-        data_index = {coor: i for i, coor in enumerate(sort_xy(self.data_coords))}
-        return data_index
+        return {coor: i for i, coor in enumerate(sort_xy(self.data_coords))}
 
     # ---- Coordinate and index shifting APIs ---------------------------------
     def _shift_lists_inplace(self, dx: int, dy: int) -> None:
@@ -360,7 +359,7 @@ def merge_pair_spatial(
     d_b = b.d
     if not isinstance(d_a, int) or not isinstance(d_b, int):
         msg = "Both templates must have integer distance 'd'."
-        raise ValueError(msg)
+        raise TypeError(msg)
 
     # Ensure coordinates are populated
     if not (a.data_coords or a.x_coords or a.z_coords):

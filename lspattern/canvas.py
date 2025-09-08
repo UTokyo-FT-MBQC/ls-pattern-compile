@@ -327,7 +327,7 @@ class TemporalLayer:
         # Fast lookup for existing edges to avoid duplicates where possible
         try:
             existing = {tuple(sorted((int(u), int(v)))) for (u, v) in (getattr(g, "physical_edges", []) or [])}
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             existing = set()
 
         for u, coord_u in list(self.node2coord.items()):
@@ -724,8 +724,7 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
         for (start, end), p in trimmed_pipes_skeleton.items():
             pipes_[start, end] = p.to_block(start, end)
 
-        canvas = RHGCanvas(name=self.name, cubes_=cubes_, pipes_=pipes_)
-        return canvas
+        return RHGCanvas(name=self.name, cubes_=cubes_, pipes_=pipes_)
 
 
 @dataclass
@@ -741,7 +740,7 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
         # Reset one-shot guard so layers can be rebuilt after topology changes
         try:
             self._to_temporal_layers_called = False  # type: ignore[attr-defined]
-        except Exception:
+        except AttributeError:
             pass
 
     def add_pipe(self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipe) -> None:
@@ -749,7 +748,7 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
         # Reset one-shot guard so layers can be rebuilt after topology changes
         try:
             self._to_temporal_layers_called = False  # type: ignore[attr-defined]
-        except Exception:
+        except AttributeError:
             pass
 
     def to_temporal_layers(self) -> dict[int, TemporalLayer]:
@@ -771,7 +770,7 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
 
         try:
             self._to_temporal_layers_called = True  # type: ignore[attr-defined]
-        except Exception:
+        except AttributeError:
             pass
         return temporal_layers
 
@@ -859,7 +858,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
     """
     # If the canvas is empty, this is the first layer.
     if cgraph.global_graph is None:
-        new_cgraph = CompiledRHGCanvas(
+        return CompiledRHGCanvas(
             layers=[next_layer],
             global_graph=next_layer.local_graph,
             coord2node=next_layer.coord2node,
@@ -871,7 +870,6 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
             cubes_=next_layer.cubes_,
             pipes_=next_layer.pipes_,
         )
-        return new_cgraph
     # else: non-empty canvas; continue with composition
     graph1 = cgraph.global_graph
     graph2 = next_layer.local_graph
@@ -880,7 +878,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
     try:
         # TODO: See T49 for compose_sequentially improvements
         new_graph, node_map1, node_map2 = compose_sequentially(graph1, graph2)
-    except Exception:
+    except (ValueError, TypeError, AttributeError):
         # Fallback: relaxed composition when canonical form is not satisfied.
         # Copy nodes/edges from both graphs into a fresh GraphState.
         g = GraphState()
@@ -1002,7 +1000,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         cgraph.schedule = new_schedule
         cgraph.parity = new_parity_acc
         cgraph.flow = new_flow_acc
-    except Exception:
+    except (ValueError, KeyError, AttributeError):
         # Be tolerant: boundary queries are best-effort at this milestone
         cgraph.schedule = cgraph.schedule
 
@@ -1028,7 +1026,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         z_checks=cgraph.parity.z_checks + next_layer.parity.z_checks,
     )
 
-    cgraph = CompiledRHGCanvas(
+    return CompiledRHGCanvas(
         layers=new_layers,
         global_graph=new_graph,
         coord2node=new_coord2node,
@@ -1040,5 +1038,3 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         parity=new_parity,
         zlist=[*list(getattr(cgraph, "zlist", [])), new_z],
     )
-
-    return cgraph
