@@ -52,7 +52,8 @@ def test_within_type_duplicate_detected() -> None:
     b = _mk_tiling(xs=[(1, 1)])  # 同一 X 座標が重複
     try:
         _ = ConnectedTiling([a, b], check_collisions=True)
-        raise AssertionError("expected collision was not raised")
+        msg = "expected collision was not raised"
+        raise AssertionError(msg)
     except ValueError as e:
         msg = str(e)
         assert "duplicate X coords" in msg
@@ -63,7 +64,8 @@ def test_across_type_overlap_detected() -> None:
     b = _mk_tiling(xs=[(0, 0)])  # data と X が重なる
     try:
         _ = ConnectedTiling([a, b], check_collisions=True)
-        raise AssertionError("expected overlap was not raised")
+        msg = "expected overlap was not raised"
+        raise AssertionError(msg)
     except ValueError as e:
         msg = str(e)
         assert "data/X overlap" in msg

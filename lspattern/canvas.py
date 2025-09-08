@@ -409,7 +409,8 @@ class TemporalLayer:
 
         f = face.strip().lower()
         if f not in {"x+", "x-", "y+", "y-", "z+", "z-"}:
-            raise ValueError("face must be one of: x+/x-/y+/y-/z+/z-")
+            msg = "face must be one of: x+/x-/y+/y-/z+/z-"
+            raise ValueError(msg)
         depths = [max(int(d), 0) for d in (depth or [0])]
 
         def on_face(c: tuple[int, int, int]) -> bool:
@@ -593,7 +594,8 @@ class CompiledRHGCanvas:
 
         f = face.strip().lower()
         if f not in {"x+", "x-", "y+", "y-", "z+", "z-"}:
-            raise ValueError("face must be one of: x+/x-/y+/y-/z+/z-")
+            msg = "face must be one of: x+/x-/y+/y-/z+/z-"
+            raise ValueError(msg)
         depths = [max(int(d), 0) for d in (depth or [0])]
 
         def on_face(c: tuple[int, int, int]) -> bool:
@@ -748,10 +750,11 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
     def to_temporal_layers(self) -> dict[int, TemporalLayer]:
         # Disallow multiple calls to prevent duplicate XY shifts on templates.
         if getattr(self, "_to_temporal_layers_called", False):
-            raise RuntimeError(
+            msg = (
                 "RHGCanvas.to_temporal_layers() can be called at most once per canvas. "
                 "Rebuild the canvas (or use RHGCanvasSkeleton.to_canvas()) before calling again."
             )
+            raise RuntimeError(msg)
         temporal_layers: dict[int, TemporalLayer] = {}
         for z in range(max(self.cubes_.keys(), key=lambda pos: pos[2])[2] + 1):
             cubes = {pos: c for pos, c in self.cubes_.items() if pos[2] == z}

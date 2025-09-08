@@ -27,12 +27,14 @@ def get_direction(source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> PIPED
         case (0, 0, -1):
             return PIPEDIRECTION.DOWN
         case _:
-            raise ValueError("Invalid direction")
+            msg = "Invalid direction"
+            raise ValueError(msg)
 
 
 def __tuple_sum(l_: tuple[int, ...], r_: tuple[int, ...]) -> tuple[int, ...]:
     if len(l_) != len(r_):
-        raise AssertionError("tuple lengths must match")
+        msg = "tuple lengths must match"
+        raise AssertionError(msg)
     return tuple(a + b for a, b in zip(l_, r_, strict=False))
 
 
@@ -123,11 +125,14 @@ if __name__ == "__main__":
     pm: PatchCoordGlobal3D = PatchCoordGlobal3D((1, 1, -1))
     p11: PatchCoordGlobal3D = PatchCoordGlobal3D((1, 1, 0))
     if get_direction(p0, px).name != "RIGHT":
-        raise AssertionError("direction RIGHT failed")
+        msg = "direction RIGHT failed"
+        raise AssertionError(msg)
     if get_direction(p0, py).name != "TOP":
-        raise AssertionError("direction TOP failed")
+        msg = "direction TOP failed"
+        raise AssertionError(msg)
     if get_direction(p11, pm).name != "DOWN":
-        raise AssertionError("direction DOWN failed")
+        msg = "direction DOWN failed"
+        raise AssertionError(msg)
 
     # Test is_allowed_pair
     allow: set[tuple[QubitGroupIdLocal, QubitGroupIdLocal]] = {
@@ -135,12 +140,16 @@ if __name__ == "__main__":
         (QubitGroupIdLocal(3), QubitGroupIdLocal(3)),
     }
     if not is_allowed_pair(QubitGroupIdLocal(1), QubitGroupIdLocal(2), allow):
-        raise AssertionError("pair (1,2) should be allowed")
+        msg = "pair (1,2) should be allowed"
+        raise AssertionError(msg)
     if not is_allowed_pair(QubitGroupIdLocal(2), QubitGroupIdLocal(1), allow):
-        raise AssertionError("pair (2,1) should be allowed")
+        msg = "pair (2,1) should be allowed"
+        raise AssertionError(msg)
     if not is_allowed_pair(QubitGroupIdLocal(3), QubitGroupIdLocal(3), allow):
-        raise AssertionError("pair (3,3) should be allowed")
+        msg = "pair (3,3) should be allowed"
+        raise AssertionError(msg)
     if is_allowed_pair(QubitGroupIdLocal(1), QubitGroupIdLocal(3), allow):
-        raise AssertionError("pair (1,3) should not be allowed")
+        msg = "pair (1,3) should not be allowed"
+        raise AssertionError(msg)
 
     print("[utils] All tests passed.")

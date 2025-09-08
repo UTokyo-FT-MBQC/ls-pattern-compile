@@ -96,7 +96,8 @@ class PatchTiler:
                 x = 0
                 y += self.pitch_y
 
-        raise ValueError("PatchTiler.alloc: failed to find space (increase scan_limit or adjust pitch/margins).")
+        msg = "PatchTiler.alloc: failed to find space (increase scan_limit or adjust pitch/margins)."
+        raise ValueError(msg)
 
     def reserve(self, logical: int, *, x0: int, y0: int, dx: int, dy: int) -> None:
         """Reserve an explicit rectangle for a logical index (raises if it collides)."""

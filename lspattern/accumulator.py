@@ -386,7 +386,8 @@ class FlowAccumulator(BaseAccumulator):
 
         after = self._size_of_flow(self.xflow) + self._size_of_flow(self.zflow)
         if after < before:
-            raise AssertionError("FlowAccumulator must be non-decreasing")
+            msg = "FlowAccumulator must be non-decreasing"
+            raise AssertionError(msg)
 
 
 # -----------------------------------------------------------------------------
@@ -427,4 +428,5 @@ class DetectorAccumulator(BaseAccumulator):
 
         after = sum(len(v) for v in self.detectors.values())
         if after < before:
-            raise AssertionError("DetectorAccumulator must be non-decreasing")
+            msg = "DetectorAccumulator must be non-decreasing"
+            raise AssertionError(msg)

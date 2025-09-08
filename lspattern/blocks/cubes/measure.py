@@ -31,7 +31,8 @@ class _MeasureBase(RHGBlock):
     def emit(self, canvas: RHGCanvas):
         # This detailed implementation is out of scope for this milestone.
         # Kept as a placeholder to satisfy imports without runtime use.
-        raise NotImplementedError("Measure blocks are not implemented in this build")
+        msg = "Measure blocks are not implemented in this build"
+        raise NotImplementedError(msg)
 
 
 class MeasureX(_MeasureBase):

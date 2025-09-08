@@ -88,7 +88,8 @@ class ScalableTemplate(Tiling):
             px, py, pz = by  # type: ignore[misc]
             dx, dy = cube_offset_xy(self.d, (int(px), int(py), int(pz)))
         else:
-            raise ValueError("coordinate must be one of: tiling2d, phys3d, patch3d")
+            msg = "coordinate must be one of: tiling2d, phys3d, patch3d"
+            raise ValueError(msg)
 
         if inplace:
             self._shift_lists_inplace(dx, dy)
@@ -147,7 +148,8 @@ class ScalableTemplate(Tiling):
                 axis = 0
                 target = 2 * self.d - 1
             case _:
-                raise ValueError("Invalid direction for trim_spatial_boundary")
+                msg = "Invalid direction for trim_spatial_boundary"
+                raise ValueError(msg)
 
         self.x_coords = [p for p in (self.x_coords or []) if p[axis] != target]
         self.z_coords = [p for p in (self.z_coords or []) if p[axis] != target]
@@ -358,7 +360,8 @@ def merge_pair_spatial(
     d_a = a.d
     d_b = b.d
     if not isinstance(d_a, int) or not isinstance(d_b, int):
-        raise ValueError("Both templates must have integer distance 'd'.")
+        msg = "Both templates must have integer distance 'd'."
+        raise ValueError(msg)
 
     # Ensure coordinates are populated
     if not (a.data_coords or a.x_coords or a.z_coords):
@@ -368,7 +371,8 @@ def merge_pair_spatial(
 
     diru = direction.upper()
     if diru not in {"X+", "X-", "Y+", "Y-"}:
-        raise ValueError("direction must be one of: X+, X-, Y+, Y-")
+        msg = "direction must be one of: X+, X-, Y+, Y-"
+        raise ValueError(msg)
 
     # 1) Trim the seam boundaries
     if diru == "X+":
@@ -460,9 +464,11 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                     pass
 
         elif self._spec("UP") == "O" or self._spec("DOWN") == "O":
-            raise NotImplementedError("Temporal pipe not supported yet")
+            msg = "Temporal pipe not supported yet"
+            raise NotImplementedError(msg)
         else:
-            raise ValueError("This pipe has no connection boundary (EdgeSpec)")
+            msg = "This pipe has no connection boundary (EdgeSpec)"
+            raise ValueError(msg)
 
         result = {
             "data": sort_xy(data_coords),
@@ -500,11 +506,13 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
             dx, dy = int(bx), int(by_)
         elif coordinate == "patch3d":
             if direction is None:
-                raise ValueError("direction is required for patch3d pipe shift")
+                msg = "direction is required for patch3d pipe shift"
+                raise ValueError(msg)
             px, py, pz = by  # type: ignore[misc]
             dx, dy = pipe_offset_xy(self.d, (int(px), int(py), int(pz)), None, direction)
         else:
-            raise ValueError("coordinate must be one of: tiling2d, phys3d, patch3d")
+            msg = "coordinate must be one of: tiling2d, phys3d, patch3d"
+            raise ValueError(msg)
 
         if inplace:
             if self.data_coords:
@@ -543,11 +551,14 @@ def pipe_offset_xy(
         internal (0,0) anchor to place it correctly in the global tiling.
     """
     if direction in {PIPEDIRECTION.UP, PIPEDIRECTION.DOWN}:
-        raise NotImplementedError("Temporal pipe (UP/DOWN) not supported for 2D tiling placement")
+        msg = "Temporal pipe (UP/DOWN) not supported for 2D tiling placement"
+        raise NotImplementedError(msg)
     if source[2] != sink[2]:
-        raise ValueError("source and sink must share the same z for spatial pipe")
+        msg = "source and sink must share the same z for spatial pipe"
+        raise ValueError(msg)
     if abs(sink[0] - source[0]) + abs(sink[1] - source[1]) != 1:
-        raise ValueError("source and sink must be axis neighbors (Manhattan distance 1)")
+        msg = "source and sink must be axis neighbors (Manhattan distance 1)"
+        raise ValueError(msg)
 
     if direction in {PIPEDIRECTION.LEFT, PIPEDIRECTION.BOTTOM}:
         source, sink = sink, source

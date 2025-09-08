@@ -19,7 +19,8 @@ def plot_connected_tiling(
     try:
         import matplotlib.pyplot as plt  # noqa: PLC0415
     except Exception as e:  # pragma: no cover
-        raise RuntimeError("matplotlib が必要です。`pip install matplotlib` を実行してください") from e
+        msg = "matplotlib が必要です。`pip install matplotlib` を実行してください"
+        raise RuntimeError(msg) from e
 
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=(6, 6))
