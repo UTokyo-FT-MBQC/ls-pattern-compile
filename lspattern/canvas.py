@@ -4,6 +4,7 @@ from contextlib import suppress
 
 # import layout is intentionally non-standard due to optional deps fallback
 from dataclasses import dataclass, field
+from operator import itemgetter
 from typing import TYPE_CHECKING
 
 from graphix_zx.graphstate import (
@@ -760,7 +761,6 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
             )
             raise RuntimeError(msg)
         temporal_layers: dict[int, TemporalLayer] = {}
-        from operator import itemgetter
 
         for z in range(max(self.cubes_.keys(), key=itemgetter(2))[2] + 1):
             cubes = {pos: c for pos, c in self.cubes_.items() if pos[2] == z}

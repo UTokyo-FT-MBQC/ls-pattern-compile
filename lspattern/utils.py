@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from operator import itemgetter
+
 from lspattern.consts.consts import PIPEDIRECTION
 from lspattern.mytype import (
     PatchCoordGlobal3D,
@@ -40,8 +42,6 @@ def __tuple_sum(l_: tuple[int, ...], r_: tuple[int, ...]) -> tuple[int, ...]:
 
 # Prepare outputs as sorted lists for determinism
 def sort_xy(points: set[tuple[int, int]]) -> list[tuple[int, int]]:
-    from operator import itemgetter
-
     return sorted(points, key=itemgetter(1, 0))
 
 
