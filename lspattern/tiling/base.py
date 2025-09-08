@@ -4,23 +4,37 @@ from itertools import count
 from lspattern.mytype import QubitGroupIdLocal, QubitIndex, TilingCoord2D
 
 
+class _TilingIdGenerator:
+    """Thread-safe ID generator for Tiling instances."""
+
+    def __init__(self, start_at: int = 1) -> None:
+        self._counter = count(start_at)
+
+    def next_id(self) -> int:
+        """Return the next globally unique Tiling id."""
+        return next(self._counter)
+
+    def reset(self, start_at: int = 1) -> None:
+        """Reset the counter to start from the given value."""
+        self._counter = count(start_at)
+
+
+# Global ID generator shared by Tiling and all subclasses
+_tiling_id_generator = _TilingIdGenerator()
+
+
 def _next_tiling_id() -> int:
     """Return the next globally unique Tiling id.
 
     Increments by 1 for every Tiling (and subclass) instantiation.
     Starts from 1.
     """
-    return next(_TILING_ID_COUNTER)
+    return _tiling_id_generator.next_id()
 
 
 def reset_tiling_id_counter(start_at: int = 1) -> None:
     """Reset the global Tiling id counter (primarily for tests)."""
-    global _TILING_ID_COUNTER
-    _TILING_ID_COUNTER = count(int(start_at))
-
-
-# Global counter shared by Tiling and all subclasses
-_TILING_ID_COUNTER = count(1)
+    _tiling_id_generator.reset(start_at)
 
 
 @dataclass
@@ -39,7 +53,7 @@ class Tiling:
 
     def __post_init__(self) -> None:
         # Assign a globally unique, incrementing id
-        self.id_ = _next_tiling_id()
+        self.id_ = QubitGroupIdLocal(_next_tiling_id())
 
     def set_ids(self, id_: int) -> None:
         """
