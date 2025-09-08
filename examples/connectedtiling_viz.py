@@ -7,21 +7,7 @@ ConnectedTiling の 2D 表示を行う。
 Run: python examples/connectedtiling_viz.py
 """
 
-import os
-import sys
-
-
-def _ensure_paths() -> None:
-    ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    if ROOT not in sys.path:
-        sys.path.insert(0, ROOT)
-    GX = os.path.join(ROOT, "src", "graphix_zx")
-    if GX not in sys.path:
-        sys.path.insert(0, GX)
-
-
 def main() -> None:
-    _ensure_paths()
 
     from lspattern.consts.consts import PIPEDIRECTION
     from lspattern.mytype import PatchCoordGlobal3D

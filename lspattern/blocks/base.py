@@ -8,19 +8,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
 from contextlib import suppress
 
-try:
-    from graphix_zx.graphstate import GraphState
-except Exception:
-    # Fallback for repo-local execution without install
-    import sys as _sys
-    import pathlib as _pathlib
-    _ROOT = _pathlib.Path(__file__).resolve().parents[2]
-    _SRC = _ROOT / "src"
-    _SRC_GRAPHIX = _SRC / "graphix-zx"
-    for _p in (str(_SRC_GRAPHIX), str(_SRC)):
-        if _p not in _sys.path:
-            _sys.path.insert(0, _p)
-    from graphix_zx.graphstate import GraphState
+from graphix_zx.graphstate import GraphState
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.accumulator import (
     FlowAccumulator,

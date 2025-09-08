@@ -1,14 +1,4 @@
 import os
-import sys
-from pathlib import Path
-
-# Ensure vendored graphix_zx (in src/) is importable
-ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "src"
-SRC_GZX = SRC / "graphix_zx"
-for p in (SRC, SRC_GZX):
-    if str(p) not in sys.path:
-        sys.path.append(str(p))
 
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.memory import MemoryPipeSkeleton
