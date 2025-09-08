@@ -2,9 +2,9 @@
 """
 Merge and Splitのmockup
 
-* Measure Xが未実装．現状InitPlus, Memoryのみ
+* Measure Xが未実装.現状InitPlus, Memoryのみ
 * detector, prity, xflowも未実装
-* temporal pipeが一部動かない．
+* temporal pipeが一部動かない.
 """
 
 # %%
