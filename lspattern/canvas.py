@@ -310,15 +310,15 @@ class TemporalLayer:
         # Use materialized templates (already XY-shifted by to_temporal_layer)
         for blk in self.cubes_.values():
             t = blk.template
-            for L in (t.data_coords, t.x_coords, t.z_coords):
-                for x, y in L or []:
+            for coord_list in (t.data_coords, t.x_coords, t.z_coords):
+                for x, y in coord_list or []:
                     xy = (int(x), int(y))
                     cube_xy_all.add(xy)
                     coord_gid_2d[xy] = QubitGroupIdGlobal(blk.get_tiling_id())
         for pipe in self.pipes_.values():
             t = pipe.template
-            for L in (t.data_coords, t.x_coords, t.z_coords):
-                for x, y in L or []:
+            for coord_list in (t.data_coords, t.x_coords, t.z_coords):
+                for x, y in coord_list or []:
                     xy = (int(x), int(y))
                     pipe_xy_all.add(xy)
                     coord_gid_2d[xy] = QubitGroupIdGlobal(pipe.get_tiling_id())
@@ -760,7 +760,9 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
             )
             raise RuntimeError(msg)
         temporal_layers: dict[int, TemporalLayer] = {}
-        for z in range(max(self.cubes_.keys(), key=lambda pos: pos[2])[2] + 1):
+        from operator import itemgetter
+
+        for z in range(max(self.cubes_.keys(), key=itemgetter(2))[2] + 1):
             cubes = {pos: c for pos, c in self.cubes_.items() if pos[2] == z}
             pipes = {(u, v): p for (u, v), p in self.pipes_.items() if u[2] == z and v[2] == z}
 

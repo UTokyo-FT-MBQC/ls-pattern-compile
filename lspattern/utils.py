@@ -40,7 +40,9 @@ def __tuple_sum(l_: tuple[int, ...], r_: tuple[int, ...]) -> tuple[int, ...]:
 
 # Prepare outputs as sorted lists for determinism
 def sort_xy(points: set[tuple[int, int]]) -> list[tuple[int, int]]:
-    return sorted(points, key=lambda p: (p[1], p[0]))
+    from operator import itemgetter
+
+    return sorted(points, key=itemgetter(1, 0))
 
 
 def is_allowed_pair(
@@ -57,13 +59,13 @@ def is_allowed_pair(
         return False
     try:
         uu, vv = int(u), int(v)
-    except Exception:
+    except (ValueError, TypeError):
         return False
     # empty set => nothing allowed
     if not allowed_pairs:
         return False
-    m, M = (uu, vv) if uu <= vv else (vv, uu)
-    return (m, M) in allowed_pairs
+    m, max_val = (uu, vv) if uu <= vv else (vv, uu)
+    return (m, max_val) in allowed_pairs
 
 
 class UnionFind:
