@@ -8,7 +8,7 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
 
-from graphix_zx.graphstate import GraphState
+from graphix_zx.graphstate import BaseGraphState
 
 from lspattern.accumulator import (
     FlowAccumulator,
@@ -57,7 +57,7 @@ class RHGBlock:
         Logical boundary port sets for this block.
     cout_ports : list[set[QubitIndexLocal]]
         Grouped classical output ports (one group per logical result).
-    local_graph : GraphState
+    local_graph : BaseGraphState
         Local RHG graph constructed by ``materialize()``.
     node2coord, coord2node : dict
         Bidirectional maps between node ids and 3D coordinates.
@@ -84,7 +84,7 @@ class RHGBlock:
     flow: FlowAccumulator = field(init=False, default_factory=FlowAccumulator)
     parity: ParityAccumulator = field(init=False, default_factory=ParityAccumulator)
 
-    local_graph: GraphState = field(init=False, default_factory=GraphState)
+    local_graph: BaseGraphState = field(init=False, default_factory=BaseGraphState)
     node2coord: dict[NodeIdLocal, PhysCoordGlobal3D] = field(init=False, default_factory=dict)
     coord2node: dict[PhysCoordGlobal3D, NodeIdLocal] = field(init=False, default_factory=dict)
     node2role: dict[NodeIdLocal, str] = field(init=False, default_factory=dict)
@@ -191,7 +191,7 @@ class RHGBlock:
         max_t = 2 * d_val
         z0 = int(self.source[2]) * (2 * d_val)  # base z-offset per block
 
-        g = GraphState()
+        g = BaseGraphState()
         node2coord: dict[int, tuple[int, int, int]] = {}
         coord2node: dict[tuple[int, int, int], int] = {}
         node2role: dict[int, str] = {}
@@ -260,8 +260,8 @@ class RHGBlock:
                     with suppress(Exception):
                         g.add_physical_edge(u, v)
 
-        # Register GraphState input/output nodes when ports are defined, so that
-        # visualizers relying on GraphState registries can highlight them
+        # Register BaseGraphState input/output nodes when ports are defined, so that
+        # visualizers relying on BaseGraphState registries can highlight them
         try:
             # Determine z- (min) and z+ (max) among DATA nodes only
             data_coords_all = [c for n, c in node2coord.items() if node2role.get(n) == "data"]
