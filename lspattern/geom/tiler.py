@@ -51,6 +51,28 @@ class PatchTiler:
     (x increases fastest, then y), enforcing margins between patches. You may
     also reserve explicit positions.
 
+    Parameters
+    ----------
+    pitch_x : int, default=16
+        Horizontal spacing between potential patch positions in grid units.
+    pitch_y : int, default=16
+        Vertical spacing between potential patch positions in grid units.
+    margin_x : int, default=0
+        Minimum horizontal margin required between patches in grid units.
+    margin_y : int, default=0
+        Minimum vertical margin required between patches in grid units.
+
+    Attributes
+    ----------
+    pitch_x : int
+        Horizontal spacing between potential patch positions.
+    pitch_y : int
+        Vertical spacing between potential patch positions.
+    margin_x : int
+        Minimum horizontal margin required between patches.
+    margin_y : int
+        Minimum vertical margin required between patches.
+
     Example
     -------
     >>> tiler = PatchTiler(pitch_x=16, pitch_y=16, margin_x=2, margin_y=2)
@@ -73,6 +95,28 @@ class PatchTiler:
 
         The anchor is the lower-left corner. Raises ValueError if no spot is found
         within the scan limit.
+
+        Parameters
+        ----------
+        logical : int
+            Logical index identifier for the patch.
+        dx : int
+            Width of the patch in grid units.
+        dy : int
+            Height of the patch in grid units.
+        prefer_row : int, optional
+            Starting row preference (y = prefer_row * pitch_y), by default 0.
+
+        Returns
+        -------
+        tuple[int, int]
+            Anchor position (x0, y0) where the patch was placed.
+
+        Raises
+        ------
+        ValueError
+            If the logical index is already occupied or no suitable position
+            is found within the scan limit.
         """
         if logical in self._occupied:
             msg = f"logical {logical} is already placed at {self._occupied[logical]}"
@@ -101,7 +145,27 @@ class PatchTiler:
         raise ValueError(msg)
 
     def reserve(self, logical: int, *, x0: int, y0: int, dx: int, dy: int) -> None:
-        """Reserve an explicit rectangle for a logical index (raises if it collides)."""
+        """Reserve an explicit rectangle for a logical index (raises if it collides).
+
+        Parameters
+        ----------
+        logical : int
+            Logical index identifier for the patch.
+        x0 : int
+            Left edge (anchor x-coordinate) of the rectangle.
+        y0 : int
+            Bottom edge (anchor y-coordinate) of the rectangle.
+        dx : int
+            Width of the rectangle in grid units.
+        dy : int
+            Height of the rectangle in grid units.
+
+        Raises
+        ------
+        ValueError
+            If the requested rectangle collides with existing patches or
+            if the logical index is already occupied.
+        """
         rect = Rect(x0, y0, dx, dy)
         if not self._fits(rect):
             msg = f"Requested reservation collides with existing patches: {rect}"
@@ -112,19 +176,59 @@ class PatchTiler:
         self._occupied[logical] = rect
 
     def get(self, logical: int) -> Rect:
-        """Return the reserved/allocated rectangle for `logical`."""
+        """Return the reserved/allocated rectangle for `logical`.
+
+        Parameters
+        ----------
+        logical : int
+            Logical index identifier for the patch.
+
+        Returns
+        -------
+        Rect
+            Rectangle object representing the occupied patch.
+
+        Raises
+        ------
+        KeyError
+            If the logical index is not found in occupied patches.
+        """
         return self._occupied[logical]
 
     def release(self, logical: int) -> None:
-        """Release a previously reserved/allocated rectangle."""
+        """Release a previously reserved/allocated rectangle.
+
+        Parameters
+        ----------
+        logical : int
+            Logical index identifier for the patch to release.
+
+        Notes
+        -----
+        This method silently does nothing if the logical index is not found.
+        """
         self._occupied.pop(logical, None)
 
     def list_occupied(self) -> list[tuple[int, Rect]]:
-        """List occupied patches as (logical, Rect), ordered by (y0, x0)."""
+        """List occupied patches as (logical, Rect), ordered by (y0, x0).
+
+        Returns
+        -------
+        list[tuple[int, Rect]]
+            List of tuples containing logical index and rectangle pairs,
+            sorted first by y-coordinate, then by x-coordinate.
+        """
         return sorted(self._occupied.items(), key=lambda kv: (kv[1].y0, kv[1].x0))
 
     def bbox(self) -> Rect | None:
-        """Return the bounding box covering all occupied patches (or None if empty)."""
+        """Return the bounding box covering all occupied patches (or None if empty).
+
+        Returns
+        -------
+        Rect or None
+            Rectangle representing the minimal bounding box that covers all
+            occupied patches. Returns None if no patches are occupied.
+        """
         if not self._occupied:
             return None
         xs0 = min(r.x0 for r in self._occupied.values())
