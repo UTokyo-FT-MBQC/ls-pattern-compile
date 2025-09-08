@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from operator import itemgetter
+from typing import TYPE_CHECKING
 
 from lspattern.consts.consts import PIPEDIRECTION
 from lspattern.mytype import (
@@ -8,6 +9,9 @@ from lspattern.mytype import (
     QubitGroupIdLocal,
     TilingId,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Set as AbstractSet
 
 
 def get_direction(source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> PIPEDIRECTION:
@@ -33,22 +37,15 @@ def get_direction(source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> PIPED
             raise ValueError(msg)
 
 
-def __tuple_sum(l_: tuple[int, ...], r_: tuple[int, ...]) -> tuple[int, ...]:
-    if len(l_) != len(r_):
-        msg = "tuple lengths must match"
-        raise AssertionError(msg)
-    return tuple(a + b for a, b in zip(l_, r_, strict=False))
-
-
 # Prepare outputs as sorted lists for determinism
-def sort_xy(points: set[tuple[int, int]]) -> list[tuple[int, int]]:
+def sort_xy(points: AbstractSet[tuple[int, int]]) -> list[tuple[int, int]]:
     return sorted(points, key=itemgetter(1, 0))
 
 
 def is_allowed_pair(
     u: QubitGroupIdLocal | TilingId | None,
     v: QubitGroupIdLocal | TilingId | None,
-    allowed_pairs: (set[tuple[QubitGroupIdLocal, QubitGroupIdLocal]] | set[tuple[TilingId, TilingId]]),
+    allowed_pairs: (AbstractSet[tuple[QubitGroupIdLocal, QubitGroupIdLocal]] | AbstractSet[tuple[TilingId, TilingId]]),
 ) -> bool:
     """Return True if an (unordered) pair is allowed.
 
@@ -75,8 +72,10 @@ class UnionFind:
     group ids deterministic (min representative), matching prior behavior.
     """
 
+    parent: dict[int, int]
+
     def __init__(self) -> None:
-        self.parent: dict[int, int] = {}
+        self.parent = {}
 
     def add(self, a: int) -> None:
         a = int(a)
