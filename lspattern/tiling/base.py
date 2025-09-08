@@ -63,9 +63,7 @@ class Tiling:
         if not self.coord2qubitindex:
             return
         delta = int(by)
-        self.coord2qubitindex = {
-            c: QubitIndex(int(qi) + delta) for c, qi in self.coord2qubitindex.items()
-        }
+        self.coord2qubitindex = {c: QubitIndex(int(qi) + delta) for c, qi in self.coord2qubitindex.items()}
 
 
 # @dataclass(init=False)
@@ -230,9 +228,7 @@ def _check_collisions_and_raise(
             problems.append(f"data/Z overlap: {sorted(overlap_dz)}")
         if overlap_xz:
             problems.append(f"X/Z overlap: {sorted(overlap_xz)}")
-        raise ValueError(
-            "ConnectedTiling coordinate collisions: " + "; ".join(problems)
-        )
+        raise ValueError("ConnectedTiling coordinate collisions: " + "; ".join(problems))
 
 
 if __name__ == "__main__":

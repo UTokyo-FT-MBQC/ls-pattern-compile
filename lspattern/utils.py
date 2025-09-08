@@ -8,9 +8,7 @@ from lspattern.mytype import (
 )
 
 
-def get_direction(
-    source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D
-) -> PIPEDIRECTION:
+def get_direction(source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> PIPEDIRECTION:
     dx = sink[0] - source[0]
     dy = sink[1] - source[1]
     dz = sink[2] - source[2]
@@ -46,10 +44,7 @@ def sort_xy(points: set[tuple[int, int]]) -> list[tuple[int, int]]:
 def is_allowed_pair(
     u: QubitGroupIdLocal | TilingId | None,
     v: QubitGroupIdLocal | TilingId | None,
-    allowed_pairs: (
-        set[tuple[QubitGroupIdLocal, QubitGroupIdLocal]]
-        | set[tuple[TilingId, TilingId]]
-    ),
+    allowed_pairs: (set[tuple[QubitGroupIdLocal, QubitGroupIdLocal]] | set[tuple[TilingId, TilingId]]),
 ) -> bool:
     """Return True if an (unordered) pair is allowed.
 

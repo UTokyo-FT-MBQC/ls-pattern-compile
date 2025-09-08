@@ -19,6 +19,7 @@ Design notes
 """
 
 from dataclasses import dataclass, field
+
 # ruff: noqa: I001  # import grouping intentionally simple
 from collections.abc import Iterable, Mapping, Sequence
 
@@ -28,6 +29,7 @@ from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal
 # -----------------------------------------------------------------------------
 # Shared helpers and base class
 # -----------------------------------------------------------------------------
+
 
 class BaseAccumulator:
     """Common utilities for accumulator ``update_at`` implementations.
@@ -153,9 +155,7 @@ class BaseAccumulator:
 
 # Flow helpers (node maps guaranteed to contain all keys)
 def _remap_flow(flow: FlowLocal, node_map: dict[NodeIdLocal, NodeIdLocal]) -> FlowLocal:
-    return {
-        node_map[src]: {node_map[dst] for dst in dsts} for src, dsts in flow.items()
-    }
+    return {node_map[src]: {node_map[dst] for dst in dsts} for src, dsts in flow.items()}
 
 
 def _merge_flow(a: FlowLocal, b: FlowLocal) -> FlowLocal:
@@ -224,9 +224,7 @@ class ScheduleAccumulator(BaseAccumulator):
             new_schedule[t + z_by] = nodes
         self.schedule = new_schedule
 
-    def compose_sequential(
-        self, late_schedule: "ScheduleAccumulator"
-    ) -> "ScheduleAccumulator":
+    def compose_sequential(self, late_schedule: "ScheduleAccumulator") -> "ScheduleAccumulator":
         """Concatenate schedules by placing `late_schedule` after this one."""
         new_schedule = self.schedule.copy()
         late_schedule.shift_z(max(self.schedule.keys()) + 1)
@@ -268,9 +266,7 @@ class ParityAccumulator(BaseAccumulator):
     x_checks: list[set[NodeIdLocal]] = field(default_factory=list)
     z_checks: list[set[NodeIdLocal]] = field(default_factory=list)
 
-    def remap_nodes(
-        self, node_map: dict[NodeIdLocal, NodeIdLocal]
-    ) -> "ParityAccumulator":
+    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> "ParityAccumulator":
         """Return a new parity accumulator with nodes remapped via `node_map`."""
         # Fast remap via set/list comprehensions
         return ParityAccumulator(
@@ -334,9 +330,7 @@ class FlowAccumulator(BaseAccumulator):
     xflow: dict[NodeIdLocal, set[NodeIdLocal]] = field(default_factory=dict)
     zflow: dict[NodeIdLocal, set[NodeIdLocal]] = field(default_factory=dict)
 
-    def remap_nodes(
-        self, node_map: dict[NodeIdLocal, NodeIdLocal]
-    ) -> "FlowAccumulator":
+    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> "FlowAccumulator":
         """Return a new flow accumulator with ids remapped via `node_map`."""
         # Remap both x/z flows using helper for speed
         return FlowAccumulator(
@@ -395,6 +389,7 @@ class FlowAccumulator(BaseAccumulator):
 # -----------------------------------------------------------------------------
 # Minimal detector accumulator (stub for T23)
 # -----------------------------------------------------------------------------
+
 
 @dataclass
 class DetectorAccumulator(BaseAccumulator):

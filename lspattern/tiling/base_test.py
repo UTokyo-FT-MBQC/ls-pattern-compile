@@ -44,9 +44,7 @@ def test_no_collision_merge() -> None:
     assert set(ct.x_coords) == {(1, 1), (1, 3)}
     assert set(ct.z_coords) == {(3, 1), (3, 3)}
     # coord2qubitindex は全座標（data+X+Z）をキーに持つ
-    assert len(ct.coord2qubitindex) == (
-        len(ct.data_coords) + len(ct.x_coords) + len(ct.z_coords)
-    )
+    assert len(ct.coord2qubitindex) == (len(ct.data_coords) + len(ct.x_coords) + len(ct.z_coords))
 
 
 def test_within_type_duplicate_detected() -> None:

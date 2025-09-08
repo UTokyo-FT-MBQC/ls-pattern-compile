@@ -127,7 +127,6 @@ class TemporalLayer:
         """This is internal function called inside compile() to update qubit group index mapping."""
         # scan through the pipes and do union-find and update coord2gid
         # return is None
-        pass
 
     def compile(self) -> None:
         # Aggregate absolute 2D coords and patch groups (reserved for future use)
@@ -165,13 +164,13 @@ class TemporalLayer:
             self.pipes_[pos] = pipe
             coord2gid.update(pipe.coord2gid)
 
-        for source, sink in self.pipes_:
-            allowed_gid_pairs.add(
-                (
-                    QubitGroupIdGlobal(self.cubes_[source].get_tiling_id()),
-                    QubitGroupIdGlobal(self.cubes_[sink].get_tiling_id()),
-                )
+        allowed_gid_pairs.update(
+            (
+                QubitGroupIdGlobal(self.cubes_[source].get_tiling_id()),
+                QubitGroupIdGlobal(self.cubes_[sink].get_tiling_id()),
             )
+            for source, sink in self.pipes_
+        )
 
         self.coord2gid = coord2gid
         self.allowed_gid_pairs = allowed_gid_pairs
@@ -183,12 +182,8 @@ class TemporalLayer:
         def _remap_current_regs(node_map: dict[int, int]) -> None:
             if not node_map:
                 return
-            self.node2coord = {
-                node_map.get(n, n): c for n, c in self.node2coord.items()
-            }
-            self.coord2node = {
-                c: node_map.get(n, n) for c, n in self.coord2node.items()
-            }
+            self.node2coord = {node_map.get(n, n): c for n, c in self.node2coord.items()}
+            self.coord2node = {c: node_map.get(n, n) for c, n in self.coord2node.items()}
             self.node2role = {node_map.get(n, n): r for n, r in self.node2role.items()}
             # Portsets and flat lists
             for p, nodes in list(self.in_portset.items()):
@@ -215,9 +210,7 @@ class TemporalLayer:
             if g is None:
                 g = g2
                 node_map1: dict[int, int] = {}
-                node_map2: dict[int, int] = {
-                    n: n for n in getattr(g2, "physical_nodes", [])
-                }
+                node_map2: dict[int, int] = {n: n for n in getattr(g2, "physical_nodes", [])}
             else:
                 g_new, node_map1, node_map2 = compose_in_parallel(g, g2)
                 _remap_current_regs(node_map1)
@@ -250,19 +243,13 @@ class TemporalLayer:
 
             # Ports (if any) per position
             if getattr(blk, "in_ports", None):
-                self.in_portset[pos] = [
-                    node_map2[n] for n in blk.in_ports if n in node_map2
-                ]
+                self.in_portset[pos] = [node_map2[n] for n in blk.in_ports if n in node_map2]
                 self.in_ports.extend(self.in_portset[pos])
             if getattr(blk, "out_ports", None):
-                self.out_portset[pos] = [
-                    node_map2[n] for n in blk.out_ports if n in node_map2
-                ]
+                self.out_portset[pos] = [node_map2[n] for n in blk.out_ports if n in node_map2]
                 self.out_ports.extend(self.out_portset[pos])
             if getattr(blk, "cout_ports", None):
-                self.cout_portset[pos] = [
-                    node_map2[n] for s in blk.cout_ports for n in s if n in node_map2
-                ]
+                self.cout_portset[pos] = [node_map2[n] for s in blk.cout_ports for n in s if n in node_map2]
 
         # Compose pipe graphs (spatial pipes in this layer)
         for (source, _sink), pipe in self.pipes_.items():
@@ -334,10 +321,7 @@ class TemporalLayer:
 
         # Fast lookup for existing edges to avoid duplicates where possible
         try:
-            existing = {
-                tuple(sorted((int(u), int(v))))
-                for (u, v) in (getattr(g, "physical_edges", []) or [])
-            }
+            existing = {tuple(sorted((int(u), int(v)))) for (u, v) in (getattr(g, "physical_edges", []) or [])}
         except Exception:
             existing = set()
 
@@ -426,7 +410,7 @@ class TemporalLayer:
         f = face.strip().lower()
         if f not in {"x+", "x-", "y+", "y-", "z+", "z-"}:
             raise ValueError("face must be one of: x+/x-/y+/y-/z+/z-")
-        depths = [int(d) if int(d) >= 0 else 0 for d in (depth or [0])]
+        depths = [max(int(d), 0) for d in (depth or [0])]
 
         def on_face(c: tuple[int, int, int]) -> bool:
             x, y, z = c
@@ -531,13 +515,9 @@ class CompiledRHGCanvas:
     # def generate_stim_circuit(self) -> stim.Circuit:
     #     pass
 
-    def remap_nodes(
-        self, node_map: dict[NodeIdLocal, NodeIdLocal]
-    ) -> CompiledRHGCanvas:
+    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> CompiledRHGCanvas:
         # Remap GraphState by copying nodes/edges according to node_map.
-        def _remap_graphstate(
-            gsrc: GraphState | None, nmap: dict[int, int]
-        ) -> GraphState | None:
+        def _remap_graphstate(gsrc: GraphState | None, nmap: dict[int, int]) -> GraphState | None:
             if gsrc is None:
                 return None
             gdst = GraphState()
@@ -614,7 +594,7 @@ class CompiledRHGCanvas:
         f = face.strip().lower()
         if f not in {"x+", "x-", "y+", "y-", "z+", "z-"}:
             raise ValueError("face must be one of: x+/x-/y+/y-/z+/z-")
-        depths = [int(d) if int(d) >= 0 else 0 for d in (depth or [0])]
+        depths = [max(int(d), 0) for d in (depth or [0])]
 
         def on_face(c: tuple[int, int, int]) -> bool:
             x, y, z = c
@@ -635,9 +615,7 @@ class CompiledRHGCanvas:
         return {"data": selected, "xcheck": [], "zcheck": []}
 
     # ---- T25: method form of temporal composition --------------------------
-    def add_temporal_layer(
-        self, next_layer: TemporalLayer, *, pipes: list[RHGPipe] | None = None
-    ) -> CompiledRHGCanvas:
+    def add_temporal_layer(self, next_layer: TemporalLayer, *, pipes: list[RHGPipe] | None = None) -> CompiledRHGCanvas:
         """Compose this compiled canvas with `next_layer`.
 
         Convenience instance-method wrapper around the module-level
@@ -659,9 +637,7 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
     def add_cube(self, position: PatchCoordGlobal3D, cube: RHGCubeSkeleton) -> None:
         self.cubes_[position] = cube
 
-    def add_pipe(
-        self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipeSkeleton
-    ) -> None:
+    def add_pipe(self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipeSkeleton) -> None:
         self.pipes_[start, end] = pipe
 
     def trim_spatial_boundaries(self) -> None:
@@ -761,9 +737,7 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
         except Exception:
             pass
 
-    def add_pipe(
-        self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipe
-    ) -> None:
+    def add_pipe(self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipe) -> None:
         self.pipes_[start, end] = pipe
         # Reset one-shot guard so layers can be rebuilt after topology changes
         try:
@@ -781,11 +755,7 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
         temporal_layers: dict[int, TemporalLayer] = {}
         for z in range(max(self.cubes_.keys(), key=lambda pos: pos[2])[2] + 1):
             cubes = {pos: c for pos, c in self.cubes_.items() if pos[2] == z}
-            pipes = {
-                (u, v): p
-                for (u, v), p in self.pipes_.items()
-                if u[2] == z and v[2] == z
-            }
+            pipes = {(u, v): p for (u, v), p in self.pipes_.items() if u[2] == z and v[2] == z}
 
             layer = to_temporal_layer(z, cubes, pipes)
             temporal_layers[z] = layer
@@ -864,9 +834,7 @@ def to_temporal_layer(
     return layer
 
 
-def add_temporal_layer(
-    cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pipes: list[RHGPipe]
-) -> CompiledRHGCanvas:
+def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pipes: list[RHGPipe]) -> CompiledRHGCanvas:
     """Compose the compiled canvas with the next temporal layer.
 
     Additionally, if temporal pipes are provided, connect corresponding out->in
@@ -936,15 +904,9 @@ def add_temporal_layer(
     print("cgraph after reamap")
     print(cgraph.cubes_)
     # Remap next_layer registries into composed id-space
-    next_layer.coord2node = {
-        c: node_map2.get(n, n) for c, n in next_layer.coord2node.items()
-    }
-    next_layer.node2coord = {
-        node_map2.get(n, n): c for n, c in next_layer.node2coord.items()
-    }
-    next_layer.node2role = {
-        node_map2.get(n, n): r for n, r in next_layer.node2role.items()
-    }
+    next_layer.coord2node = {c: node_map2.get(n, n) for c, n in next_layer.coord2node.items()}
+    next_layer.node2coord = {node_map2.get(n, n): c for n, c in next_layer.node2coord.items()}
+    next_layer.node2role = {node_map2.get(n, n): r for n, r in next_layer.node2role.items()}
 
     # Create a new CompiledRHGCanvas to hold the merged result.
     new_layers = [*cgraph.layers, next_layer]
@@ -990,9 +952,7 @@ def add_temporal_layer(
         print("#" * 30)
         print("Pipe allowed_gid_pairs:", allowed_gid_pairs)
         print("#" * 30)
-        for source in next_layer.get_boundary_nodes(face="z-", depth=[-1])[
-            "data"
-        ]:
+        for source in next_layer.get_boundary_nodes(face="z-", depth=[-1])["data"]:
             sink = (source[0], source[1], source[2] - 1)
 
             source_gid = new_coord2gid.get(source)

@@ -70,9 +70,7 @@ class RHGBlock:
     source: PatchCoordGlobal3D = field(default_factory=lambda: (0, 0, 0))
     sink: PatchCoordGlobal3D | None = None
     # When it is Pipe, we have sink and direction (Not implemented here)
-    template: ScalableTemplate = field(
-        default_factory=lambda: ScalableTemplate(d=3, edgespec={})
-    )  # evaluated
+    template: ScalableTemplate = field(default_factory=lambda: ScalableTemplate(d=3, edgespec={}))  # evaluated
 
     # Ports for this block's current logical patch boundary (qubit index sets)
     # classical output ports. One group represents one logical result (to be XORed)
@@ -80,19 +78,13 @@ class RHGBlock:
     out_ports: set[QubitIndexLocal] = field(default_factory=set)
     cout_ports: list[set[QubitIndexLocal]] = field(default_factory=list)
 
-    schedule: ScheduleAccumulator = field(
-        init=False, default_factory=ScheduleAccumulator
-    )
+    schedule: ScheduleAccumulator = field(init=False, default_factory=ScheduleAccumulator)
     flow: FlowAccumulator = field(init=False, default_factory=FlowAccumulator)
     parity: ParityAccumulator = field(init=False, default_factory=ParityAccumulator)
 
     local_graph: GraphState = field(init=False, default_factory=GraphState)
-    node2coord: dict[NodeIdLocal, PhysCoordGlobal3D] = field(
-        init=False, default_factory=dict
-    )
-    coord2node: dict[PhysCoordGlobal3D, NodeIdLocal] = field(
-        init=False, default_factory=dict
-    )
+    node2coord: dict[NodeIdLocal, PhysCoordGlobal3D] = field(init=False, default_factory=dict)
+    coord2node: dict[PhysCoordGlobal3D, NodeIdLocal] = field(init=False, default_factory=dict)
     node2role: dict[NodeIdLocal, str] = field(init=False, default_factory=dict)
 
     final_layer: str = None  # "M", "MX", "MZ", "MY" or "O" (open, no measurement)
@@ -101,9 +93,7 @@ class RHGBlock:
         # Sync template parameters (d, edgespec)
         edgespec = self.edge_spec
         if self.template is None:
-            self.template = RotatedPlanarCubeTemplate(
-                d=int(self.d), edgespec=edgespec or {}
-            )
+            self.template = RotatedPlanarCubeTemplate(d=int(self.d), edgespec=edgespec or {})
         else:
             # Ensure d matches
             self.template.d = int(self.d)
@@ -271,9 +261,7 @@ class RHGBlock:
         # visualizers relying on GraphState registries can highlight them
         try:  # noqa: PLR1702
             # Determine z- (min) and z+ (max) among DATA nodes only
-            data_coords_all = [
-                c for n, c in node2coord.items() if node2role.get(n) == "data"
-            ]
+            data_coords_all = [c for n, c in node2coord.items() if node2role.get(n) == "data"]
             if data_coords_all:
                 zmin = min(c[2] for c in data_coords_all)
                 zmax = max(c[2] for c in data_coords_all)
@@ -323,14 +311,13 @@ class RHGBlock:
         except Exception as e:
             # Visualization aid only; avoid breaking materialization pipelines
             print(f"Warning: failed to register I/O nodes on RHGBlock: {e}")
-            pass
 
         # Store results on the block
         self.local_graph = g
         self.node2coord = node2coord
         self.coord2node = coord2node
         self.node2role = node2role
-        self.coord2gid = {pos: self.template.id_ for pos in node2coord.values()}
+        self.coord2gid = dict.fromkeys(node2coord.values(), self.template.id_)
         return self
 
     # --- Compatibility aliases -------------------------------------------------
@@ -371,7 +358,7 @@ class RHGBlock:
             The new base qubit index for the template.
         """
         self.template.id_ = new_id
-        self.coord2gid = {pos: new_id for pos in self.coord2gid}
+        self.coord2gid = dict.fromkeys(self.coord2gid, new_id)
 
     @staticmethod
     def _boundary_nodes_from_coordmap(
@@ -470,9 +457,7 @@ class RHGBlock:
         Operates on the global coord2node map using the same semantics as
         TemporalLayer.get_boundary_nodes.
         """
-        return self._boundary_nodes_from_coordmap(
-            self.coord2node, self.node2role, face=face, depth=depth
-        )
+        return self._boundary_nodes_from_coordmap(self.coord2node, self.node2role, face=face, depth=depth)
 
 
 @dataclass

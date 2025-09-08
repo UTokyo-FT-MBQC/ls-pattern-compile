@@ -1,4 +1,4 @@
-﻿"""Initialization block(s) for cube-shaped RHG structures."""
+"""Initialization block(s) for cube-shaped RHG structures."""
 
 from __future__ import annotations
 

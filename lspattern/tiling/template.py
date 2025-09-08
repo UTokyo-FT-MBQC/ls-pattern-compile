@@ -152,9 +152,7 @@ class ScalableTemplate(Tiling):
         self.x_coords = [p for p in (self.x_coords or []) if p[axis] != target]
         self.z_coords = [p for p in (self.z_coords or []) if p[axis] != target]
 
-    def visualize_tiling(
-        self, ax=None, show: bool = True, title_suffix: str | None = None
-    ) -> None:
+    def visualize_tiling(self, ax=None, show: bool = True, title_suffix: str | None = None) -> None:
         """Visualize the tiling using matplotlib.
 
         - data qubits: white-filled circles with black edge
@@ -238,6 +236,7 @@ class ScalableTemplate(Tiling):
             created_fig.tight_layout()
         if show and created_fig is not None:
             import matplotlib.pyplot as plt  # noqa: PLC0415
+
             plt.show()
 
 
@@ -307,9 +306,7 @@ class RotatedPlanarCubeTemplate(ScalableTemplate):
 # --- Spatial merge helper APIs (Trim -> Merge -> Unify) ---------------------
 
 
-def _offset_coords(
-    coords: list[tuple[int, int]] | None, dx: int, dy: int
-) -> list[tuple[int, int]]:
+def _offset_coords(coords: list[tuple[int, int]] | None, dx: int, dy: int) -> list[tuple[int, int]]:
     if not coords:
         return []
     return [(x + dx, y + dy) for (x, y) in coords]
@@ -505,9 +502,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
             if direction is None:
                 raise ValueError("direction is required for patch3d pipe shift")
             px, py, pz = by  # type: ignore[misc]
-            dx, dy = pipe_offset_xy(
-                self.d, (int(px), int(py), int(pz)), None, direction
-            )
+            dx, dy = pipe_offset_xy(self.d, (int(px), int(py), int(pz)), None, direction)
         else:
             raise ValueError("coordinate must be one of: tiling2d, phys3d, patch3d")
 
@@ -526,9 +521,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         new.z_coords = t.z_coords
         return new
 
-    def shift_qindex(
-        self, by: int, *, inplace: bool = True
-    ) -> RotatedPlanarPipetemplate:
+    def shift_qindex(self, by: int, *, inplace: bool = True) -> RotatedPlanarPipetemplate:
         return super().shift_qindex(by, inplace=inplace)  # type: ignore[return-value]
 
 
@@ -550,15 +543,11 @@ def pipe_offset_xy(
         internal (0,0) anchor to place it correctly in the global tiling.
     """
     if direction in {PIPEDIRECTION.UP, PIPEDIRECTION.DOWN}:
-        raise NotImplementedError(
-            "Temporal pipe (UP/DOWN) not supported for 2D tiling placement"
-        )
+        raise NotImplementedError("Temporal pipe (UP/DOWN) not supported for 2D tiling placement")
     if source[2] != sink[2]:
         raise ValueError("source and sink must share the same z for spatial pipe")
     if abs(sink[0] - source[0]) + abs(sink[1] - source[1]) != 1:
-        raise ValueError(
-            "source and sink must be axis neighbors (Manhattan distance 1)"
-        )
+        raise ValueError("source and sink must be axis neighbors (Manhattan distance 1)")
 
     if direction in {PIPEDIRECTION.LEFT, PIPEDIRECTION.BOTTOM}:
         source, sink = sink, source

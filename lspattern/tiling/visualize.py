@@ -19,9 +19,7 @@ def plot_connected_tiling(
     try:
         import matplotlib.pyplot as plt  # noqa: PLC0415
     except Exception as e:  # pragma: no cover
-        raise RuntimeError(
-            "matplotlib が必要です。`pip install matplotlib` を実行してください"
-        ) from e
+        raise RuntimeError("matplotlib が必要です。`pip install matplotlib` を実行してください") from e
 
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=(6, 6))
@@ -66,9 +64,7 @@ def plot_connected_tiling(
     return ax
 
 
-def plot_layer_tiling(
-    layer, *, anchor: str = "inner", show: bool = True, title: str | None = None
-):
+def plot_layer_tiling(layer, *, anchor: str = "inner", show: bool = True, title: str | None = None):
     """TemporalLayer のブロック/パイプを 2D タイルに再構成して表示する。
 
     - `layer.get_connected_tiling(anchor)` を用いて ConnectedTiling を得る
