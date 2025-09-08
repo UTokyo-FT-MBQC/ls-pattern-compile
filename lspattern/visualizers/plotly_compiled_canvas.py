@@ -24,9 +24,9 @@ def visualize_compiled_canvas_plotly(
     show_axes: bool = True,
     show_grid: bool = True,
 ):
-    """CompiledRHGCanvas 可視化（Plotly 3D）。
+    """CompiledRHGCanvas 可視化(Plotly 3D)。
 
-    - ノードは z ごとに色分け（z 値をカラーに反映）。
+    - ノードは z ごとに色分け(z 値をカラーに反映)。
     - エッジは任意で描画。
     - 入力/出力ノードは赤ダイヤで強調。
     """
@@ -157,4 +157,3 @@ def visualize_compiled_canvas_plotly(
     )
 
     return fig
-

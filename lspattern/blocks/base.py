@@ -2,19 +2,20 @@
 
 from __future__ import annotations
 
-# imports layout is special due to optional dependency fallback
-
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, ClassVar
 from contextlib import suppress
 
+# imports layout is special due to optional dependency fallback
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, ClassVar
+
 from graphix_zx.graphstate import GraphState
-from lspattern.consts.consts import DIRECTIONS3D
+
 from lspattern.accumulator import (
     FlowAccumulator,
     ParityAccumulator,
     ScheduleAccumulator,
 )
+from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D
 from lspattern.tiling.template import (
     RotatedPlanarCubeTemplate,
@@ -23,8 +24,8 @@ from lspattern.tiling.template import (
 
 if TYPE_CHECKING:
     from lspattern.mytype import (
-        PatchCoordLocal2D,
         PatchCoordGlobal3D,
+        PatchCoordLocal2D,
         QubitIndexLocal,
         SpatialEdgeSpec,
     )

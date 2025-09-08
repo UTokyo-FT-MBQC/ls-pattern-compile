@@ -52,14 +52,14 @@ def visualize_temporal_layer(
     else:
         fig = ax.get_figure()
     ax.set_box_aspect((1, 1, 1))
-    # 軸とグリッドの表示制御（デフォルトON）
+    # 軸とグリッドの表示制御(デフォルトON)
     if show_axes:
         ax.set_axis_on()
     else:
         ax.set_axis_off()
     ax.grid(bool(show_grid))
 
-    # 役割ベースでグルーピングして凡例を表示（z 偶奇による分岐は行わない）
+    # 役割ベースでグルーピングして凡例を表示(z 偶奇による分岐は行わない)
     roles: dict[int, str] = layer.node2role or {}
     groups: dict[str, dict[str, list]] = {
         "data": {"x": [], "y": [], "z": []},
@@ -72,7 +72,7 @@ def visualize_temporal_layer(
             g = groups["ancilla_x"]
         elif role == "ancilla_z":
             g = groups["ancilla_z"]
-        # 役割がない場合はパリティから推定（それでも ancilla 判定されなければ data 扱い）
+        # 役割がない場合はパリティから推定(それでも ancilla 判定されなければ data 扱い)
         elif role is None:
             if is_ancilla_x(x, y, z):
                 g = groups["ancilla_x"]

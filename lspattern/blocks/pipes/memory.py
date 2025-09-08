@@ -13,7 +13,7 @@ from lspattern.utils import get_direction
 class MemoryPipeSkeleton(RHGPipeSkeleton):
     """Skeleton for a Memory-style pipe (time-preserving pass-through).
 
-    Note: edgespec は省略可能（None）。テンプレートは方向に依存して決まる。
+    Note: edgespec は省略可能(None)。テンプレートは方向に依存して決まる。
     """
 
     edgespec: SpatialEdgeSpec | None = None
@@ -29,7 +29,7 @@ class MemoryPipeSkeleton(RHGPipeSkeleton):
         # ソース/シンク座標は後段で shift_coords により調整可能
         block.source = source
         block.sink = sink
-        # Memory 系は最終層は開放（O）
+        # Memory 系は最終層は開放(O)
         block.final_layer = "O"
         return block
 
@@ -47,7 +47,7 @@ class MemoryPipe(RHGPipe):
         self.template = RotatedPlanarPipetemplate(d=d, edgespec=edgespec or {})
 
     def set_in_ports(self) -> None:
-        # Pipe: data の全インデックスを in とする（z- 側相当）
+        # Pipe: data の全インデックスを in とする(z- 側相当)
         idx_map = self.template.get_data_indices()
         indices = set(idx_map.values())
         if len(indices) == 0:
@@ -56,7 +56,7 @@ class MemoryPipe(RHGPipe):
         self.in_ports = indices
 
     def set_out_ports(self) -> None:
-        # Pipe: data の全インデックスを out とする（z 側相当）
+        # Pipe: data の全インデックスを out とする(z 側相当)
         idx_map = self.template.get_data_indices()
         self.out_ports = set(idx_map.values())
 

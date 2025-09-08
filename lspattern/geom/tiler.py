@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 # ----------------------------
 @dataclass(frozen=True)
 class Rect:
-    """Closed-open rectangle [x0, x1) × [y0, y1) on an integer grid."""
+    """Closed-open rectangle [x0, x1) x [y0, y1) on an integer grid."""
 
     x0: int
     y0: int

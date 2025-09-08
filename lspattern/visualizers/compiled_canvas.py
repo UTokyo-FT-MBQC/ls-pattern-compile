@@ -31,12 +31,12 @@ def visualize_compiled_canvas(
     input_nodes: Iterable[int] | None = None,
     output_nodes: Iterable[int] | None = None,
 ):
-    """CompiledRHGCanvas 可視化（Matplotlib 3D）。
+    """CompiledRHGCanvas 可視化(Matplotlib 3D)。
 
     - CompiledRHGCanvas の `coord2node` を用いてノードを散布表示。
     - `global_graph.physical_edges` があればエッジも描画。
-    - 入力/出力ノードは赤ダイヤで強調（指定が無い場合は GraphState の property を使用）。
-    - 役割情報は global には保持しないため、色は z ごとの色分け（color_by_z=True）で表現。
+    - 入力/出力ノードは赤ダイヤで強調(指定が無い場合は GraphState の property を使用)。
+    - 役割情報は global には保持しないため、色は z ごとの色分け(color_by_z=True)で表現。
     """
     node2coord = _reverse_coord2node(cgraph.coord2node or {})
 
@@ -91,7 +91,7 @@ def visualize_compiled_canvas(
                 x2, y2, z2 = node2coord[v]
                 ax.plot([x1, x2], [y1, y2], [z1, z2], c="gray", linewidth=1, alpha=0.5)
 
-    # 入力/出力ノードを強調（赤ダイヤ）
+    # 入力/出力ノードを強調(赤ダイヤ)
     if input_nodes is None and g is not None and hasattr(g, "input_node_indices"):
         try:
             input_nodes = list(g.input_node_indices.keys())
@@ -139,4 +139,3 @@ def visualize_compiled_canvas(
         plt.show()
 
     return ax.get_figure()
-

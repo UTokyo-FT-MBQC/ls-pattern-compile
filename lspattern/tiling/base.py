@@ -1,8 +1,7 @@
 from dataclasses import dataclass, field
 from itertools import count
 
-
-from lspattern.mytype import QubitIndex, TilingCoord2D, QubitGroupIdLocal
+from lspattern.mytype import QubitGroupIdLocal, QubitIndex, TilingCoord2D
 
 
 def _next_tiling_id() -> int:

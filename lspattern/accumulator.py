@@ -18,13 +18,11 @@ Design notes
   asserts that the total cardinality of stored relations does not shrink.
 """
 
-from dataclasses import dataclass, field
-
 # import grouping intentionally simple
 from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
 
 from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal
-
 
 # -----------------------------------------------------------------------------
 # Shared helpers and base class

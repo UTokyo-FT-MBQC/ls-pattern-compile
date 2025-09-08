@@ -55,7 +55,7 @@ def build_vertical():
 
 
 # %%
-# Matplotlib 可視化（水平）
+# Matplotlib 可視化(水平)
 layer_h = build_horizontal()
 print(len(layer_h.cubes_), "cubes")
 print(len(layer_h.node2coord))
@@ -66,18 +66,18 @@ out_png = pathlib.Path("./").resolve().with_name("fig_T26_horiz.png")
 visualize_temporal_layer(layer_h, save_path=str(out_png), show=False, show_axes=True, show_grid=True)
 print("Saved:", out_png)
 
-# Plotly 可視化（水平）
+# Plotly 可視化(水平)
 fig1 = visualize_temporal_layer_plotly(layer_h, aspectmode="data", reverse_axes=True, show_axes=True, show_grid=True)
 fig1.show()
 
 # %%
-# Matplotlib 可視化（垂直）
+# Matplotlib 可視化(垂直)
 layer_v = build_vertical()
 out_png2 = pathlib.Path(".").resolve().with_name("fig_T26_vert.png")
 visualize_temporal_layer(layer_v, save_path=str(out_png2), show=False, show_axes=True, show_grid=True)
 print("Saved:", out_png2)
 
-# Plotly 可視化（垂直）
+# Plotly 可視化(垂直)
 fig2 = visualize_temporal_layer_plotly(layer_v, aspectmode="data", reverse_axes=False, show_axes=True, show_grid=True)
 fig2.show()
 

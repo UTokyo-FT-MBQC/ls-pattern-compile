@@ -84,7 +84,7 @@ def visualize_temporal_layer_plotly(
             return "ancilla_z"
         return "data"
 
-    # 役割は優先して TemporalLayer.node2role から取得（引数未指定時）
+    # 役割は優先して TemporalLayer.node2role から取得(引数未指定時)
     if node_roles is None:
         node_roles = layer.node2role or None
 

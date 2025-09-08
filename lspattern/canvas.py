@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-# import layout is intentionally non-standard due to optional deps fallback
-
-from dataclasses import dataclass, field
 from contextlib import suppress
+
+# import layout is intentionally non-standard due to optional deps fallback
+from dataclasses import dataclass, field
 
 from graphix_zx.graphstate import (
     GraphState,
     compose_in_parallel,
     compose_sequentially,
 )
+
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
@@ -177,7 +178,7 @@ class TemporalLayer:
 
         # Build GraphState by composing pre-materialized block graphs in parallel (T33)
         # Acceptance: do not create new nodes here; use compose_in_parallel per block/pipe.
-        # 今度は新たにcz spanningをするアルゴリズムが消滅した．
+        # Now the new cz spanning algorithm has disappeared.
         # Helper to remap existing registries by a node map
         def _remap_current_regs(node_map: dict[int, int]) -> None:
             if not node_map:
@@ -280,7 +281,7 @@ class TemporalLayer:
                 new_n = node_map2.get(old_n)
                 if new_n is None:
                     continue
-                # XY はテンプレートで既に絶対座標化済み（to_temporal_layer で shift 済み）
+                # XY はテンプレートで既に絶対座標化済み(to_temporal_layer で shift 済み)
                 x, y, z = (
                     int(coord[0]),
                     int(coord[1]),
@@ -796,7 +797,7 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
                 pipes = []
                 for (u, v), pipe in self.pipes_.items():
                     if u[2] == prev_z and v[2] == z:
-                        # 明示的に端点情報を埋めて渡す（skeleton->block で保持されないため）
+                        # 明示的に端点情報を埋めて渡す(skeleton->block で保持されないため)
                         with suppress(Exception):
                             pipe.source = u  # type: ignore[attr-defined]
                             pipe.sink = v  # type: ignore[attr-defined]
@@ -814,15 +815,15 @@ def to_temporal_layer(
     # 1) Make empty TemporalLayer instance
     layer = TemporalLayer(z)
 
-    # shift position before materialization（テンプレートは ScalableTemplate を保持したままXY移動）
+    # shift position before materialization(テンプレートは ScalableTemplate を保持したままXY移動)
     for pos, c in cubes.items():
         dx, dy = cube_offset_xy(c.d, pos)
-        # 直接テンプレートをXY移動（inplace=True）
+        # 直接テンプレートをXY移動(inplace=True)
         c.template.shift_coords((dx, dy), coordinate="tiling2d", inplace=True)
     for (source, sink), p in pipes.items():
         direction = get_direction(source, sink)
         dx, dy = pipe_offset_xy(p.d, source, sink, direction)
-        # 直接テンプレートをXY移動（inplace=True）
+        # 直接テンプレートをXY移動(inplace=True)
         p.template.shift_coords((dx, dy), coordinate="tiling2d", inplace=True)
 
     # materialize blocks before adding

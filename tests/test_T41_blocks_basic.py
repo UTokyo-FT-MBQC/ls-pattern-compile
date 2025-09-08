@@ -18,7 +18,7 @@ def test_T41_representative_blocks_counts():
     cube_spec_A = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
     init_cube = InitPlusCubeSkeleton(d=3, edgespec=cube_spec_A).to_block()
     i_in, i_out, i_zm, i_zp = _summarize_block(init_cube)
-    # Init系は out に data の全インデックス、inはテンプレート依存（空許容）
+    # Init系は out に data の全インデックス、inはテンプレート依存(空許容)
     assert i_out == 9 and i_zm == 9 and i_zp == 9
 
     # MemoryCube d=3 spec=B
@@ -42,4 +42,3 @@ def test_T41_representative_blocks_counts():
     )
     pm_in, pm_out, pm_zm, pm_zp = _summarize_block(mem_pipe_v)
     assert pm_in == 3 and pm_out == 3 and pm_zm == 3 and pm_zp == 3
-

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import matplotlib.pyplot as plt
+
 from lspattern.tiling.base import ConnectedTiling
 
 
@@ -16,18 +18,13 @@ def plot_connected_tiling(
     - 軸ラベル/方眼/凡例を付加
     - `ax` 未指定なら新規に作成
     """
-    try:
-        import matplotlib.pyplot as plt
-    except Exception as e:  # pragma: no cover
-        msg = "matplotlib が必要です。`pip install matplotlib` を実行してください"
-        raise RuntimeError(msg) from e
 
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=(6, 6))
     else:
         fig = ax.figure
 
-    # 座標取得（tuple[int,int]）
+    # Coordinate extraction (tuple[int,int])
     data = list(ct.data_coords or [])
     xs = list(ct.x_coords or [])
     zs = list(ct.z_coords or [])

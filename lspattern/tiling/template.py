@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 # import layout acceptable; avoid heavy reordering for clarity
-
 from dataclasses import dataclass, field
 from typing import Literal
 
+import matplotlib.pyplot as plt
+
 from lspattern.consts.consts import PIPEDIRECTION
 from lspattern.mytype import (
-    SpatialEdgeSpec,
     QubitIndexLocal,
+    SpatialEdgeSpec,
     TilingCoord2D,
 )
 from lspattern.tiling.base import Tiling
@@ -161,7 +162,6 @@ class ScalableTemplate(Tiling):
         - X faces: green circles
         - Z faces: blue circles
         """
-        import matplotlib.pyplot as plt
 
         data = list(self.data_coords or [])
         xs = list(self.x_coords or [])
@@ -237,8 +237,6 @@ class ScalableTemplate(Tiling):
         if created_fig is not None:
             created_fig.tight_layout()
         if show and created_fig is not None:
-            import matplotlib.pyplot as plt
-
             plt.show()
 
 

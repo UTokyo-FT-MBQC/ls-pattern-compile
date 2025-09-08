@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-
-from lspattern.blocks.cubes.base import RHGCubeSkeleton, RHGCube
+from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
 from lspattern.tiling.template import RotatedPlanarCubeTemplate
 
 
@@ -31,7 +30,7 @@ class InitPlusCubeSkeleton(RHGCubeSkeleton):
             template=self.template,
         )
 
-        # Init 系は最終層は測定せず開放（O）
+        # Init 系は最終層は測定せず開放(O)
         block.final_layer = "O"
 
         return block
@@ -45,7 +44,7 @@ class InitPlus(RHGCube):
         return super().set_in_ports()
 
     def set_out_ports(self):
-        # Init: 最終スライス（z+）の data を出力ポート（テンプレートの data 全インデックス）とみなす
+        # Init: 最終スライス(z+)の data を出力ポート(テンプレートの data 全インデックス)とみなす
         idx_map = self.template.get_data_indices()
         self.out_ports = set(idx_map.values())
 
@@ -56,7 +55,6 @@ class InitPlus(RHGCube):
 
 if __name__ == "__main__":
     # NOTE: Interactive 3D preview code omitted for brevity
-    from mpl_toolkits.mplot3d import Axes3D
 
     # Hardcoded options (edit here as needed)
     d = 3

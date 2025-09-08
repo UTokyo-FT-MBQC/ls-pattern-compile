@@ -32,7 +32,7 @@ class InitPlusPipeSkeleton(RHGPipeSkeleton):
             edgespec=spec,
             direction=direction,
         )
-        # Init 系は最終層は測定せず開放（O）
+        # Init blocks: final layer is open (O) without measurement
         block.final_layer = "O"
         return block
 
