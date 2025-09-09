@@ -59,7 +59,11 @@ class BaseAccumulator:
         tuple
             (graph, node2coord, node2role)
         """
-        graph = temporal_layer.local_graph
+        try:
+            graph = temporal_layer.local_graph  # type: ignore[attr-defined]
+        except AttributeError as exc:
+            msg = "temporal_layer must have local_graph attribute"
+            raise AttributeError(msg) from exc
         node2coord = getattr(temporal_layer, "node2coord", None)
         node2role = getattr(temporal_layer, "node2role", None)
         return graph, node2coord, node2role
@@ -113,8 +117,8 @@ class BaseAccumulator:
         """
 
         try:
-            out = graph.output_node_indices
-            if isinstance(out, Mapping):
+            out = getattr(graph, "output_node_indices", None)
+            if out is not None and isinstance(out, Mapping):
                 return int(node) in set(out)
         except (AttributeError, TypeError, ValueError):
             return False
