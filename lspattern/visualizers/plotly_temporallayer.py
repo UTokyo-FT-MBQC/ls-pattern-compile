@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import plotly.graph_objects as go
 
 from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z, is_data
+from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
 def visualize_temporal_layer_plotly(  # noqa: C901
     layer: TemporalLayer,
     *,
-    node_roles: dict[int, str] | None = None,
+    node_roles: dict[NodeIdLocal, str] | None = None,
     ancilla_mode: str = "both",  # 'both' | 'x' | 'z'
     show_edges: bool = True,
     edge_width: float = 3.0,
@@ -24,7 +25,7 @@ def visualize_temporal_layer_plotly(  # noqa: C901
     reverse_axes: bool = True,
     show_axes: bool = True,
     show_grid: bool = True,
-    aspectmode: str = "cube",  # kept for backward-compat; ignored internally
+    aspectmode: str = "cube",  # kept for backward-compat; ignored internally  # noqa: ARG001
     input_nodes: Iterable[int] | None = None,
     output_nodes: Iterable[int] | None = None,
 ) -> go.Figure:
@@ -48,7 +49,7 @@ def visualize_temporal_layer_plotly(  # noqa: C901
         If plotly is not installed.
     """
 
-    node2coord: dict[int, tuple[int, int, int]] = layer.node2coord or {}
+    node2coord: dict[NodeIdLocal, PhysCoordGlobal3D] = layer.node2coord or {}
     g = layer.local_graph
 
     # Color mapping consistent with the notebook
@@ -69,7 +70,7 @@ def visualize_temporal_layer_plotly(  # noqa: C901
     }
 
     # Build groups
-    groups: dict[str, dict[str, list]] = {k: {"x": [], "y": [], "z": [], "nodes": []} for k in color_map}
+    groups: dict[str, dict[str, list[int]]] = {k: {"x": [], "y": [], "z": [], "nodes": []} for k in color_map}
 
     def infer_role(coord: tuple[int, int, int]) -> str:
         x, y, z = coord
@@ -84,9 +85,13 @@ def visualize_temporal_layer_plotly(  # noqa: C901
     # 役割は優先して TemporalLayer.node2role から取得(引数未指定時)
     if node_roles is None:
         node_roles = layer.node2role or None
+    # Convert NodeIdLocal keys to int keys for compatibility
+    node_roles_int: dict[int, str] | None = None
+    if node_roles is not None:
+        node_roles_int = {int(k): v for k, v in node_roles.items()}
 
     for n, coord in node2coord.items():
-        role = node_roles.get(n) if node_roles else None
+        role = node_roles_int.get(int(n)) if node_roles_int else None
         if role not in {"data", "ancilla_x", "ancilla_z"}:
             role = infer_role(coord)
         if ancilla_mode == "x" and role == "ancilla_z":
@@ -96,7 +101,7 @@ def visualize_temporal_layer_plotly(  # noqa: C901
         groups[role]["x"].append(coord[0])
         groups[role]["y"].append(coord[1])
         groups[role]["z"].append(coord[2])
-        groups[role]["nodes"].append(n)
+        groups[role]["nodes"].append(int(n))
 
     fig = go.Figure()
 
@@ -132,9 +137,9 @@ def visualize_temporal_layer_plotly(  # noqa: C901
             if u in node2coord and v in node2coord:
                 x1, y1, z1 = node2coord[u]
                 x2, y2, z2 = node2coord[v]
-                edge_x.extend([x1, x2, None])
-                edge_y.extend([y1, y2, None])
-                edge_z.extend([z1, z2, None])
+                edge_x.extend([float(x1), float(x2), float('nan')])
+                edge_y.extend([float(y1), float(y2), float('nan')])
+                edge_z.extend([float(z1), float(z2), float('nan')])
         if edge_x:
             fig.add_trace(
                 go.Scatter3d(
@@ -157,9 +162,9 @@ def visualize_temporal_layer_plotly(  # noqa: C901
         output_nodes = list(g.output_node_indices.keys()) if g is not None else []
 
     if input_nodes:
-        xin = [node2coord[n][0] for n in input_nodes if n in node2coord]
-        yin = [node2coord[n][1] for n in input_nodes if n in node2coord]
-        zin = [node2coord[n][2] for n in input_nodes if n in node2coord]
+        xin = [node2coord[NodeIdLocal(n)][0] for n in input_nodes if NodeIdLocal(n) in node2coord]
+        yin = [node2coord[NodeIdLocal(n)][1] for n in input_nodes if NodeIdLocal(n) in node2coord]
+        zin = [node2coord[NodeIdLocal(n)][2] for n in input_nodes if NodeIdLocal(n) in node2coord]
         fig.add_trace(
             go.Scatter3d(
                 x=xin,
@@ -174,9 +179,9 @@ def visualize_temporal_layer_plotly(  # noqa: C901
         )
 
     if output_nodes:
-        xout = [node2coord[n][0] for n in output_nodes if n in node2coord]
-        yout = [node2coord[n][1] for n in output_nodes if n in node2coord]
-        zout = [node2coord[n][2] for n in output_nodes if n in node2coord]
+        xout = [node2coord[NodeIdLocal(n)][0] for n in output_nodes if NodeIdLocal(n) in node2coord]
+        yout = [node2coord[NodeIdLocal(n)][1] for n in output_nodes if NodeIdLocal(n) in node2coord]
+        zout = [node2coord[NodeIdLocal(n)][2] for n in output_nodes if NodeIdLocal(n) in node2coord]
         fig.add_trace(
             go.Scatter3d(
                 x=xout,
@@ -193,7 +198,7 @@ def visualize_temporal_layer_plotly(  # noqa: C901
     # Layout
     # 軸とレイアウト
     # Always fix aspect ratio to 1:1:1 regardless of cube/pipe/data ranges
-    scene: dict = {
+    scene: dict[str, object] = {
         "xaxis_title": "X",
         "yaxis_title": "Y",
         "zaxis_title": "Z",
@@ -206,7 +211,7 @@ def visualize_temporal_layer_plotly(  # noqa: C901
         scene["yaxis"] = {"autorange": "reversed"}
 
     # 軸の見た目制御
-    def _axis_cfg(base: dict | None = None) -> dict:
+    def _axis_cfg(base: dict[str, object] | None = None) -> dict[str, object]:
         base = dict(base or {})
         if show_axes:
             base.update(
@@ -222,9 +227,23 @@ def visualize_temporal_layer_plotly(  # noqa: C901
             base.update({"visible": False})
         return base
 
-    scene["xaxis"] = _axis_cfg(scene.get("xaxis"))
-    scene["yaxis"] = _axis_cfg(scene.get("yaxis"))
-    scene["zaxis"] = _axis_cfg(scene.get("zaxis"))
+    xaxis_obj = scene.get("xaxis")
+    if isinstance(xaxis_obj, dict):
+        scene["xaxis"] = _axis_cfg(xaxis_obj)
+    else:
+        scene["xaxis"] = _axis_cfg(None)
+
+    yaxis_obj = scene.get("yaxis")
+    if isinstance(yaxis_obj, dict):
+        scene["yaxis"] = _axis_cfg(yaxis_obj)
+    else:
+        scene["yaxis"] = _axis_cfg(None)
+
+    zaxis_obj = scene.get("zaxis")
+    if isinstance(zaxis_obj, dict):
+        scene["zaxis"] = _axis_cfg(zaxis_obj)
+    else:
+        scene["zaxis"] = _axis_cfg(None)
 
     fig.update_layout(
         title=f"Temporal Layer z={layer.z}",
