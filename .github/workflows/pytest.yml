@@ -3,7 +3,7 @@
 
 name: pytest
 
-on:
+# on:
   # pull_request:
   # workflow_dispatch:
 
