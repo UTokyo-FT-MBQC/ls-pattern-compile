@@ -46,13 +46,8 @@ def visualize_temporal_layer_plotly(
     try:
         import plotly.graph_objects as go
     except Exception as e:  # pragma: no cover
-        msg = (
-            "plotly is required for visualize_temporal_layer_plotly.\n"
-            "Install via `pip install plotly`."
-        )
-        raise RuntimeError(
-            msg
-        ) from e
+        msg = "plotly is required for visualize_temporal_layer_plotly.\nInstall via `pip install plotly`."
+        raise RuntimeError(msg) from e
 
     # Lazy import parity helpers
     from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z, is_data
@@ -78,9 +73,7 @@ def visualize_temporal_layer_plotly(
     }
 
     # Build groups
-    groups: dict[str, dict[str, list]] = {
-        k: {"x": [], "y": [], "z": [], "nodes": []} for k in color_map
-    }
+    groups: dict[str, dict[str, list]] = {k: {"x": [], "y": [], "z": [], "nodes": []} for k in color_map}
 
     def infer_role(coord: tuple[int, int, int]) -> str:
         x, y, z = coord

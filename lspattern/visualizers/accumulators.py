@@ -16,26 +16,16 @@ def _ensure_mpl() -> None:
         import matplotlib.pyplot as plt  # noqa: F401
         from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
     except Exception as e:  # pragma: no cover
-        msg = (
-            "matplotlib is required for accumulator visualizers.\n"
-            "Install via `pip install matplotlib`."
-        )
-        raise RuntimeError(
-            msg
-        ) from e
+        msg = "matplotlib is required for accumulator visualizers.\nInstall via `pip install matplotlib`."
+        raise RuntimeError(msg) from e
 
 
 def _ensure_plotly() -> None:
     try:
         import plotly.graph_objects as go  # noqa: F401
     except Exception as e:  # pragma: no cover
-        msg = (
-            "plotly is required for accumulator visualizers.\n"
-            "Install via `pip install plotly`."
-        )
-        raise RuntimeError(
-            msg
-        ) from e
+        msg = "plotly is required for accumulator visualizers.\nInstall via `pip install plotly`."
+        raise RuntimeError(msg) from e
 
 
 # Unified colors (match Plotly temporallayer visualizer palette)
@@ -486,7 +476,9 @@ def visualize_schedule_plotly(
                 ys.append(y)
         if xs:
             fig.add_trace(
-                go.Scatter(x=xs, y=ys, mode="markers", marker={"color": colors[i % len(colors)], "size": 7}, name=f"t={t}")
+                go.Scatter(
+                    x=xs, y=ys, mode="markers", marker={"color": colors[i % len(colors)], "size": 7}, name=f"t={t}"
+                )
             )
     # Enforce equal XY aspect using scale anchors
     fig.update_layout(
@@ -502,6 +494,7 @@ def visualize_schedule_plotly(
 def visualize_detectors_plotly(layer, *, detector=None) -> go.Figure:
     _ensure_plotly()
     import plotly.graph_objects as go
+
     try:
         from lspattern.accumulator import DetectorAccumulator
     except Exception:  # pragma: no cover
@@ -536,7 +529,9 @@ def visualize_detectors_plotly(layer, *, detector=None) -> go.Figure:
                 edge_z.extend([z1, z2, None])
     if edge_x:
         fig.add_trace(
-            go.Scatter3d(x=edge_x, y=edge_y, z=edge_z, mode="lines", line={"color": COLOR_EDGE, "width": 3}, name="detectors")
+            go.Scatter3d(
+                x=edge_x, y=edge_y, z=edge_z, mode="lines", line={"color": COLOR_EDGE, "width": 3}, name="detectors"
+            )
         )
 
     # Nodes (context)

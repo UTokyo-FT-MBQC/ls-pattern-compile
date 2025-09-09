@@ -122,8 +122,6 @@ def visualize_canvas(
             if os.environ.get("DISPLAY") or os.name == "nt":
                 plt.show()
             else:
-                print(
-                    "Display not available. Use save_path parameter to save the figure."
-                )
+                print("Display not available. Use save_path parameter to save the figure.")
     else:
         plt.close(fig)

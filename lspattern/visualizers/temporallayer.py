@@ -94,7 +94,9 @@ def visualize_temporal_layer(
         pts = groups[gkey]
         if pts["x"]:
             ax.scatter(
-                pts["x"], pts["y"], pts["z"],
+                pts["x"],
+                pts["y"],
+                pts["z"],
                 c=color,
                 edgecolors="black",
                 s=50,
@@ -150,7 +152,7 @@ def visualize_temporal_layer(
                 yout,
                 zout,
                 s=70,
-                c="#e74c3c",          # softer red fill
+                c="#e74c3c",  # softer red fill
                 edgecolors="#c0392b",  # darker red edge
                 linewidths=1.8,
                 marker="D",

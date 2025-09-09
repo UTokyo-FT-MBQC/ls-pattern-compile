@@ -68,8 +68,17 @@ def visualize_compiled_canvas(  # noqa: C901
         ax.set_axis_off()
 
     palette = [
-        "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
-        ]
+        "#1f77b4",
+        "#ff7f0e",
+        "#2ca02c",
+        "#d62728",
+        "#9467bd",
+        "#8c564b",
+        "#e377c2",
+        "#7f7f7f",
+        "#bcbd22",
+        "#17becf",
+    ]
     by_z: dict[int, dict[str, list[int]]] = {}
     for nid, (x, y, z) in node2coord.items():
         g = by_z.setdefault(int(z), {"x": [], "y": [], "z": [], "n": []})
@@ -82,7 +91,9 @@ def visualize_compiled_canvas(  # noqa: C901
         color = palette[i % len(palette)] if color_by_z else "#ffffff"
         if pts["x"]:
             ax.scatter(
-                pts["x"], pts["y"], zs=pts["z"],
+                pts["x"],
+                pts["y"],
+                zs=pts["z"],
                 c=color,
                 edgecolors="black",
                 s=40,
@@ -119,7 +130,9 @@ def visualize_compiled_canvas(  # noqa: C901
         zs = [node2coord[n][2] for n in nodes if n in node2coord]
         if xs:
             ax.scatter(
-                xs, ys, zs=zs,
+                xs,
+                ys,
+                zs=zs,
                 c=color,
                 edgecolors="darkred",
                 s=70,
