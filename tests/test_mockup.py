@@ -175,4 +175,3 @@ def test_merge_split_mockup_snapshot(update: bool) -> None:
         expected = got
 
     assert got == expected, "CompiledRHGCanvas snapshot mismatch for merge_split_mockup"
-

@@ -1,18 +1,25 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
 
 from graphix_zx.qompiler import qompile
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+    from collections.abc import Set as AbstractSet
+
+    from graphix_zx.graphstate import BaseGraphState
+    from graphix_zx.pattern import Pattern
+    from graphix_zx.scheduler import Scheduler
+
 
 def compile_canvas(
-    *,
-    graph: Any,
-    xflow: dict[int, set[int]] | None = None,
-    x_parity: list[set[int]] | None = None,
-    z_parity: list[set[int]] | None = None,
-    scheduler: Any | None = None,
-) -> Any:
+    graph: BaseGraphState,
+    xflow: Mapping[int, AbstractSet[int]],
+    x_parity: Sequence[AbstractSet[int]] | None = None,
+    z_parity: Sequence[AbstractSet[int]] | None = None,
+    scheduler: Scheduler | None = None,
+) -> Pattern:
     """
     Thin wrapper around `graphix_zx.qompile` for an RHG canvas.
 
@@ -32,7 +39,7 @@ def compile_canvas(
 
     Returns
     -------
-    Any
+    Pattern
         Whatever `graphix_zx.qompile` returns (pattern, circuit, etc.).
     """
     return qompile(

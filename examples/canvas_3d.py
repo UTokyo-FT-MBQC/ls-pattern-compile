@@ -11,13 +11,6 @@ Usage:
 import pathlib
 import sys
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-SRC = ROOT / "src"
-SRC_GRAPHIX = SRC / "graphix_zx"
-for p in (SRC, SRC_GRAPHIX):
-    if str(p) not in sys.path:
-        sys.path.insert(0, str(p))
-
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvas, RHGCanvasSkeleton
 from lspattern.mytype import PatchCoordGlobal3D

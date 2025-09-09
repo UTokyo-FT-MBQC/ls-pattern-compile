@@ -2,36 +2,51 @@ from __future__ import annotations
 
 import os
 import pathlib
-from typing import Any
+from typing import Protocol
 
 import matplotlib.pyplot as plt
 
 from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z, is_data
 
 
-def _node_to_coord(canvas: Any) -> dict[int, tuple[int, int, int]]:
+# NOTE: I'm not sure which type satisfies this protocol. Maybe outdated visualizer code?
+class CanvasProtocol(Protocol):
+    """Protocol for canvas objects used in visualization."""
+
+    coord_to_node: dict[tuple[int, int, int], int]
+
+    @property
+    def graph(self) -> GraphProtocol: ...
+
+
+class GraphProtocol(Protocol):
+    """Protocol for graph objects with physical edges."""
+
+    physical_edges: set[tuple[int, int]]
+
+
+def _node_to_coord(canvas: CanvasProtocol) -> dict[int, tuple[int, int, int]]:
     """Invert canvas.coord_to_node -> node -> (x,y,z)."""
     return {nid: coord for coord, nid in canvas.coord_to_node.items()}
 
 
-def visualize_canvas(
-    canvas: Any,
+def visualize_canvas(  # noqa: C901
+    canvas: CanvasProtocol,
     *,
     indicated_nodes: set[int] | None = None,
-    annotate: bool = False,
     save_path: str | None = None,
     show: bool = True,
     figsize: tuple[int, int] = (6, 6),
     dpi: int = 120,
-):
+) -> None:
     """Visualizes the Raussendorf lattice with nodes colored based on their parity.
     Nodes with allowed parities are colored white, others are red.
     Physical edges are drawn in gray.
 
     Parameters
     ----------
-    canvas : RHGCanvas
-        The canvas describing MBQC on the Raussendorf lattice.
+    canvas : CanvasProtocol
+        The canvas object with coordinate mappings and graph.
     save_path : Optional[str], optional
         Path to save the figure. If None, the figure is not saved.
         Directory will be created if it doesn't exist, by default None
@@ -71,7 +86,7 @@ def visualize_canvas(
     ax.scatter(
         xs,
         ys,
-        zs,
+        zs,  # pyright: ignore[reportArgumentType]
         c=colors,
         edgecolors="black",
         s=50,
@@ -109,7 +124,7 @@ def visualize_canvas(
         if str(save_dir) and not save_dir.exists():
             save_dir.mkdir(exist_ok=True, parents=True)
         fig.savefig(save_path, bbox_inches="tight", dpi=dpi)
-        print(f"Figure saved to: {save_path}")  # noqa: T201
+        print(f"Figure saved to: {save_path}")
 
     # Show figure if requested and in interactive mode
     if show:
@@ -123,8 +138,6 @@ def visualize_canvas(
             if os.environ.get("DISPLAY") or os.name == "nt":
                 plt.show()
             else:
-                print(
-                    "Display not available. Use save_path parameter to save the figure."
-                )
+                print("Display not available. Use save_path parameter to save the figure.")
     else:
         plt.close(fig)

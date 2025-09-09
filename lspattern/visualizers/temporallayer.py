@@ -2,14 +2,23 @@ from __future__ import annotations
 
 import os
 import pathlib
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 
 from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z
 
+if TYPE_CHECKING:
+    import matplotlib.axes
+    import matplotlib.figure
+    from matplotlib.figure import Figure
 
-def visualize_temporal_layer(
-    layer,
+    from lspattern.canvas import TemporalLayer
+    from lspattern.mytype import PhysCoordGlobal3D
+
+
+def visualize_temporal_layer(  # noqa: C901
+    layer: TemporalLayer,
     *,
     indicated_nodes: set[int] | None = None,
     input_nodes: set[int] | None = None,
@@ -17,12 +26,12 @@ def visualize_temporal_layer(
     annotate: bool = False,
     save_path: str | None = None,
     show: bool = True,
-    ax=None,
+    ax: matplotlib.axes.Axes | None = None,
     figsize: tuple[int, int] = (6, 6),
     dpi: int = 120,
     show_axes: bool = True,
     show_grid: bool = True,
-):
+) -> tuple[Figure | matplotlib.figure.SubFigure, matplotlib.axes.Axes]:
     """Visualize a single TemporalLayer in 3D with parity-based coloring.
 
     Parameters
@@ -42,7 +51,7 @@ def visualize_temporal_layer(
     dpi : int
         Matplotlib figure DPI.
     """
-    node2coord: dict[int, tuple[int, int, int]] = layer.node2coord or {}
+    node2coord: dict[int, PhysCoordGlobal3D] = {int(k): v for k, v in (layer.node2coord or {}).items()}
 
     created_fig = False
     if ax is None:
@@ -50,18 +59,22 @@ def visualize_temporal_layer(
         ax = fig.add_subplot(111, projection="3d")
         created_fig = True
     else:
-        fig = ax.get_figure()
-    ax.set_box_aspect((1, 1, 1))
-    # 軸とグリッドの表示制御（デフォルトON）
+        fig_temp = ax.get_figure()
+        if fig_temp is None:
+            msg = "Axes object has no associated figure"
+            raise ValueError(msg)
+        fig = fig_temp  # type: ignore[assignment]  # matplotlib typing is imprecise
+    ax.set_box_aspect((1, 1, 1))  # type: ignore[arg-type]
+    # 軸とグリッドの表示制御(デフォルトON)
     if show_axes:
         ax.set_axis_on()
     else:
         ax.set_axis_off()
     ax.grid(bool(show_grid))
 
-    # 役割ベースでグルーピングして凡例を表示（z 偶奇による分岐は行わない）
-    roles: dict[int, str] = layer.node2role or {}
-    groups: dict[str, dict[str, list]] = {
+    # 役割ベースでグルーピングして凡例を表示(z 偶奇による分岐は行わない)
+    roles: dict[int, str] = {int(k): v for k, v in (layer.node2role or {}).items()}
+    groups: dict[str, dict[str, list[int]]] = {
         "data": {"x": [], "y": [], "z": []},
         "ancilla_x": {"x": [], "y": [], "z": []},
         "ancilla_z": {"x": [], "y": [], "z": []},
@@ -72,7 +85,7 @@ def visualize_temporal_layer(
             g = groups["ancilla_x"]
         elif role == "ancilla_z":
             g = groups["ancilla_z"]
-        # 役割がない場合はパリティから推定（それでも ancilla 判定されなければ data 扱い）
+        # 役割がない場合はパリティから推定(それでも ancilla 判定されなければ data 扱い)
         elif role is None:
             if is_ancilla_x(x, y, z):
                 g = groups["ancilla_x"]
@@ -86,11 +99,13 @@ def visualize_temporal_layer(
         g["y"].append(y)
         g["z"].append(z)
 
-    def scat(gkey: str, color: str, label: str | None):
+    def scat(gkey: str, color: str, label: str | None) -> None:
         pts = groups[gkey]
         if pts["x"]:
             ax.scatter(
-                pts["x"], pts["y"], pts["z"],
+                pts["x"],
+                pts["y"],
+                zs=pts["z"],  # pyright: ignore[reportArgumentType]
                 c=color,
                 edgecolors="black",
                 s=50,
@@ -117,7 +132,7 @@ def visualize_temporal_layer(
         for nid in indicated_nodes:
             if nid in node2coord:
                 x, y, z = node2coord[nid]
-                ax.scatter(x, y, z, c="black", edgecolors="black", s=55)
+                ax.scatter(x, y, z, c="black", edgecolors="black", s=55)  # type: ignore[misc]
 
     # Highlight input/output nodes with legend
     if input_nodes:
@@ -128,7 +143,7 @@ def visualize_temporal_layer(
             ax.scatter(
                 xin,
                 yin,
-                zin,
+                zs=zin,  # pyright: ignore[reportArgumentType]
                 s=70,
                 facecolors="white",
                 edgecolors="#e74c3c",  # softer red
@@ -144,9 +159,9 @@ def visualize_temporal_layer(
             ax.scatter(
                 xout,
                 yout,
-                zout,
+                zs=zout,  # pyright: ignore[reportArgumentType]
                 s=70,
-                c="#e74c3c",          # softer red fill
+                c="#e74c3c",  # softer red fill
                 edgecolors="#c0392b",  # darker red edge
                 linewidths=1.8,
                 marker="D",
@@ -156,20 +171,22 @@ def visualize_temporal_layer(
     # Optional annotations
     if annotate:
         for nid, (x, y, z) in node2coord.items():
-            ax.text(x, y, z, str(nid), color="black", fontsize=8)
+            ax.text(x, y, z, str(nid), fontsize=8)  # type: ignore[arg-type]
 
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
-    ax.set_zlabel("Z")
+    ax.set_zlabel("Z")  # type: ignore[union-attr]
     plt.legend()
     plt.tight_layout()
 
     # Save figure if requested
     if save_path is not None:
-        save_dir = os.path.dirname(save_path)
-        if save_dir and not pathlib.Path(save_dir).exists():
-            pathlib.Path(save_dir).mkdir(exist_ok=True, parents=True)
-        fig.savefig(save_path, bbox_inches="tight", dpi=dpi)
+        save_path_obj = pathlib.Path(save_path)
+        if save_path_obj.parent != pathlib.Path() and not save_path_obj.parent.exists():
+            save_path_obj.parent.mkdir(exist_ok=True, parents=True)
+        # Use root figure for saving if fig is a SubFigure
+        root_fig = getattr(fig, "figure", fig)
+        root_fig.savefig(save_path, bbox_inches="tight", dpi=dpi)  # pyright: ignore[reportAttributeAccessIssue]
         print(f"Figure saved to: {save_path}")
 
     if show and created_fig:
@@ -182,10 +199,9 @@ def visualize_temporal_layer(
                 plt.show()
             else:
                 print("Display not available; use save_path to save the figure.")
-    elif created_fig is False:
-        # When embedding into external figure, do not manage closing.
-        pass
-    else:
-        plt.close(fig)
+    elif created_fig:
+        # If we created the figure but show is False, close it
+        plt.close(fig)  # pyright: ignore[reportArgumentType]
+    # When ax was provided, don't manage the figure lifecycle
 
     return fig, ax

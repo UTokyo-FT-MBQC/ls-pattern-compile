@@ -1,18 +1,25 @@
 from __future__ import annotations
 
-# ruff: noqa: I001  # import layout acceptable; avoid heavy reordering for clarity
-
+# import layout acceptable; avoid heavy reordering for clarity
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+import matplotlib.pyplot as plt
 
 from lspattern.consts.consts import PIPEDIRECTION
 from lspattern.mytype import (
-    SpatialEdgeSpec,
+    EdgeSpecValue,
     QubitIndexLocal,
+    SpatialEdgeSpec,
     TilingCoord2D,
 )
 from lspattern.tiling.base import Tiling
 from lspattern.utils import sort_xy
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from matplotlib.axes import Axes
 
 
 @dataclass(kw_only=True)
@@ -20,10 +27,10 @@ class ScalableTemplate(Tiling):
     d: int
     edgespec: SpatialEdgeSpec  # e.g., {"top":"X","bottom":"Z",...}
 
-    data_coords: list[tuple[int, int]] = field(default_factory=list)
-    data_indices: list[int] = field(default_factory=list)
-    x_coords: list[tuple[int, int]] = field(default_factory=list)
-    z_coords: list[tuple[int, int]] = field(default_factory=list)
+    data_coords: list[TilingCoord2D] = field(default_factory=list)
+    data_indices: list[QubitIndexLocal] = field(default_factory=list)
+    x_coords: list[TilingCoord2D] = field(default_factory=list)
+    z_coords: list[TilingCoord2D] = field(default_factory=list)
 
     trimmed: bool = False
 
@@ -45,17 +52,18 @@ class ScalableTemplate(Tiling):
         return str(v).upper()
 
     def get_data_indices(self) -> dict[TilingCoord2D, QubitIndexLocal]:
-        data_index = {coor: i for i, coor in enumerate(sort_xy(self.data_coords))}
-        return data_index
+        coord_set = {(coord[0], coord[1]) for coord in self.data_coords}
+        sorted_coords = sort_xy(coord_set)
+        return {TilingCoord2D(coor): QubitIndexLocal(i) for i, coor in enumerate(sorted_coords)}
 
     # ---- Coordinate and index shifting APIs ---------------------------------
     def _shift_lists_inplace(self, dx: int, dy: int) -> None:
         if self.data_coords:
-            self.data_coords = [(x + dx, y + dy) for (x, y) in self.data_coords]
+            self.data_coords = [TilingCoord2D((x + dx, y + dy)) for (x, y) in self.data_coords]
         if self.x_coords:
-            self.x_coords = [(x + dx, y + dy) for (x, y) in self.x_coords]
+            self.x_coords = [TilingCoord2D((x + dx, y + dy)) for (x, y) in self.x_coords]
         if self.z_coords:
-            self.z_coords = [(x + dx, y + dy) for (x, y) in self.z_coords]
+            self.z_coords = [TilingCoord2D((x + dx, y + dy)) for (x, y) in self.z_coords]
 
     def shift_coords(
         self,
@@ -88,7 +96,8 @@ class ScalableTemplate(Tiling):
             px, py, pz = by  # type: ignore[misc]
             dx, dy = cube_offset_xy(self.d, (int(px), int(py), int(pz)))
         else:
-            raise ValueError("coordinate must be one of: tiling2d, phys3d, patch3d")
+            msg = "coordinate must be one of: tiling2d, phys3d, patch3d"
+            raise ValueError(msg)
 
         if inplace:
             self._shift_lists_inplace(dx, dy)
@@ -96,7 +105,7 @@ class ScalableTemplate(Tiling):
         # create a shallow Tiling copy with shifted coordinates
         t = offset_tiling(self, dx, dy)
         # rebuild a new instance of the same class, carrying d/edgespec
-        new = type(self)(d=self.d, edgespec=self.edgespec)  # type: ignore[call-arg]
+        new = type(self)(d=self.d, edgespec=self.edgespec)
         new.data_coords = t.data_coords
         new.x_coords = t.x_coords
         new.z_coords = t.z_coords
@@ -109,11 +118,11 @@ class ScalableTemplate(Tiling):
         use this for standalone composition.
         """
         if self.data_indices:
-            shifted = [int(i) + int(by) for i in self.data_indices]
+            shifted = [QubitIndexLocal(int(i) + int(by)) for i in self.data_indices]
             if inplace:
                 self.data_indices = shifted
             else:
-                new = type(self)(d=self.d, edgespec=self.edgespec)  # type: ignore[call-arg]
+                new = type(self)(d=self.d, edgespec=self.edgespec)
                 new.data_coords = list(self.data_coords)
                 new.x_coords = list(self.x_coords)
                 new.z_coords = list(self.z_coords)
@@ -147,31 +156,29 @@ class ScalableTemplate(Tiling):
                 axis = 0
                 target = 2 * self.d - 1
             case _:
-                raise ValueError("Invalid direction for trim_spatial_boundary")
+                msg = "Invalid direction for trim_spatial_boundary"
+                raise ValueError(msg)
 
         self.x_coords = [p for p in (self.x_coords or []) if p[axis] != target]
         self.z_coords = [p for p in (self.z_coords or []) if p[axis] != target]
 
-    def visualize_tiling(
-        self, ax=None, show: bool = True, title_suffix: str | None = None
-    ) -> None:
+    def visualize_tiling(self, ax: Axes | None = None, show: bool = True, title_suffix: str | None = None) -> None:  # noqa: C901
         """Visualize the tiling using matplotlib.
 
         - data qubits: white-filled circles with black edge
         - X faces: green circles
         - Z faces: blue circles
         """
-        import matplotlib.pyplot as plt  # noqa: PLC0415
 
-        data = list(self.data_coords or [])
-        xs = list(self.x_coords or [])
-        zs = list(self.z_coords or [])
+        data = [(coord[0], coord[1]) for coord in (self.data_coords or [])]
+        xs = [(coord[0], coord[1]) for coord in (self.x_coords or [])]
+        zs = [(coord[0], coord[1]) for coord in (self.z_coords or [])]
 
         created_fig = None
         if ax is None:
             created_fig, ax = plt.subplots(figsize=(6, 6))
 
-        def unpack(coords: list[tuple[int, int]]):
+        def unpack(coords: list[tuple[int, int]]) -> tuple[list[int], list[int]]:
             if not coords:
                 return [], []
             x_vals, y_vals = zip(*coords, strict=False)
@@ -237,12 +244,11 @@ class ScalableTemplate(Tiling):
         if created_fig is not None:
             created_fig.tight_layout()
         if show and created_fig is not None:
-            import matplotlib.pyplot as plt  # noqa: PLC0415
             plt.show()
 
 
 class RotatedPlanarCubeTemplate(ScalableTemplate):
-    def to_tiling(self) -> dict[str, list[tuple[int, int]]]:
+    def to_tiling(self) -> dict[str, list[tuple[int, int]]]:  # noqa: C901
         d = self.d
         data_coords: set[tuple[int, int]] = set()
         x_coords: set[tuple[int, int]] = set()
@@ -297,22 +303,21 @@ class RotatedPlanarCubeTemplate(ScalableTemplate):
         # Sanity: ensure no X/Z overlap within this template
         if x_coords & z_coords:
             overlap = sorted(x_coords & z_coords)[:10]
-            raise ValueError(f"RotatedPlanarCubeTemplate X/Z overlap: sample={overlap}")
-        self.data_coords = result["data"]
-        self.x_coords = result["X"]
-        self.z_coords = result["Z"]
+            msg = f"RotatedPlanarCubeTemplate X/Z overlap: sample={overlap}"
+            raise ValueError(msg)
+        self.data_coords = [TilingCoord2D(coord) for coord in result["data"]]
+        self.x_coords = [TilingCoord2D(coord) for coord in result["X"]]
+        self.z_coords = [TilingCoord2D(coord) for coord in result["Z"]]
         return result
 
 
 # --- Spatial merge helper APIs (Trim -> Merge -> Unify) ---------------------
 
 
-def _offset_coords(
-    coords: list[tuple[int, int]] | None, dx: int, dy: int
-) -> list[tuple[int, int]]:
+def _offset_coords(coords: Sequence[TilingCoord2D] | None, dx: int, dy: int) -> list[TilingCoord2D]:
     if not coords:
         return []
-    return [(x + dx, y + dy) for (x, y) in coords]
+    return [TilingCoord2D((x + dx, y + dy)) for (x, y) in coords]
 
 
 def _copy_with_offset(t: Tiling, dx: int, dy: int) -> Tiling:
@@ -361,7 +366,8 @@ def merge_pair_spatial(
     d_a = a.d
     d_b = b.d
     if not isinstance(d_a, int) or not isinstance(d_b, int):
-        raise ValueError("Both templates must have integer distance 'd'.")
+        msg = "Both templates must have integer distance 'd'."
+        raise TypeError(msg)
 
     # Ensure coordinates are populated
     if not (a.data_coords or a.x_coords or a.z_coords):
@@ -371,7 +377,8 @@ def merge_pair_spatial(
 
     diru = direction.upper()
     if diru not in {"X+", "X-", "Y+", "Y-"}:
-        raise ValueError("direction must be one of: X+, X-, Y+, Y-")
+        msg = "direction must be one of: X+, X-, Y+, Y-"
+        raise ValueError(msg)
 
     # 1) Trim the seam boundaries
     if diru == "X+":
@@ -395,19 +402,30 @@ def merge_pair_spatial(
     a_copy = _copy_with_offset(a, 0, 0)
     b_copy = _copy_with_offset(b, *off_b)
     # Minimal merged tiling without requiring ConnectedTiling class
-    data = list(dict.fromkeys((a_copy.data_coords or []) + (b_copy.data_coords or [])))
-    xs = list(dict.fromkeys((a_copy.x_coords or []) + (b_copy.x_coords or [])))
-    zs = list(dict.fromkeys((a_copy.z_coords or []) + (b_copy.z_coords or [])))
+    data_list = (a_copy.data_coords or []) + (b_copy.data_coords or [])
+    xs_list = (a_copy.x_coords or []) + (b_copy.x_coords or [])
+    zs_list = (a_copy.z_coords or []) + (b_copy.z_coords or [])
+
+    data = list(dict.fromkeys(data_list))
+    xs = list(dict.fromkeys(xs_list))
+    zs = list(dict.fromkeys(zs_list))
+
     if check_collisions:
         overlap_set = set(xs) & set(zs)
         if overlap_set:
             overlap = sorted(overlap_set)[:10]
-            raise ValueError(f"merge_pair_spatial X/Z overlap: sample={overlap}")
-    return Tiling(data_coords=sort_xy(data), x_coords=sort_xy(xs), z_coords=sort_xy(zs))
+            msg = f"merge_pair_spatial X/Z overlap: sample={overlap}"
+            raise ValueError(msg)
+
+    return Tiling(
+        data_coords=[TilingCoord2D(coord) for coord in sort_xy(set(data))],
+        x_coords=[TilingCoord2D(coord) for coord in sort_xy(set(xs))],
+        z_coords=[TilingCoord2D(coord) for coord in sort_xy(set(zs))],
+    )
 
 
 class RotatedPlanarPipetemplate(ScalableTemplate):
-    def to_tiling(self) -> dict[str, list[tuple[int, int]]]:
+    def to_tiling(self) -> dict[str, list[tuple[int, int]]]:  # noqa: C901
         d = self.d
         data_coords: set[tuple[int, int]] = set()
         x_coords: set[tuple[int, int]] = set()
@@ -463,9 +481,11 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                     pass
 
         elif self._spec("UP") == "O" or self._spec("DOWN") == "O":
-            raise NotImplementedError("Temporal pipe not supported yet")
+            msg = "Temporal pipe not supported yet"
+            raise NotImplementedError(msg)
         else:
-            raise ValueError("This pipe has no connection boundary (EdgeSpec)")
+            msg = "This pipe has no connection boundary (EdgeSpec)"
+            raise ValueError(msg)
 
         result = {
             "data": sort_xy(data_coords),
@@ -475,10 +495,11 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         # Sanity: ensure no X/Z overlap within pipe template
         if x_coords & z_coords:
             overlap = sorted(x_coords & z_coords)[:10]
-            raise ValueError(f"RotatedPlanarPipetemplate X/Z overlap: sample={overlap}")
-        self.data_coords = result["data"]
-        self.x_coords = result["X"]
-        self.z_coords = result["Z"]
+            msg = f"RotatedPlanarPipetemplate X/Z overlap: sample={overlap}"
+            raise ValueError(msg)
+        self.data_coords = [TilingCoord2D(coord) for coord in result["data"]]
+        self.x_coords = [TilingCoord2D(coord) for coord in result["X"]]
+        self.z_coords = [TilingCoord2D(coord) for coord in result["Z"]]
         return result
 
     # Pipe-specific shift including patch3d to (dx,dy) conversion.
@@ -503,21 +524,22 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
             dx, dy = int(bx), int(by_)
         elif coordinate == "patch3d":
             if direction is None:
-                raise ValueError("direction is required for patch3d pipe shift")
+                msg = "direction is required for patch3d pipe shift"
+                raise ValueError(msg)
             px, py, pz = by  # type: ignore[misc]
-            dx, dy = pipe_offset_xy(
-                self.d, (int(px), int(py), int(pz)), None, direction
-            )
+            source_sink = (int(px), int(py), int(pz))
+            dx, dy = pipe_offset_xy(self.d, source_sink, source_sink, direction)
         else:
-            raise ValueError("coordinate must be one of: tiling2d, phys3d, patch3d")
+            msg = "coordinate must be one of: tiling2d, phys3d, patch3d"
+            raise ValueError(msg)
 
         if inplace:
             if self.data_coords:
-                self.data_coords = [(x + dx, y + dy) for (x, y) in self.data_coords]
+                self.data_coords = [TilingCoord2D((x + dx, y + dy)) for (x, y) in self.data_coords]
             if self.x_coords:
-                self.x_coords = [(x + dx, y + dy) for (x, y) in self.x_coords]
+                self.x_coords = [TilingCoord2D((x + dx, y + dy)) for (x, y) in self.x_coords]
             if self.z_coords:
-                self.z_coords = [(x + dx, y + dy) for (x, y) in self.z_coords]
+                self.z_coords = [TilingCoord2D((x + dx, y + dy)) for (x, y) in self.z_coords]
             return self
         t = offset_tiling(self, dx, dy)
         new = RotatedPlanarPipetemplate(d=self.d, edgespec=self.edgespec)
@@ -526,9 +548,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         new.z_coords = t.z_coords
         return new
 
-    def shift_qindex(
-        self, by: int, *, inplace: bool = True
-    ) -> RotatedPlanarPipetemplate:
+    def shift_qindex(self, by: int, *, inplace: bool = True) -> RotatedPlanarPipetemplate:
         return super().shift_qindex(by, inplace=inplace)  # type: ignore[return-value]
 
 
@@ -550,15 +570,14 @@ def pipe_offset_xy(
         internal (0,0) anchor to place it correctly in the global tiling.
     """
     if direction in {PIPEDIRECTION.UP, PIPEDIRECTION.DOWN}:
-        raise NotImplementedError(
-            "Temporal pipe (UP/DOWN) not supported for 2D tiling placement"
-        )
+        msg = "Temporal pipe (UP/DOWN) not supported for 2D tiling placement"
+        raise NotImplementedError(msg)
     if source[2] != sink[2]:
-        raise ValueError("source and sink must share the same z for spatial pipe")
+        msg = "source and sink must share the same z for spatial pipe"
+        raise ValueError(msg)
     if abs(sink[0] - source[0]) + abs(sink[1] - source[1]) != 1:
-        raise ValueError(
-            "source and sink must be axis neighbors (Manhattan distance 1)"
-        )
+        msg = "source and sink must be axis neighbors (Manhattan distance 1)"
+        raise ValueError(msg)
 
     if direction in {PIPEDIRECTION.LEFT, PIPEDIRECTION.BOTTOM}:
         source, sink = sink, source
@@ -578,7 +597,8 @@ def pipe_offset_xy(
         base_y = (2 * d + 2) * ty - 2  # TOP direction -> sy < ty
         return base_x, base_y
 
-    raise ValueError(f"Invalid direction for pipe offset: {direction}")
+    msg = f"Invalid direction for pipe offset: {direction}"
+    raise ValueError(msg)
 
 
 if __name__ == "__main__":
@@ -586,7 +606,7 @@ if __name__ == "__main__":
 
     from lspattern.mytype import EdgeSpec
 
-    def set_edgespec(**kw):
+    def set_edgespec(**kw: EdgeSpecValue) -> None:
         EdgeSpec.update(
             {
                 "TOP": "O",
@@ -604,7 +624,7 @@ if __name__ == "__main__":
 
     if SHOW_BLOCK:
         d = 3
-        configs = [
+        configs: list[tuple[str, SpatialEdgeSpec]] = [
             ("L/R=X, T/B=Z", {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}),
             ("L/R=Z, T/B=X", {"LEFT": "Z", "RIGHT": "Z", "TOP": "X", "BOTTOM": "X"}),
             ("All X", {"LEFT": "X", "RIGHT": "X", "TOP": "X", "BOTTOM": "X"}),
@@ -624,7 +644,7 @@ if __name__ == "__main__":
 
     if SHOW_PIPE:
         d = 7
-        pipe_cfgs = [
+        pipe_cfgs: list[tuple[str, SpatialEdgeSpec]] = [
             (
                 "Pipe X: TOP=X, BOTTOM=Z",
                 {"TOP": "X", "BOTTOM": "Z", "LEFT": "O", "RIGHT": "O"},

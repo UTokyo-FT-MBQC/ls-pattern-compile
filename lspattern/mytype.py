@@ -14,8 +14,7 @@ changing runtime representations.
 
 from __future__ import annotations
 
-# ruff: noqa: RUF022, I001
-
+# ruff: noqa: RUF022
 from typing import Literal, NewType
 
 # ---------------------------------------------------------------------
@@ -41,9 +40,7 @@ TilingCoord2D = NewType("TilingCoord2D", tuple[int, int])
 # Patch coordinates are 2D integer anchors (x0, y0).
 PatchCoordLocal2D = NewType("PatchCoordLocal2D", tuple[int, int])
 PatchCoordGlobal3D = NewType("PatchCoordGlobal3D", tuple[int, int, int])
-PipeCoordGlobal3D = NewType(
-    "PipeCoordGlobal3D", tuple[PatchCoordGlobal3D, PatchCoordGlobal3D]
-)
+PipeCoordGlobal3D = NewType("PipeCoordGlobal3D", tuple[PatchCoordGlobal3D, PatchCoordGlobal3D])
 
 # Physical qubit coordinates are 3D integer positions (x, y, z).
 PhysCoordLocal2D = NewType("PhysCoordLocal2D", tuple[int, int])  # (x, y)
