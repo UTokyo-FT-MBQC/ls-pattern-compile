@@ -4,6 +4,12 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
+from lspattern.mytype import (
+    PatchCoordGlobal3D,
+    PatchCoordLocal2D,
+    QubitIndexLocal,
+    SpatialEdgeSpec,
+)
 from lspattern.tiling.template import (
     ScalableTemplate,
 )
@@ -11,19 +17,11 @@ from lspattern.utils import get_direction
 
 if TYPE_CHECKING:
     from lspattern.consts.consts import PIPEDIRECTION
-    from lspattern.mytype import (
-        PatchCoordGlobal3D,
-        PatchCoordLocal2D,
-        QubitIndexLocal,
-        SpatialEdgeSpec,
-    )
 
 
 @dataclass
 class RHGPipeSkeleton(RHGBlockSkeleton):
-    d: int
     edge_spec: SpatialEdgeSpec = field(default_factory=dict)
-    template: ScalableTemplate | None = None
 
 
 @dataclass
@@ -45,11 +43,10 @@ class RHGPipe(RHGBlock):
         Optional spatial edge spec for this pipe.
     """
 
-    d: int
-    edge_spec: SpatialEdgeSpec = field(default_factory=dict)
+    edge_spec: SpatialEdgeSpec | None = field(default_factory=dict)
 
-    source: PatchCoordGlobal3D = field(default_factory=lambda: (0, 0, 0))
-    sink: PatchCoordGlobal3D = field(default_factory=lambda: (0, 0, 1))
+    source: PatchCoordGlobal3D = field(default_factory=lambda: PatchCoordGlobal3D((0, 0, 0)))
+    sink: PatchCoordGlobal3D | None = field(default_factory=lambda: PatchCoordGlobal3D((0, 0, 1)))
     direction: PIPEDIRECTION = field(init=False)
 
     template: ScalableTemplate = field(default_factory=lambda: ScalableTemplate(d=3, edgespec={}))
@@ -60,6 +57,8 @@ class RHGPipe(RHGBlock):
 
     def __post_init__(self) -> None:
         # get direction
+        if self.sink is None:
+            self.sink = PatchCoordGlobal3D((0, 0, 1))
         self.direction = get_direction(self.source, self.sink)
 
     def shift_coords(self, by: PatchCoordGlobal3D) -> None:
@@ -71,15 +70,17 @@ class RHGPipe(RHGBlock):
         the pipe-specific signature.
         """
         osx, osy, osz = self.source
+        if self.sink is None:
+            self.sink = PatchCoordGlobal3D((0, 0, 1))
         osx2, osy2, osz2 = self.sink
         dx, dy, dz = by
-        self.source = (osx + dx, osy + dy, osz + dz)
-        self.sink = (osx2 + dx, osy2 + dy, osz2 + dz)
+        self.source = PatchCoordGlobal3D((osx + dx, osy + dy, osz + dz))
+        self.sink = PatchCoordGlobal3D((osx2 + dx, osy2 + dy, osz2 + dz))
 
         # Try pipe-specific patch3d rule (RotatedPlanarPipetemplate supports this)
         try:
-            self.template.shift_coords(by, coordinate="patch3d", direction=self.direction)  # type: ignore[arg-type]
+            self.template.shift_coords(by, coordinate="patch3d", direction=self.direction)  # type: ignore[call-arg]
         except TypeError:
             # Fallback: treat as a raw 2D tiling shift
-            by_template: PatchCoordLocal2D = (by[0], by[1])
+            by_template: PatchCoordLocal2D = PatchCoordLocal2D((by[0], by[1]))
             self.template.shift_coords(by_template)
