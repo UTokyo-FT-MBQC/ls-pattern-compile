@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
+from lspattern.mytype import PatchCoordGlobal3D, SpatialEdgeSpec
 from lspattern.tiling.template import RotatedPlanarPipetemplate
 from lspattern.utils import get_direction
 
 if TYPE_CHECKING:
     from lspattern.consts.consts import PIPEDIRECTION
-    from lspattern.mytype import PatchCoordGlobal3D, SpatialEdgeSpec
 
 
 @dataclass
@@ -24,15 +24,26 @@ class InitPlusPipeSkeleton(RHGPipeSkeleton):
       ``get_direction``.
     """
 
-    edgespec: SpatialEdgeSpec | None = None
+    @overload
+    def to_block(self) -> InitPlusPipe: ...
 
-    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> InitPlusPipe:
+    @overload
+    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> InitPlusPipe: ...
+
+    def to_block(
+        self, source: PatchCoordGlobal3D | None = None, sink: PatchCoordGlobal3D | None = None
+    ) -> InitPlusPipe:
+        # Default values if not provided
+        if source is None:
+            source = PatchCoordGlobal3D((0, 0, 0))
+        if sink is None:
+            sink = PatchCoordGlobal3D((1, 0, 0))
+
         direction = get_direction(source, sink)
-        spec = self.edgespec
 
         block = InitPlusPipe(
             d=self.d,
-            edgespec=spec,
+            edgespec=self.edgespec,
             direction=direction,
         )
         # Init blocks: final layer is open (O) without measurement
@@ -44,13 +55,14 @@ class InitPlusPipe(RHGPipe):
     def __init__(
         self,
         d: int,
-        edgespec: SpatialEdgeSpec,
+        edgespec: SpatialEdgeSpec | None,
         direction: PIPEDIRECTION,
-    ):
-        # RHGPipe(dataclass) の __init__ は direction を引数に受け取らない
-        super().__init__(d=d, edge_spec=edgespec)
+    ) -> None:
+        # Convert None to empty dict for compatibility
+        edge_spec = edgespec or {}
+        super().__init__(d=d, edge_spec=edge_spec)
         self.direction = direction
-        self.template = RotatedPlanarPipetemplate(d=d, edgespec=edgespec)
+        self.template = RotatedPlanarPipetemplate(d=d, edgespec=edge_spec)
 
     def set_in_ports(self) -> None:
         # Init pipe: 入力ポートは持たない
