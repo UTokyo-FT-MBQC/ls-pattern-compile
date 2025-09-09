@@ -182,88 +182,91 @@ class TemporalLayer:
 
         return uf, coord2gid
 
+    def _remap_node_mappings(self, node_map: dict[int, int]) -> None:
+        """Remap node mappings with given node map."""
+        if not node_map:
+            return
+        self.node2coord = {NodeIdLocal(node_map.get(n, n)): c for n, c in self.node2coord.items()}
+        self.coord2node = {c: NodeIdLocal(node_map.get(n, n)) for c, n in self.coord2node.items()}
+        self.node2role = {NodeIdLocal(node_map.get(n, n)): r for n, r in self.node2role.items()}
+
+    def _remap_portsets(self, node_map: dict[int, int]) -> None:
+        """Remap portsets with given node map."""
+        for p, nodes in list(self.in_portset.items()):
+            self.in_portset[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
+        for p, nodes in list(self.out_portset.items()):
+            self.out_portset[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
+        for p, nodes in list(self.cout_portset.items()):
+            self.cout_portset[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
+        self.in_ports = [NodeIdLocal(node_map.get(n, n)) for n in self.in_ports]
+        self.out_ports = [NodeIdLocal(node_map.get(n, n)) for n in self.out_ports]
+
+    def _compose_single_cube(self, _pos: tuple, blk: object, g: GraphState | None) -> tuple[GraphState | None, dict[int, int], dict[int, int]]:
+        """Compose a single cube into the graph."""
+        g2 = blk.local_graph
+
+        if g is None:
+            return g2, {}, {n: n for n in getattr(g2, "physical_nodes", [])}
+
+        g_new, node_map1, node_map2 = compose_in_parallel(g, g2)
+        return g_new, node_map1, node_map2
+
+    def _process_cube_coordinates(self, blk: object, pos: tuple, node_map2: dict[int, int]) -> None:
+        """Process cube coordinates and roles."""
+        d_val = int(blk.d)
+        z_base = int(pos[2]) * (2 * d_val)
+
+        # Compute z-shift
+        try:
+            bmin_z = min(c[2] for c in blk.node2coord.values())
+        except ValueError:
+            bmin_z = z_base
+        z_shift = int(z_base - bmin_z)
+
+        # Ingest coords/roles
+        for old_n, coord in blk.node2coord.items():
+            new_n = node_map2.get(old_n)
+            if new_n is None:
+                continue
+            x, y, z = int(coord[0]), int(coord[1]), int(coord[2]) + z_shift
+            c_new = PhysCoordGlobal3D((x, y, z))
+            self.node2coord[NodeIdLocal(new_n)] = c_new
+            self.coord2node[c_new] = NodeIdLocal(new_n)
+
+        for old_n, role in blk.node2role.items():
+            new_n = node_map2.get(old_n)
+            if new_n is not None:
+                self.node2role[NodeIdLocal(new_n)] = role
+
+    def _process_cube_ports(self, pos: tuple, blk: object, node_map2: dict[int, int]) -> None:
+        """Process cube ports."""
+        if getattr(blk, "in_ports", None):
+            self.in_portset[pos] = [NodeIdLocal(node_map2[n]) for n in blk.in_ports if n in node_map2]
+            self.in_ports.extend(self.in_portset[pos])
+        if getattr(blk, "out_ports", None):
+            self.out_portset[pos] = [NodeIdLocal(node_map2[n]) for n in blk.out_ports if n in node_map2]
+            self.out_ports.extend(self.out_portset[pos])
+        if getattr(blk, "cout_ports", None):
+            self.cout_portset[pos] = [
+                NodeIdLocal(node_map2[n]) for s in blk.cout_ports for n in s if n in node_map2
+            ]
+
     def _build_graph_from_blocks(self) -> GraphState | None:
-        """Build the quantum graph state from cubes and pipes.
-
-        Returns:
-            The composed graph state, or None if no blocks exist.
-        """
+        """Build the quantum graph state from cubes and pipes."""
         g: GraphState | None = None
-
-        # Helper to remap existing registries by a node map
-        def _remap_current_regs(node_map: dict[int, int]) -> None:
-            if not node_map:
-                return
-            self.node2coord = {NodeIdLocal(node_map.get(n, n)): c for n, c in self.node2coord.items()}
-            self.coord2node = {c: NodeIdLocal(node_map.get(n, n)) for c, n in self.coord2node.items()}
-            self.node2role = {NodeIdLocal(node_map.get(n, n)): r for n, r in self.node2role.items()}
-            # Portsets and flat lists
-            for p, nodes in list(self.in_portset.items()):
-                self.in_portset[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
-            for p, nodes in list(self.out_portset.items()):
-                self.out_portset[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
-            for p, nodes in list(self.cout_portset.items()):
-                self.cout_portset[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
-            self.in_ports = [NodeIdLocal(node_map.get(n, n)) for n in self.in_ports]
-            self.out_ports = [NodeIdLocal(node_map.get(n, n)) for n in self.out_ports]
 
         # Compose cube graphs
         for pos, blk in self.cubes_.items():
-            d_val = int(blk.d)
-            z_base = int(pos[2]) * (2 * d_val)
-
-            g2 = blk.local_graph
-
-            if g is None:
-                g = g2
-                node_map1: dict[int, int] = {}
-                node_map2: dict[int, int] = {n: n for n in getattr(g2, "physical_nodes", [])}
-            else:
-                g_new, node_map1, node_map2 = compose_in_parallel(g, g2)
-                _remap_current_regs(node_map1)
-                g = g_new
-
-            # Compute z-shift from block-local coords to target z_base
-            try:
-                bmin_z = min(c[2] for c in blk.node2coord.values())
-            except ValueError:
-                bmin_z = z_base
-            z_shift = int(z_base - bmin_z)
-
-            # Ingest coords/roles via node_map2; XY already absolute (shifted before materialize)
-            for old_n, coord in blk.node2coord.items():
-                new_n = node_map2.get(old_n)
-                if new_n is None:
-                    continue
-                x, y, z = (
-                    int(coord[0]),
-                    int(coord[1]),
-                    int(coord[2]) + z_shift,
-                )
-                c_new = PhysCoordGlobal3D((x, y, z))
-                self.node2coord[NodeIdLocal(new_n)] = c_new
-                self.coord2node[c_new] = NodeIdLocal(new_n)
-            for old_n, role in blk.node2role.items():
-                new_n = node_map2.get(old_n)
-                if new_n is not None:
-                    self.node2role[NodeIdLocal(new_n)] = role
-
-            # Attach block ports to global port lists
-            if getattr(blk, "in_ports", None):
-                self.in_portset[pos] = [NodeIdLocal(node_map2[n]) for n in blk.in_ports if n in node_map2]
-                self.in_ports.extend(self.in_portset[pos])
-            if getattr(blk, "out_ports", None):
-                self.out_portset[pos] = [NodeIdLocal(node_map2[n]) for n in blk.out_ports if n in node_map2]
-                self.out_ports.extend(self.out_portset[pos])
-            if getattr(blk, "cout_ports", None):
-                self.cout_portset[pos] = [
-                    NodeIdLocal(node_map2[n]) for s in blk.cout_ports for n in s if n in node_map2
-                ]
+            g, node_map1, node_map2 = self._compose_single_cube(pos, blk, g)
+            self._remap_node_mappings(node_map1)
+            self._remap_portsets(node_map1)
+            self._process_cube_coordinates(blk, pos, node_map2)
+            self._process_cube_ports(pos, blk, node_map2)
 
         # Compose pipe graphs (spatial pipes in this layer)
-        return self._compose_pipe_graphs(g, _remap_current_regs)
+        return self._compose_pipe_graphs(g)
 
-    def _compose_pipe_graphs(self, g: GraphState | None, _remap_current_regs: object) -> GraphState | None:
+    def _compose_pipe_graphs(self, g: GraphState | None) -> GraphState | None:
         """Compose pipe graphs into the main graph state."""
         for pipe_coord, pipe in self.pipes_.items():
             source, _sink = pipe_coord
@@ -283,7 +286,8 @@ class TemporalLayer:
                 node_map2: dict[int, int] = {n: n for n in getattr(g2, "physical_nodes", [])}
             else:
                 g_new, node_map1, node_map2 = compose_in_parallel(g, g2)
-                _remap_current_regs(node_map1)
+                self._remap_node_mappings(node_map1)
+                self._remap_portsets(node_map1)
                 g = g_new
 
             try:
@@ -605,35 +609,49 @@ class CompiledRHGCanvas:
     # def generate_stim_circuit(self) -> stim.Circuit:
     #     pass
 
-    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> CompiledRHGCanvas:
-        # Remap GraphState by copying nodes/edges according to node_map.
-        def _remap_graphstate(gsrc: GraphState | None, nmap: dict[int, int]) -> GraphState | None:
-            if gsrc is None:
-                return None
-            gdst = GraphState()
-            created: dict[int, int] = {}
-            for old in gsrc.physical_nodes:
-                new_id = nmap.get(NodeIdLocal(old), NodeIdLocal(old))
-                if int(new_id) in created:
-                    continue
-                created[int(new_id)] = gdst.add_physical_node()
-            for old, new_id in nmap.items():
-                mb = gsrc.meas_bases.get(int(old))
-                if mb is not None:
-                    with suppress(Exception):
-                        gdst.assign_meas_basis(created.get(int(new_id), int(new_id)), mb)
-            for u, v in gsrc.physical_edges:
-                nu = nmap.get(NodeIdLocal(u), NodeIdLocal(u))
-                nv = nmap.get(NodeIdLocal(v), NodeIdLocal(v))
+    def _remap_graph_nodes(self, gsrc: GraphState, nmap: dict[NodeIdLocal, NodeIdLocal]) -> dict[int, int]:
+        """Create new nodes in destination graph."""
+        gdst = GraphState()
+        created: dict[int, int] = {}
+        for old in gsrc.physical_nodes:
+            new_id = nmap.get(NodeIdLocal(old), NodeIdLocal(old))
+            if int(new_id) in created:
+                continue
+            created[int(new_id)] = gdst.add_physical_node()
+        return created
+
+    def _remap_measurement_bases(self, gsrc: GraphState, gdst: GraphState, nmap: dict[NodeIdLocal, NodeIdLocal], created: dict[int, int]) -> None:
+        """Remap measurement bases."""
+        for old, new_id in nmap.items():
+            mb = gsrc.meas_bases.get(int(old))
+            if mb is not None:
                 with suppress(Exception):
-                    gdst.add_physical_edge(created.get(int(nu), int(nu)), created.get(int(nv), int(nv)))
-            return gdst
+                    gdst.assign_meas_basis(created.get(int(new_id), int(new_id)), mb)
+
+    def _remap_graph_edges(self, gsrc: GraphState, gdst: GraphState, nmap: dict[NodeIdLocal, NodeIdLocal], created: dict[int, int]) -> None:
+        """Remap graph edges."""
+        for u, v in gsrc.physical_edges:
+            nu = nmap.get(NodeIdLocal(u), NodeIdLocal(u))
+            nv = nmap.get(NodeIdLocal(v), NodeIdLocal(v))
+            with suppress(Exception):
+                gdst.add_physical_edge(created.get(int(nu), int(nu)), created.get(int(nv), int(nv)))
+
+    def _create_remapped_graphstate(self, gsrc: GraphState | None, nmap: dict[NodeIdLocal, NodeIdLocal]) -> GraphState | None:
+        """Create a remapped GraphState."""
+        if gsrc is None:
+            return None
+        gdst = GraphState()
+        created = self._remap_graph_nodes(gsrc, nmap)
+        self._remap_measurement_bases(gsrc, gdst, nmap, created)
+        self._remap_graph_edges(gsrc, gdst, nmap, created)
+        return gdst
+
+    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> CompiledRHGCanvas:
+        """Remap nodes according to the given node mapping."""
 
         new_cgraph = CompiledRHGCanvas(
             layers=self.layers.copy(),
-            global_graph=_remap_graphstate(
-                self.global_graph, {NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map.items()}
-            ),
+            global_graph=self._create_remapped_graphstate(self.global_graph, node_map),
             coord2node={},
             in_portset={},
             out_portset={},
@@ -733,65 +751,45 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
     def add_pipe(self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipeSkeleton) -> None:
         self.pipes_[start, end] = pipe
 
+    def _get_spatial_direction(self, dx: int, dy: int) -> tuple[str, str] | None:
+        """Get trim directions for spatial pipe."""
+        if dx == 1 and dy == 0:
+            return "RIGHT", "LEFT"  # X+ direction
+        if dx == -1 and dy == 0:
+            return "LEFT", "RIGHT"  # X- direction
+        if dy == 1 and dx == 0:
+            return "TOP", "BOTTOM"  # Y+ direction
+        if dy == -1 and dx == 0:
+            return "BOTTOM", "TOP"  # Y- direction
+        return None
+
+    def _trim_adjacent_cubes(self, u: tuple, v: tuple, left_dir: str, right_dir: str) -> None:
+        """Trim boundaries of adjacent cubes."""
+        left = self.cubes_.get(u)
+        right = self.cubes_.get(v)
+
+        if left is not None:
+            left.trim_spatial_boundary(left_dir)
+        if right is not None:
+            right.trim_spatial_boundary(right_dir)
+
     def trim_spatial_boundaries(self) -> None:
-        """
-        Function trim spatial boundary (tiling from Scalable tiling class)
-            case direction
-            match direction
-            if Xplus then
-            axis to target is max d
-            if Xminus then
-            axis to 0
-            target = -1
-            for x y ancillas
-                do
-                if coord.dim(acos) hits the target
-                remove it
-            end
-        end
-        """
-        # Iterate spatial pipes and trim facing boundaries of adjacent cubes.
-        # Pipes are keyed by ((x,y,z),(x,y,z)); detect spatial adjacency by dx/dy.
-        for pipe_coord, _pipe in list(self.pipes_.items()):
+        """Trim spatial boundaries of adjacent cubes."""
+        for pipe_coord in list(self.pipes_.keys()):
             u, v = pipe_coord
             ux, uy, uz = u
             vx, vy, vz = v
-            # Temporal pipes are not handled here
+
+            # Skip temporal pipes
             if uz != vz:
                 continue
 
             dx, dy = vx - ux, vy - uy
+            directions = self._get_spatial_direction(dx, dy)
 
-            left = self.cubes_.get(u)
-            right = self.cubes_.get(v)
-
-            if dx == 1 and dy == 0:
-                # X+ direction: trim RIGHT of left cube and LEFT of right cube
-                if left is not None:
-                    left.trim_spatial_boundary("RIGHT")
-                if right is not None:
-                    right.trim_spatial_boundary("LEFT")
-            elif dx == -1 and dy == 0:
-                # X- direction
-                if left is not None:
-                    left.trim_spatial_boundary("LEFT")
-                if right is not None:
-                    right.trim_spatial_boundary("RIGHT")
-            elif dy == 1 and dx == 0:
-                # Y+ direction
-                if left is not None:
-                    left.trim_spatial_boundary("TOP")
-                if right is not None:
-                    right.trim_spatial_boundary("BOTTOM")
-            elif dy == -1 and dx == 0:
-                # Y- direction
-                if left is not None:
-                    left.trim_spatial_boundary("BOTTOM")
-                if right is not None:
-                    right.trim_spatial_boundary("TOP")
-            else:
-                # Not an axis-aligned spatial neighbor; ignore.
-                continue
+            if directions is not None:
+                left_dir, right_dir = directions
+                self._trim_adjacent_cubes(u, v, left_dir, right_dir)
 
     def to_canvas(self) -> RHGCanvas:
         self.trim_spatial_boundaries()
@@ -988,73 +986,51 @@ def to_temporal_layer(
     return layer
 
 
-def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pipes: list[RHGPipe]) -> CompiledRHGCanvas:
-    """Compose the compiled canvas with the next temporal layer."""
-    if cgraph.global_graph is None:
-        return _create_first_layer_canvas(next_layer)
-
-    # Compose graphs
-    new_graph, node_map1, node_map2 = _compose_graphs_sequentially(cgraph.global_graph, next_layer.local_graph)
-    # Remap registries for both sides into the composed id-space
-    cgraph = cgraph.remap_nodes(node_map1)
-    # Remap next_layer registries into composed id-space
+def _remap_layer_mappings(next_layer: TemporalLayer, node_map2: dict[int, int]) -> None:
+    """Remap next layer mappings."""
     next_layer.coord2node = {c: node_map2.get(n, n) for c, n in next_layer.coord2node.items()}
     next_layer.node2coord = {node_map2.get(n, n): c for n, c in next_layer.node2coord.items()}
     next_layer.node2role = {node_map2.get(n, n): r for n, r in next_layer.node2role.items()}
 
-    # Create a new CompiledRHGCanvas to hold the merged result.
-    new_layers = [*cgraph.layers, next_layer]
-    new_z = next_layer.z
 
-    # Build merged coord2node map (already remapped above)
-    new_coord2node: dict[PhysCoordGlobal3D, int] = {
+def _build_merged_coord2node(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> dict[PhysCoordGlobal3D, int]:
+    """Build merged coordinate to node mapping."""
+    return {
         **cgraph.coord2node,
         **next_layer.coord2node,
     }
 
-    # Remap portsets
+
+def _remap_temporal_portsets(
+    cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, node_map1: dict[int, int], node_map2: dict[int, int]
+) -> tuple[dict, dict, dict]:
+    """Remap portsets for temporal composition."""
     in_portset = {pos: [node_map2[n] for n in nodes] for pos, nodes in next_layer.in_portset.items()}
     out_portset = {pos: [node_map1[n] for n in nodes] for pos, nodes in cgraph.out_portset.items()}
     cout_portset = {
         **{pos: [node_map1[n] for n in nodes] for pos, nodes in cgraph.cout_portset.items()},
         **{pos: [node_map2[n] for n in nodes] for pos, nodes in next_layer.cout_portset.items()},
     }
+    return in_portset, out_portset, cout_portset
 
+
+def _build_coordinate_gid_mapping(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> dict[PhysCoordGlobal3D, QubitGroupIdGlobal]:
+    """Build coordinate to group ID mapping."""
     new_coord2gid: dict[PhysCoordGlobal3D, QubitGroupIdGlobal] = {}
     for _pos, cube in [*cgraph.cubes_.items(), *next_layer.cubes_.items()]:
         new_coord2gid.update({PhysCoordGlobal3D(k): QubitGroupIdGlobal(v) for k, v in cube.coord2gid.items()})
     for _pos, pipe in [*cgraph.pipes_.items(), *next_layer.pipes_.items()]:
         new_coord2gid.update({PhysCoordGlobal3D(k): QubitGroupIdGlobal(v) for k, v in pipe.coord2gid.items()})
+    return new_coord2gid
 
-    # Build seam node pairs by XY identity at z- (prev) and z+ (next) boundaries
-    # Always ON: do not expose any toggle; connect only when temporal pipes exist.
-    allowed_gid_pairs: set[tuple[QubitGroupIdGlobal, QubitGroupIdGlobal]] = set()
 
-    for p in pipes:
-        if hasattr(p, "source") and p.source and hasattr(p, "sink") and p.sink:
-            allowed_gid_pairs.add(
-                (
-                    QubitGroupIdGlobal(cgraph.cubes_[p.source].get_tiling_id()),
-                    QubitGroupIdGlobal(next_layer.cubes_[p.sink].get_tiling_id()),
-                )
-            )
-        for source in next_layer.get_boundary_nodes(face="z-", depth=[-1])["data"]:
-            sink_coord = PhysCoordGlobal3D((source[0], source[1], source[2] - 1))
-
-            source_gid = new_coord2gid.get(PhysCoordGlobal3D(source))
-            sink_gid = new_coord2gid.get(sink_coord)
-
-            if is_allowed_pair(source_gid, sink_gid, allowed_gid_pairs):
-                source_node = new_coord2node.get(PhysCoordGlobal3D(source))
-                sink_node = new_coord2node.get(sink_coord)
-                new_graph.add_physical_edge(source_node, sink_node)
-
-    # Update accumulators at the new layer's z- boundary (ancillas)
-    # Use next_layer boundary (local ids remapped earlier) and the composed graph.
+def _update_accumulators(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, new_graph) -> None:
+    """Update accumulators at layer boundaries."""
     try:
         z_minus_ancillas = []
         bn = next_layer.get_boundary_nodes(face="z-", depth=[0])
-        # collect anchor node ids for ancilla X/Z
+
+        # Collect anchor node IDs for ancilla X/Z
         for c in bn.get("xcheck", []):
             nid = next_layer.coord2node.get(c)
             if nid is not None:
@@ -1064,22 +1040,62 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
             if nid is not None:
                 z_minus_ancillas.append(nid)
 
+        # Update accumulators
         for anchor in z_minus_ancillas:
-            new_schedule = cgraph.schedule
-            new_parity_acc = cgraph.parity
-            new_flow_acc = cgraph.flow
-            # Monotone updates (assertions inside ensure non-decreasing)
-            # Gating argument removed: always operate on the composed graph.
-            new_schedule.update_at(anchor, new_graph)
-            new_parity_acc.update_at(anchor, new_graph)
-            new_flow_acc.update_at(anchor, new_graph)
-        # assign back (no-op if same instances)
-        cgraph.schedule = new_schedule
-        cgraph.parity = new_parity_acc
-        cgraph.flow = new_flow_acc
+            cgraph.schedule.update_at(anchor, new_graph)
+            cgraph.parity.update_at(anchor, new_graph)
+            cgraph.flow.update_at(anchor, new_graph)
     except (ValueError, KeyError, AttributeError):
-        # Be tolerant: boundary queries are best-effort at this milestone
-        cgraph.schedule = cgraph.schedule
+        pass  # Be tolerant: boundary queries are best-effort
+
+
+def _setup_temporal_connections(
+    pipes: list, cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, new_graph, new_coord2node, new_coord2gid
+) -> None:
+    """Setup temporal connections between layers."""
+    allowed_gid_pairs: set[tuple[QubitGroupIdGlobal, QubitGroupIdGlobal]] = set()
+
+    for p in pipes:
+        if hasattr(p, "source") and p.source and hasattr(p, "sink") and p.sink:
+            allowed_gid_pairs.add((
+                QubitGroupIdGlobal(cgraph.cubes_[p.source].get_tiling_id()),
+                QubitGroupIdGlobal(next_layer.cubes_[p.sink].get_tiling_id()),
+            ))
+
+    for source in next_layer.get_boundary_nodes(face="z-", depth=[-1])["data"]:
+        sink_coord = PhysCoordGlobal3D((source[0], source[1], source[2] - 1))
+        source_gid = new_coord2gid.get(PhysCoordGlobal3D(source))
+        sink_gid = new_coord2gid.get(sink_coord)
+
+        if is_allowed_pair(source_gid, sink_gid, allowed_gid_pairs):
+            source_node = new_coord2node.get(PhysCoordGlobal3D(source))
+            sink_node = new_coord2node.get(sink_coord)
+            if source_node is not None and sink_node is not None:
+                new_graph.add_physical_edge(source_node, sink_node)
+
+
+def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pipes: list[RHGPipe]) -> CompiledRHGCanvas:
+    """Compose the compiled canvas with the next temporal layer."""
+    if cgraph.global_graph is None:
+        return _create_first_layer_canvas(next_layer)
+
+    # Compose graphs and remap
+    new_graph, node_map1, node_map2 = _compose_graphs_sequentially(cgraph.global_graph, next_layer.local_graph)
+    cgraph = cgraph.remap_nodes(node_map1)
+    _remap_layer_mappings(next_layer, node_map2)
+
+    # Build merged mappings
+    new_coord2node = _build_merged_coord2node(cgraph, next_layer)
+    in_portset, out_portset, cout_portset = _remap_temporal_portsets(cgraph, next_layer, node_map1, node_map2)
+    new_coord2gid = _build_coordinate_gid_mapping(cgraph, next_layer)
+
+    # Setup temporal connections
+    _setup_temporal_connections(pipes, cgraph, next_layer, new_graph, new_coord2node, new_coord2gid)
+
+    new_layers = [*cgraph.layers, next_layer]
+
+    # Update accumulators
+    _update_accumulators(cgraph, next_layer, new_graph)
 
     # Merge schedule, flow, parity
     new_schedule = cgraph.schedule.compose_sequential(next_layer.schedule)
@@ -1116,5 +1132,5 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         schedule=new_schedule,
         flow=merged_flow,
         parity=new_parity,
-        zlist=[*list(getattr(cgraph, "zlist", [])), new_z],
+        zlist=[*list(getattr(cgraph, "zlist", [])), next_layer.z],
     )
