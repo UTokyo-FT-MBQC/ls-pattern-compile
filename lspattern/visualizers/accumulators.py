@@ -3,29 +3,18 @@ from __future__ import annotations
 import contextlib
 from typing import TYPE_CHECKING, Literal
 
+import matplotlib.axes
+import matplotlib.figure
+import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+from lspattern.accumulator import DetectorAccumulator
+from lspattern.visualizers.plotly_temporallayer import visualize_temporal_layer_plotly
+from lspattern.visualizers.temporallayer import visualize_temporal_layer
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
-
-    import matplotlib.axes
-    import matplotlib.figure
-    import plotly.graph_objects as go
-
-
-def _ensure_mpl() -> None:
-    try:
-        import matplotlib.pyplot as plt  # noqa: F401
-        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
-    except Exception as e:  # pragma: no cover
-        msg = "matplotlib is required for accumulator visualizers.\nInstall via `pip install matplotlib`."
-        raise RuntimeError(msg) from e
-
-
-def _ensure_plotly() -> None:
-    try:
-        import plotly.graph_objects as go  # noqa: F401
-    except Exception as e:  # pragma: no cover
-        msg = "plotly is required for accumulator visualizers.\nInstall via `pip install plotly`."
-        raise RuntimeError(msg) from e
 
 
 # Unified colors (match Plotly temporallayer visualizer palette)
@@ -47,10 +36,6 @@ def visualize_parity_mpl(
     show: bool = True,
     ax: matplotlib.axes.Axes | None = None,
 ) -> matplotlib.axes.Axes:
-    _ensure_mpl()
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
-
     node2coord: dict[int, Sequence[int]] = layer.node2coord or {}
     par = layer.parity
 
@@ -111,10 +96,6 @@ def visualize_flow_mpl(
     show: bool = True,
     ax: matplotlib.axes.Axes | None = None,
 ) -> matplotlib.axes.Axes:
-    _ensure_mpl()
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
-
     node2coord: dict[int, Sequence[int]] = layer.node2coord or {}
     flow = layer.flow
 
@@ -176,9 +157,6 @@ def visualize_schedule_mpl(
     show: bool = True,
     ax: matplotlib.axes.Axes | None = None,
 ) -> matplotlib.axes.Axes:
-    _ensure_mpl()
-    import matplotlib.pyplot as plt
-
     sched = layer.schedule.schedule if getattr(layer, "schedule", None) else {}
     node2coord: dict[int, Sequence[int]] = layer.node2coord or {}
 
@@ -236,15 +214,6 @@ def visualize_detectors_mpl(
     show: bool = True,
     ax: matplotlib.axes.Axes | None = None,
 ) -> matplotlib.axes.Axes:
-    _ensure_mpl()
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
-
-    # lazy import to avoid circular
-    try:
-        from lspattern.accumulator import DetectorAccumulator
-    except Exception:  # pragma: no cover
-        DetectorAccumulator = None  # type: ignore
 
     node2coord: dict[int, Sequence[int]] = layer.node2coord or {}
 
@@ -261,7 +230,7 @@ def visualize_detectors_mpl(
     ax.set_axis_off()
 
     # Build detector accumulator on the fly if not provided
-    if detector is None and DetectorAccumulator is not None:
+    if detector is None:
         det = DetectorAccumulator()
         ancillas = [n for n, r in layer.node2role.items() if str(r).startswith("ancilla")]
         for a in ancillas:
@@ -308,10 +277,6 @@ def visualize_temporal_layer_2x2_mpl(
     figsize: tuple[int, int] = (12, 9),
     dpi: int = 120,
 ) -> matplotlib.figure.Figure:
-    _ensure_mpl()
-    import matplotlib.pyplot as plt
-
-    from lspattern.visualizers.temporallayer import visualize_temporal_layer
 
     fig = plt.figure(figsize=figsize, dpi=dpi)
     ax11 = fig.add_subplot(221, projection="3d")
@@ -340,9 +305,6 @@ def visualize_parity_plotly(
     *,
     kind: Literal["both", "x", "z"] = "both",
 ) -> go.Figure:
-    _ensure_plotly()
-    import plotly.graph_objects as go
-
     node2coord: dict[int, Sequence[int]] = layer.node2coord or {}
     par = layer.parity
 
@@ -390,9 +352,6 @@ def visualize_flow_plotly(
     kind: Literal["both", "x", "z"] = "both",
     max_edges: int | None = None,
 ) -> go.Figure:
-    _ensure_plotly()
-    import plotly.graph_objects as go
-
     node2coord: dict[int, Sequence[int]] = layer.node2coord or {}
     flow = layer.flow
 
@@ -447,9 +406,6 @@ def visualize_schedule_plotly(
     mode: Literal["hist", "slices"] = "hist",
     times: list[int] | None = None,
 ) -> go.Figure:
-    _ensure_plotly()
-    import plotly.graph_objects as go
-
     sched = layer.schedule.schedule if getattr(layer, "schedule", None) else {}
     node2coord: dict[int, Sequence[int]] = layer.node2coord or {}
 
@@ -492,17 +448,10 @@ def visualize_schedule_plotly(
 
 
 def visualize_detectors_plotly(layer, *, detector=None) -> go.Figure:
-    _ensure_plotly()
-    import plotly.graph_objects as go
-
-    try:
-        from lspattern.accumulator import DetectorAccumulator
-    except Exception:  # pragma: no cover
-        DetectorAccumulator = None  # type: ignore
 
     node2coord: dict[int, Sequence[int]] = layer.node2coord or {}
 
-    if detector is None and DetectorAccumulator is not None:
+    if detector is None:
         det = DetectorAccumulator()
         ancillas = [n for n, r in layer.node2role.items() if str(r).startswith("ancilla")]
         for a in ancillas:
@@ -560,10 +509,6 @@ def visualize_detectors_plotly(layer, *, detector=None) -> go.Figure:
 
 
 def visualize_temporal_layer_2x2_plotly(layer) -> go.Figure:
-    _ensure_plotly()
-    from plotly.subplots import make_subplots
-
-    from lspattern.visualizers.plotly_temporallayer import visualize_temporal_layer_plotly
 
     fig = make_subplots(
         rows=2,

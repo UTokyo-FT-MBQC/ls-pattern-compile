@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import plotly.graph_objects as go
+
+from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z, is_data
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
-
-    import plotly.graph_objects as go
 
 
 def visualize_temporal_layer_plotly(
@@ -43,14 +45,6 @@ def visualize_temporal_layer_plotly(
     RuntimeError
         If plotly is not installed.
     """
-    try:
-        import plotly.graph_objects as go
-    except Exception as e:  # pragma: no cover
-        msg = "plotly is required for visualize_temporal_layer_plotly.\nInstall via `pip install plotly`."
-        raise RuntimeError(msg) from e
-
-    # Lazy import parity helpers
-    from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z, is_data
 
     node2coord: dict[int, tuple[int, int, int]] = layer.node2coord or {}
     g = layer.local_graph
