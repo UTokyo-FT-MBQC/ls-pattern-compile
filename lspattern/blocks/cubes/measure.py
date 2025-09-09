@@ -24,7 +24,7 @@ class _MeasureBase(RHGBlock):
 
     def __init__(self, logical: int, basis: str) -> None:
         self.logical = logical
-        self.basis = PlannerMeasBasis(Plane.XY, 0.0) if basis == "X" else PlannerMeasBasis(Plane.ZX, 0.0)
+        self.basis = PlannerMeasBasis(Plane.XY, 0.0) if basis == "X" else PlannerMeasBasis(Plane.XZ, 0.0)
 
     def emit(self, canvas: RHGCanvas) -> None:
         # This detailed implementation is out of scope for this milestone.

@@ -139,7 +139,10 @@ class BaseAccumulator:
         if not hasattr(graph, "neighbors"):
             return set()
         try:
-            return set(graph.neighbors(int(node)))  # pyright: ignore[reportAttributeAccessIssue]
+            neighbors_method = getattr(graph, "neighbors", None)
+            if neighbors_method:
+                return set(neighbors_method(int(node)))
+            return set()
         except (AttributeError, TypeError, ValueError):
             return set()
 
