@@ -9,9 +9,11 @@ from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z, is_data
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from lspattern.canvas import TemporalLayer
 
-def visualize_temporal_layer_plotly(
-    layer,
+
+def visualize_temporal_layer_plotly(  # noqa: C901
+    layer: TemporalLayer,
     *,
     node_roles: dict[int, str] | None = None,
     ancilla_mode: str = "both",  # 'both' | 'x' | 'z'

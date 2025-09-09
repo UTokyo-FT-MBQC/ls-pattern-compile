@@ -16,6 +16,8 @@ from lspattern.visualizers.temporallayer import visualize_temporal_layer
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from lspattern.canvas import TemporalLayer
+
 
 # Unified colors (match Plotly temporallayer visualizer palette)
 COLOR_DATA = "white"
@@ -27,8 +29,8 @@ COLOR_EDGE = "#555555"
 # ----------------------
 # Matplotlib visualizers
 # ----------------------
-def visualize_parity_mpl(
-    layer,
+def visualize_parity_mpl(  # noqa: C901
+    layer: TemporalLayer,
     *,
     kind: Literal["both", "x", "z"] = "both",
     annotate: bool = False,
@@ -87,8 +89,8 @@ def visualize_parity_mpl(
     return ax
 
 
-def visualize_flow_mpl(
-    layer,
+def visualize_flow_mpl(  # noqa: C901
+    layer: TemporalLayer,
     *,
     kind: Literal["both", "x", "z"] = "both",
     max_edges: int | None = None,
@@ -149,7 +151,7 @@ def visualize_flow_mpl(
 
 
 def visualize_schedule_mpl(
-    layer,
+    layer: TemporalLayer,
     *,
     mode: Literal["hist", "slices"] = "hist",
     times: list[int] | None = None,
@@ -205,16 +207,15 @@ def visualize_schedule_mpl(
     return ax
 
 
-def visualize_detectors_mpl(
-    layer,
+def visualize_detectors_mpl(  # noqa: C901
+    layer: TemporalLayer,
     *,
-    detector=None,
+    detector: DetectorAccumulator | None = None,
     annotate: bool = False,
     save_path: str | None = None,
     show: bool = True,
     ax: matplotlib.axes.Axes | None = None,
 ) -> matplotlib.axes.Axes:
-
     node2coord: dict[int, Sequence[int]] = layer.node2coord or {}
 
     created_fig = False
@@ -270,14 +271,13 @@ def visualize_detectors_mpl(
 
 
 def visualize_temporal_layer_2x2_mpl(
-    layer,
+    layer: TemporalLayer,
     *,
     save_path: str | None = None,
     show: bool = True,
     figsize: tuple[int, int] = (12, 9),
     dpi: int = 120,
 ) -> matplotlib.figure.Figure:
-
     fig = plt.figure(figsize=figsize, dpi=dpi)
     ax11 = fig.add_subplot(221, projection="3d")
     ax12 = fig.add_subplot(222, projection="3d")
@@ -301,7 +301,7 @@ def visualize_temporal_layer_2x2_mpl(
 # Plotly visualizers
 # -------------------
 def visualize_parity_plotly(
-    layer,
+    layer: TemporalLayer,
     *,
     kind: Literal["both", "x", "z"] = "both",
 ) -> go.Figure:
@@ -347,7 +347,7 @@ def visualize_parity_plotly(
 
 
 def visualize_flow_plotly(
-    layer,
+    layer: TemporalLayer,
     *,
     kind: Literal["both", "x", "z"] = "both",
     max_edges: int | None = None,
@@ -401,7 +401,7 @@ def visualize_flow_plotly(
 
 
 def visualize_schedule_plotly(
-    layer,
+    layer: TemporalLayer,
     *,
     mode: Literal["hist", "slices"] = "hist",
     times: list[int] | None = None,
@@ -447,8 +447,7 @@ def visualize_schedule_plotly(
     return fig
 
 
-def visualize_detectors_plotly(layer, *, detector=None) -> go.Figure:
-
+def visualize_detectors_plotly(layer: TemporalLayer, *, detector: DetectorAccumulator | None = None) -> go.Figure:
     node2coord: dict[int, Sequence[int]] = layer.node2coord or {}
 
     if detector is None:
@@ -508,8 +507,7 @@ def visualize_detectors_plotly(layer, *, detector=None) -> go.Figure:
     return fig
 
 
-def visualize_temporal_layer_2x2_plotly(layer) -> go.Figure:
-
+def visualize_temporal_layer_2x2_plotly(layer: TemporalLayer) -> go.Figure:
     fig = make_subplots(
         rows=2,
         cols=2,

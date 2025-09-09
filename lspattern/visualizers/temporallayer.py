@@ -10,10 +10,14 @@ from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z
 
 if TYPE_CHECKING:
     import matplotlib.axes
+    from matplotlib.figure import Figure
+
+    from lspattern.canvas import TemporalLayer
+    from lspattern.mytype import PhysCoordGlobal3D
 
 
-def visualize_temporal_layer(
-    layer,
+def visualize_temporal_layer(  # noqa: C901
+    layer: TemporalLayer,
     *,
     indicated_nodes: set[int] | None = None,
     input_nodes: set[int] | None = None,
@@ -26,7 +30,7 @@ def visualize_temporal_layer(
     dpi: int = 120,
     show_axes: bool = True,
     show_grid: bool = True,
-) -> matplotlib.axes.Axes:
+) -> tuple[Figure, matplotlib.axes.Axes]:
     """Visualize a single TemporalLayer in 3D with parity-based coloring.
 
     Parameters
@@ -46,7 +50,7 @@ def visualize_temporal_layer(
     dpi : int
         Matplotlib figure DPI.
     """
-    node2coord: dict[int, tuple[int, int, int]] = layer.node2coord or {}
+    node2coord: dict[int, PhysCoordGlobal3D] = {int(k): v for k, v in (layer.node2coord or {}).items()}
 
     created_fig = False
     if ax is None:
@@ -54,8 +58,12 @@ def visualize_temporal_layer(
         ax = fig.add_subplot(111, projection="3d")
         created_fig = True
     else:
-        fig = ax.get_figure()
-    ax.set_box_aspect((1, 1, 1))
+        fig_temp = ax.get_figure()
+        if fig_temp is None:
+            msg = "Axes object has no associated figure"
+            raise ValueError(msg)
+        fig = fig_temp  # type: ignore[assignment]  # matplotlib typing is imprecise
+    ax.set_box_aspect((1, 1, 1))  # type: ignore[arg-type]
     # 軸とグリッドの表示制御(デフォルトON)
     if show_axes:
         ax.set_axis_on()
@@ -64,8 +72,8 @@ def visualize_temporal_layer(
     ax.grid(bool(show_grid))
 
     # 役割ベースでグルーピングして凡例を表示(z 偶奇による分岐は行わない)
-    roles: dict[int, str] = layer.node2role or {}
-    groups: dict[str, dict[str, list]] = {
+    roles: dict[int, str] = {int(k): v for k, v in (layer.node2role or {}).items()}
+    groups: dict[str, dict[str, list[int]]] = {
         "data": {"x": [], "y": [], "z": []},
         "ancilla_x": {"x": [], "y": [], "z": []},
         "ancilla_z": {"x": [], "y": [], "z": []},
@@ -96,7 +104,7 @@ def visualize_temporal_layer(
             ax.scatter(
                 pts["x"],
                 pts["y"],
-                pts["z"],
+                zs=pts["z"],
                 c=color,
                 edgecolors="black",
                 s=50,
@@ -123,7 +131,7 @@ def visualize_temporal_layer(
         for nid in indicated_nodes:
             if nid in node2coord:
                 x, y, z = node2coord[nid]
-                ax.scatter(x, y, z, c="black", edgecolors="black", s=55)
+                ax.scatter(x, y, z, c="black", edgecolors="black", s=55)  # type: ignore[misc]
 
     # Highlight input/output nodes with legend
     if input_nodes:
@@ -134,7 +142,7 @@ def visualize_temporal_layer(
             ax.scatter(
                 xin,
                 yin,
-                zin,
+                zs=zin,
                 s=70,
                 facecolors="white",
                 edgecolors="#e74c3c",  # softer red
@@ -150,7 +158,7 @@ def visualize_temporal_layer(
             ax.scatter(
                 xout,
                 yout,
-                zout,
+                zs=zout,
                 s=70,
                 c="#e74c3c",  # softer red fill
                 edgecolors="#c0392b",  # darker red edge
@@ -162,11 +170,11 @@ def visualize_temporal_layer(
     # Optional annotations
     if annotate:
         for nid, (x, y, z) in node2coord.items():
-            ax.text(x, y, z, str(nid), color="black", fontsize=8)
+            ax.text(x, y, z, str(nid), fontsize=8)  # type: ignore[arg-type]
 
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
-    ax.set_zlabel("Z")
+    ax.set_zlabel("Z")  # type: ignore[union-attr]
     plt.legend()
     plt.tight_layout()
 
@@ -188,10 +196,9 @@ def visualize_temporal_layer(
                 plt.show()
             else:
                 print("Display not available; use save_path to save the figure.")
-    elif created_fig is False:
-        # When embedding into external figure, do not manage closing.
-        pass
-    else:
+    elif created_fig:
+        # If we created the figure but show is False, close it
         plt.close(fig)
+    # When ax was provided, don't manage the figure lifecycle
 
     return fig, ax
