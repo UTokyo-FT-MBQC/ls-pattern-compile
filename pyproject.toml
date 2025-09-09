@@ -114,9 +114,4 @@ ignore_missing_imports = true
 files = ["lspattern"]
 
 [tool.pyright]
-include = ["lspattern", "tests", "examples"]
-reportUnknownArgumentType = "information"
-reportUnknownLambdaType = "information"
-reportUnknownMemberType = "information"
-reportUnknownParameterType = "information"
-reportUnknownVariableType = "information"
+include = ["lspattern"]
