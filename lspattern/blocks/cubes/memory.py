@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from typing import ClassVar
+
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
 
 
 class MemoryCubeSkeleton(RHGCubeSkeleton):
     """Skeleton for memory (time-extension) blocks in cube-shaped RHG structures."""
 
-    name: str = __qualname__
+    name: ClassVar[str] = "MemoryCubeSkeleton"
 
     def to_block(self) -> MemoryCube:
         """Materialize to a MemoryCube (template evaluated, no local graph yet)."""
@@ -28,7 +30,7 @@ class MemoryCubeSkeleton(RHGCubeSkeleton):
 
 
 class MemoryCube(RHGCube):
-    name: str = __qualname__
+    name: ClassVar[str] = "MemoryCube"
 
     def set_in_ports(self) -> None:
         """Memory: 全 data(z- 側相当)を入力ポートに割当てる。"""
