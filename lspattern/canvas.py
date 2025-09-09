@@ -118,7 +118,8 @@ class TemporalLayer:
 
     def add_pipes(self, pipes: dict[PipeCoordGlobal3D, RHGPipe]) -> None:
         """Add multiple pipes to this temporal layer."""
-        for (source, sink), pipe in pipes.items():
+        for pipe_coord, pipe in pipes.items():
+            source, sink = pipe_coord
             self.add_pipe(source, sink, pipe)
 
     def add_cube(self, pos: PatchCoordGlobal3D, cube: RHGCube) -> None:
@@ -133,8 +134,9 @@ class TemporalLayer:
         spatial_pipe: RHGPipe,
     ) -> None:
         """Register a spatial pipe within this layer between `source` and `sink`."""
-        self.pipes_[source, sink] = spatial_pipe
-        self.lines.append((source, sink))
+        pipe_coord: PipeCoordGlobal3D = (source, sink)  # type: ignore[assignment]
+        self.pipes_[pipe_coord] = spatial_pipe
+        self.lines.append(pipe_coord)
 
     def _update_qubit_group_index(self) -> None:
         """Update qubit group index mapping.
@@ -164,13 +166,14 @@ class TemporalLayer:
         for pipe in self.pipes_.values():
             uf.add(QubitGroupIdGlobal(pipe.get_tiling_id()))
         # 2) Union-Find: Unify cube<->pipe<->cube per spatial pipe, and record allowed cube pairs
-        for source, sink in self.pipes_:
+        for pipe_coord in self.pipes_:
+            source, sink = pipe_coord
             uf.union(
                 QubitGroupIdGlobal(self.cubes_[source].get_tiling_id()),
-                QubitGroupIdGlobal(self.pipes_[source, sink].get_tiling_id()),
+                QubitGroupIdGlobal(self.pipes_[pipe_coord].get_tiling_id()),
             )
             uf.union(
-                QubitGroupIdGlobal(self.pipes_[source, sink].get_tiling_id()),
+                QubitGroupIdGlobal(self.pipes_[pipe_coord].get_tiling_id()),
                 QubitGroupIdGlobal(self.cubes_[sink].get_tiling_id()),
             )
         # 3) set_tiling_id
@@ -203,18 +206,18 @@ class TemporalLayer:
         def _remap_current_regs(node_map: dict[int, int]) -> None:
             if not node_map:
                 return
-            self.node2coord = {node_map.get(n, n): c for n, c in self.node2coord.items()}
-            self.coord2node = {c: node_map.get(n, n) for c, n in self.coord2node.items()}
-            self.node2role = {node_map.get(n, n): r for n, r in self.node2role.items()}
+            self.node2coord = {NodeIdLocal(node_map.get(n, n)): c for n, c in self.node2coord.items()}
+            self.coord2node = {c: NodeIdLocal(node_map.get(n, n)) for c, n in self.coord2node.items()}
+            self.node2role = {NodeIdLocal(node_map.get(n, n)): r for n, r in self.node2role.items()}
             # Portsets and flat lists
             for p, nodes in list(self.in_portset.items()):
-                self.in_portset[p] = [node_map.get(n, n) for n in nodes]
+                self.in_portset[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
             for p, nodes in list(self.out_portset.items()):
-                self.out_portset[p] = [node_map.get(n, n) for n in nodes]
+                self.out_portset[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
             for p, nodes in list(self.cout_portset.items()):
-                self.cout_portset[p] = [node_map.get(n, n) for n in nodes]
-            self.in_ports = [node_map.get(n, n) for n in self.in_ports]
-            self.out_ports = [node_map.get(n, n) for n in self.out_ports]
+                self.cout_portset[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
+            self.in_ports = [NodeIdLocal(node_map.get(n, n)) for n in self.in_ports]
+            self.out_ports = [NodeIdLocal(node_map.get(n, n)) for n in self.out_ports]
 
         g: GraphState | None = None
         self.node2coord = {}
@@ -254,26 +257,29 @@ class TemporalLayer:
                     int(coord[1]),
                     int(coord[2]) + z_shift,
                 )
-                c_new = (x, y, z)
-                self.node2coord[new_n] = c_new
-                self.coord2node[c_new] = new_n
+                c_new = PhysCoordGlobal3D((x, y, z))
+                self.node2coord[NodeIdLocal(new_n)] = c_new
+                self.coord2node[c_new] = NodeIdLocal(new_n)
             for old_n, role in blk.node2role.items():
                 new_n = node_map2.get(old_n)
                 if new_n is not None:
-                    self.node2role[new_n] = role
+                    self.node2role[NodeIdLocal(new_n)] = role
 
             # Ports (if any) per position
             if getattr(blk, "in_ports", None):
-                self.in_portset[pos] = [node_map2[n] for n in blk.in_ports if n in node_map2]
+                self.in_portset[pos] = [NodeIdLocal(node_map2[n]) for n in blk.in_ports if n in node_map2]
                 self.in_ports.extend(self.in_portset[pos])
             if getattr(blk, "out_ports", None):
-                self.out_portset[pos] = [node_map2[n] for n in blk.out_ports if n in node_map2]
+                self.out_portset[pos] = [NodeIdLocal(node_map2[n]) for n in blk.out_ports if n in node_map2]
                 self.out_ports.extend(self.out_portset[pos])
             if getattr(blk, "cout_ports", None):
-                self.cout_portset[pos] = [node_map2[n] for s in blk.cout_ports for n in s if n in node_map2]
+                self.cout_portset[pos] = [
+                    NodeIdLocal(node_map2[n]) for s in blk.cout_ports for n in s if n in node_map2
+                ]
 
         # Compose pipe graphs (spatial pipes in this layer)
-        for (source, _sink), pipe in self.pipes_.items():
+        for pipe_coord, pipe in self.pipes_.items():
+            source, _sink = pipe_coord
             d_val = int(pipe.d)
             z_base = int(source[2]) * (2 * d_val)
 
@@ -307,13 +313,13 @@ class TemporalLayer:
                     int(coord[1]),
                     int(coord[2]) + z_shift,
                 )
-                c_new = (x, y, z)
-                self.node2coord[new_n] = c_new
-                self.coord2node[c_new] = new_n
+                c_new = PhysCoordGlobal3D((x, y, z))
+                self.node2coord[NodeIdLocal(new_n)] = c_new
+                self.coord2node[c_new] = NodeIdLocal(new_n)
             for old_n, role in pipe.node2role.items():
                 new_n = node_map2.get(old_n)
                 if new_n is not None:
-                    self.node2role[new_n] = role
+                    self.node2role[NodeIdLocal(new_n)] = role
 
         # T37: Add CZ edges across cube↔pipe seams within the same temporal layer (same z)
         # Only connect (x,y,z)↔(x+dx,y+dy,z) for diagonal DIRECTIONS3D if
@@ -356,7 +362,8 @@ class TemporalLayer:
                 if dz != 0:
                     continue  # we only connect within the same z plane
                 xv, yv, zv = xu + int(dx), yu + int(dy), zu
-                v = self.coord2node.get((xv, yv, zv))
+                coord_v = PhysCoordGlobal3D((xv, yv, zv))
+                v = self.coord2node.get(coord_v)
                 if v is None or v == u:
                     continue
                 xy_v = (xv, yv)
@@ -682,7 +689,8 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
         """
         # Iterate spatial pipes and trim facing boundaries of adjacent cubes.
         # Pipes are keyed by ((x,y,z),(x,y,z)); detect spatial adjacency by dx/dy.
-        for (u, v), _pipe in list(self.pipes_.items()):
+        for pipe_coord, _pipe in list(self.pipes_.items()):
+            u, v = pipe_coord
             ux, uy, uz = u
             vx, vy, vz = v
             # Temporal pipes are not handled here
@@ -809,7 +817,8 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
                 pipes: list[RHGPipe] = []
             else:
                 pipes = []
-                for (u, v), pipe in self.pipes_.items():
+                for pipe_coord, pipe in self.pipes_.items():
+                    u, v = pipe_coord
                     if u[2] == prev_z and v[2] == z:
                         # 明示的に端点情報を埋めて渡す(skeleton->block で保持されないため)
                         with suppress(Exception):
@@ -871,10 +880,10 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         return CompiledRHGCanvas(
             layers=[next_layer],
             global_graph=next_layer.local_graph,
-            coord2node=next_layer.coord2node,
-            in_portset=next_layer.in_portset,
-            out_portset=next_layer.out_portset,
-            cout_portset=next_layer.cout_portset,
+            coord2node={k: int(v) for k, v in next_layer.coord2node.items()},  # type: ignore[misc]
+            in_portset={k: [int(v) for v in vs] for k, vs in next_layer.in_portset.items()},  # type: ignore[misc]
+            out_portset={k: [int(v) for v in vs] for k, vs in next_layer.out_portset.items()},  # type: ignore[misc]
+            cout_portset={k: [int(v) for v in vs] for k, vs in next_layer.cout_portset.items()},  # type: ignore[misc]
             schedule=next_layer.schedule,
             zlist=[next_layer.z],
             cubes_=next_layer.cubes_,
@@ -957,14 +966,14 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
             )
         )
         for source in next_layer.get_boundary_nodes(face="z-", depth=[-1])["data"]:
-            sink = (source[0], source[1], source[2] - 1)
+            sink_coord = PhysCoordGlobal3D((source[0], source[1], source[2] - 1))
 
-            source_gid = new_coord2gid.get(source)
-            sink_gid = new_coord2gid.get(sink)
+            source_gid = new_coord2gid.get(PhysCoordGlobal3D(source))
+            sink_gid = new_coord2gid.get(sink_coord)
 
             if is_allowed_pair(source_gid, sink_gid, allowed_gid_pairs):
-                source_node = new_coord2node.get(source)
-                sink_node = new_coord2node.get(sink)
+                source_node = new_coord2node.get(PhysCoordGlobal3D(source))
+                sink_node = new_coord2node.get(sink_coord)
                 new_graph.add_physical_edge(source_node, sink_node)
 
     # Update accumulators at the new layer's z- boundary (ancillas)
@@ -1015,7 +1024,10 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         zflow_combined.setdefault(src, set()).update(dsts)
     # No explicit seam corrections here; physical edges were added when pipes exist.
 
-    merged_flow = FlowAccumulator(xflow=xflow_combined, zflow=zflow_combined)
+    # Convert int keys to NodeIdLocal for FlowAccumulator
+    xflow_typed = {NodeIdLocal(k): {NodeIdLocal(v) for v in vs} for k, vs in xflow_combined.items()}
+    zflow_typed = {NodeIdLocal(k): {NodeIdLocal(v) for v in vs} for k, vs in zflow_combined.items()}
+    merged_flow = FlowAccumulator(xflow=xflow_typed, zflow=zflow_typed)
     new_parity = ParityAccumulator(
         x_checks=cgraph.parity.x_checks + next_layer.parity.x_checks,
         z_checks=cgraph.parity.z_checks + next_layer.parity.z_checks,
@@ -1024,10 +1036,10 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
     return CompiledRHGCanvas(
         layers=new_layers,
         global_graph=new_graph,
-        coord2node=new_coord2node,
-        in_portset=in_portset,
-        out_portset=out_portset,
-        cout_portset=cout_portset,
+        coord2node={k: int(v) for k, v in new_coord2node.items()},  # type: ignore[misc]
+        in_portset={k: [int(v) for v in vs] for k, vs in in_portset.items()},  # type: ignore[misc]
+        out_portset={k: [int(v) for v in vs] for k, vs in out_portset.items()},  # type: ignore[misc]
+        cout_portset={k: [int(v) for v in vs] for k, vs in cout_portset.items()},  # type: ignore[misc]
         schedule=new_schedule,
         flow=merged_flow,
         parity=new_parity,
