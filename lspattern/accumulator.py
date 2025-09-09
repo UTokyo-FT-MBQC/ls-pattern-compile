@@ -142,7 +142,7 @@ class BaseAccumulator:
             neighbors_method = getattr(graph, "neighbors", None)
             if neighbors_method:
                 return set(neighbors_method(int(node)))
-            return set()
+            return set()  # noqa: TRY300
         except (AttributeError, TypeError, ValueError):
             return set()
 
