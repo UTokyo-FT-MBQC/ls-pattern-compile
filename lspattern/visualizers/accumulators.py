@@ -10,12 +10,11 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from lspattern.accumulator import DetectorAccumulator
+from lspattern.mytype import NodeIdLocal
 from lspattern.visualizers.plotly_temporallayer import visualize_temporal_layer_plotly
 from lspattern.visualizers.temporallayer import visualize_temporal_layer
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-
     from lspattern.canvas import TemporalLayer
 
 
@@ -38,7 +37,7 @@ def visualize_parity_mpl(  # noqa: C901
     show: bool = True,
     ax: matplotlib.axes.Axes | None = None,
 ) -> matplotlib.axes.Axes:
-    node2coord: dict[int, Sequence[int]] = layer.node2coord or {}
+    node2coord = layer.node2coord or {}
     par = layer.parity
 
     created_fig = False
@@ -47,14 +46,16 @@ def visualize_parity_mpl(  # noqa: C901
         ax = fig.add_subplot(111, projection="3d")
         created_fig = True
     else:
-        fig = ax.get_figure()
+        fig = ax.get_figure()  # type: ignore[assignment]
+        assert fig is not None  # noqa: S101
 
-    ax.set_box_aspect((1, 1, 1))
+    with contextlib.suppress(Exception):
+        ax.set_box_aspect((1, 1, 1))  # type: ignore[arg-type]
     ax.grid(False)
     ax.set_axis_off()
 
     # Draw parity groups as nodes; optionally connect to emphasize grouping
-    def draw_groups(groups: list[set[int]], color: str, label: str) -> None:
+    def draw_groups(groups: list[set[NodeIdLocal]], color: str, label: str) -> None:
         xs: list[float] = []
         ys: list[float] = []
         zs: list[float] = []
@@ -66,7 +67,7 @@ def visualize_parity_mpl(  # noqa: C901
                     ys.append(y)
                     zs.append(z)
         if xs:
-            ax.scatter(xs, ys, zs, c=color, edgecolors="black", s=20, label=label, alpha=0.9)
+            ax.scatter(xs, ys, zs, s=20, c=color, edgecolors="black", label=label, alpha=0.9)  # type: ignore[misc]
 
     if kind in {"both", "x"}:
         draw_groups(par.x_checks, COLOR_X, "Parity X")
@@ -75,7 +76,7 @@ def visualize_parity_mpl(  # noqa: C901
 
     if annotate:
         for nid, (x, y, z) in node2coord.items():
-            ax.text(x, y, z, str(nid), color="black", fontsize=7)
+            ax.text(x, y, z, str(nid), color="black", fontsize=7)  # type: ignore[arg-type]
 
     ax.set_title(f"Parity (z={layer.z})")
     ax.legend()
@@ -98,7 +99,7 @@ def visualize_flow_mpl(  # noqa: C901
     show: bool = True,
     ax: matplotlib.axes.Axes | None = None,
 ) -> matplotlib.axes.Axes:
-    node2coord: dict[int, Sequence[int]] = layer.node2coord or {}
+    node2coord = layer.node2coord or {}
     flow = layer.flow
 
     created_fig = False
@@ -107,14 +108,16 @@ def visualize_flow_mpl(  # noqa: C901
         ax = fig.add_subplot(111, projection="3d")
         created_fig = True
     else:
-        fig = ax.get_figure()
+        fig = ax.get_figure()  # type: ignore[assignment]
+        assert fig is not None  # noqa: S101
 
-    ax.set_box_aspect((1, 1, 1))
+    with contextlib.suppress(Exception):
+        ax.set_box_aspect((1, 1, 1))  # type: ignore[arg-type]
     ax.grid(False)
     ax.set_axis_off()
 
     # Draw edges for flow relations
-    def draw_edges(edges: dict[int, set[int]], color: str, label: str) -> None:
+    def draw_edges(edges: dict[NodeIdLocal, set[NodeIdLocal]], color: str, _label: str) -> None:
         count = 0
         for u, vs in edges.items():
             for v in vs:
@@ -136,7 +139,7 @@ def visualize_flow_mpl(  # noqa: C901
     ys = [node2coord[n][1] for n in node2coord]
     zs = [node2coord[n][2] for n in node2coord]
     if xs:
-        ax.scatter(xs, ys, zs, c=COLOR_DATA, edgecolors="black", s=10, alpha=0.3, label="nodes")
+        ax.scatter(xs, ys, zs, s=10, c=COLOR_DATA, edgecolors="black", alpha=0.3, label="nodes")  # type: ignore[misc]
 
     ax.set_title(f"Flow (z={layer.z})")
     ax.legend()
@@ -160,7 +163,7 @@ def visualize_schedule_mpl(
     ax: matplotlib.axes.Axes | None = None,
 ) -> matplotlib.axes.Axes:
     sched = layer.schedule.schedule if getattr(layer, "schedule", None) else {}
-    node2coord: dict[int, Sequence[int]] = layer.node2coord or {}
+    node2coord = layer.node2coord or {}
 
     created_fig = False
     if ax is None:
@@ -168,7 +171,8 @@ def visualize_schedule_mpl(
         ax = fig.add_subplot(111)
         created_fig = True
     else:
-        fig = ax.get_figure()
+        fig = ax.get_figure()  # type: ignore[assignment]
+        assert fig is not None  # noqa: S101
 
     if mode == "hist":
         ts = sorted(sched.keys())
@@ -186,8 +190,9 @@ def visualize_schedule_mpl(
             xs: list[float] = []
             ys: list[float] = []
             for n in sched.get(t, set()):
-                if n in node2coord:
-                    x, y, _z = node2coord[n]
+                n_local = NodeIdLocal(int(n))
+                if n_local in node2coord:
+                    x, y, _z = node2coord[n_local]
                     xs.append(x)
                     ys.append(y)
             if xs:
@@ -216,7 +221,7 @@ def visualize_detectors_mpl(  # noqa: C901
     show: bool = True,
     ax: matplotlib.axes.Axes | None = None,
 ) -> matplotlib.axes.Axes:
-    node2coord: dict[int, Sequence[int]] = layer.node2coord or {}
+    node2coord = layer.node2coord or {}
 
     created_fig = False
     if ax is None:
@@ -224,16 +229,18 @@ def visualize_detectors_mpl(  # noqa: C901
         ax = fig.add_subplot(111, projection="3d")
         created_fig = True
     else:
-        fig = ax.get_figure()
+        fig = ax.get_figure()  # type: ignore[assignment]
+        assert fig is not None  # noqa: S101
 
-    ax.set_box_aspect((1, 1, 1))
+    with contextlib.suppress(Exception):
+        ax.set_box_aspect((1, 1, 1))  # type: ignore[arg-type]
     ax.grid(False)
     ax.set_axis_off()
 
     # Build detector accumulator on the fly if not provided
     if detector is None:
         det = DetectorAccumulator()
-        ancillas = [n for n, r in layer.node2role.items() if str(r).startswith("ancilla")]
+        ancillas = [int(n) for n, r in layer.node2role.items() if str(r).startswith("ancilla")]
         for a in ancillas:
             det.update_at(a, layer)
     else:
@@ -242,24 +249,26 @@ def visualize_detectors_mpl(  # noqa: C901
     # draw all detectors as edges from anchor to data neighbors
     if det is not None:
         for a, group in det.detectors.items():
-            if a not in node2coord:
+            a_local = NodeIdLocal(a)
+            if a_local not in node2coord:
                 continue
-            x1, y1, z1 = node2coord[a]
+            x1, y1, z1 = node2coord[a_local]
             for n in group:
-                if n not in node2coord:
+                n_local = NodeIdLocal(n)
+                if n_local not in node2coord:
                     continue
-                x2, y2, z2 = node2coord[n]
+                x2, y2, z2 = node2coord[n_local]
                 ax.plot([x1, x2], [y1, y2], [z1, z2], c=COLOR_EDGE, linewidth=1.2, alpha=0.9)
 
     # also scatter anchors and data
     xs = [node2coord[n][0] for n in node2coord]
     ys = [node2coord[n][1] for n in node2coord]
     zs = [node2coord[n][2] for n in node2coord]
-    ax.scatter(xs, ys, zs, c=COLOR_DATA, edgecolors="black", s=10, alpha=0.3, label="nodes")
+    ax.scatter(xs, ys, zs, s=10, c=COLOR_DATA, edgecolors="black", alpha=0.3, label="nodes")  # type: ignore[misc]
 
     if annotate:
         for nid, (x, y, z) in node2coord.items():
-            ax.text(x, y, z, str(nid), color="black", fontsize=7)
+            ax.text(x, y, z, str(nid), color="black", fontsize=7)  # type: ignore[arg-type]
 
     ax.set_title(f"Detectors (z={layer.z})")
 
@@ -305,12 +314,12 @@ def visualize_parity_plotly(
     *,
     kind: Literal["both", "x", "z"] = "both",
 ) -> go.Figure:
-    node2coord: dict[int, Sequence[int]] = layer.node2coord or {}
+    node2coord = layer.node2coord or {}
     par = layer.parity
 
     fig = go.Figure()
 
-    def add_group(groups: list[set[int]], color: str, name: str) -> None:
+    def add_group(groups: list[set[NodeIdLocal]], color: str, name: str) -> None:
         xs: list[float] = []
         ys: list[float] = []
         zs: list[float] = []
@@ -352,17 +361,17 @@ def visualize_flow_plotly(
     kind: Literal["both", "x", "z"] = "both",
     max_edges: int | None = None,
 ) -> go.Figure:
-    node2coord: dict[int, Sequence[int]] = layer.node2coord or {}
+    node2coord = layer.node2coord or {}
     flow = layer.flow
 
     fig = go.Figure()
     count = 0
 
-    def add_edges(edges: dict[int, set[int]], color: str, name: str) -> None:
+    def add_edges(edges: dict[NodeIdLocal, set[NodeIdLocal]], color: str, name: str) -> None:
         nonlocal count
-        edge_x: list[float] = []
-        edge_y: list[float] = []
-        edge_z: list[float] = []
+        edge_x: list[float | None] = []
+        edge_y: list[float | None] = []
+        edge_z: list[float | None] = []
         for u, vs in edges.items():
             for v in vs:
                 if u in node2coord and v in node2coord:
@@ -407,7 +416,7 @@ def visualize_schedule_plotly(
     times: list[int] | None = None,
 ) -> go.Figure:
     sched = layer.schedule.schedule if getattr(layer, "schedule", None) else {}
-    node2coord: dict[int, Sequence[int]] = layer.node2coord or {}
+    node2coord = layer.node2coord or {}
 
     if mode == "hist":
         ts = sorted(sched.keys())
@@ -426,8 +435,9 @@ def visualize_schedule_plotly(
         xs: list[float] = []
         ys: list[float] = []
         for n in sched.get(t, set()):
-            if n in node2coord:
-                x, y, _z = node2coord[n]
+            n_local = NodeIdLocal(int(n))
+            if n_local in node2coord:
+                x, y, _z = node2coord[n_local]
                 xs.append(x)
                 ys.append(y)
         if xs:
@@ -448,11 +458,11 @@ def visualize_schedule_plotly(
 
 
 def visualize_detectors_plotly(layer: TemporalLayer, *, detector: DetectorAccumulator | None = None) -> go.Figure:
-    node2coord: dict[int, Sequence[int]] = layer.node2coord or {}
+    node2coord = layer.node2coord or {}
 
     if detector is None:
         det = DetectorAccumulator()
-        ancillas = [n for n, r in layer.node2role.items() if str(r).startswith("ancilla")]
+        ancillas = [int(n) for n, r in layer.node2role.items() if str(r).startswith("ancilla")]
         for a in ancillas:
             det.update_at(a, layer)
     else:
@@ -460,18 +470,20 @@ def visualize_detectors_plotly(layer: TemporalLayer, *, detector: DetectorAccumu
 
     fig = go.Figure()
     # Edges
-    edge_x: list[float] = []
-    edge_y: list[float] = []
-    edge_z: list[float] = []
+    edge_x: list[float | None] = []
+    edge_y: list[float | None] = []
+    edge_z: list[float | None] = []
     if det is not None:
         for a, group in det.detectors.items():
-            if a not in node2coord:
+            a_local = NodeIdLocal(a)
+            if a_local not in node2coord:
                 continue
-            x1, y1, z1 = node2coord[a]
+            x1, y1, z1 = node2coord[a_local]
             for n in group:
-                if n not in node2coord:
+                n_local = NodeIdLocal(n)
+                if n_local not in node2coord:
                     continue
-                x2, y2, z2 = node2coord[n]
+                x2, y2, z2 = node2coord[n_local]
                 edge_x.extend([x1, x2, None])
                 edge_y.extend([y1, y2, None])
                 edge_z.extend([z1, z2, None])
