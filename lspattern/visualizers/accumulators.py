@@ -1,26 +1,40 @@
 from __future__ import annotations
 
-from typing import Iterable, Literal, Sequence
+import contextlib
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    import matplotlib.axes
+    import matplotlib.figure
+    import plotly.graph_objects as go
 
 
-def _ensure_mpl():
+def _ensure_mpl() -> None:
     try:
         import matplotlib.pyplot as plt  # noqa: F401
         from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
     except Exception as e:  # pragma: no cover
-        raise RuntimeError(
+        msg = (
             "matplotlib is required for accumulator visualizers.\n"
             "Install via `pip install matplotlib`."
+        )
+        raise RuntimeError(
+            msg
         ) from e
 
 
-def _ensure_plotly():
+def _ensure_plotly() -> None:
     try:
         import plotly.graph_objects as go  # noqa: F401
     except Exception as e:  # pragma: no cover
-        raise RuntimeError(
+        msg = (
             "plotly is required for accumulator visualizers.\n"
             "Install via `pip install plotly`."
+        )
+        raise RuntimeError(
+            msg
         ) from e
 
 
@@ -41,8 +55,8 @@ def visualize_parity_mpl(
     annotate: bool = False,
     save_path: str | None = None,
     show: bool = True,
-    ax=None,
-):
+    ax: matplotlib.axes.Axes | None = None,
+) -> matplotlib.axes.Axes:
     _ensure_mpl()
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
@@ -63,7 +77,7 @@ def visualize_parity_mpl(
     ax.set_axis_off()
 
     # Draw parity groups as nodes; optionally connect to emphasize grouping
-    def draw_groups(groups: list[set[int]], color: str, label: str):
+    def draw_groups(groups: list[set[int]], color: str, label: str) -> None:
         xs: list[float] = []
         ys: list[float] = []
         zs: list[float] = []
@@ -77,9 +91,9 @@ def visualize_parity_mpl(
         if xs:
             ax.scatter(xs, ys, zs, c=color, edgecolors="black", s=20, label=label, alpha=0.9)
 
-    if kind in ("both", "x"):
+    if kind in {"both", "x"}:
         draw_groups(par.x_checks, COLOR_X, "Parity X")
-    if kind in ("both", "z"):
+    if kind in {"both", "z"}:
         draw_groups(par.z_checks, COLOR_Z, "Parity Z")
 
     if annotate:
@@ -105,8 +119,8 @@ def visualize_flow_mpl(
     max_edges: int | None = None,
     save_path: str | None = None,
     show: bool = True,
-    ax=None,
-):
+    ax: matplotlib.axes.Axes | None = None,
+) -> matplotlib.axes.Axes:
     _ensure_mpl()
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
@@ -127,7 +141,7 @@ def visualize_flow_mpl(
     ax.set_axis_off()
 
     # Draw edges for flow relations
-    def draw_edges(edges: dict[int, set[int]], color: str, label: str):
+    def draw_edges(edges: dict[int, set[int]], color: str, label: str) -> None:
         count = 0
         for u, vs in edges.items():
             for v in vs:
@@ -139,9 +153,9 @@ def visualize_flow_mpl(
                     if max_edges is not None and count >= max_edges:
                         return
 
-    if kind in ("both", "x") and flow.xflow:
+    if kind in {"both", "x"} and flow.xflow:
         draw_edges(flow.xflow, COLOR_X, "X-flow")
-    if kind in ("both", "z") and flow.zflow:
+    if kind in {"both", "z"} and flow.zflow:
         draw_edges(flow.zflow, COLOR_Z, "Z-flow")
 
     # Draw nodes lightly for context
@@ -170,8 +184,8 @@ def visualize_schedule_mpl(
     times: list[int] | None = None,
     save_path: str | None = None,
     show: bool = True,
-    ax=None,
-):
+    ax: matplotlib.axes.Axes | None = None,
+) -> matplotlib.axes.Axes:
     _ensure_mpl()
     import matplotlib.pyplot as plt
 
@@ -212,10 +226,8 @@ def visualize_schedule_mpl(
         ax.set_ylabel("Y")
         ax.set_title("Schedule (slices)")
         # Enforce equal XY aspect
-        try:
+        with contextlib.suppress(Exception):
             ax.set_aspect("equal", adjustable="box")
-        except Exception:
-            pass
         ax.legend()
 
     if save_path is not None:
@@ -232,8 +244,8 @@ def visualize_detectors_mpl(
     annotate: bool = False,
     save_path: str | None = None,
     show: bool = True,
-    ax=None,
-):
+    ax: matplotlib.axes.Axes | None = None,
+) -> matplotlib.axes.Axes:
     _ensure_mpl()
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
@@ -305,9 +317,10 @@ def visualize_temporal_layer_2x2_mpl(
     show: bool = True,
     figsize: tuple[int, int] = (12, 9),
     dpi: int = 120,
-):
+) -> matplotlib.figure.Figure:
     _ensure_mpl()
     import matplotlib.pyplot as plt
+
     from lspattern.visualizers.temporallayer import visualize_temporal_layer
 
     fig = plt.figure(figsize=figsize, dpi=dpi)
@@ -336,7 +349,7 @@ def visualize_parity_plotly(
     layer,
     *,
     kind: Literal["both", "x", "z"] = "both",
-):
+) -> go.Figure:
     _ensure_plotly()
     import plotly.graph_objects as go
 
@@ -345,7 +358,7 @@ def visualize_parity_plotly(
 
     fig = go.Figure()
 
-    def add_group(groups: list[set[int]], color: str, name: str):
+    def add_group(groups: list[set[int]], color: str, name: str) -> None:
         xs: list[float] = []
         ys: list[float] = []
         zs: list[float] = []
@@ -363,20 +376,20 @@ def visualize_parity_plotly(
                     y=ys,
                     z=zs,
                     mode="markers",
-                    marker=dict(size=5, color=color, line=dict(color="#000", width=1)),
+                    marker={"size": 5, "color": color, "line": {"color": "#000", "width": 1}},
                     name=name,
                 )
             )
 
-    if kind in ("both", "x"):
+    if kind in {"both", "x"}:
         add_group(par.x_checks, COLOR_X, "Parity X")
-    if kind in ("both", "z"):
+    if kind in {"both", "z"}:
         add_group(par.z_checks, COLOR_Z, "Parity Z")
 
     fig.update_layout(
         title=f"Parity (z={layer.z})",
-        scene=dict(xaxis_title="X", yaxis_title="Y", zaxis_title="Z", aspectmode="cube"),
-        margin=dict(l=0, r=0, b=0, t=40),
+        scene={"xaxis_title": "X", "yaxis_title": "Y", "zaxis_title": "Z", "aspectmode": "cube"},
+        margin={"l": 0, "r": 0, "b": 0, "t": 40},
     )
     return fig
 
@@ -386,7 +399,7 @@ def visualize_flow_plotly(
     *,
     kind: Literal["both", "x", "z"] = "both",
     max_edges: int | None = None,
-):
+) -> go.Figure:
     _ensure_plotly()
     import plotly.graph_objects as go
 
@@ -396,7 +409,7 @@ def visualize_flow_plotly(
     fig = go.Figure()
     count = 0
 
-    def add_edges(edges: dict[int, set[int]], color: str, name: str):
+    def add_edges(edges: dict[int, set[int]], color: str, name: str) -> None:
         nonlocal count
         edge_x: list[float] = []
         edge_y: list[float] = []
@@ -419,21 +432,21 @@ def visualize_flow_plotly(
                     y=edge_y,
                     z=edge_z,
                     mode="lines",
-                    line=dict(color=color, width=4),
+                    line={"color": color, "width": 4},
                     name=name,
                     hoverinfo="none",
                 )
             )
 
-    if kind in ("both", "x") and flow.xflow:
+    if kind in {"both", "x"} and flow.xflow:
         add_edges(flow.xflow, COLOR_X, "X-flow")
-    if kind in ("both", "z") and flow.zflow:
+    if kind in {"both", "z"} and flow.zflow:
         add_edges(flow.zflow, COLOR_Z, "Z-flow")
 
     fig.update_layout(
         title=f"Flow (z={layer.z})",
-        scene=dict(xaxis_title="X", yaxis_title="Y", zaxis_title="Z", aspectmode="cube"),
-        margin=dict(l=0, r=0, b=0, t=40),
+        scene={"xaxis_title": "X", "yaxis_title": "Y", "zaxis_title": "Z", "aspectmode": "cube"},
+        margin={"l": 0, "r": 0, "b": 0, "t": 40},
     )
     return fig
 
@@ -443,7 +456,7 @@ def visualize_schedule_plotly(
     *,
     mode: Literal["hist", "slices"] = "hist",
     times: list[int] | None = None,
-):
+) -> go.Figure:
     _ensure_plotly()
     import plotly.graph_objects as go
 
@@ -453,11 +466,10 @@ def visualize_schedule_plotly(
     if mode == "hist":
         ts = sorted(sched.keys())
         counts = [len(sched[t]) for t in ts]
-        fig = go.Figure(
-            data=[go.Bar(x=ts, y=counts, marker=dict(color="#888"))],
+        return go.Figure(
+            data=[go.Bar(x=ts, y=counts, marker={"color": "#888"})],
             layout=go.Layout(title="Schedule (hist)", xaxis_title="time (z)", yaxis_title="#measured"),
         )
-        return fig
 
     # slices mode
     fig = go.Figure()
@@ -474,20 +486,20 @@ def visualize_schedule_plotly(
                 ys.append(y)
         if xs:
             fig.add_trace(
-                go.Scatter(x=xs, y=ys, mode="markers", marker=dict(color=colors[i % len(colors)], size=7), name=f"t={t}")
+                go.Scatter(x=xs, y=ys, mode="markers", marker={"color": colors[i % len(colors)], "size": 7}, name=f"t={t}")
             )
     # Enforce equal XY aspect using scale anchors
     fig.update_layout(
         title="Schedule (slices)",
         xaxis_title="X",
         yaxis_title="Y",
-        xaxis=dict(scaleanchor="y", scaleratio=1),
-        yaxis=dict(constrain="domain"),
+        xaxis={"scaleanchor": "y", "scaleratio": 1},
+        yaxis={"constrain": "domain"},
     )
     return fig
 
 
-def visualize_detectors_plotly(layer, *, detector=None):
+def visualize_detectors_plotly(layer, *, detector=None) -> go.Figure:
     _ensure_plotly()
     import plotly.graph_objects as go
     try:
@@ -524,7 +536,7 @@ def visualize_detectors_plotly(layer, *, detector=None):
                 edge_z.extend([z1, z2, None])
     if edge_x:
         fig.add_trace(
-            go.Scatter3d(x=edge_x, y=edge_y, z=edge_z, mode="lines", line=dict(color=COLOR_EDGE, width=3), name="detectors")
+            go.Scatter3d(x=edge_x, y=edge_y, z=edge_z, mode="lines", line={"color": COLOR_EDGE, "width": 3}, name="detectors")
         )
 
     # Nodes (context)
@@ -538,7 +550,7 @@ def visualize_detectors_plotly(layer, *, detector=None):
                 y=ys,
                 z=zs,
                 mode="markers",
-                marker=dict(size=4, color=COLOR_DATA, line=dict(color="#000", width=1)),
+                marker={"size": 4, "color": COLOR_DATA, "line": {"color": "#000", "width": 1}},
                 name="nodes",
                 opacity=0.5,
             )
@@ -546,16 +558,16 @@ def visualize_detectors_plotly(layer, *, detector=None):
 
     fig.update_layout(
         title=f"Detectors (z={layer.z})",
-        scene=dict(xaxis_title="X", yaxis_title="Y", zaxis_title="Z", aspectmode="cube"),
-        margin=dict(l=0, r=0, b=0, t=40),
+        scene={"xaxis_title": "X", "yaxis_title": "Y", "zaxis_title": "Z", "aspectmode": "cube"},
+        margin={"l": 0, "r": 0, "b": 0, "t": 40},
     )
     return fig
 
 
-def visualize_temporal_layer_2x2_plotly(layer):
+def visualize_temporal_layer_2x2_plotly(layer) -> go.Figure:
     _ensure_plotly()
-    import plotly.graph_objects as go
     from plotly.subplots import make_subplots
+
     from lspattern.visualizers.plotly_temporallayer import visualize_temporal_layer_plotly
 
     fig = make_subplots(
@@ -587,13 +599,13 @@ def visualize_temporal_layer_2x2_plotly(layer):
 
     # Set scene layout for three 3D panes
     fig.update_layout(
-        scene=dict(aspectmode="cube"),
-        scene2=dict(aspectmode="cube"),
-        scene3=dict(aspectmode="cube"),
+        scene={"aspectmode": "cube"},
+        scene2={"aspectmode": "cube"},
+        scene3={"aspectmode": "cube"},
         height=900,
         width=1200,
         title_text=f"TemporalLayer Overview z={layer.z}",
-        margin=dict(l=0, r=0, b=0, t=40),
+        margin={"l": 0, "r": 0, "b": 0, "t": 40},
     )
 
     return fig

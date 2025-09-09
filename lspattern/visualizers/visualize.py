@@ -18,12 +18,11 @@ def visualize_canvas(
     canvas: Any,
     *,
     indicated_nodes: set[int] | None = None,
-    annotate: bool = False,
     save_path: str | None = None,
     show: bool = True,
     figsize: tuple[int, int] = (6, 6),
     dpi: int = 120,
-):
+) -> None:
     """Visualizes the Raussendorf lattice with nodes colored based on their parity.
     Nodes with allowed parities are colored white, others are red.
     Physical edges are drawn in gray.
@@ -109,7 +108,7 @@ def visualize_canvas(
         if str(save_dir) and not save_dir.exists():
             save_dir.mkdir(exist_ok=True, parents=True)
         fig.savefig(save_path, bbox_inches="tight", dpi=dpi)
-        print(f"Figure saved to: {save_path}")  # noqa: T201
+        print(f"Figure saved to: {save_path}")
 
     # Show figure if requested and in interactive mode
     if show:

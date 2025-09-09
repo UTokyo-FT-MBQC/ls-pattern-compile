@@ -26,8 +26,6 @@ lspattern = "lspattern"
 target-version = "py313"
 line-length = 120
 extend-exclude = [
-  # Visualizers are not lint targets for now
-  "lspattern/visualizers/*",
   "lspattern/ops.py",
   "lspattern/rhg.py",
   # T48: exclude non-library content from lint scope

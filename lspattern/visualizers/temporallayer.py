@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import os
 import pathlib
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 
 from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z
+
+if TYPE_CHECKING:
+    import matplotlib.axes
 
 
 def visualize_temporal_layer(
@@ -17,12 +21,12 @@ def visualize_temporal_layer(
     annotate: bool = False,
     save_path: str | None = None,
     show: bool = True,
-    ax=None,
+    ax: matplotlib.axes.Axes | None = None,
     figsize: tuple[int, int] = (6, 6),
     dpi: int = 120,
     show_axes: bool = True,
     show_grid: bool = True,
-):
+) -> matplotlib.axes.Axes:
     """Visualize a single TemporalLayer in 3D with parity-based coloring.
 
     Parameters
@@ -86,7 +90,7 @@ def visualize_temporal_layer(
         g["y"].append(y)
         g["z"].append(z)
 
-    def scat(gkey: str, color: str, label: str | None):
+    def scat(gkey: str, color: str, label: str | None) -> None:
         pts = groups[gkey]
         if pts["x"]:
             ax.scatter(
@@ -166,9 +170,9 @@ def visualize_temporal_layer(
 
     # Save figure if requested
     if save_path is not None:
-        save_dir = os.path.dirname(save_path)
-        if save_dir and not pathlib.Path(save_dir).exists():
-            pathlib.Path(save_dir).mkdir(exist_ok=True, parents=True)
+        save_path_obj = pathlib.Path(save_path)
+        if save_path_obj.parent != pathlib.Path() and not save_path_obj.parent.exists():
+            save_path_obj.parent.mkdir(exist_ok=True, parents=True)
         fig.savefig(save_path, bbox_inches="tight", dpi=dpi)
         print(f"Figure saved to: {save_path}")
 
