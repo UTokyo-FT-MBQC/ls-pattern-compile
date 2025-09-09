@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
+from lspattern.mytype import PatchCoordGlobal3D, SpatialEdgeSpec
 from lspattern.tiling.template import RotatedPlanarPipetemplate
 from lspattern.utils import get_direction
 
 if TYPE_CHECKING:
     from lspattern.consts.consts import PIPEDIRECTION
-    from lspattern.mytype import PatchCoordGlobal3D, SpatialEdgeSpec
 
 
 @dataclass
@@ -19,9 +19,21 @@ class MemoryPipeSkeleton(RHGPipeSkeleton):
     Note: edgespec は省略可能(None)。テンプレートは方向に依存して決まる。
     """
 
-    edgespec: SpatialEdgeSpec | None = None
+    @overload
+    def to_block(self) -> MemoryPipe: ...
 
-    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> MemoryPipe:
+    @overload
+    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> MemoryPipe: ...
+
+    def to_block(
+        self, source: PatchCoordGlobal3D | None = None, sink: PatchCoordGlobal3D | None = None
+    ) -> MemoryPipe:
+        # Default values if not provided
+        if source is None:
+            source = PatchCoordGlobal3D((0, 0, 0))
+        if sink is None:
+            sink = PatchCoordGlobal3D((1, 0, 0))
+
         direction = get_direction(source, sink)
         spec = self.edgespec
         block = MemoryPipe(
@@ -43,7 +55,7 @@ class MemoryPipe(RHGPipe):
         d: int,
         edgespec: SpatialEdgeSpec | None,
         direction: PIPEDIRECTION,
-    ):
+    ) -> None:
         # RHGPipe(dataclass) の自動 __init__ は使用せず、明示的に初期化
         super().__init__(d=d, edge_spec=edgespec or {})
         self.direction = direction
