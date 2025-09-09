@@ -1,3 +1,9 @@
+"""Canvas module for RHG (Random Hamiltonian Graph) compilation.
+
+This module provides the main compilation framework for converting RHG blocks
+into executable quantum patterns with proper temporal layering and flow management.
+"""
+
 from __future__ import annotations
 
 from contextlib import suppress
@@ -73,7 +79,7 @@ class TemporalLayer:
     coord2gid: dict[PhysCoordGlobal3D, QubitGroupIdGlobal]
     allowed_gid_pairs: set[tuple[QubitGroupIdGlobal, QubitGroupIdGlobal]]
 
-    def __init__(self, z: int):
+    def __init__(self, z: int) -> None:
         self.z = z
         self.qubit_count = 0
         self.d: set[int] = set()
@@ -96,20 +102,22 @@ class TemporalLayer:
 
         self.cubes_ = {}
         self.pipes_ = {}
-        self.tiling_node_maps = {}
+        self.tiling_node_maps: dict[str, dict[int, int]] = {}
 
-        self.coord2tid = {}
+        self.coord2tid: dict[PatchCoordGlobal3D, str] = {}
         self.coord2gid = {}
         self.allowed_gid_pairs = set()
 
-    def __post_init__(self):
-        pass
+    def __post_init__(self) -> None:
+        """Post-initialization hook."""
 
     def add_cubes(self, cubes: dict[PatchCoordGlobal3D, RHGCube]) -> None:
+        """Add multiple cubes to this temporal layer."""
         for pos, cube in cubes.items():
             self.add_cube(pos, cube)
 
     def add_pipes(self, pipes: dict[PipeCoordGlobal3D, RHGPipe]) -> None:
+        """Add multiple pipes to this temporal layer."""
         for (source, sink), pipe in pipes.items():
             self.add_pipe(source, sink, pipe)
 
@@ -129,11 +137,19 @@ class TemporalLayer:
         self.lines.append((source, sink))
 
     def _update_qubit_group_index(self) -> None:
-        """This is internal function called inside compile() to update qubit group index mapping."""
+        """Update qubit group index mapping.
+
+        Internal function called inside compile() to update qubit group index mapping.
+        """
         # scan through the pipes and do union-find and update coord2gid
         # return is None
 
     def compile(self) -> None:
+        """Compile the temporal layer into a quantum pattern.
+
+        Aggregates coordinates and patch groups, processes cubes and pipes,
+        and builds the quantum graph state with proper port mappings.
+        """
         # Aggregate absolute 2D coords and patch groups (reserved for future use)
         # XY(2D) -> gid mapping used for same-z gating
         coord_gid_2d: dict[tuple[int, int], QubitGroupIdGlobal] = {}
@@ -718,7 +734,7 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
             blk = c.to_block()
             with suppress(Exception):
                 # Ensure blocks know their placement (x, y, z)
-                blk.source = pos  # type: ignore[attr-defined]
+                blk.source = pos
             cubes_[pos] = blk
         pipes_ = {}
         for (start, end), p in trimmed_pipes_skeleton.items():
@@ -739,13 +755,13 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
         self.cubes_[position] = cube
         # Reset one-shot guard so layers can be rebuilt after topology changes
         with suppress(AttributeError):
-            self._to_temporal_layers_called = False  # type: ignore[attr-defined]
+            self._to_temporal_layers_called = False
 
     def add_pipe(self, start: PatchCoordGlobal3D, end: PatchCoordGlobal3D, pipe: RHGPipe) -> None:
         self.pipes_[start, end] = pipe
         # Reset one-shot guard so layers can be rebuilt after topology changes
         with suppress(AttributeError):
-            self._to_temporal_layers_called = False  # type: ignore[attr-defined]
+            self._to_temporal_layers_called = False
 
     def to_temporal_layers(self) -> dict[int, TemporalLayer]:
         # Disallow multiple calls to prevent duplicate XY shifts on templates.
@@ -765,7 +781,7 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
             temporal_layers[z] = layer
 
         with suppress(AttributeError):
-            self._to_temporal_layers_called = True  # type: ignore[attr-defined]
+            self._to_temporal_layers_called = True
         return temporal_layers
 
     def compile(self) -> CompiledRHGCanvas:
@@ -797,9 +813,9 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
                     if u[2] == prev_z and v[2] == z:
                         # 明示的に端点情報を埋めて渡す(skeleton->block で保持されないため)
                         with suppress(Exception):
-                            pipe.source = u  # type: ignore[attr-defined]
-                            pipe.sink = v  # type: ignore[attr-defined]
-                            pipe.direction = get_direction(u, v)  # type: ignore[attr-defined]
+                            pipe.source = u
+                            pipe.sink = v
+                            pipe.direction = get_direction(u, v)
                         pipes.append(pipe)
             cgraph = add_temporal_layer(cgraph, layer, pipes)
         return cgraph
@@ -899,11 +915,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
             g.add_physical_edge(node_map2[u], node_map2[v])
         new_graph = g
     # Remap registries for both sides into the composed id-space
-    print("cgraph before remap")
-    print(cgraph.cubes_)
     cgraph = cgraph.remap_nodes(node_map1)
-    print("cgraph after reamap")
-    print(cgraph.cubes_)
     # Remap next_layer registries into composed id-space
     next_layer.coord2node = {c: node_map2.get(n, n) for c, n in next_layer.coord2node.items()}
     next_layer.node2coord = {node_map2.get(n, n): c for n, c in next_layer.node2coord.items()}
@@ -935,32 +947,21 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
 
     # Build seam node pairs by XY identity at z- (prev) and z+ (next) boundaries
     # Always ON: do not expose any toggle; connect only when temporal pipes exist.
-    # seam_pairs_nodes: set[tuple[int, int]] = set()
     allowed_gid_pairs: set[tuple[QubitGroupIdGlobal, QubitGroupIdGlobal]] = set()
 
     for p in pipes:
-        print(cgraph)
-        print(cgraph.cubes_)
-        print("source", p.source)
-        print("sink", p.sink)
-        print("cgraph keys", cgraph.cubes_.keys())
         allowed_gid_pairs.add(
             (
                 QubitGroupIdGlobal(cgraph.cubes_[p.source].get_tiling_id()),
                 QubitGroupIdGlobal(next_layer.cubes_[p.sink].get_tiling_id()),
             )
         )
-        print("#" * 30)
-        print("Pipe allowed_gid_pairs:", allowed_gid_pairs)
-        print("#" * 30)
         for source in next_layer.get_boundary_nodes(face="z-", depth=[-1])["data"]:
             sink = (source[0], source[1], source[2] - 1)
 
             source_gid = new_coord2gid.get(source)
             sink_gid = new_coord2gid.get(sink)
 
-            print("searching from source", source)
-            print("gid comparison", source_gid, sink_gid)
             if is_allowed_pair(source_gid, sink_gid, allowed_gid_pairs):
                 source_node = new_coord2node.get(source)
                 sink_node = new_coord2node.get(sink)

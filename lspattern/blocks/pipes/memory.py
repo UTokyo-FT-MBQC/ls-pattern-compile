@@ -25,9 +25,7 @@ class MemoryPipeSkeleton(RHGPipeSkeleton):
     @overload
     def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> MemoryPipe: ...
 
-    def to_block(
-        self, source: PatchCoordGlobal3D | None = None, sink: PatchCoordGlobal3D | None = None
-    ) -> MemoryPipe:
+    def to_block(self, source: PatchCoordGlobal3D | None = None, sink: PatchCoordGlobal3D | None = None) -> MemoryPipe:
         # Default values if not provided
         if source is None:
             source = PatchCoordGlobal3D((0, 0, 0))
