@@ -258,7 +258,10 @@ class TemporalLayer:
         if getattr(blk, "cout_ports", None):
             patch_pos = PatchCoordGlobal3D(pos)
             self.cout_portset[patch_pos] = [
-                NodeIdLocal(node_map2[n]) for s in blk.cout_ports for n in s if n in node_map2  # type: ignore[attr-defined]
+                NodeIdLocal(node_map2[n])
+                for s in blk.cout_ports
+                for n in s
+                if n in node_map2  # type: ignore[attr-defined]
             ]
 
     def _build_graph_from_blocks(self) -> GraphState | None:
@@ -288,7 +291,7 @@ class TemporalLayer:
             g2 = pipe.local_graph
             if g2 is None:
                 materialized = pipe.materialize()
-                if hasattr(materialized, 'local_graph'):
+                if hasattr(materialized, "local_graph"):
                     pipe_block = materialized  # type: ignore[assignment]
                     g2 = pipe_block.local_graph
                 else:
@@ -380,8 +383,9 @@ class TemporalLayer:
 
         # Connect iff one is in cube region, other in pipe region, and allowed pair
         return u_in_cube != v_in_cube and is_allowed_pair(
-            TilingId(int(gid_u)), TilingId(int(gid_v)),
-            {(TilingId(int(a)), TilingId(int(b))) for a, b in self.allowed_gid_pairs}
+            TilingId(int(gid_u)),
+            TilingId(int(gid_v)),
+            {(TilingId(int(a)), TilingId(int(b))) for a, b in self.allowed_gid_pairs},
         )
 
     def _process_neighbor_connections(
@@ -880,14 +884,14 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
                 continue
             _start, _end = coord_tuple
             block = p.to_block()
-            if hasattr(block, 'local_graph'):
+            if hasattr(block, "local_graph"):
                 pipes_[pipe_coord] = block  # type: ignore[assignment]
 
-        cubes_filtered = {k: v for k, v in cubes_.items() if hasattr(v, 'local_graph')}
+        cubes_filtered = {k: v for k, v in cubes_.items() if hasattr(v, "local_graph")}
         return RHGCanvas(
             name=self.name,
             cubes_=cubes_filtered,  # type: ignore[arg-type]
-            pipes_=pipes_
+            pipes_=pipes_,
         )
 
 
@@ -1068,8 +1072,8 @@ def to_temporal_layer(
     pipes_mat = {pipe_coord: p.materialize() for pipe_coord, p in pipes.items()}
 
     # Ensure proper typing for layer addition
-    cubes_typed = {pos: cube for pos, cube in cubes_mat.items() if hasattr(cube, 'local_graph')}
-    pipes_typed = {pipe_coord: pipe for pipe_coord, pipe in pipes_mat.items() if hasattr(pipe, 'local_graph')}
+    cubes_typed = {pos: cube for pos, cube in cubes_mat.items() if hasattr(cube, "local_graph")}
+    pipes_typed = {pipe_coord: pipe for pipe_coord, pipe in pipes_mat.items() if hasattr(pipe, "local_graph")}
 
     layer.add_cubes(cubes_typed)  # type: ignore[arg-type]
     layer.add_pipes(pipes_typed)  # type: ignore[arg-type]
@@ -1173,9 +1177,14 @@ def _setup_temporal_connections(
         source_gid = new_coord2gid.get(PhysCoordGlobal3D(source))
         sink_gid = new_coord2gid.get(sink_coord)
 
-        if source_gid is not None and sink_gid is not None and is_allowed_pair(
-            TilingId(int(source_gid)), TilingId(int(sink_gid)),
-            {(TilingId(int(a)), TilingId(int(b))) for a, b in allowed_gid_pairs}
+        if (
+            source_gid is not None
+            and sink_gid is not None
+            and is_allowed_pair(
+                TilingId(int(source_gid)),
+                TilingId(int(sink_gid)),
+                {(TilingId(int(a)), TilingId(int(b))) for a, b in allowed_gid_pairs},
+            )
         ):
             source_node = new_coord2node.get(PhysCoordGlobal3D(source))
             sink_node = new_coord2node.get(sink_coord)
