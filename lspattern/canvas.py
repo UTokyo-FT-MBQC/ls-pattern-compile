@@ -280,7 +280,7 @@ class TemporalLayer:
         # Compose pipe graphs (spatial pipes in this layer)
         return self._compose_pipe_graphs(g)
 
-    def _compose_pipe_graphs(self, g: BaseGraphState | None) -> BaseGraphState | None:
+    def _compose_pipe_graphs(self, g: BaseGraphState | None) -> BaseGraphState | None:  # noqa: C901
         """Compose pipe graphs into the main graph state."""
         for pipe_coord, pipe in self.pipes_.items():
             source, _sink = pipe_coord
@@ -1205,7 +1205,8 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
 
     # Compose graphs and remap
     if next_layer.local_graph is None:
-        raise ValueError("next_layer.local_graph cannot be None")
+        error_msg = "next_layer.local_graph cannot be None"
+        raise ValueError(error_msg)
     new_graph, node_map1, node_map2 = _compose_graphs_sequentially(cgraph.global_graph, next_layer.local_graph)
     cgraph = cgraph.remap_nodes({NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map1.items()})
     _remap_layer_mappings(next_layer, node_map2)
