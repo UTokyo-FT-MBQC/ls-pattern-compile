@@ -8,7 +8,7 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
 
-from graphix_zx.graphstate import BaseGraphState
+from graphix_zx.graphstate import GraphState
 
 from lspattern.accumulator import (
     FlowAccumulator,
@@ -29,6 +29,14 @@ if TYPE_CHECKING:
         PhysCoordGlobal3D,
         QubitIndexLocal,
         SpatialEdgeSpec,
+    )
+else:
+    # Import NewType factories for runtime use
+    from lspattern.mytype import (
+        NodeIdLocal,
+        PatchCoordGlobal3D,
+        PatchCoordLocal2D,
+        PhysCoordGlobal3D,
     )
 
 
@@ -57,7 +65,7 @@ class RHGBlock:
         Logical boundary port sets for this block.
     cout_ports : list[set[QubitIndexLocal]]
         Grouped classical output ports (one group per logical result).
-    local_graph : BaseGraphState
+    local_graph : GraphState
         Local RHG graph constructed by ``materialize()``.
     node2coord, coord2node : dict
         Bidirectional maps between node ids and 3D coordinates.
@@ -67,9 +75,9 @@ class RHGBlock:
 
     name: ClassVar[str] = __qualname__
     d: int = 3
-    edge_spec: SpatialEdgeSpec = field(default_factory=dict)
+    edge_spec: SpatialEdgeSpec | None = field(default_factory=dict)
     # source
-    source: PatchCoordGlobal3D = field(default_factory=lambda: (0, 0, 0))
+    source: PatchCoordGlobal3D = field(default_factory=lambda: PatchCoordGlobal3D((0, 0, 0)))
     sink: PatchCoordGlobal3D | None = None
     # When it is Pipe, we have sink and direction (Not implemented here)
     template: ScalableTemplate = field(default_factory=lambda: ScalableTemplate(d=3, edgespec={}))  # evaluated
@@ -84,12 +92,12 @@ class RHGBlock:
     flow: FlowAccumulator = field(init=False, default_factory=FlowAccumulator)
     parity: ParityAccumulator = field(init=False, default_factory=ParityAccumulator)
 
-    local_graph: BaseGraphState = field(init=False, default_factory=BaseGraphState)
+    local_graph: GraphState = field(init=False, default_factory=GraphState)
     node2coord: dict[NodeIdLocal, PhysCoordGlobal3D] = field(init=False, default_factory=dict)
     coord2node: dict[PhysCoordGlobal3D, NodeIdLocal] = field(init=False, default_factory=dict)
     node2role: dict[NodeIdLocal, str] = field(init=False, default_factory=dict)
 
-    final_layer: str = None  # "M", "MX", "MZ", "MY" or "O" (open, no measurement)
+    final_layer: str | None = None  # "M", "MX", "MZ", "MY" or "O" (open, no measurement)
 
     def __post_init__(self) -> None:
         # Sync template parameters (d, edgespec)
@@ -141,9 +149,9 @@ class RHGBlock:
         """
         osx, osy, osz = self.source
         dx, dy, dz = by
-        self.source = (osx + dx, osy + dy, osz + dz)
+        self.source = PatchCoordGlobal3D((osx + dx, osy + dy, osz + dz))
 
-        by_template: PatchCoordLocal2D = (dx, dy)
+        by_template: PatchCoordLocal2D = PatchCoordLocal2D((dx, dy))
         self.template.shift_coords(by_template)
 
     def materialize(self) -> RHGBlock:
@@ -161,7 +169,7 @@ class RHGBlock:
             try:
                 self.template.edgespec = dict(self.edge_spec)
             except (TypeError, ValueError):
-                self.template.edgespec = self.edge_spec  # type: ignore[assignment]
+                self.template.edgespec = self.edge_spec
 
         # Evaluate tiling coordinates (data/X/Z) only when not yet populated.
         # This preserves any absolute XY shifts applied upstream (e.g.,
@@ -191,7 +199,7 @@ class RHGBlock:
         max_t = 2 * d_val
         z0 = int(self.source[2]) * (2 * d_val)  # base z-offset per block
 
-        g = BaseGraphState()
+        g = GraphState()
         node2coord: dict[int, tuple[int, int, int]] = {}
         coord2node: dict[tuple[int, int, int], int] = {}
         node2role: dict[int, str] = {}
@@ -260,8 +268,8 @@ class RHGBlock:
                     with suppress(Exception):
                         g.add_physical_edge(u, v)
 
-        # Register BaseGraphState input/output nodes when ports are defined, so that
-        # visualizers relying on BaseGraphState registries can highlight them
+        # Register GraphState input/output nodes when ports are defined, so that
+        # visualizers relying on GraphState registries can highlight them
         try:
             # Determine z- (min) and z+ (max) among DATA nodes only
             data_coords_all = [c for n, c in node2coord.items() if node2role.get(n) == "data"]
@@ -288,24 +296,28 @@ class RHGBlock:
                 if self.in_ports:
                     inv_q_to_xy = {q: xy for xy, q in xy_to_q.items()}
                     for qidx in self.in_ports:
-                        xy = inv_q_to_xy.get(qidx)
-                        if xy is None:
+                        xy_raw = inv_q_to_xy.get(qidx)
+                        if xy_raw is None:
                             continue
-                        n_in = xy_to_innode.get((int(xy[0]), int(xy[1])))
+                        # Cast TilingCoord2D to tuple for type compatibility
+                        xy_tuple = (int(xy_raw[0]), int(xy_raw[1]))
+                        n_in = xy_to_innode.get(xy_tuple)
                         if n_in is not None:
                             lidx = g.register_input(n_in)
-                            xy_to_lidx[int(xy[0]), int(xy[1])] = lidx
+                            xy_to_lidx[xy_tuple] = lidx
 
                 # Register outputs (reuse input logical index when possible)
                 if self.out_ports:
                     inv_q_to_xy = {q: xy for xy, q in xy_to_q.items()}
                     for qidx in self.out_ports:
-                        xy = inv_q_to_xy.get(qidx)
-                        if xy is None:
+                        xy_raw = inv_q_to_xy.get(qidx)
+                        if xy_raw is None:
                             continue
-                        n_out = xy_to_outnode.get((int(xy[0]), int(xy[1])))
+                        # Cast TilingCoord2D to tuple for type compatibility
+                        xy_tuple = (int(xy_raw[0]), int(xy_raw[1]))
+                        n_out = xy_to_outnode.get(xy_tuple)
                         if n_out is not None:
-                            lidx = xy_to_lidx.get((int(xy[0]), int(xy[1])))
+                            lidx = xy_to_lidx.get(xy_tuple)
                             if lidx is None:
                                 # If there was no corresponding input, use template's
                                 # qubit index as logical index for output registration.
@@ -317,9 +329,10 @@ class RHGBlock:
 
         # Store results on the block
         self.local_graph = g
-        self.node2coord = node2coord
-        self.coord2node = coord2node
-        self.node2role = node2role
+        # Convert to proper NewType dictionaries
+        self.node2coord = {NodeIdLocal(k): PhysCoordGlobal3D(v) for k, v in node2coord.items()}
+        self.coord2node = {PhysCoordGlobal3D(k): NodeIdLocal(v) for k, v in coord2node.items()}
+        self.node2role = {NodeIdLocal(k): v for k, v in node2role.items()}
         self.coord2gid = dict.fromkeys(node2coord.values(), self.template.id_)
         return self
 
@@ -327,7 +340,7 @@ class RHGBlock:
     # Some parts of the codebase use `edgespec` while this class had `edge_spec`.
     # Provide a property alias for smoother unification with pipes/templates.
     @property
-    def edgespec(self) -> SpatialEdgeSpec | None:  # type: ignore[override]
+    def edgespec(self) -> SpatialEdgeSpec | None:
         """Get or set the spatial edge specification (alias for edge_spec).
 
         Returns
@@ -361,8 +374,8 @@ class RHGBlock:
         new_id : int
             The new base qubit index for the template.
         """
-        self.template.id_ = new_id
-        self.coord2gid = dict.fromkeys(self.coord2gid, new_id)
+        self.template.id_ = new_id  # type: ignore[assignment]
+        self.coord2gid = dict.fromkeys(self.coord2gid, new_id)  # type: ignore[arg-type]
 
     @staticmethod
     def _boundary_nodes_from_coordmap(
@@ -462,7 +475,12 @@ class RHGBlock:
         Operates on the global coord2node map using the same semantics as
         TemporalLayer.get_boundary_nodes.
         """
-        return self._boundary_nodes_from_coordmap(self.coord2node, self.node2role, face=face, depth=depth)
+        # Convert types for compatibility with static method signature
+        coord2node_compat: dict[PhysCoordGlobal3D, int] = {k: int(v) for k, v in self.coord2node.items()}
+        node2role_compat: dict[int, str] | None = (
+            {int(k): v for k, v in self.node2role.items()} if self.node2role else None
+        )
+        return self._boundary_nodes_from_coordmap(coord2node_compat, node2role_compat, face=face, depth=depth)
 
 
 @dataclass
