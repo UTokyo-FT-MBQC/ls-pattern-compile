@@ -141,7 +141,7 @@ class TemporalLayer:
         spatial_pipe: RHGPipe,
     ) -> None:
         """Register a spatial pipe within this layer between `source` and `sink`."""
-        pipe_coord: PipeCoordGlobal3D = (source, sink)  # type: ignore[assignment]
+        pipe_coord = PipeCoordGlobal3D((source, sink))
         self.pipes_[pipe_coord] = spatial_pipe
         self.lines.append(pipe_coord)
 
