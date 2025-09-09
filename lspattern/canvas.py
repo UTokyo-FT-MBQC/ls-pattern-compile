@@ -14,6 +14,7 @@ from operator import itemgetter
 from typing import TYPE_CHECKING
 
 from graphix_zx.graphstate import (
+    BaseGraphState,
     GraphState,
     compose_in_parallel,
     compose_sequentially,
@@ -75,7 +76,7 @@ class TemporalLayer:
     flow: FlowAccumulator
     parity: ParityAccumulator
 
-    local_graph: GraphState
+    local_graph: BaseGraphState | None
     node2coord: dict[NodeIdLocal, PhysCoordGlobal3D]
     coord2node: dict[PhysCoordGlobal3D, NodeIdLocal]
     node2role: dict[NodeIdLocal, str]
@@ -207,8 +208,8 @@ class TemporalLayer:
 
     @staticmethod
     def _compose_single_cube(
-        _pos: tuple[int, int, int], blk: object, g: GraphState | None
-    ) -> tuple[GraphState | None, dict[int, int], dict[int, int]]:
+        _pos: tuple[int, int, int], blk: object, g: BaseGraphState | None
+    ) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
         """Compose a single cube into the graph."""
         g2 = blk.local_graph  # type: ignore[attr-defined]
 
@@ -264,9 +265,9 @@ class TemporalLayer:
                 if n in node_map2
             ]
 
-    def _build_graph_from_blocks(self) -> GraphState | None:
+    def _build_graph_from_blocks(self) -> BaseGraphState | None:
         """Build the quantum graph state from cubes and pipes."""
-        g: GraphState | None = None
+        g: BaseGraphState | None = None
 
         # Compose cube graphs
         for pos, blk in self.cubes_.items():
@@ -279,7 +280,7 @@ class TemporalLayer:
         # Compose pipe graphs (spatial pipes in this layer)
         return self._compose_pipe_graphs(g)
 
-    def _compose_pipe_graphs(self, g: GraphState | None) -> GraphState | None:
+    def _compose_pipe_graphs(self, g: BaseGraphState | None) -> BaseGraphState | None:
         """Compose pipe graphs into the main graph state."""
         for pipe_coord, pipe in self.pipes_.items():
             source, _sink = pipe_coord
@@ -301,11 +302,14 @@ class TemporalLayer:
                 g = g2
                 node_map1: dict[int, int] = {}
                 node_map2: dict[int, int] = {n: n for n in getattr(g2, "physical_nodes", [])}
-            else:
+            elif g2 is not None:
                 g_new, node_map1, node_map2 = compose_in_parallel(g, g2)
                 self._remap_node_mappings(node_map1)
                 self._remap_portsets(node_map1)
                 g = g_new
+            else:
+                node_map1 = {}
+                node_map2 = {}
 
             try:
                 bmin_z = min(c[2] for c in pipe_block.node2coord.values())
@@ -355,7 +359,7 @@ class TemporalLayer:
         return cube_xy_all
 
     @staticmethod
-    def _get_existing_edges(g: GraphState) -> set[tuple[int, int]]:
+    def _get_existing_edges(g: BaseGraphState) -> set[tuple[int, int]]:
         """Get existing edges from graph to avoid duplicates."""
         try:
             edges = getattr(g, "physical_edges", []) or []
@@ -395,7 +399,7 @@ class TemporalLayer:
         gid_u: QubitGroupIdGlobal,
         cube_xy_all: set[tuple[int, int]],
         coord_gid_2d: dict[tuple[int, int], QubitGroupIdGlobal],
-        g: GraphState,
+        g: BaseGraphState,
         existing: set[tuple[int, int]],
     ) -> None:
         """Process connections to neighboring nodes."""
@@ -426,7 +430,7 @@ class TemporalLayer:
     def _add_edge_if_valid(
         u: NodeIdLocal,
         v: NodeIdLocal,
-        g: GraphState,
+        g: BaseGraphState,
         existing: set[tuple[int, int]],
     ) -> None:
         """Add edge if valid and not duplicate."""
@@ -439,8 +443,8 @@ class TemporalLayer:
                 existing.add(edge)
 
     def _add_seam_edges(
-        self, g: GraphState | None, coord_gid_2d: dict[tuple[int, int], QubitGroupIdGlobal]
-    ) -> GraphState:
+        self, g: BaseGraphState | None, coord_gid_2d: dict[tuple[int, int], QubitGroupIdGlobal]
+    ) -> BaseGraphState:
         """Add CZ edges across cube-pipe seams within the same temporal layer."""
         if g is None:
             g = GraphState()
@@ -617,7 +621,7 @@ class CompiledRHGCanvas:
     ----------
     layers : list[TemporalLayer]
         The temporal layers of the canvas.
-    global_graph : GraphState | None
+    global_graph : BaseGraphState | None
         The global graph state after compilation.
     coord2node : dict[PhysCoordGlobal3D, int]
         Mapping from physical coordinates to node IDs.
@@ -641,7 +645,7 @@ class CompiledRHGCanvas:
     layers: list[TemporalLayer]
 
     # Optional/defaulted fields follow
-    global_graph: GraphState | None = None
+    global_graph: BaseGraphState | None = None
     coord2node: dict[PhysCoordGlobal3D, NodeIdLocal] = field(default_factory=dict)
 
     in_portset: dict[PatchCoordGlobal3D, list[NodeIdLocal]] = field(default_factory=dict)
@@ -663,7 +667,7 @@ class CompiledRHGCanvas:
     #     pass
 
     @staticmethod
-    def _remap_graph_nodes(gsrc: GraphState, nmap: dict[NodeIdLocal, NodeIdLocal]) -> dict[int, int]:
+    def _remap_graph_nodes(gsrc: BaseGraphState, nmap: dict[NodeIdLocal, NodeIdLocal]) -> dict[int, int]:
         """Create new nodes in destination graph."""
         gdst = GraphState()
         created: dict[int, int] = {}
@@ -676,8 +680,8 @@ class CompiledRHGCanvas:
 
     @staticmethod
     def _remap_measurement_bases(
-        gsrc: GraphState,
-        gdst: GraphState,
+        gsrc: BaseGraphState,
+        gdst: BaseGraphState,
         nmap: dict[NodeIdLocal, NodeIdLocal],
         created: dict[int, int],
     ) -> None:
@@ -690,8 +694,8 @@ class CompiledRHGCanvas:
 
     @staticmethod
     def _remap_graph_edges(
-        gsrc: GraphState,
-        gdst: GraphState,
+        gsrc: BaseGraphState,
+        gdst: BaseGraphState,
         nmap: dict[NodeIdLocal, NodeIdLocal],
         created: dict[int, int],
     ) -> None:
@@ -703,7 +707,9 @@ class CompiledRHGCanvas:
                 gdst.add_physical_edge(created.get(int(nu), int(nu)), created.get(int(nv), int(nv)))
 
     @staticmethod
-    def _create_remapped_graphstate(gsrc: GraphState | None, nmap: dict[NodeIdLocal, NodeIdLocal]) -> GraphState | None:
+    def _create_remapped_graphstate(
+        gsrc: BaseGraphState | None, nmap: dict[NodeIdLocal, NodeIdLocal]
+    ) -> BaseGraphState | None:
         """Create a remapped GraphState."""
         if gsrc is None:
             return None
@@ -998,8 +1004,8 @@ def _create_first_layer_canvas(next_layer: TemporalLayer) -> CompiledRHGCanvas:
 
 
 def _compose_graphs_sequentially(
-    graph1: GraphState, graph2: GraphState
-) -> tuple[GraphState, dict[int, int], dict[int, int]]:
+    graph1: BaseGraphState, graph2: BaseGraphState
+) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
     """Compose two graphs sequentially with fallback to manual composition."""
     try:
         result = compose_sequentially(graph1, graph2)
@@ -1012,8 +1018,8 @@ def _compose_graphs_sequentially(
 
 
 def _manual_graph_composition(
-    graph1: GraphState, graph2: GraphState
-) -> tuple[GraphState, dict[int, int], dict[int, int]]:
+    graph1: BaseGraphState, graph2: BaseGraphState
+) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
     """Manually compose two graphs when canonical composition fails."""
     g = GraphState()
     node_map1 = {}
@@ -1127,7 +1133,7 @@ def _build_coordinate_gid_mapping(
     return new_coord2gid
 
 
-def _update_accumulators(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, new_graph: GraphState) -> None:
+def _update_accumulators(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, new_graph: BaseGraphState) -> None:
     """Update accumulators at layer boundaries."""
     try:
         z_minus_ancillas = []
@@ -1156,7 +1162,7 @@ def _setup_temporal_connections(
     pipes: list[RHGPipe],
     cgraph: CompiledRHGCanvas,
     next_layer: TemporalLayer,
-    new_graph: GraphState,
+    new_graph: BaseGraphState,
     new_coord2node: dict[PhysCoordGlobal3D, int],
     new_coord2gid: dict[PhysCoordGlobal3D, QubitGroupIdGlobal],
 ) -> None:
@@ -1198,6 +1204,8 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         return _create_first_layer_canvas(next_layer)
 
     # Compose graphs and remap
+    if next_layer.local_graph is None:
+        raise ValueError("next_layer.local_graph cannot be None")
     new_graph, node_map1, node_map2 = _compose_graphs_sequentially(cgraph.global_graph, next_layer.local_graph)
     cgraph = cgraph.remap_nodes({NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map1.items()})
     _remap_layer_mappings(next_layer, node_map2)

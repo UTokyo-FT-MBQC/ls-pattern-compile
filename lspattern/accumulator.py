@@ -109,12 +109,16 @@ class BaseAccumulator:
         object that carries a ``local_graph`` (e.g., TemporalLayer). Missing
         pieces are returned as ``None``.
         """
+        from graphix_zx.graphstate import BaseGraphState as BaseGraphStateClass
+
         # TemporalLayer-like: has local_graph and rich maps
         if hasattr(graph_local, "local_graph"):
             return BaseAccumulator._extract_context_from_temporal_layer(graph_local)
 
         # BaseGraphState-like: just neighbors
-        return BaseAccumulator._extract_context_from_graph_state(graph_local)
+        if isinstance(graph_local, BaseGraphStateClass):
+            return BaseAccumulator._extract_context_from_graph_state(graph_local)
+        raise TypeError(f"Expected BaseGraphState or object with local_graph, got {type(graph_local)}")
 
     @staticmethod
     def _is_classical_output(node: int, graph: BaseGraphState | object) -> bool:
@@ -301,10 +305,14 @@ class ScheduleAccumulator(BaseAccumulator):
         Uses node2coord if available to place the node into the correct t-slot.
         Ignores classical outputs. Monotonic (non-decreasing) by construction.
         """
+        from graphix_zx.graphstate import BaseGraphState as BaseGraphStateClass
+
         if hasattr(graph_local, "local_graph"):
             graph, node2coord, _roles = self._extract_context_from_temporal_layer(graph_local)
-        else:
+        elif isinstance(graph_local, BaseGraphStateClass):
             graph, node2coord, _roles = self._extract_context_from_graph_state(graph_local)
+        else:
+            raise TypeError(f"Expected BaseGraphState or object with local_graph, got {type(graph_local)}")
 
         if self._is_classical_output(anchor, graph):
             return
@@ -355,10 +363,14 @@ class ParityAccumulator(BaseAccumulator):
         - Skip classical outputs.
         - Non-decreasing is enforced by assertion.
         """
+        from graphix_zx.graphstate import BaseGraphState as BaseGraphStateClass
+
         if hasattr(graph_local, "local_graph"):
             graph, _coords, roles = self._extract_context_from_temporal_layer(graph_local)
-        else:
+        elif isinstance(graph_local, BaseGraphStateClass):
             graph, _coords, roles = self._extract_context_from_graph_state(graph_local)
+        else:
+            raise TypeError(f"Expected BaseGraphState or object with local_graph, got {type(graph_local)}")
 
         if self._is_classical_output(anchor, graph):
             return
@@ -437,10 +449,14 @@ class FlowAccumulator(BaseAccumulator):
         - For Z-ancilla: add directed edges anchor -> data_nbr into ``zflow``.
         - Skip classical outputs.
         """
+        from graphix_zx.graphstate import BaseGraphState as BaseGraphStateClass
+
         if hasattr(graph_local, "local_graph"):
             graph, _coords, roles = self._extract_context_from_temporal_layer(graph_local)
-        else:
+        elif isinstance(graph_local, BaseGraphStateClass):
             graph, _coords, roles = self._extract_context_from_graph_state(graph_local)
+        else:
+            raise TypeError(f"Expected BaseGraphState or object with local_graph, got {type(graph_local)}")
 
         if self._is_classical_output(anchor, graph):
             return
@@ -495,10 +511,14 @@ class DetectorAccumulator(BaseAccumulator):
         *,
         allowed_pairs: Iterable[tuple[int, int]] | None = None,
     ) -> None:
+        from graphix_zx.graphstate import BaseGraphState as BaseGraphStateClass
+
         if hasattr(graph_local, "local_graph"):
             graph, _coords, roles = self._extract_context_from_temporal_layer(graph_local)
-        else:
+        elif isinstance(graph_local, BaseGraphStateClass):
             graph, _coords, roles = self._extract_context_from_graph_state(graph_local)
+        else:
+            raise TypeError(f"Expected BaseGraphState or object with local_graph, got {type(graph_local)}")
         if self._is_classical_output(anchor, graph):
             return
 

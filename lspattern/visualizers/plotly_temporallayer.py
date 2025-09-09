@@ -134,9 +134,9 @@ def visualize_temporal_layer_plotly(  # noqa: C901
         edge_y: list[float] = []
         edge_z: list[float] = []
         for u, v in g.physical_edges:
-            if u in node2coord and v in node2coord:
-                x1, y1, z1 = node2coord[u]
-                x2, y2, z2 = node2coord[v]
+            if NodeIdLocal(u) in node2coord and NodeIdLocal(v) in node2coord:
+                x1, y1, z1 = node2coord[NodeIdLocal(u)]
+                x2, y2, z2 = node2coord[NodeIdLocal(v)]
                 edge_x.extend([float(x1), float(x2), float("nan")])
                 edge_y.extend([float(y1), float(y2), float("nan")])
                 edge_z.extend([float(z1), float(z2), float("nan")])
