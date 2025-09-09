@@ -137,9 +137,9 @@ def visualize_temporal_layer_plotly(  # noqa: C901
             if u in node2coord and v in node2coord:
                 x1, y1, z1 = node2coord[u]
                 x2, y2, z2 = node2coord[v]
-                edge_x.extend([float(x1), float(x2), float('nan')])
-                edge_y.extend([float(y1), float(y2), float('nan')])
-                edge_z.extend([float(z1), float(z2), float('nan')])
+                edge_x.extend([float(x1), float(x2), float("nan")])
+                edge_y.extend([float(y1), float(y2), float("nan")])
+                edge_z.extend([float(z1), float(z2), float("nan")])
         if edge_x:
             fig.add_trace(
                 go.Scatter3d(

@@ -2,20 +2,36 @@ from __future__ import annotations
 
 import os
 import pathlib
-from typing import Any
+from typing import Protocol
 
 import matplotlib.pyplot as plt
 
 from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z, is_data
 
 
-def _node_to_coord(canvas: Any) -> dict[int, tuple[int, int, int]]:
+# NOTE: I'm not sure which type satisfies this protocol. Maybe outdated visualizer code?
+class CanvasProtocol(Protocol):
+    """Protocol for canvas objects used in visualization."""
+
+    coord_to_node: dict[tuple[int, int, int], int]
+
+    @property
+    def graph(self) -> GraphProtocol: ...
+
+
+class GraphProtocol(Protocol):
+    """Protocol for graph objects with physical edges."""
+
+    physical_edges: set[tuple[int, int]]
+
+
+def _node_to_coord(canvas: CanvasProtocol) -> dict[int, tuple[int, int, int]]:
     """Invert canvas.coord_to_node -> node -> (x,y,z)."""
     return {nid: coord for coord, nid in canvas.coord_to_node.items()}
 
 
-def visualize_canvas(
-    canvas: Any,
+def visualize_canvas(  # noqa: C901
+    canvas: CanvasProtocol,
     *,
     indicated_nodes: set[int] | None = None,
     save_path: str | None = None,
@@ -29,8 +45,8 @@ def visualize_canvas(
 
     Parameters
     ----------
-    canvas : RHGCanvas
-        The canvas describing MBQC on the Raussendorf lattice.
+    canvas : CanvasProtocol
+        The canvas object with coordinate mappings and graph.
     save_path : Optional[str], optional
         Path to save the figure. If None, the figure is not saved.
         Directory will be created if it doesn't exist, by default None
