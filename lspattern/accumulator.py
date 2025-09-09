@@ -23,12 +23,21 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal
 
 if TYPE_CHECKING:
     from graphix_zx.graphstate import BaseGraphState
+
+
+class GraphLike(Protocol):
+    """Protocol for graph-like objects with neighbors method."""
+
+    def neighbors(self, node: int) -> Iterable[int]:
+        """Return neighbors of the given node."""
+        ...
+
 
 # -----------------------------------------------------------------------------
 # Shared helpers and base class
@@ -125,12 +134,12 @@ class BaseAccumulator:
         return False
 
     @staticmethod
-    def _neighbors(node: int, graph: BaseGraphState | object) -> set[int]:
+    def _neighbors(node: int, graph: BaseGraphState | GraphLike | object) -> set[int]:
         """Return neighbor set from a BaseGraphState-like object."""
         if not hasattr(graph, "neighbors"):
             return set()
         try:
-            return set(graph.neighbors(int(node)))
+            return set(graph.neighbors(int(node)))  # pyright: ignore[reportAttributeAccessIssue]
         except (AttributeError, TypeError, ValueError):
             return set()
 

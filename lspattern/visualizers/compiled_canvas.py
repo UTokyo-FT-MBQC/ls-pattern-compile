@@ -93,7 +93,7 @@ def visualize_compiled_canvas(  # noqa: C901
             ax.scatter(
                 pts["x"],
                 pts["y"],
-                zs=pts["z"],
+                zs=pts["z"],  # pyright: ignore[reportArgumentType]
                 c=color,
                 edgecolors="black",
                 s=40,
@@ -132,7 +132,7 @@ def visualize_compiled_canvas(  # noqa: C901
             ax.scatter(
                 xs,
                 ys,
-                zs=zs,
+                zs=zs,  # pyright: ignore[reportArgumentType]
                 c=color,
                 edgecolors="darkred",
                 s=70,

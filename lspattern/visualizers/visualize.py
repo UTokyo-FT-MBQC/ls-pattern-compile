@@ -86,7 +86,7 @@ def visualize_canvas(  # noqa: C901
     ax.scatter(
         xs,
         ys,
-        zs,
+        zs,  # pyright: ignore[reportArgumentType]
         c=colors,
         edgecolors="black",
         s=50,

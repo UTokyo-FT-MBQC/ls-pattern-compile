@@ -115,3 +115,4 @@ files = ["lspattern"]
 
 [tool.pyright]
 include = ["lspattern"]
+reportMissingImports = false

@@ -46,8 +46,10 @@ def visualize_parity_mpl(  # noqa: C901
         ax = fig.add_subplot(111, projection="3d")
         created_fig = True
     else:
-        fig = ax.get_figure()  # type: ignore[assignment]
-        assert fig is not None  # noqa: S101
+        fig_maybe_subfig = ax.get_figure()
+        assert fig_maybe_subfig is not None  # noqa: S101
+        # Get the root figure if this is a SubFigure
+        fig = getattr(fig_maybe_subfig, "figure", None) or fig_maybe_subfig  # type: ignore[assignment]
 
     with contextlib.suppress(Exception):
         ax.set_box_aspect((1, 1, 1))  # type: ignore[arg-type]
@@ -82,7 +84,9 @@ def visualize_parity_mpl(  # noqa: C901
     ax.legend()
 
     if save_path is not None:
-        fig.savefig(save_path, bbox_inches="tight", dpi=120)
+        # Use root figure for saving if fig is a SubFigure
+        root_fig = getattr(fig, "figure", fig)
+        root_fig.savefig(save_path, bbox_inches="tight", dpi=120)  # pyright: ignore[reportAttributeAccessIssue]
 
     if show and created_fig:
         plt.show()
@@ -108,8 +112,10 @@ def visualize_flow_mpl(  # noqa: C901
         ax = fig.add_subplot(111, projection="3d")
         created_fig = True
     else:
-        fig = ax.get_figure()  # type: ignore[assignment]
-        assert fig is not None  # noqa: S101
+        fig_maybe_subfig = ax.get_figure()
+        assert fig_maybe_subfig is not None  # noqa: S101
+        # Get the root figure if this is a SubFigure
+        fig = getattr(fig_maybe_subfig, "figure", None) or fig_maybe_subfig  # type: ignore[assignment]
 
     with contextlib.suppress(Exception):
         ax.set_box_aspect((1, 1, 1))  # type: ignore[arg-type]
@@ -145,7 +151,9 @@ def visualize_flow_mpl(  # noqa: C901
     ax.legend()
 
     if save_path is not None:
-        fig.savefig(save_path, bbox_inches="tight", dpi=120)
+        # Use root figure for saving if fig is a SubFigure
+        root_fig = getattr(fig, "figure", fig)
+        root_fig.savefig(save_path, bbox_inches="tight", dpi=120)  # pyright: ignore[reportAttributeAccessIssue]
 
     if show and created_fig:
         plt.show()
@@ -206,7 +214,9 @@ def visualize_schedule_mpl(
         ax.legend()
 
     if save_path is not None:
-        fig.savefig(save_path, bbox_inches="tight", dpi=120)
+        # Use root figure for saving if fig is a SubFigure
+        root_fig = getattr(fig, "figure", fig)
+        root_fig.savefig(save_path, bbox_inches="tight", dpi=120)  # pyright: ignore[reportAttributeAccessIssue]
     if show and created_fig:
         plt.show()
     return ax
@@ -229,8 +239,10 @@ def visualize_detectors_mpl(  # noqa: C901
         ax = fig.add_subplot(111, projection="3d")
         created_fig = True
     else:
-        fig = ax.get_figure()  # type: ignore[assignment]
-        assert fig is not None  # noqa: S101
+        fig_maybe_subfig = ax.get_figure()
+        assert fig_maybe_subfig is not None  # noqa: S101
+        # Get the root figure if this is a SubFigure
+        fig = getattr(fig_maybe_subfig, "figure", None) or fig_maybe_subfig  # type: ignore[assignment]
 
     with contextlib.suppress(Exception):
         ax.set_box_aspect((1, 1, 1))  # type: ignore[arg-type]
@@ -273,7 +285,9 @@ def visualize_detectors_mpl(  # noqa: C901
     ax.set_title(f"Detectors (z={layer.z})")
 
     if save_path is not None:
-        fig.savefig(save_path, bbox_inches="tight", dpi=120)
+        # Use root figure for saving if fig is a SubFigure
+        root_fig = getattr(fig, "figure", fig)
+        root_fig.savefig(save_path, bbox_inches="tight", dpi=120)  # pyright: ignore[reportAttributeAccessIssue]
     if show and created_fig:
         plt.show()
     return ax
@@ -300,7 +314,9 @@ def visualize_temporal_layer_2x2_mpl(
 
     fig.tight_layout()
     if save_path is not None:
-        fig.savefig(save_path, bbox_inches="tight", dpi=dpi)
+        # Use root figure for saving if fig is a SubFigure
+        root_fig = getattr(fig, "figure", fig)
+        root_fig.savefig(save_path, bbox_inches="tight", dpi=dpi)  # pyright: ignore[reportAttributeAccessIssue]
     if show:
         plt.show()
     return fig

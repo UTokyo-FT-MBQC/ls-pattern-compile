@@ -10,6 +10,7 @@ from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z
 
 if TYPE_CHECKING:
     import matplotlib.axes
+    import matplotlib.figure
     from matplotlib.figure import Figure
 
     from lspattern.canvas import TemporalLayer
@@ -30,7 +31,7 @@ def visualize_temporal_layer(  # noqa: C901
     dpi: int = 120,
     show_axes: bool = True,
     show_grid: bool = True,
-) -> tuple[Figure, matplotlib.axes.Axes]:
+) -> tuple[Figure | matplotlib.figure.SubFigure, matplotlib.axes.Axes]:
     """Visualize a single TemporalLayer in 3D with parity-based coloring.
 
     Parameters
@@ -104,7 +105,7 @@ def visualize_temporal_layer(  # noqa: C901
             ax.scatter(
                 pts["x"],
                 pts["y"],
-                zs=pts["z"],
+                zs=pts["z"],  # pyright: ignore[reportArgumentType]
                 c=color,
                 edgecolors="black",
                 s=50,
@@ -142,7 +143,7 @@ def visualize_temporal_layer(  # noqa: C901
             ax.scatter(
                 xin,
                 yin,
-                zs=zin,
+                zs=zin,  # pyright: ignore[reportArgumentType]
                 s=70,
                 facecolors="white",
                 edgecolors="#e74c3c",  # softer red
@@ -158,7 +159,7 @@ def visualize_temporal_layer(  # noqa: C901
             ax.scatter(
                 xout,
                 yout,
-                zs=zout,
+                zs=zout,  # pyright: ignore[reportArgumentType]
                 s=70,
                 c="#e74c3c",  # softer red fill
                 edgecolors="#c0392b",  # darker red edge
@@ -183,7 +184,9 @@ def visualize_temporal_layer(  # noqa: C901
         save_path_obj = pathlib.Path(save_path)
         if save_path_obj.parent != pathlib.Path() and not save_path_obj.parent.exists():
             save_path_obj.parent.mkdir(exist_ok=True, parents=True)
-        fig.savefig(save_path, bbox_inches="tight", dpi=dpi)
+        # Use root figure for saving if fig is a SubFigure
+        root_fig = getattr(fig, "figure", fig)
+        root_fig.savefig(save_path, bbox_inches="tight", dpi=dpi)  # pyright: ignore[reportAttributeAccessIssue]
         print(f"Figure saved to: {save_path}")
 
     if show and created_fig:
@@ -198,7 +201,7 @@ def visualize_temporal_layer(  # noqa: C901
                 print("Display not available; use save_path to save the figure.")
     elif created_fig:
         # If we created the figure but show is False, close it
-        plt.close(fig)
+        plt.close(fig)  # pyright: ignore[reportArgumentType]
     # When ax was provided, don't manage the figure lifecycle
 
     return fig, ax
