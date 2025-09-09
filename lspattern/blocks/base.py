@@ -22,7 +22,7 @@ from lspattern.tiling.template import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Mapping, MutableMapping, Sequence
     from collections.abc import Set as AbstractSet
 
     from lspattern.mytype import (
@@ -243,9 +243,9 @@ class RHGBlock:
         z2d: Sequence[tuple[int, int]],
         max_t: int,
         z0: int,
-        node2coord: Mapping[int, tuple[int, int, int]],
-        coord2node: Mapping[tuple[int, int, int], int],
-        node2role: Mapping[int, str],
+        node2coord: MutableMapping[int, tuple[int, int, int]],
+        coord2node: MutableMapping[tuple[int, int, int], int],
+        node2role: MutableMapping[int, str],
     ) -> dict[int, dict[tuple[int, int], int]]:
         """Assign nodes for each time slice."""
         nodes_by_z: dict[int, dict[tuple[int, int], int]] = {}
