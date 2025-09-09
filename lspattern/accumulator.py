@@ -278,7 +278,7 @@ class ScheduleAccumulator(BaseAccumulator):
         anchor: int,
         graph_local: BaseGraphState | object,
         *,
-        allowed_pairs: Iterable[tuple[int, int]] | None = None,
+        allowed_pairs: Iterable[tuple[int, int]] | None = None,  # noqa: ARG002
     ) -> None:
         """Record the measurement of ``anchor`` at its time slice.
 
