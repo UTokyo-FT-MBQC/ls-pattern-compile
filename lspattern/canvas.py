@@ -259,9 +259,9 @@ class TemporalLayer:
             patch_pos = PatchCoordGlobal3D(pos)
             self.cout_portset[patch_pos] = [
                 NodeIdLocal(node_map2[n])
-                for s in blk.cout_ports
+                for s in blk.cout_ports  # type: ignore[attr-defined]
                 for n in s
-                if n in node_map2  # type: ignore[attr-defined]
+                if n in node_map2
             ]
 
     def _build_graph_from_blocks(self) -> GraphState | None:
