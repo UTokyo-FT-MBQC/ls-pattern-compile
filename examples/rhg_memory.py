@@ -10,8 +10,8 @@ import pathlib
 
 import pymatching
 import stim
-from graphix_zx.pattern import print_pattern
 from graphix_zx.stim_compiler import stim_compile
+from graphix_zx.pattern import print_pattern
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.pipes.memory import MemoryPipeSkeleton
