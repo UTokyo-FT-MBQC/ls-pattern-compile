@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from graphix_zx.common import Axis, AxisMeasBasis, Sign
 
-from lspattern.blocks.base import RHGBlock
+from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
 
 if TYPE_CHECKING:
     from lspattern.canvas import RHGCanvas
@@ -32,6 +32,13 @@ class _MeasureBase(RHGBlock):
         msg = "Measure blocks are not implemented in this build"
         raise NotImplementedError(msg)
 
+    def set_in_ports(self) -> None:
+        idx_map = self.template.get_data_indices()
+        self.in_ports = set(idx_map.values())
+
+    def set_out_ports(self) -> None:
+        return super().set_out_ports()
+
 
 class MeasureX(_MeasureBase):
     """Measure a logical block in the X basis."""
@@ -39,9 +46,36 @@ class MeasureX(_MeasureBase):
     def __init__(self, logical: int) -> None:
         super().__init__(logical, Axis.X)
 
+    def set_cout_ports(self) -> None:
+        pass
+
 
 class MeasureZ(_MeasureBase):
     """Measure a logical block in the Z basis."""
 
     def __init__(self, logical: int) -> None:
         super().__init__(logical, Axis.Z)
+
+    def set_cout_ports(self) -> None:
+        pass
+
+
+class MeasureXSkelton(RHGBlockSkeleton):
+    """Skeleton for X-basis measurement blocks in cube-shaped RHG structures."""
+
+    name: ClassVar[str] = "MeasureXSkelton"
+
+    def to_block(self) -> MeasureX:
+        """Materialize to a MeasureX (template evaluated, no local graph yet)."""
+        # Apply spatial open-boundary trimming if specified
+        for direction in ["LEFT", "RIGHT", "TOP", "BOTTOM"]:
+            if str(self.edgespec.get(direction, "O")).upper() == "O":
+                self.trim_spatial_boundary(direction)
+        # Evaluate template coordinates
+        self.template.to_tiling()
+
+        block = MeasureX(
+            logical=self.d,
+        )
+        block.final_layer = "MX"
+        return block
