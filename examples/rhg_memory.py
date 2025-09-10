@@ -24,7 +24,7 @@ from lspattern.visualizers import visualize_compiled_canvas
 
 # %%
 # Demo 1: Create simple RHG memory canvas (InitPlus -> Memory)
-d = 2
+d = 3
 
 # Create canvas skeleton
 skeleton = RHGCanvasSkeleton(name="Simple RHG Memory Canvas")
