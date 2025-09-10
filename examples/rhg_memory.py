@@ -11,11 +11,10 @@ Usage:
 # %%
 import traceback
 
-# TODO: Implement missing imports when available
-# import pymatching
-# import stim
-# from graphix_zx.stim_compiler import stim_compile
-# from graphix_zx.pattern import Pattern, print_pattern
+import pymatching
+import stim
+from graphix_zx.stim_compiler import stim_compile
+from graphix_zx.pattern import Pattern, print_pattern
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.pipes.memory import MemoryPipeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
@@ -123,52 +122,47 @@ except (ValueError, AttributeError, NotImplementedError) as e:
     traceback.print_exc()
 
 # %%
-# Demo 5: Circuit creation placeholder (TODO: implement when stim is available)
+# Demo 5: Circuit creation placeholder
 print("\n=== Circuit Creation (Stub) ===")
 print(f"Circuit creation for d={d} not implemented yet")
-print("TODO: Implement when stim and pymatching are available")
 
-# TODO: Implement when dependencies are available
-# def create_circuit(pattern: Pattern, noise: float) -> stim.Circuit:
-#     logical_observables = {0: {i for i in range(d)}}
-#     stim_str = stim_compile(
-#         pattern,
-#         logical_observables,
-#         after_clifford_depolarization=noise,
-#         before_measure_flip_probability=noise,
-#     )
-#     return stim.Circuit(stim_str)
 
-# noise = 0.001
-# circuit = create_circuit(pattern, noise)
-# print(f"num_qubits: {circuit.num_qubits}")
+def create_circuit(pattern: Pattern, noise: float) -> stim.Circuit:
+    logical_observables = {0: {i for i in range(d)}}
+    stim_str = stim_compile(
+        pattern,
+        logical_observables,
+        after_clifford_depolarization=noise,
+        before_measure_flip_probability=noise,
+    )
+    return stim.Circuit(stim_str)
+
+noise = 0.001
+circuit = create_circuit(pattern, noise)
+print(f"num_qubits: {circuit.num_qubits}")
 
 # %%
 # Demo 6: Error correction simulation placeholder (TODO: implement when pymatching is available)
 print("\n=== Error Correction Simulation (Stub) ===")
 print("Error correction simulation not implemented yet")
-print("TODO: Implement when pymatching is available")
 
-# TODO: Implement when dependencies are available
-# dem = circuit.detector_error_model(decompose_errors=True)
-# print(dem)
+dem = circuit.detector_error_model(decompose_errors=True)
+print(dem)
 
-# matching = pymatching.Matching.from_detector_error_model(dem)
-# print(matching)
+matching = pymatching.Matching.from_detector_error_model(dem)
+print(matching)
 
-# err = dem.shortest_graphlike_error(ignore_ungraphlike_errors=False)
-# print(len(err))
-# print(err)
+err = dem.shortest_graphlike_error(ignore_ungraphlike_errors=False)
+print(len(err))
+print(err)
 
 # %%
-# Demo 7: Visualization export placeholder (TODO: implement when dependencies are available)
+# Demo 7: Visualization export placeholder
 print("\n=== Visualization Export (Stub) ===")
 print("Visualization export not implemented yet")
-print("TODO: Implement SVG export functionality")
 
-# TODO: Implement when dependencies are available
-# svg = dem.diagram(type="match-graph-svg")
-# import pathlib
-# pathlib.Path("figures/new_rhg_memory_dem.svg").write_text(str(svg), encoding="utf-8")
+svg = dem.diagram(type="match-graph-svg")
+import pathlib
+pathlib.Path("figures/new_rhg_memory_dem.svg").write_text(str(svg), encoding="utf-8")
 
 # %%
