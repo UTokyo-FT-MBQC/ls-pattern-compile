@@ -8,6 +8,7 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
 
+from graphix_zx.common import Axis, AxisMeasBasis, MeasBasis, Sign
 from graphix_zx.graphstate import GraphState
 
 from lspattern.accumulator import (
@@ -197,6 +198,10 @@ class RHGBlock:
 
         # Register GraphState input/output nodes for visualization
         self._register_io_nodes(g, node2coord, coord2node)
+        # Assign measurement bases for non-output nodes
+        # TODO: add interface to registre meas_bases_map
+        meas_bases_map: dict[int, MeasBasis] = {}
+        self._assign_meas_bases(g, meas_bases_map)
 
         # Store results on the block
         self.local_graph = g
@@ -342,6 +347,14 @@ class RHGBlock:
         except (ValueError, KeyError, AttributeError) as e:
             # Visualization aid only; avoid breaking materialization pipelines
             print(f"Warning: failed to register I/O nodes on RHGBlock: {e}")
+
+    def _assign_meas_bases(self, g: GraphState, meas_bases_map: Mapping[int, MeasBasis]) -> None:  # noqa: PLR6301
+        """Assign measurement bases for non-output nodes."""
+        for node in g.physical_nodes - g.output_node_indices.keys():
+            meas_basis = meas_bases_map.get(node)
+            if meas_basis is None:
+                meas_basis = AxisMeasBasis(Axis.X, Sign.PLUS)
+            g.assign_meas_basis(node, meas_basis)
 
     def _build_coordinate_mappings(
         self, coord2node: Mapping[tuple[int, int, int], int], zmin: int, zmax: int
