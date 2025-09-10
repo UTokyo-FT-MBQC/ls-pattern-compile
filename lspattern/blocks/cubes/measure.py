@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from graphix_zx.common import Plane, PlannerMeasBasis
+from graphix_zx.common import Axis, AxisMeasBasis, Sign
 
 from lspattern.blocks.base import RHGBlock
 
@@ -22,9 +22,9 @@ class _MeasureBase(RHGBlock):
     - Provide X-cap parity directives that close the top with the previous X layer.
     """
 
-    def __init__(self, logical: int, basis: str) -> None:
+    def __init__(self, logical: int, basis: Axis) -> None:
         self.logical = logical
-        self.basis = PlannerMeasBasis(Plane.XY, 0.0) if basis == "X" else PlannerMeasBasis(Plane.XZ, 0.0)
+        self.basis = AxisMeasBasis(basis, Sign.PLUS)
 
     def emit(self, canvas: RHGCanvas) -> None:
         # This detailed implementation is out of scope for this milestone.
@@ -37,4 +37,11 @@ class MeasureX(_MeasureBase):
     """Measure a logical block in the X basis."""
 
     def __init__(self, logical: int) -> None:
-        super().__init__(logical, "X")
+        super().__init__(logical, Axis.X)
+
+
+class MeasureZ(_MeasureBase):
+    """Measure a logical block in the Z basis."""
+
+    def __init__(self, logical: int) -> None:
+        super().__init__(logical, Axis.Z)
