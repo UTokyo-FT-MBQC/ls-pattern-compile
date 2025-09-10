@@ -6,7 +6,6 @@ from graphix_zx.common import Axis, AxisMeasBasis, Sign
 
 from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
 
-
 if TYPE_CHECKING:
     from lspattern.canvas import RHGCanvas
 
