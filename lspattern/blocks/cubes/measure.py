@@ -24,7 +24,7 @@ class _MeasureBase(RHGBlock):
 
     def __init__(self, logical: int, basis: Axis) -> None:
         self.logical = logical
-        self.basis = AxisMeasBasis(basis, Sign.PLUS)
+        self.meas_basis = AxisMeasBasis(basis, Sign.PLUS)  # is it actually override the base class's meas_basis?
 
     def emit(self, canvas: RHGCanvas) -> None:
         # This detailed implementation is out of scope for this milestone.
