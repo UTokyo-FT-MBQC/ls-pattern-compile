@@ -197,7 +197,7 @@ class RHGBlock:
         g, node2coord, coord2node, node2role = self._build_3d_graph()
 
         # Register GraphState input/output nodes for visualization
-        self._register_io_nodes(g, node2coord, coord2node)
+        self._register_io_nodes(g, node2coord, coord2node, node2role)
         # Assign measurement bases for non-output nodes
         # TODO: add interface to registre meas_bases_map
         meas_bases_map: dict[int, MeasBasis] = {}
@@ -240,6 +240,7 @@ class RHGBlock:
 
         return g, node2coord, coord2node, node2role
 
+    # TODO: avoid MutableMapping since it's not safe
     def _assign_nodes_by_timeslice(
         self,
         g: GraphState,
@@ -326,12 +327,14 @@ class RHGBlock:
         g: GraphState,
         node2coord: Mapping[int, tuple[int, int, int]],
         coord2node: Mapping[tuple[int, int, int], int],
+        node2role: Mapping[int, str],
     ) -> None:
         """Register input/output nodes for visualization."""
         try:
             # Determine z- (min) and z+ (max) among DATA nodes only
-            data_coords_all = [c for n, c in node2coord.items() if self.node2role.get(NodeIdLocal(n)) == "data"]
+            data_coords_all = [c for n, c in node2coord.items() if node2role.get(n) == "data"]
             if not data_coords_all:
+                print("Warning: no data nodes found in RHGBlock; skipping I/O registration")
                 return
 
             zmin = min(c[2] for c in data_coords_all)
