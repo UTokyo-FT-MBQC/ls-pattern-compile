@@ -1017,6 +1017,7 @@ def _compose_graphs_sequentially(
         return _manual_graph_composition(graph1, graph2)
 
 
+# TODO: should be removed after compose_sequentially is fixed
 def _manual_graph_composition(
     graph1: BaseGraphState, graph2: BaseGraphState
 ) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
