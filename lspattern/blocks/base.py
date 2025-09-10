@@ -71,6 +71,9 @@ class RHGBlock:
         Grouped classical output ports (one group per logical result).
     local_graph : GraphState
         Local RHG graph constructed by ``materialize()``.
+    meas_basis : MeasBasis
+        Measurement basis for non-output nodes in the local graph.
+        Currently, the measurement basis is uniform across all non-output nodes.
     node2coord, coord2node : dict
         Bidirectional maps between node ids and 3D coordinates.
     node2role : dict[int, str]
@@ -97,6 +100,7 @@ class RHGBlock:
     parity: ParityAccumulator = field(init=False, default_factory=ParityAccumulator)
 
     local_graph: GraphState = field(init=False, default_factory=GraphState)
+    meas_basis: MeasBasis = field(init=False, default_factory=lambda: AxisMeasBasis(Axis.X, Sign.PLUS))
     node2coord: dict[NodeIdLocal, PhysCoordGlobal3D] = field(init=False, default_factory=dict)
     coord2node: dict[PhysCoordGlobal3D, NodeIdLocal] = field(init=False, default_factory=dict)
     node2role: dict[NodeIdLocal, str] = field(init=False, default_factory=dict)
@@ -198,10 +202,8 @@ class RHGBlock:
 
         # Register GraphState input/output nodes for visualization
         self._register_io_nodes(g, node2coord, coord2node, node2role)
-        # Assign measurement bases for non-output nodes
-        # TODO: add interface to registre meas_bases_map
-        meas_bases_map: dict[int, MeasBasis] = {}
-        self._assign_meas_bases(g, meas_bases_map)
+        # Assign measurement basis for non-output nodes
+        self._assign_meas_bases(g, self.meas_basis)
 
         # Store results on the block
         self.local_graph = g
@@ -351,12 +353,10 @@ class RHGBlock:
             # Visualization aid only; avoid breaking materialization pipelines
             print(f"Warning: failed to register I/O nodes on RHGBlock: {e}")
 
-    def _assign_meas_bases(self, g: GraphState, meas_bases_map: Mapping[int, MeasBasis]) -> None:  # noqa: PLR6301
-        """Assign measurement bases for non-output nodes."""
+    def _assign_meas_basis(self, g: GraphState, meas_basis: MeasBasis) -> None:  # noqa: PLR6301
+        """Assign measurement basis for non-output nodes."""
         for node in g.physical_nodes - g.output_node_indices.keys():
-            meas_basis = meas_bases_map.get(node)
-            if meas_basis is None:
-                meas_basis = AxisMeasBasis(Axis.X, Sign.PLUS)
+            g.assign_meas_basis(node, meas_basis)
             g.assign_meas_basis(node, meas_basis)
 
     def _build_coordinate_mappings(
@@ -384,7 +384,7 @@ class RHGBlock:
     ) -> dict[tuple[int, int], int]:
         """Register input ports and return logical index mapping."""
         xy_to_lidx: dict[tuple[int, int], int] = {}
-        if not self.in_ports:
+        if not self.in_ports:  # is this branch necessary?
             return xy_to_lidx
 
         xy_to_q = self.template.get_data_indices()
