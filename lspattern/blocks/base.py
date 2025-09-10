@@ -353,10 +353,9 @@ class RHGBlock:
             # Visualization aid only; avoid breaking materialization pipelines
             print(f"Warning: failed to register I/O nodes on RHGBlock: {e}")
 
-    def _assign_meas_basis(self, g: GraphState, meas_basis: MeasBasis) -> None:  # noqa: PLR6301
+    def _assign_meas_bases(self, g: GraphState, meas_basis: MeasBasis) -> None:  # noqa: PLR6301
         """Assign measurement basis for non-output nodes."""
         for node in g.physical_nodes - g.output_node_indices.keys():
-            g.assign_meas_basis(node, meas_basis)
             g.assign_meas_basis(node, meas_basis)
 
     def _build_coordinate_mappings(
