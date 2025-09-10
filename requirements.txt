@@ -5,3 +5,5 @@ pymatching
 sinter
 ortools>=9,<10
 typing_extensions
+nbformat>=4.20
+plotly>=6

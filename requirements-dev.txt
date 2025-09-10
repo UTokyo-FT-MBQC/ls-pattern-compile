@@ -2,3 +2,4 @@ ruff
 mypy
 pyright
 pytest
+graphix-zx @ git+https://github.com/TeamGraphix/graphix-zx.git@67-compiler-from-pattern-to-stim-circuit

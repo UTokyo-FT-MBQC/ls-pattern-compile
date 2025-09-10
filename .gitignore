@@ -2,6 +2,10 @@
 __pycache__/
 *.py[codz]
 *$py.class
+.local
+.claude
+*.ipynb
+.vscode
 
 # C extensions
 *.so
@@ -210,3 +214,7 @@ __marimo__/
 *.png
 *.svg
 uv.lock
+AGENTS.md
+
+# Personal pyright configuration
+.pyrightconfig.json

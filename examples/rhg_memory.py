@@ -1,43 +1,78 @@
-"""RHG memory example."""
+#!/usr/bin/env python3
+"""New-API demo: RHG memory experiment (InitPlus -> Memory -> MeasureX).
+
+This example builds a single-logical memory line by stacking blocks on a growing canvas.
+
+Usage:
+  python examples/rhg_memory.py
+"""
 
 # %%
-
 import pathlib
 
 import pymatching
 import stim
-from graphix_zx.pattern import print_pattern
 from graphix_zx.stim_compiler import stim_compile
+from graphix_zx.pattern import Pattern, print_pattern
+from lspattern.canvas import RHGCanvas
+from lspattern.blocks import InitPlus, Memory, MeasureX
+from lspattern.visualize import visualize_canvas
 
-from lspattern.ops import memory
-from lspattern.rhg import create_rhg, visualize_rhg
+# %%
+d = 2
+r = 1
+
+canvas = RHGCanvas()
+canvas.append(InitPlus(logical=0, dx=d, dy=d))
+visualize_canvas(
+    canvas,
+    show=True,
+)
+
+# %%
+canvas = RHGCanvas()
+canvas.append(InitPlus(logical=0, dx=d, dy=d))
+canvas.append(Memory(logical=0, rounds=r))
+visualize_canvas(
+    canvas,
+    save_path="figures/rhg_lattice.png",
+    show=True,
+)
+
+# %%
+canvas = RHGCanvas()
+canvas.append(InitPlus(logical=0, dx=d, dy=d))
+canvas.append(Memory(logical=0, rounds=r))
+canvas.append(Memory(logical=0, rounds=r))
+canvas.append(MeasureX(logical=0))
+visualize_canvas(
+    canvas,
+    save_path="figures/rhg_lattice.png",
+    show=True,
+)
 
 # %%
 d = 5
 r = 5
-rhg_result = create_rhg(d, d, r)
-visualize_rhg(
-    rhg_result.graph_state,
-    rhg_result.coord_to_node,
-    save_path="figures/rhg_lattice.png",
-    show=True,  # Don't show in terminal environment
-)
 
-for group in rhg_result.measurement_groups:
+canvas = RHGCanvas()
+canvas.append(InitPlus(logical=0, dx=d, dy=d))
+canvas.append(Memory(logical=0, rounds=r))
+canvas.append(Memory(logical=0, rounds=r))
+canvas.append(MeasureX(logical=0))
+
+for group in canvas.schedule_accum.measure_groups:
     print(f"group: {group}")
 
-length = 2 * d - 1
-# logical = set(range(d)) # logical Z (This is not deterministic with |+> initialization)
-logical = {length * i for i in range(d)}
+logical = set(i for i in range(d))
 print(f"logical X: {logical}")
 logical_observables = {0: logical}
 
 # %%
-pattern = memory(d, r)
+pattern = canvas.compile()
 print_pattern(pattern)
 
 # %%
-# compile to stim
 stim_str = stim_compile(
     pattern,
     logical_observables,
@@ -49,10 +84,8 @@ print(stim_str)
 # %%
 
 
-def create_circuit(d: int, rounds: int, noise: float) -> stim.Circuit:
-    pattern = memory(d, rounds)
-    length = 2 * d - 1
-    logical_observables = {0: {length * i for i in range(d)}}
+def create_circuit(pattern: Pattern, noise: float) -> stim.Circuit:
+    logical_observables = {0: {i for i in range(d)}}
     stim_str = stim_compile(
         pattern,
         logical_observables,
@@ -65,7 +98,7 @@ def create_circuit(d: int, rounds: int, noise: float) -> stim.Circuit:
 # %%
 
 noise = 0.001
-circuit = create_circuit(d, r, noise)
+circuit = create_circuit(pattern, noise)
 print(f"num_qubits: {circuit.num_qubits}")
 
 dem = circuit.detector_error_model(decompose_errors=True)

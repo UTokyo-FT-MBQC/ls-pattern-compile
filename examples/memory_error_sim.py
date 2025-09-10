@@ -7,7 +7,8 @@ import sinter
 import stim
 from graphix_zx.stim_compiler import stim_compile
 
-from lspattern.ops import memory
+from lspattern.canvas import RHGCanvas
+from lspattern.blocks import InitPlus, Memory, MeasureX
 
 
 def create_circuit(d: int, rounds: int, noise: float) -> stim.Circuit:
@@ -18,9 +19,14 @@ def create_circuit(d: int, rounds: int, noise: float) -> stim.Circuit:
     stim.Circuit
         The compiled memory circuit.
     """
-    pattern = memory(d, rounds)
-    length = 2 * d - 1
-    logical_observables = {0: {length * i for i in range(d)}}
+    canvas = RHGCanvas()
+    canvas.append(InitPlus(logical=0, dx=d, dy=d))
+    canvas.append(Memory(logical=0, rounds=rounds))
+    canvas.append(MeasureX(logical=0))
+
+    pattern = canvas.compile()
+
+    logical_observables = {0: {i for i in range(d)}}
     stim_str = stim_compile(
         pattern,
         logical_observables,

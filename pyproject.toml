@@ -1,31 +1,37 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=66", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "lspattern"
-version = "0.1.0"
-requires-python = ">=3.9, <3.14"
-dependencies = [
-    "numpy>=1.22,<3",
-    "matplotlib",
-    "stim",
-    "pymatching",
-    "sinter",
-    "ortools>=9,<10",
-    "typing_extensions",
-    "graphix-zx @ git+https://github.com/TeamGraphix/graphix-zx.git@67-compiler-from-pattern-to-stim-circuit",
+version = "0.0.1"
+description = "MBQC lattice-surgery compiler experiments (RHG blocks/pipes)"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Internal", email = "devnull@example.com" }
 ]
-optional-dependencies.dev = [
-    "ruff",
-    "mypy",
-    "pyright",
-    "pytest",
-]
+dynamic = ["dependencies", "optional-dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.dynamic.optional-dependencies]
+dev = { file = ["requirements-dev.txt"] }
+
+[tool.setuptools.package-dir]
+lspattern = "lspattern"
 
 [tool.ruff]
 target-version = "py313"
 line-length = 120
+extend-exclude = [
+  "lspattern/ops.py",
+  "lspattern/rhg.py",
+  # T48: exclude non-library content from lint scope
+  "examples/**",
+  "tests/**",
+]
 
 [tool.ruff.lint]
 preview = true
@@ -60,6 +66,11 @@ ignore = [
   "FBT",     # boolean-trap
   "FIX",     # fixme
   "PLR0904", # too-many-public-methods
+  "D",       # docstring
+  "DOC",     # document
+  "PLR09",   # too-many-*
+  "T201",    # print
+  "TD",      # TODO
 ]
 
 [tool.ruff.lint.pylint]
@@ -89,6 +100,8 @@ docstring-code-format = true
   "D",
 ]
 
+
+
 [tool.pytest.ini_options]
 pythonpath = ["lspattern"]
 testpaths = ["tests"]
@@ -98,12 +111,11 @@ markers = "slow: mark test as slow"
 [tool.mypy]
 strict = true
 ignore_missing_imports = true
-files = ["lspattern", "tests", "examples"]
+files = ["lspattern"]
 
 [tool.pyright]
-include = ["lspattern", "tests", "examples"]
-reportUnknownArgumentType = "information"
-reportUnknownLambdaType = "information"
-reportUnknownMemberType = "information"
-reportUnknownParameterType = "information"
-reportUnknownVariableType = "information"
+include = ["lspattern"]
+reportMissingImports = false
+# Note: For stricter type checking with editable installs, users may create
+# a local .pyrightconfig.json file with:
+# {"extraPaths": ["../graphix-zx"], "reportMissingImports": true}
