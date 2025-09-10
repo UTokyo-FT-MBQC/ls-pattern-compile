@@ -79,3 +79,24 @@ class MeasureXSkelton(RHGBlockSkeleton):
         )
         block.final_layer = "MX"
         return block
+
+
+class MeasureZSkelton(RHGBlockSkeleton):
+    """Skeleton for Z-basis measurement blocks in cube-shaped RHG structures."""
+
+    name: ClassVar[str] = "MeasureZSkelton"
+
+    def to_block(self) -> MeasureZ:
+        """Materialize to a MeasureZ (template evaluated, no local graph yet)."""
+        # Apply spatial open-boundary trimming if specified
+        for direction in ["LEFT", "RIGHT", "TOP", "BOTTOM"]:
+            if str(self.edgespec.get(direction, "O")).upper() == "O":
+                self.trim_spatial_boundary(direction)
+        # Evaluate template coordinates
+        self.template.to_tiling()
+
+        block = MeasureZ(
+            logical=self.d,
+        )
+        block.final_layer = "MZ"
+        return block
