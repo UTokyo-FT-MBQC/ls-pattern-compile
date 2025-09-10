@@ -44,6 +44,7 @@ compiled_simple = simple_canvas.compile()
 
 fig = visualize_compiled_canvas_plotly(compiled_simple, width=800, height=600)
 fig.update_layout(title="Simple RHG Memory Canvas")
+pathlib.Path("figures").mkdir(exist_ok=True)
 fig.write_html("figures/simple_rhg_lattice_plotly.html")
 fig.show()
 print("Plotly visualization completed and saved to figures/simple_rhg_lattice_plotly.html")
@@ -86,9 +87,18 @@ for t, nodes in compiled_canvas.schedule.schedule.items():
 
 fig = visualize_compiled_canvas_plotly(compiled_canvas, width=800, height=600)
 fig.update_layout(title=f"Extended RHG Memory Canvas (d={d}, r={r})")
+pathlib.Path("figures").mkdir(exist_ok=True)
 fig.write_html("figures/extended_rhg_lattice_plotly.html")
 fig.show()
 print("Extended canvas plotly visualization completed and saved to figures/extended_rhg_lattice_plotly.html")
+
+# debug purpose
+graph = compiled_canvas.global_graph
+print(f"number of physical nodes: {len(graph.physical_nodes)}")
+print(f"number of physical edges: {len(graph.physical_edges)}")
+print(f"input node: {graph.input_node_indices}")
+print(f"output node: {graph.output_node_indices}")
+
 
 # %%
 # Demo 5: Generate pattern from compiled canvas
@@ -140,6 +150,7 @@ print(err)
 # %%
 # Demo 8: Visualization export
 svg = dem.diagram(type="match-graph-svg")
+pathlib.Path("figures").mkdir(exist_ok=True)
 pathlib.Path("figures/rhg_memory_dem.svg").write_text(str(svg), encoding="utf-8")
 print("SVG diagram saved to figures/rhg_memory_dem.svg")
 
