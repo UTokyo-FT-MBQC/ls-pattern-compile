@@ -107,7 +107,7 @@ try:
             z_parity=[{int(node) for node in group} for group in compiled_canvas.parity.z_checks],
         )
         print("Pattern compilation successful")
-        # print_pattern(pattern)  # TODO: Implement when available
+        print_pattern(pattern)
 
         # Define logical observables
         logical = set(range(d))
@@ -142,7 +142,7 @@ circuit = create_circuit(pattern, noise)
 print(f"num_qubits: {circuit.num_qubits}")
 
 # %%
-# Demo 6: Error correction simulation placeholder (TODO: implement when pymatching is available)
+# Demo 6: Error correction simulation placeholder
 print("\n=== Error Correction Simulation (Stub) ===")
 print("Error correction simulation not implemented yet")
 
