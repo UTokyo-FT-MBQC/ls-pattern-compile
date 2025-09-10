@@ -43,7 +43,8 @@ class InitPlus(RHGCube):
 
     def set_in_ports(self) -> None:
         # Init plus sets no input ports
-        return super().set_in_ports()
+        idx_map = self.template.get_data_indices()
+        self.in_ports = set(idx_map.values())
 
     def set_out_ports(self) -> None:
         # Init: 最終スライス(z+)の data を出力ポート(テンプレートの data 全インデックス)とみなす
