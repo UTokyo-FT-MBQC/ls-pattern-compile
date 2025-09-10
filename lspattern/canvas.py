@@ -1003,54 +1003,6 @@ def _create_first_layer_canvas(next_layer: TemporalLayer) -> CompiledRHGCanvas:
     )
 
 
-def _compose_graphs_sequentially(
-    graph1: BaseGraphState, graph2: BaseGraphState
-) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
-    """Compose two graphs sequentially with fallback to manual composition."""
-    try:
-        result = compose_sequentially(graph1, graph2)
-        expected_tuple_size = 3
-        if isinstance(result, tuple) and len(result) == expected_tuple_size:
-            return result
-        return _manual_graph_composition(graph1, graph2)
-    except (ValueError, TypeError, AttributeError):
-        return _manual_graph_composition(graph1, graph2)
-
-
-# TODO: should be removed after compose_sequentially is fixed
-def _manual_graph_composition(
-    graph1: BaseGraphState, graph2: BaseGraphState
-) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
-    """Manually compose two graphs when canonical composition fails."""
-    g = GraphState()
-    node_map1 = {}
-    node_map2 = {}
-
-    # Copy graph1 nodes
-    for n in graph1.physical_nodes:
-        nn = g.add_physical_node()
-        mb = graph1.meas_bases.get(n)
-        if mb is not None:
-            g.assign_meas_basis(nn, mb)
-        node_map1[n] = nn
-
-    # Copy graph2 nodes
-    for n in graph2.physical_nodes:
-        nn = g.add_physical_node()
-        mb = graph2.meas_bases.get(n)
-        if mb is not None:
-            g.assign_meas_basis(nn, mb)
-        node_map2[n] = nn
-
-    # Copy edges
-    for u, v in graph1.physical_edges:
-        g.add_physical_edge(node_map1[u], node_map1[v])
-    for u, v in graph2.physical_edges:
-        g.add_physical_edge(node_map2[u], node_map2[v])
-
-    return g, node_map1, node_map2
-
-
 def to_temporal_layer(
     z: int,
     cubes: dict[PatchCoordGlobal3D, RHGCube],
@@ -1208,7 +1160,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
     if next_layer.local_graph is None:
         error_msg = "next_layer.local_graph cannot be None"
         raise ValueError(error_msg)
-    new_graph, node_map1, node_map2 = _compose_graphs_sequentially(cgraph.global_graph, next_layer.local_graph)
+    new_graph, node_map1, node_map2 = compose_sequentially(cgraph.global_graph, next_layer.local_graph)
     cgraph = cgraph.remap_nodes({NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map1.items()})
     _remap_layer_mappings(next_layer, node_map2)
 
