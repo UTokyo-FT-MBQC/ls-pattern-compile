@@ -92,13 +92,6 @@ fig.write_html("figures/extended_rhg_lattice_plotly.html")
 fig.show()
 print("Extended canvas plotly visualization completed and saved to figures/extended_rhg_lattice_plotly.html")
 
-# debug purpose
-graph = compiled_canvas.global_graph
-print(f"number of physical nodes: {len(graph.physical_nodes)}")
-print(f"number of physical edges: {len(graph.physical_edges)}")
-print(f"input node: {graph.input_node_indices}")
-print(f"output node: {graph.output_node_indices}")
-
 
 # %%
 # Demo 5: Generate pattern from compiled canvas
