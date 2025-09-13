@@ -35,7 +35,7 @@ from lspattern.utils import UnionFind, get_direction, is_allowed_pair
 EDGE_TUPLE_SIZE = 2
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Callable, Mapping
 
     from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
     from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
@@ -513,6 +513,13 @@ class TemporalLayer:
             "xy": dict(enumerate(data2d)),  # type: ignore[arg-type]
         }
 
+        # Update accumulators for all ancilla nodes in this layer
+        # TODO: This should be moved to each block materialize method.
+        for node_id in self.node2role:
+            self.schedule.update_at(node_id, g, self.node2coord)
+            self.parity.update_at(node_id, g, self.node2coord, self.coord2gid, self.node2role)
+            self.flow.update_at(node_id, g, self.node2coord, self.coord2node, self.node2role)
+
     def _get_coordinate_bounds(self) -> tuple[int, int, int, int, int, int]:
         """Get min/max bounds for all coordinates."""
         coords = list(self.node2coord.values())
@@ -954,6 +961,11 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
     def compile(self) -> CompiledRHGCanvas:
         temporal_layers = self.to_temporal_layers()
         # Initialize an empty compiled canvas with required accumulators
+        initial_parity = ParityAccumulator()
+        print(
+            f"[DEBUG] RHGCanvas.compile() initialized empty ParityAccumulator: x_checks={len(initial_parity.x_checks)}, z_checks={len(initial_parity.z_checks)}"
+        )
+
         cgraph = CompiledRHGCanvas(
             layers=[],
             global_graph=None,
@@ -963,7 +975,7 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
             cout_portset={},
             schedule=ScheduleAccumulator(),
             flow=FlowAccumulator(),
-            parity=ParityAccumulator(),
+            parity=initial_parity,
             zlist=[],
         )
 
@@ -991,14 +1003,18 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
 
 def _create_first_layer_canvas(next_layer: TemporalLayer) -> CompiledRHGCanvas:
     """Create compiled canvas for the first temporal layer."""
+
     return CompiledRHGCanvas(
         layers=[next_layer],
         global_graph=next_layer.local_graph,
         coord2node={k: NodeIdLocal(v) for k, v in next_layer.coord2node.items()},
+        node2role={NodeIdLocal(k): v for k, v in next_layer.node2role.items()},
         in_portset={k: [NodeIdLocal(v) for v in vs] for k, vs in next_layer.in_portset.items()},
         out_portset={k: [NodeIdLocal(v) for v in vs] for k, vs in next_layer.out_portset.items()},
         cout_portset={k: [NodeIdLocal(v) for v in vs] for k, vs in next_layer.cout_portset.items()},
         schedule=next_layer.schedule,
+        parity=next_layer.parity,  # This was missing!
+        flow=next_layer.flow,  # This was missing!
         zlist=[next_layer.z],
         cubes_=next_layer.cubes_,
         pipes_=next_layer.pipes_,
@@ -1100,7 +1116,8 @@ def _update_accumulators(
     cgraph: CompiledRHGCanvas,
     next_layer: TemporalLayer,
     new_graph: BaseGraphState,
-    node2coord: Mapping[int, Sequence[int]],
+    node2coord: Mapping[int, PhysCoordGlobal3D],
+    coord2node: Mapping[PhysCoordGlobal3D, int],
     node2role: Mapping[int, str],
 ) -> None:
     """Update accumulators at layer boundaries."""
@@ -1119,9 +1136,9 @@ def _update_accumulators(
 
     # Update accumulators
     for anchor in z_minus_ancillas:
-        cgraph.schedule.update_at(anchor, new_graph, node2coord, node2role)
-        cgraph.parity.update_at(anchor, new_graph, node2coord, node2role)
-        cgraph.flow.update_at(anchor, new_graph, node2coord, node2role)
+        cgraph.schedule.update_at(anchor, new_graph, node2coord)
+        cgraph.parity.update_at(anchor, new_graph, node2coord, coord2node, node2role)
+        cgraph.flow.update_at(anchor, new_graph, node2coord, coord2node, node2role)
 
 
 def _setup_temporal_connections(
@@ -1166,6 +1183,7 @@ def _setup_temporal_connections(
 
 def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pipes: list[RHGPipe]) -> CompiledRHGCanvas:
     """Compose the compiled canvas with the next temporal layer."""
+
     if cgraph.global_graph is None:
         return _create_first_layer_canvas(next_layer)
 
@@ -1192,32 +1210,28 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
     new_node2coord = {v: k for k, v in new_coord2node.items()}
 
     # Update accumulators
-    _update_accumulators(cgraph, next_layer, new_graph, new_node2coord, new_node2role)
+    _update_accumulators(cgraph, next_layer, new_graph, new_node2coord, new_coord2node, new_node2role)
 
     # Merge schedule, flow, parity
     new_schedule = cgraph.schedule.compose_sequential(next_layer.schedule)
 
     # Start from unions of existing x/z flows
     xflow_combined: dict[int, set[int]] = {}
-    zflow_combined: dict[int, set[int]] = {}
     for src, dsts in cgraph.flow.xflow.items():
         xflow_combined[src] = set(dsts)
     for src, dsts in next_layer.flow.xflow.items():
         xflow_combined.setdefault(src, set()).update(dsts)
-    for src, dsts in cgraph.flow.zflow.items():
-        zflow_combined[src] = set(dsts)
-    for src, dsts in next_layer.flow.zflow.items():
-        zflow_combined.setdefault(src, set()).update(dsts)
     # No explicit seam corrections here; physical edges were added when pipes exist.
 
     # Convert int keys to NodeIdLocal for FlowAccumulator
     xflow_typed = {NodeIdLocal(k): {NodeIdLocal(v) for v in vs} for k, vs in xflow_combined.items()}
-    zflow_typed = {NodeIdLocal(k): {NodeIdLocal(v) for v in vs} for k, vs in zflow_combined.items()}
-    merged_flow = FlowAccumulator(xflow=xflow_typed, zflow=zflow_typed)
+    merged_flow = FlowAccumulator(xflow=xflow_typed)
+
     new_parity = ParityAccumulator(
         x_checks=cgraph.parity.x_checks + next_layer.parity.x_checks,
         z_checks=cgraph.parity.z_checks + next_layer.parity.z_checks,
     )
+
     # TODO: should add boundary checks?
 
     return CompiledRHGCanvas(
