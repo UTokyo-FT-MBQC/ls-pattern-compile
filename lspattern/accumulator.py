@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 
 from graphix_zx.graphstate import BaseGraphState
 
-from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal,
+from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal
 
 # -----------------------------------------------------------------------------
 # Shared helpers and base class
@@ -189,7 +189,7 @@ class ScheduleAccumulator(BaseAccumulator):
         anchor: int,
         graph: BaseGraphState,
         node2coord: Mapping[int, Sequence[int]],
-        _node2role: Mapping[int, str] | None = None,
+        node2role: Mapping[int, str] | None = None,
         *,
         allowed_pairs: Iterable[tuple[int, int]] | None = None,  # noqa: ARG002
     ) -> None:
