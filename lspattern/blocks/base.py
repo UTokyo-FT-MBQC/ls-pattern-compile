@@ -205,6 +205,10 @@ class RHGBlock:
         # Assign measurement basis for non-output nodes
         self._assign_meas_bases(g, self.meas_basis)
 
+        self._construct_detectors()
+        self._construct_flow()
+        self._construct_schedule()
+
         # Store results on the block
         self.local_graph = g
         # Convert to proper NewType dictionaries
@@ -357,6 +361,15 @@ class RHGBlock:
         """Assign measurement basis for non-output nodes."""
         for node in g.physical_nodes - g.output_node_indices.keys():
             g.assign_meas_basis(node, meas_basis)
+
+    def _construct_detectors(self) -> None:
+        raise NotImplementedError
+
+    def _construct_flow(self) -> None:
+        raise NotImplementedError
+
+    def _construct_schedule(self) -> None:
+        raise NotImplementedError
 
     def _build_coordinate_mappings(
         self, coord2node: Mapping[tuple[int, int, int], int], zmin: int, zmax: int
