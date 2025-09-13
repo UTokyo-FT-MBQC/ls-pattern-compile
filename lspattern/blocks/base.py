@@ -397,8 +397,8 @@ class RHGBlock:
             xy_tuple = (int(xy_raw[0]), int(xy_raw[1]))
             n_in = xy_to_innode.get(xy_tuple)
             if n_in is not None:
-                lidx = g.register_input(n_in)
-                xy_to_lidx[xy_tuple] = lidx
+                g.register_input(n_in, qidx)
+                xy_to_lidx[xy_tuple] = qidx
 
         return xy_to_lidx
 

@@ -16,8 +16,7 @@ from typing import TYPE_CHECKING
 from graphix_zx.graphstate import (
     BaseGraphState,
     GraphState,
-    compose_in_parallel,
-    compose_sequentially,
+    compose,
 )
 
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
@@ -216,7 +215,7 @@ class TemporalLayer:
         if g is None:
             return g2, {}, {n: n for n in getattr(g2, "physical_nodes", [])}
 
-        g_new, node_map1, node_map2 = compose_in_parallel(g, g2)
+        g_new, node_map1, node_map2 = compose(g, g2, target_q_indices=set())
         return g_new, node_map1, node_map2
 
     def _process_cube_coordinates(self, blk: object, pos: tuple[int, int, int], node_map2: dict[int, int]) -> None:
@@ -303,7 +302,7 @@ class TemporalLayer:
                 node_map1: dict[int, int] = {}
                 node_map2: dict[int, int] = {n: n for n in getattr(g2, "physical_nodes", [])}
             elif g2 is not None:
-                g_new, node_map1, node_map2 = compose_in_parallel(g, g2)
+                g_new, node_map1, node_map2 = compose(g, g2, target_q_indices=set())
                 self._remap_node_mappings(node_map1)
                 self._remap_portsets(node_map1)
                 g = g_new
@@ -1160,7 +1159,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
     if next_layer.local_graph is None:
         error_msg = "next_layer.local_graph cannot be None"
         raise ValueError(error_msg)
-    new_graph, node_map1, node_map2 = compose_sequentially(cgraph.global_graph, next_layer.local_graph)
+    new_graph, node_map1, node_map2 = compose(cgraph.global_graph, next_layer.local_graph)
     cgraph = cgraph.remap_nodes({NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map1.items()})
     _remap_layer_mappings(next_layer, node_map2)
 
