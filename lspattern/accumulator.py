@@ -85,28 +85,6 @@ class BaseAccumulator:
         graph = graph_state
         return graph, None, None
 
-    # TODO: overload
-    @staticmethod
-    def _extract_context(
-        graph_local: BaseGraphState | TemporalLayer,
-    ) -> tuple[BaseGraphState, dict[NodeIdLocal, PhysCoordGlobal3D] | None, dict[NodeIdLocal, str] | None]:
-        """Return a tuple (graph, node2coord, node2role).
-
-        Accepts either a BaseGraphState-like object (with ``neighbors``) or an
-        object that carries a ``local_graph`` (e.g., TemporalLayer). Missing
-        pieces are returned as ``None``.
-        """
-        # TemporalLayer-like: has local_graph and rich maps
-        if isinstance(graph_local, TemporalLayer):
-            return BaseAccumulator._extract_context_from_temporal_layer(graph_local)
-
-        # BaseGraphState-like: just neighbors
-        if isinstance(graph_local, BaseGraphState):
-            return BaseAccumulator._extract_context_from_graph_state(graph_local)
-
-        error_msg = f"Expected BaseGraphState or object with local_graph, got {type(graph_local)}"
-        raise TypeError(error_msg)
-
     @staticmethod
     def _node_time(node: int, node2coord: Mapping[int, Sequence[int]] | None) -> int | None:
         """Return the z-time if coordinates are available."""
