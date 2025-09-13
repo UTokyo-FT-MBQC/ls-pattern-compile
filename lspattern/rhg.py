@@ -164,6 +164,7 @@ def _create_nodes_and_groups(
     coord2node: dict[tuple[int, int, int], int] = {}
     coord2qindex: dict[tuple[int, int], int] = {}
     grouping: list[set[int]] = []
+    next_q_index = 0
 
     for z in range(lz):
         data_qubits = set()
@@ -186,8 +187,10 @@ def _create_nodes_and_groups(
                         gs.assign_meas_basis(node_idx, PlannerMeasBasis(Plane.XY, 0.0))
                 else:
                     if z == 0 and parity in data_parities:  # input layer
-                        q_index = gs.register_input(node_idx)
+                        q_index = next_q_index
+                        gs.register_input(node_idx, q_index)
                         coord2qindex[x, y] = q_index
+                        next_q_index += 1
                     gs.assign_meas_basis(node_idx, PlannerMeasBasis(Plane.XY, 0.0))
 
                 if parity in data_parities:
