@@ -21,12 +21,15 @@ Design notes
 # import grouping intentionally simple
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
-from graphix_zx.graphstate import BaseGraphState
+from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal, PhysCoordGlobal3D
 
-from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
+    from graphix_zx.graphstate import BaseGraphState
 
 # -----------------------------------------------------------------------------
 # Shared helpers and base class
@@ -39,19 +42,6 @@ class BaseAccumulator:
     Subclasses should implement ``update_at`` and use helper methods here to
     access graph context and enforce non-decreasing updates.
     """
-
-    @staticmethod
-    def _node_time(node: int, node2coord: Mapping[int, Sequence[int]] | None) -> int | None:
-        """Return the z-time if coordinates are available."""
-        if node2coord is None:
-            return None
-        coord = node2coord.get(int(node)) if isinstance(node2coord, Mapping) else None
-        if coord is None:
-            return None
-        try:
-            return int(coord[2])
-        except (IndexError, TypeError, ValueError):
-            return None
 
     @staticmethod
     def _role_of(node: int, node2role: Mapping[int, str] | None) -> str | None:
@@ -92,18 +82,6 @@ class BaseAccumulator:
     def _size_of_schedule(schedule: dict[int, set[int]] | dict[int, set[NodeIdGlobal]]) -> int:
         return sum(len(v) for v in schedule.values())
 
-    # Subclasses should override
-    def update_at(
-        self,
-        anchor: int,
-        graph: BaseGraphState,
-        node2coord: Mapping[int, Sequence[int]],
-        node2role: Mapping[int, str],
-        *,
-        allowed_pairs: Iterable[tuple[int, int]] | None = None,
-    ) -> None:  # pragma: no cover - interface
-        raise NotImplementedError
-
 
 # Flow helpers (node maps guaranteed to contain all keys)
 def _remap_flow(flow: FlowLocal, node_map: dict[NodeIdLocal, NodeIdLocal]) -> FlowLocal:
@@ -119,6 +97,9 @@ def _merge_flow(a: FlowLocal, b: FlowLocal) -> FlowLocal:
     for src, dsts in b.items():
         if not dsts:
             continue
+        if src in out:
+            msg = f"Flow merge conflict at src {src}"
+            raise ValueError(msg)
         out.setdefault(src, set()).update(dsts)
     return out
 
@@ -188,10 +169,7 @@ class ScheduleAccumulator(BaseAccumulator):
         self,
         anchor: int,
         graph: BaseGraphState,
-        node2coord: Mapping[int, Sequence[int]],
-        node2role: Mapping[int, str] | None = None,
-        *,
-        allowed_pairs: Iterable[tuple[int, int]] | None = None,  # noqa: ARG002
+        node2coord: Mapping[int, PhysCoordGlobal3D],
     ) -> None:
         """Record the measurement of ``anchor`` at its time slice.
 
@@ -204,12 +182,9 @@ class ScheduleAccumulator(BaseAccumulator):
 
         before = self._size_of_schedule(self.schedule)
 
-        t = self._node_time(anchor, node2coord)
-        if t is None:
-            # Fallback to a single bucket 0 when time is unknown
-            t = 0
+        t = node2coord.get(int(anchor), (0, 0, 0))[2]
 
-        self.schedule.setdefault(int(t), set()).add(NodeIdGlobal(anchor))
+        self.schedule.setdefault(t, set()).add(NodeIdGlobal(anchor))
 
         after = self._size_of_schedule(self.schedule)
         if after < before:
@@ -233,14 +208,13 @@ class ParityAccumulator(BaseAccumulator):
             z_checks=_remap_groups(self.z_checks, node_map),
         )
 
-    def update_at(  # noqa: C901
+    def update_at(
         self,
         anchor: int,
         graph: BaseGraphState,
-        node2coord: Mapping[int, Sequence[int]],  # noqa: ARG002
+        node2coord: Mapping[int, PhysCoordGlobal3D],
+        coord2node: Mapping[PhysCoordGlobal3D, int],
         node2role: Mapping[int, str],
-        *,
-        allowed_pairs: Iterable[tuple[int, int]] | None = None,
     ) -> None:
         """Update parity groups by sweeping neighbors around an ancilla node.
 
@@ -253,40 +227,19 @@ class ParityAccumulator(BaseAccumulator):
             return
 
         role = (self._role_of(anchor, node2role) or "").lower()
+
         if not role.startswith("ancilla"):
             return  # only ancillas define parity groups
 
-        # Before size
-        before = self._size_of_groups(self.x_checks) + self._size_of_groups(self.z_checks)
-
-        # Neighbor filter: keep data nodes and allowed pairs only
-        nbrs = graph.neighbors(anchor)
-
-        def _is_data(n: int) -> bool:
-            r = (self._role_of(n, node2role) or "").lower()
-            return r == "data"
-
-        group = {NodeIdLocal(n) for n in nbrs if _is_data(n) and self._allows(anchor, n, allowed_pairs)}
-        if not group:
-            # Nothing to add; still enforce non-decreasing
-            after = self._size_of_groups(self.x_checks) + self._size_of_groups(self.z_checks)
-            if after < before:
-                msg = "ParityAccumulator must be non-decreasing"
-                raise AssertionError(msg)
-            return
+        coord = node2coord[int(anchor)]
+        target_coord = (*coord[:2], coord[2] - 2)
+        target_ancilla = coord2node.get(PhysCoordGlobal3D(target_coord))
+        group = {NodeIdLocal(anchor)} if target_ancilla is None else {NodeIdLocal(anchor), NodeIdLocal(target_ancilla)}
 
         if "ancilla_x" in role:
             self.x_checks.append(group)
         elif "ancilla_z" in role:
             self.z_checks.append(group)
-        else:
-            # Unknown ancilla kind; conservatively append to both for visibility
-            self.x_checks.append(group)
-
-        after = self._size_of_groups(self.x_checks) + self._size_of_groups(self.z_checks)
-        if after < before:
-            msg = "ParityAccumulator must be non-decreasing"
-            raise AssertionError(msg)
 
 
 @dataclass
@@ -294,32 +247,27 @@ class FlowAccumulator(BaseAccumulator):
     """Directed flow relations between nodes for X/Z types."""
 
     xflow: dict[NodeIdLocal, set[NodeIdLocal]] = field(default_factory=dict)
-    zflow: dict[NodeIdLocal, set[NodeIdLocal]] = field(default_factory=dict)
 
     def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> FlowAccumulator:
         """Return a new flow accumulator with ids remapped via `node_map`."""
         # Remap both x/z flows using helper for speed
         return FlowAccumulator(
             xflow=_remap_flow(self.xflow, node_map),
-            zflow=_remap_flow(self.zflow, node_map),
         )
 
     def merge_with(self, other: FlowAccumulator) -> FlowAccumulator:
         """Union-merge two flow accumulators (local/global-agnostic)."""
         return FlowAccumulator(
             xflow=_merge_flow(self.xflow, other.xflow),
-            zflow=_merge_flow(self.zflow, other.zflow),
         )
 
-    # ---- T23: update API ---------------------------------------------------
     def update_at(
         self,
         anchor: int,
         graph: BaseGraphState,
-        node2coord: Mapping[int, Sequence[int]],  # noqa: ARG002
+        node2coord: Mapping[int, PhysCoordGlobal3D],
+        coord2node: Mapping[PhysCoordGlobal3D, int],
         node2role: Mapping[int, str],
-        *,
-        allowed_pairs: Iterable[tuple[int, int]] | None = None,
     ) -> None:
         """Update X/Z flow from an ancilla to its data neighbors.
 
@@ -332,28 +280,16 @@ class FlowAccumulator(BaseAccumulator):
             return
 
         role = (self._role_of(anchor, node2role) or "").lower()
-        if not role.startswith("ancilla"):
+        if role.startswith("ancilla"):
             return
 
-        before = self._size_of_flow(self.xflow) + self._size_of_flow(self.zflow)
+        coord = node2coord.get(int(anchor))
+        if not coord:
+            msg = f"FlowAccumulator.update_at: missing coord for node {anchor}"
+            raise ValueError(msg)
+        parent_coord = (*coord[:2], coord[2] - 1)
+        parent = coord2node.get(PhysCoordGlobal3D(parent_coord))
+        if parent is None:
+            return
 
-        nbrs = graph.neighbors(anchor)
-
-        def _is_data(n: int) -> bool:
-            r = (self._role_of(n, node2role) or "").lower()
-            return r == "data"
-
-        targets = [NodeIdLocal(n) for n in nbrs if _is_data(n) and self._allows(anchor, n, allowed_pairs)]
-
-        if "ancilla_x" in role:
-            self.xflow.setdefault(NodeIdLocal(anchor), set()).update(targets)
-        elif "ancilla_z" in role:
-            self.zflow.setdefault(NodeIdLocal(anchor), set()).update(targets)
-        else:
-            # Unknown ancilla kind; do nothing further
-            pass
-
-        after = self._size_of_flow(self.xflow) + self._size_of_flow(self.zflow)
-        if after < before:
-            msg = "FlowAccumulator must be non-decreasing"
-            raise AssertionError(msg)
+        self.xflow.setdefault(NodeIdLocal(parent), set()).add(NodeIdLocal(anchor))
