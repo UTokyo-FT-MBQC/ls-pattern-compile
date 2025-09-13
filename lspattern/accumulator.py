@@ -108,22 +108,6 @@ class BaseAccumulator:
         raise TypeError(error_msg)
 
     @staticmethod
-    def _is_classical_output(node: int, graph: BaseGraphState) -> bool:
-        """Heuristic classical-output check.
-
-        Treat a node as classical output if it appears in ``graph.output_node_indices``.
-        The BaseGraphState in src/graphix_zx exposes this as a property; we also
-        allow duck-typing with a plain mapping.
-        """
-
-        return node in graph.output_node_indices
-
-    @staticmethod
-    def _neighbors(node: int, graph: BaseGraphState) -> set[int]:
-        """Return neighbor set from a BaseGraphState-like object."""
-        return graph.neighbors(node)
-
-    @staticmethod
     def _node_time(node: int, node2coord: Mapping[int, Sequence[int]] | None) -> int | None:
         """Return the z-time if coordinates are available."""
         if node2coord is None:
@@ -265,7 +249,6 @@ class ScheduleAccumulator(BaseAccumulator):
             new_schedule[t] = new_schedule.get(t, set()).union(nodes)
         return ScheduleAccumulator(new_schedule)
 
-    # ---- T23: update API ---------------------------------------------------
     def update_at(
         self,
         anchor: int,
@@ -286,7 +269,7 @@ class ScheduleAccumulator(BaseAccumulator):
             error_msg = f"Expected BaseGraphState or object with local_graph, got {type(graph_local)}"
             raise TypeError(error_msg)
 
-        if self._is_classical_output(anchor, graph):
+        if anchor in graph.output_node_indices:
             return
 
         before = self._size_of_schedule(self.schedule)
@@ -342,7 +325,7 @@ class ParityAccumulator(BaseAccumulator):
             error_msg = f"Expected BaseGraphState or object with local_graph, got {type(graph_local)}"
             raise TypeError(error_msg)
 
-        if self._is_classical_output(anchor, graph):
+        if anchor in graph.output_node_indices:
             return
 
         role = (self._role_of(anchor, roles) or "").lower()
@@ -353,7 +336,7 @@ class ParityAccumulator(BaseAccumulator):
         before = self._size_of_groups(self.x_checks) + self._size_of_groups(self.z_checks)
 
         # Neighbor filter: keep data nodes and allowed pairs only
-        nbrs = self._neighbors(anchor, graph)
+        nbrs = graph.neighbors(anchor)
 
         def _is_data(n: int) -> bool:
             r = (self._role_of(n, roles) or "").lower()
@@ -427,7 +410,7 @@ class FlowAccumulator(BaseAccumulator):
             error_msg = f"Expected BaseGraphState or object with local_graph, got {type(graph_local)}"
             raise TypeError(error_msg)
 
-        if self._is_classical_output(anchor, graph):
+        if anchor in graph.output_node_indices:
             return
 
         role = (self._role_of(anchor, roles) or "").lower()
@@ -436,7 +419,7 @@ class FlowAccumulator(BaseAccumulator):
 
         before = self._size_of_flow(self.xflow) + self._size_of_flow(self.zflow)
 
-        nbrs = self._neighbors(anchor, graph)
+        nbrs = graph.neighbors(anchor)
 
         def _is_data(n: int) -> bool:
             r = (self._role_of(n, roles) or "").lower()
@@ -455,53 +438,4 @@ class FlowAccumulator(BaseAccumulator):
         after = self._size_of_flow(self.xflow) + self._size_of_flow(self.zflow)
         if after < before:
             msg = "FlowAccumulator must be non-decreasing"
-            raise AssertionError(msg)
-
-
-@dataclass
-class DetectorAccumulator(BaseAccumulator):
-    """Minimal detector grouping by ancilla.
-
-    This stub collects for each ancilla the set of neighboring data nodes at
-    the same time slice (if time information is available, we ignore it for now).
-    """
-
-    detectors: dict[int, set[int]] = field(default_factory=dict)
-
-    def update_at(
-        self,
-        anchor: int,
-        graph_local: BaseGraphState | TemporalLayer,
-        *,
-        allowed_pairs: Iterable[tuple[int, int]] | None = None,
-    ) -> None:
-        if isinstance(graph_local, TemporalLayer):
-            graph, _coords, roles = self._extract_context_from_temporal_layer(graph_local)
-        elif isinstance(graph_local, BaseGraphState):
-            graph, _coords, roles = self._extract_context_from_graph_state(graph_local)
-        else:
-            error_msg = f"Expected BaseGraphState or object with local_graph, got {type(graph_local)}"
-            raise TypeError(error_msg)
-        if self._is_classical_output(anchor, graph):
-            return
-
-        role = (self._role_of(anchor, roles) or "").lower()
-        if not role.startswith("ancilla"):
-            return
-
-        before = sum(len(v) for v in self.detectors.values())
-
-        nbrs = self._neighbors(anchor, graph)
-
-        def _is_data(n: int) -> bool:
-            r = (self._role_of(n, roles) or "").lower()
-            return r == "data"
-
-        group = {NodeIdLocal(n) for n in nbrs if _is_data(n) and self._allows(anchor, n, allowed_pairs)}
-        if group:
-            self.detectors.setdefault(int(anchor), set()).update(group)
-
-        after = sum(len(v) for v in self.detectors.values())
-        if after < before:
-            msg = "DetectorAccumulator must be non-decreasing"
             raise AssertionError(msg)
