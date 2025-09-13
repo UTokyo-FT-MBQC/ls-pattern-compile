@@ -23,22 +23,12 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal
 
 if TYPE_CHECKING:
     from graphix_zx.graphstate import BaseGraphState
-else:
-    from graphix_zx.graphstate import BaseGraphState
-
-
-class GraphLike(Protocol):
-    """Protocol for graph-like objects with neighbors method."""
-
-    def neighbors(self, node: int) -> Iterable[int]:
-        """Return neighbors of the given node."""
-        ...
 
 
 # -----------------------------------------------------------------------------
@@ -140,7 +130,7 @@ class BaseAccumulator:
         return False
 
     @staticmethod
-    def _neighbors(node: int, graph: BaseGraphState | GraphLike | object) -> set[int]:
+    def _neighbors(node: int, graph: BaseGraphState | object) -> set[int]:
         """Return neighbor set from a BaseGraphState-like object."""
         if not hasattr(graph, "neighbors"):
             return set()
@@ -349,7 +339,6 @@ class ParityAccumulator(BaseAccumulator):
             z_checks=_remap_groups(self.z_checks, node_map),
         )
 
-    # ---- T23: update API ---------------------------------------------------
     def update_at(  # noqa: C901
         self,
         anchor: int,
@@ -486,11 +475,6 @@ class FlowAccumulator(BaseAccumulator):
         if after < before:
             msg = "FlowAccumulator must be non-decreasing"
             raise AssertionError(msg)
-
-
-# -----------------------------------------------------------------------------
-# Minimal detector accumulator (stub for T23)
-# -----------------------------------------------------------------------------
 
 
 @dataclass
