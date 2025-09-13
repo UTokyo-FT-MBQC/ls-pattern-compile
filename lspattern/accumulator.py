@@ -26,8 +26,7 @@ from dataclasses import dataclass, field
 
 from graphix_zx.graphstate import BaseGraphState
 
-from lspattern.canvas import TemporalLayer
-from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal, PhysCoordGlobal3D
+from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal,
 
 # -----------------------------------------------------------------------------
 # Shared helpers and base class
@@ -40,50 +39,6 @@ class BaseAccumulator:
     Subclasses should implement ``update_at`` and use helper methods here to
     access graph context and enforce non-decreasing updates.
     """
-
-    # ---- context helpers --------------------------------------------------
-    @staticmethod
-    def _extract_context_from_temporal_layer(
-        temporal_layer: TemporalLayer,
-    ) -> tuple[BaseGraphState, dict[NodeIdLocal, PhysCoordGlobal3D], dict[NodeIdLocal, str]]:
-        """Extract context from a TemporalLayer object.
-
-        Parameters
-        ----------
-        temporal_layer
-            Object with local_graph, node2coord, and node2role attributes
-
-        Returns
-        -------
-        tuple
-            (graph, node2coord, node2role)
-        """
-        graph = temporal_layer.local_graph
-        if graph is None:
-            msg = "TemporalLayer.local_graph is None"
-            raise ValueError(msg)
-        node2coord = temporal_layer.node2coord
-        node2role = temporal_layer.node2role
-        return graph, node2coord, node2role
-
-    @staticmethod
-    def _extract_context_from_graph_state(
-        graph_state: BaseGraphState,
-    ) -> tuple[BaseGraphState, None, None]:
-        """Extract context from a BaseGraphState object.
-
-        Parameters
-        ----------
-        graph_state : BaseGraphState
-            BaseGraphState object with neighbors method
-
-        Returns
-        -------
-        tuple
-            (graph, node2coord, node2role) - coord/role maps are typically None
-        """
-        graph = graph_state
-        return graph, None, None
 
     @staticmethod
     def _node_time(node: int, node2coord: Mapping[int, Sequence[int]] | None) -> int | None:
@@ -141,7 +96,9 @@ class BaseAccumulator:
     def update_at(
         self,
         anchor: int,
-        graph_local: BaseGraphState | TemporalLayer,
+        graph: BaseGraphState,
+        node2coord: Mapping[int, Sequence[int]],
+        node2role: Mapping[int, str],
         *,
         allowed_pairs: Iterable[tuple[int, int]] | None = None,
     ) -> None:  # pragma: no cover - interface
@@ -230,7 +187,9 @@ class ScheduleAccumulator(BaseAccumulator):
     def update_at(
         self,
         anchor: int,
-        graph_local: BaseGraphState | TemporalLayer,
+        graph: BaseGraphState,
+        node2coord: Mapping[int, Sequence[int]],
+        _node2role: Mapping[int, str] | None = None,
         *,
         allowed_pairs: Iterable[tuple[int, int]] | None = None,  # noqa: ARG002
     ) -> None:
@@ -239,13 +198,6 @@ class ScheduleAccumulator(BaseAccumulator):
         Uses node2coord if available to place the node into the correct t-slot.
         Ignores classical outputs. Monotonic (non-decreasing) by construction.
         """
-        if isinstance(graph_local, TemporalLayer):
-            graph, node2coord, _roles = self._extract_context_from_temporal_layer(graph_local)
-        elif isinstance(graph_local, BaseGraphState):
-            graph, node2coord, _roles = self._extract_context_from_graph_state(graph_local)
-        else:
-            error_msg = f"Expected BaseGraphState or object with local_graph, got {type(graph_local)}"
-            raise TypeError(error_msg)
 
         if anchor in graph.output_node_indices:
             return
@@ -284,7 +236,9 @@ class ParityAccumulator(BaseAccumulator):
     def update_at(  # noqa: C901
         self,
         anchor: int,
-        graph_local: BaseGraphState | TemporalLayer,
+        graph: BaseGraphState,
+        node2coord: Mapping[int, Sequence[int]],  # noqa: ARG002
+        node2role: Mapping[int, str],
         *,
         allowed_pairs: Iterable[tuple[int, int]] | None = None,
     ) -> None:
@@ -295,18 +249,10 @@ class ParityAccumulator(BaseAccumulator):
         - Skip classical outputs.
         - Non-decreasing is enforced by assertion.
         """
-        if isinstance(graph_local, TemporalLayer):
-            graph, _coords, roles = self._extract_context_from_temporal_layer(graph_local)
-        elif isinstance(graph_local, BaseGraphState):
-            graph, _coords, roles = self._extract_context_from_graph_state(graph_local)
-        else:
-            error_msg = f"Expected BaseGraphState or object with local_graph, got {type(graph_local)}"
-            raise TypeError(error_msg)
-
         if anchor in graph.output_node_indices:
             return
 
-        role = (self._role_of(anchor, roles) or "").lower()
+        role = (self._role_of(anchor, node2role) or "").lower()
         if not role.startswith("ancilla"):
             return  # only ancillas define parity groups
 
@@ -317,7 +263,7 @@ class ParityAccumulator(BaseAccumulator):
         nbrs = graph.neighbors(anchor)
 
         def _is_data(n: int) -> bool:
-            r = (self._role_of(n, roles) or "").lower()
+            r = (self._role_of(n, node2role) or "").lower()
             return r == "data"
 
         group = {NodeIdLocal(n) for n in nbrs if _is_data(n) and self._allows(anchor, n, allowed_pairs)}
@@ -369,7 +315,9 @@ class FlowAccumulator(BaseAccumulator):
     def update_at(
         self,
         anchor: int,
-        graph_local: BaseGraphState | TemporalLayer,
+        graph: BaseGraphState,
+        node2coord: Mapping[int, Sequence[int]],  # noqa: ARG002
+        node2role: Mapping[int, str],
         *,
         allowed_pairs: Iterable[tuple[int, int]] | None = None,
     ) -> None:
@@ -380,18 +328,10 @@ class FlowAccumulator(BaseAccumulator):
         - For Z-ancilla: add directed edges anchor -> data_nbr into ``zflow``.
         - Skip classical outputs.
         """
-        if isinstance(graph_local, TemporalLayer):
-            graph, _coords, roles = self._extract_context_from_temporal_layer(graph_local)
-        elif isinstance(graph_local, BaseGraphState):
-            graph, _coords, roles = self._extract_context_from_graph_state(graph_local)
-        else:
-            error_msg = f"Expected BaseGraphState or object with local_graph, got {type(graph_local)}"
-            raise TypeError(error_msg)
-
         if anchor in graph.output_node_indices:
             return
 
-        role = (self._role_of(anchor, roles) or "").lower()
+        role = (self._role_of(anchor, node2role) or "").lower()
         if not role.startswith("ancilla"):
             return
 
@@ -400,7 +340,7 @@ class FlowAccumulator(BaseAccumulator):
         nbrs = graph.neighbors(anchor)
 
         def _is_data(n: int) -> bool:
-            r = (self._role_of(n, roles) or "").lower()
+            r = (self._role_of(n, node2role) or "").lower()
             return r == "data"
 
         targets = [NodeIdLocal(n) for n in nbrs if _is_data(n) and self._allows(anchor, n, allowed_pairs)]
