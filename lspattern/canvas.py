@@ -35,7 +35,7 @@ from lspattern.utils import UnionFind, get_direction, is_allowed_pair
 EDGE_TUPLE_SIZE = 2
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping, Sequence
 
     from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
     from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
@@ -621,6 +621,8 @@ class CompiledRHGCanvas:
         The global graph state after compilation.
     coord2node : dict[PhysCoordGlobal3D, int]
         Mapping from physical coordinates to node IDs.
+    node2role : dict[int, str]
+        Mapping from node IDs to their roles.
     in_portset : dict[PatchCoordGlobal3D, list[int]]
         Input port sets for each patch.
     out_portset : dict[PatchCoordGlobal3D, list[int]]
@@ -643,6 +645,7 @@ class CompiledRHGCanvas:
     # Optional/defaulted fields follow
     global_graph: BaseGraphState | None = None
     coord2node: dict[PhysCoordGlobal3D, NodeIdLocal] = field(default_factory=dict)
+    node2role: dict[NodeIdLocal, str] = field(default_factory=dict)
 
     in_portset: dict[PatchCoordGlobal3D, list[NodeIdLocal]] = field(default_factory=dict)
     out_portset: dict[PatchCoordGlobal3D, list[NodeIdLocal]] = field(default_factory=dict)
@@ -736,6 +739,9 @@ class CompiledRHGCanvas:
         # Remap coord2node
         for coord, old_nodeid in self.coord2node.items():
             new_cgraph.coord2node[coord] = node_map[old_nodeid]
+        # Remap node2role
+        for old_nodeid, role in self.node2role.items():
+            new_cgraph.node2role[node_map[old_nodeid]] = role
 
         # Remap portsets
         for pos, nodes in self.in_portset.items():
@@ -1082,7 +1088,21 @@ def _build_coordinate_gid_mapping(
     return new_coord2gid
 
 
-def _update_accumulators(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, new_graph: BaseGraphState) -> None:
+def _build_merged_node2role(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> dict[int, str]:
+    """Build merged node to role mapping."""
+    return {
+        **{int(k): v for k, v in cgraph.node2role.items()},
+        **{int(k): v for k, v in next_layer.node2role.items()},
+    }
+
+
+def _update_accumulators(
+    cgraph: CompiledRHGCanvas,
+    next_layer: TemporalLayer,
+    new_graph: BaseGraphState,
+    node2coord: Mapping[int, Sequence[int]],
+    node2role: Mapping[int, str],
+) -> None:
     """Update accumulators at layer boundaries."""
     z_minus_ancillas = []
     bn = next_layer.get_boundary_nodes(face="z-", depth=[0])
@@ -1099,9 +1119,9 @@ def _update_accumulators(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, n
 
     # Update accumulators
     for anchor in z_minus_ancillas:
-        cgraph.schedule.update_at(anchor, new_graph)
-        cgraph.parity.update_at(anchor, new_graph)
-        cgraph.flow.update_at(anchor, new_graph)
+        cgraph.schedule.update_at(anchor, new_graph, node2coord, node2role)
+        cgraph.parity.update_at(anchor, new_graph, node2coord, node2role)
+        cgraph.flow.update_at(anchor, new_graph, node2coord, node2role)
 
 
 def _setup_temporal_connections(
@@ -1162,14 +1182,17 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
     new_coord2node = _build_merged_coord2node(cgraph, next_layer)
     in_portset, out_portset, cout_portset = _remap_temporal_portsets(cgraph, next_layer, node_map1, node_map2)
     new_coord2gid = _build_coordinate_gid_mapping(cgraph, next_layer)
+    new_node2role = _build_merged_node2role(cgraph, next_layer)
 
     # Setup temporal connections
     _setup_temporal_connections(pipes, cgraph, next_layer, new_graph, new_coord2node, new_coord2gid)
 
     new_layers = [*cgraph.layers, next_layer]
 
+    new_node2coord = {v: k for k, v in new_coord2node.items()}
+
     # Update accumulators
-    _update_accumulators(cgraph, next_layer, new_graph)
+    _update_accumulators(cgraph, next_layer, new_graph, new_node2coord, new_node2role)
 
     # Merge schedule, flow, parity
     new_schedule = cgraph.schedule.compose_sequential(next_layer.schedule)
