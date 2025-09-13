@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from lspattern.accumulator import DetectorAccumulator
 from lspattern.mytype import NodeIdLocal
 from lspattern.visualizers.plotly_temporallayer import visualize_temporal_layer_plotly
 from lspattern.visualizers.temporallayer import visualize_temporal_layer
@@ -222,77 +221,6 @@ def visualize_schedule_mpl(
     return ax
 
 
-def visualize_detectors_mpl(  # noqa: C901
-    layer: TemporalLayer,
-    *,
-    detector: DetectorAccumulator | None = None,
-    annotate: bool = False,
-    save_path: str | None = None,
-    show: bool = True,
-    ax: matplotlib.axes.Axes | None = None,
-) -> matplotlib.axes.Axes:
-    node2coord = layer.node2coord or {}
-
-    created_fig = False
-    if ax is None:
-        fig = plt.figure(figsize=(6, 6), dpi=120)
-        ax = fig.add_subplot(111, projection="3d")
-        created_fig = True
-    else:
-        fig_maybe_subfig = ax.get_figure()
-        assert fig_maybe_subfig is not None  # noqa: S101
-        # Get the root figure if this is a SubFigure
-        fig = getattr(fig_maybe_subfig, "figure", None) or fig_maybe_subfig  # type: ignore[assignment]
-
-    with contextlib.suppress(Exception):
-        ax.set_box_aspect((1, 1, 1))  # type: ignore[arg-type]
-    ax.grid(False)
-    ax.set_axis_off()
-
-    # Build detector accumulator on the fly if not provided
-    if detector is None:
-        det = DetectorAccumulator()
-        ancillas = [int(n) for n, r in layer.node2role.items() if str(r).startswith("ancilla")]
-        for a in ancillas:
-            det.update_at(a, layer)
-    else:
-        det = detector
-
-    # draw all detectors as edges from anchor to data neighbors
-    if det is not None:
-        for a, group in det.detectors.items():
-            a_local = NodeIdLocal(a)
-            if a_local not in node2coord:
-                continue
-            x1, y1, z1 = node2coord[a_local]
-            for n in group:
-                n_local = NodeIdLocal(n)
-                if n_local not in node2coord:
-                    continue
-                x2, y2, z2 = node2coord[n_local]
-                ax.plot([x1, x2], [y1, y2], [z1, z2], c=COLOR_EDGE, linewidth=1.2, alpha=0.9)
-
-    # also scatter anchors and data
-    xs = [node2coord[n][0] for n in node2coord]
-    ys = [node2coord[n][1] for n in node2coord]
-    zs = [node2coord[n][2] for n in node2coord]
-    ax.scatter(xs, ys, zs, s=10, c=COLOR_DATA, edgecolors="black", alpha=0.3, label="nodes")  # type: ignore[misc]
-
-    if annotate:
-        for nid, (x, y, z) in node2coord.items():
-            ax.text(x, y, z, str(nid), color="black", fontsize=7)  # type: ignore[arg-type]
-
-    ax.set_title(f"Detectors (z={layer.z})")
-
-    if save_path is not None:
-        # Use root figure for saving if fig is a SubFigure
-        root_fig = getattr(fig, "figure", fig)
-        root_fig.savefig(save_path, bbox_inches="tight", dpi=120)  # pyright: ignore[reportAttributeAccessIssue]
-    if show and created_fig:
-        plt.show()
-    return ax
-
-
 def visualize_temporal_layer_2x2_mpl(
     layer: TemporalLayer,
     *,
@@ -469,68 +397,6 @@ def visualize_schedule_plotly(
         yaxis_title="Y",
         xaxis={"scaleanchor": "y", "scaleratio": 1},
         yaxis={"constrain": "domain"},
-    )
-    return fig
-
-
-def visualize_detectors_plotly(layer: TemporalLayer, *, detector: DetectorAccumulator | None = None) -> go.Figure:
-    node2coord = layer.node2coord or {}
-
-    if detector is None:
-        det = DetectorAccumulator()
-        ancillas = [int(n) for n, r in layer.node2role.items() if str(r).startswith("ancilla")]
-        for a in ancillas:
-            det.update_at(a, layer)
-    else:
-        det = detector
-
-    fig = go.Figure()
-    # Edges
-    edge_x: list[float | None] = []
-    edge_y: list[float | None] = []
-    edge_z: list[float | None] = []
-    if det is not None:
-        for a, group in det.detectors.items():
-            a_local = NodeIdLocal(a)
-            if a_local not in node2coord:
-                continue
-            x1, y1, z1 = node2coord[a_local]
-            for n in group:
-                n_local = NodeIdLocal(n)
-                if n_local not in node2coord:
-                    continue
-                x2, y2, z2 = node2coord[n_local]
-                edge_x.extend([x1, x2, None])
-                edge_y.extend([y1, y2, None])
-                edge_z.extend([z1, z2, None])
-    if edge_x:
-        fig.add_trace(
-            go.Scatter3d(
-                x=edge_x, y=edge_y, z=edge_z, mode="lines", line={"color": COLOR_EDGE, "width": 3}, name="detectors"
-            )
-        )
-
-    # Nodes (context)
-    xs = [node2coord[n][0] for n in node2coord]
-    ys = [node2coord[n][1] for n in node2coord]
-    zs = [node2coord[n][2] for n in node2coord]
-    if xs:
-        fig.add_trace(
-            go.Scatter3d(
-                x=xs,
-                y=ys,
-                z=zs,
-                mode="markers",
-                marker={"size": 4, "color": COLOR_DATA, "line": {"color": "#000", "width": 1}},
-                name="nodes",
-                opacity=0.5,
-            )
-        )
-
-    fig.update_layout(
-        title=f"Detectors (z={layer.z})",
-        scene={"xaxis_title": "X", "yaxis_title": "Y", "zaxis_title": "Z", "aspectmode": "cube"},
-        margin={"l": 0, "r": 0, "b": 0, "t": 40},
     )
     return fig
 

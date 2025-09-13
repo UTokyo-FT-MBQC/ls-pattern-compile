@@ -1,8 +1,6 @@
 """Visualization utilities for lspattern objects."""
 
 from .accumulators import (
-    visualize_detectors_mpl,
-    visualize_detectors_plotly,
     visualize_flow_mpl,
     visualize_flow_plotly,
     visualize_parity_mpl,
@@ -21,8 +19,6 @@ __all__ = [
     # compiled canvas
     "visualize_compiled_canvas",
     "visualize_compiled_canvas_plotly",
-    "visualize_detectors_mpl",
-    "visualize_detectors_plotly",
     "visualize_flow_mpl",
     "visualize_flow_plotly",
     # accumulators mpl
