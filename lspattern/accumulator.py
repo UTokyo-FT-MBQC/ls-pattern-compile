@@ -200,6 +200,9 @@ class ParityAccumulator(BaseAccumulator):
     x_checks: list[set[NodeIdLocal]] = field(default_factory=list)
     z_checks: list[set[NodeIdLocal]] = field(default_factory=list)
 
+    dangling_xchecks: dict[int, set[NodeIdLocal]] = field(default_factory=dict)
+    dangling_zchecks: dict[int, set[NodeIdLocal]] = field(default_factory=dict)
+
     def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> ParityAccumulator:
         """Return a new parity accumulator with nodes remapped via `node_map`."""
         # Fast remap via set/list comprehensions
@@ -208,13 +211,24 @@ class ParityAccumulator(BaseAccumulator):
             z_checks=_remap_groups(self.z_checks, node_map),
         )
 
+    def set_dangling_checks(
+        self,
+        dangling_xchecks: dict[int, set[NodeIdLocal]] | None = None,
+        dangling_zchecks: dict[int, set[NodeIdLocal]] | None = None,
+    ) -> None:
+        """Set the dangling checks for the accumulator."""
+        if dangling_xchecks is not None:
+            for k, v in dangling_xchecks.items():
+                self.dangling_xchecks[k] = v
+        if dangling_zchecks is not None:
+            for k, v in dangling_zchecks.items():
+                self.dangling_zchecks[k] = v
+
     def update_at(
         self,
-        anchor: int,
-        graph: BaseGraphState,
-        node2coord: Mapping[int, PhysCoordGlobal3D],
-        coord2node: Mapping[PhysCoordGlobal3D, int],
-        node2role: Mapping[int, str],
+        check_group: set[NodeIdLocal],
+        stabilizer_index: int,
+        check_type: str,
     ) -> None:
         """Update parity groups by sweeping neighbors around an ancilla node.
 
@@ -223,23 +237,24 @@ class ParityAccumulator(BaseAccumulator):
         - Skip classical outputs.
         - Non-decreasing is enforced by assertion.
         """
-        if anchor in graph.output_node_indices:
-            return
+        dangling_check = (
+            self.dangling_xchecks.get(stabilizer_index)
+            if check_type == "X"
+            else self.dangling_zchecks.get(stabilizer_index)
+            if check_type == "Z"
+            else None
+        )
+        deterministic_group = check_group.union(dangling_check) if dangling_check is not None else check_group
 
-        role = (self._role_of(anchor, node2role) or "").lower()
-
-        if not role.startswith("ancilla"):
-            return  # only ancillas define parity groups
-
-        coord = node2coord[int(anchor)]
-        target_coord = (*coord[:2], coord[2] - 2)
-        target_ancilla = coord2node.get(PhysCoordGlobal3D(target_coord))
-        group = {NodeIdLocal(anchor)} if target_ancilla is None else {NodeIdLocal(anchor), NodeIdLocal(target_ancilla)}
-
-        if "ancilla_x" in role:
-            self.x_checks.append(group)
-        elif "ancilla_z" in role:
-            self.z_checks.append(group)
+        if check_type == "X":
+            self.x_checks.append(deterministic_group)
+            self.dangling_xchecks[stabilizer_index] = check_group
+        elif check_type == "Z":
+            self.z_checks.append(deterministic_group)
+            self.dangling_zchecks[stabilizer_index] = check_group
+        else:
+            msg = f"ParityAccumulator.update_at: unknown check_type {check_type}"
+            raise ValueError(msg)
 
 
 @dataclass
