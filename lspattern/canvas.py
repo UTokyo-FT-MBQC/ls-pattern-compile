@@ -7,8 +7,6 @@ into executable quantum patterns with proper temporal layering and flow manageme
 from __future__ import annotations
 
 from contextlib import suppress
-
-# import layout is intentionally non-standard due to optional deps fallback
 from dataclasses import dataclass, field
 from operator import itemgetter
 from typing import TYPE_CHECKING
@@ -82,6 +80,7 @@ class TemporalLayer:
 
     cubes_: dict[PatchCoordGlobal3D, RHGCube]
     pipes_: dict[PipeCoordGlobal3D, RHGPipe]
+    tiling_node_maps: dict[str, dict[int, tuple[int, int]]]
 
     coord2gid: dict[PhysCoordGlobal3D, QubitGroupIdGlobal]
     allowed_gid_pairs: set[tuple[QubitGroupIdGlobal, QubitGroupIdGlobal]]
@@ -89,7 +88,6 @@ class TemporalLayer:
     def __init__(self, z: int) -> None:
         self.z = z
         self.qubit_count = 0
-        self.d: set[int] = set()
         self.patches = []
         self.lines = []
         self.in_portset = {}
@@ -109,9 +107,8 @@ class TemporalLayer:
 
         self.cubes_ = {}
         self.pipes_ = {}
-        self.tiling_node_maps: dict[str, dict[int, int]] = {}
+        self.tiling_node_maps = {}
 
-        self.coord2tid: dict[PatchCoordGlobal3D, str] = {}
         self.coord2gid = {}
         self.allowed_gid_pairs = set()
 
@@ -1087,27 +1084,24 @@ def _build_coordinate_gid_mapping(
 
 def _update_accumulators(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, new_graph: BaseGraphState) -> None:
     """Update accumulators at layer boundaries."""
-    try:
-        z_minus_ancillas = []
-        bn = next_layer.get_boundary_nodes(face="z-", depth=[0])
+    z_minus_ancillas = []
+    bn = next_layer.get_boundary_nodes(face="z-", depth=[0])
 
-        # Collect anchor node IDs for ancilla X/Z
-        for c in bn.get("xcheck", []):
-            nid = next_layer.coord2node.get(c)
-            if nid is not None:
-                z_minus_ancillas.append(nid)
-        for c in bn.get("zcheck", []):
-            nid = next_layer.coord2node.get(c)
-            if nid is not None:
-                z_minus_ancillas.append(nid)
+    # Collect anchor node IDs for ancilla X/Z
+    for c in bn.get("xcheck", []):
+        nid = next_layer.coord2node.get(c)
+        if nid is not None:
+            z_minus_ancillas.append(nid)
+    for c in bn.get("zcheck", []):
+        nid = next_layer.coord2node.get(c)
+        if nid is not None:
+            z_minus_ancillas.append(nid)
 
-        # Update accumulators
-        for anchor in z_minus_ancillas:
-            cgraph.schedule.update_at(anchor, new_graph)
-            cgraph.parity.update_at(anchor, new_graph)
-            cgraph.flow.update_at(anchor, new_graph)
-    except (ValueError, KeyError, AttributeError):
-        pass  # Be tolerant: boundary queries are best-effort
+    # Update accumulators
+    for anchor in z_minus_ancillas:
+        cgraph.schedule.update_at(anchor, new_graph)
+        cgraph.parity.update_at(anchor, new_graph)
+        cgraph.flow.update_at(anchor, new_graph)
 
 
 def _setup_temporal_connections(
@@ -1159,6 +1153,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
     if next_layer.local_graph is None:
         error_msg = "next_layer.local_graph cannot be None"
         raise ValueError(error_msg)
+    # TODO: should specify connecting qubits indices
     new_graph, node_map1, node_map2 = compose(cgraph.global_graph, next_layer.local_graph)
     cgraph = cgraph.remap_nodes({NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map1.items()})
     _remap_layer_mappings(next_layer, node_map2)
@@ -1200,6 +1195,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         x_checks=cgraph.parity.x_checks + next_layer.parity.x_checks,
         z_checks=cgraph.parity.z_checks + next_layer.parity.z_checks,
     )
+    # TODO: should add boundary checks?
 
     return CompiledRHGCanvas(
         layers=new_layers,
