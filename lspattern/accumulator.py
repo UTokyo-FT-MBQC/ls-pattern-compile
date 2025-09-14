@@ -1,24 +1,5 @@
-"""Lightweight accumulators for schedules, parities, and flows.
+"""Lightweight accumulators for schedules, parities, and flows."""
 
-These helpers store simple collections during compilation and offer
-remapping/combination utilities. In T23 we also add a common
-``update_at(anchor, graph_local, *, allowed_pairs=None)`` API used by
-TemporalLayer sweeps.
-
-Design notes
-------------
-- ``graph_local`` may be either a BaseGraphState-like object (duck-typed by
-  ``neighbors(node)``) or an object carrying ``local_graph``,
-  ``node2coord`` and ``node2role`` (e.g., TemporalLayer). The helpers below
-  attempt to extract the richest available context.
-- ``allowed_pairs`` is an optional filter. In this milestone it is treated as a
-  set of node-id pairs ``{(u,v), ...}`` (order-agnostic). If not provided, all
-  neighbor relations are accepted.
-- All ``update_at`` implementations are monotone (non-decreasing). Each method
-  asserts that the total cardinality of stored relations does not shrink.
-"""
-
-# import grouping intentionally simple
 from __future__ import annotations
 
 from dataclasses import dataclass, field
