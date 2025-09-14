@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import ClassVar
 
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
+from lspattern.mytype import PhysCoordGlobal3D, PhysCoordLocal2D
 
 
 class MemoryCubeSkeleton(RHGCubeSkeleton):
@@ -53,3 +54,30 @@ class MemoryCube(RHGCube):
     def set_cout_ports(self) -> None:
         """Memory: 古典出力は持たない。"""
         return super().set_cout_ports()
+
+    def _construct_detectors(self) -> None:
+        x2d = self.template.x_coords
+        z2d = self.template.z_coords
+
+        max_t = max(self.schedule.schedule.keys(), default=0)
+        dangling_detectors: dict[PhysCoordLocal2D, set[int]] = {}
+        for t in range(max_t + 1):
+            for x, y in x2d:
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, t)))
+                if node_id is None:
+                    msg = f"There should be a node at (x,y,z)=({x},{y},{t})"
+                    raise AssertionError(msg)
+                self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
+                    {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
+                )
+                dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+
+            for x, y in z2d:
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, t)))
+                if node_id is None:
+                    msg = f"There should be a node at (x,y,z)=({x},{y},{t})"
+                    raise AssertionError(msg)
+                self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
+                    {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
+                )
+                dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
