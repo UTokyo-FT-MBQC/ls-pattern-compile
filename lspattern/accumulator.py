@@ -24,7 +24,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal, PhysCoordGlobal3D
+from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal, PhysCoordGlobal3D, PhysCoordLocal2D
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -196,65 +196,30 @@ class ScheduleAccumulator(BaseAccumulator):
 class ParityAccumulator(BaseAccumulator):
     """Parity check groups for X/Z stabilizers in local id space."""
 
-    # Parity check groups (local ids)
-    x_checks: list[set[NodeIdLocal]] = field(default_factory=list)
-    z_checks: list[set[NodeIdLocal]] = field(default_factory=list)
-
-    dangling_xchecks: dict[int, set[NodeIdLocal]] = field(default_factory=dict)
-    dangling_zchecks: dict[int, set[NodeIdLocal]] = field(default_factory=dict)
+    checks: dict[PhysCoordLocal2D, list[set[NodeIdLocal]]] = field(default_factory=dict)
 
     def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> ParityAccumulator:
         """Return a new parity accumulator with nodes remapped via `node_map`."""
         # Fast remap via set/list comprehensions
+        new_checks = {k: _remap_groups(v, node_map) for k, v in self.checks.items()}
+
         return ParityAccumulator(
-            x_checks=_remap_groups(self.x_checks, node_map),
-            z_checks=_remap_groups(self.z_checks, node_map),
+            checks=new_checks,
         )
 
-    def set_dangling_checks(
-        self,
-        dangling_xchecks: dict[int, set[NodeIdLocal]] | None = None,
-        dangling_zchecks: dict[int, set[NodeIdLocal]] | None = None,
-    ) -> None:
-        """Set the dangling checks for the accumulator."""
-        if dangling_xchecks is not None:
-            for k, v in dangling_xchecks.items():
-                self.dangling_xchecks[k] = v
-        if dangling_zchecks is not None:
-            for k, v in dangling_zchecks.items():
-                self.dangling_zchecks[k] = v
+    def merge_with(self, other: ParityAccumulator) -> ParityAccumulator:
+        new_checks: dict[PhysCoordLocal2D, list[set[NodeIdLocal]]] = {}
+        for coord, groups in self.checks.items():
+            new_checks[coord] = groups[:-1]
+            # NOTE: assumes no empty groups in self.checks
+            dangling_check1 = self.checks[coord][-1]
+            dangling_check2 = other.checks[coord][0]
+            new_checks[coord].append(dangling_check1.union(dangling_check2))
+            new_checks[coord].extend(other.checks[coord][1:])
 
-    def update_at(
-        self,
-        check_group: set[NodeIdLocal],
-        stabilizer_index: int,
-        check_type: str,
-    ) -> None:
-        """Update parity groups by sweeping neighbors around an ancilla node.
-
-        - For an X-ancilla, add the set of adjacent data nodes to ``x_checks``.
-        - For a Z-ancilla, add the set of adjacent data nodes to ``z_checks``.
-        - Skip classical outputs.
-        - Non-decreasing is enforced by assertion.
-        """
-        dangling_check = (
-            self.dangling_xchecks.get(stabilizer_index)
-            if check_type == "X"
-            else self.dangling_zchecks.get(stabilizer_index)
-            if check_type == "Z"
-            else None
+        return ParityAccumulator(
+            checks=new_checks,
         )
-        deterministic_group = check_group.union(dangling_check) if dangling_check is not None else check_group
-
-        if check_type == "X":
-            self.x_checks.append(deterministic_group)
-            self.dangling_xchecks[stabilizer_index] = check_group
-        elif check_type == "Z":
-            self.z_checks.append(deterministic_group)
-            self.dangling_zchecks[stabilizer_index] = check_group
-        else:
-            msg = f"ParityAccumulator.update_at: unknown check_type {check_type}"
-            raise ValueError(msg)
 
 
 @dataclass
