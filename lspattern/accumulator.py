@@ -124,23 +124,18 @@ class ParityAccumulator:
 class FlowAccumulator:
     """Directed flow relations between nodes for X/Z types."""
 
-    flow: dict[PhysCoordLocal2D, FlowLocal] = field(default_factory=dict)
+    flow: FlowLocal = field(default_factory=dict)
 
     def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> FlowAccumulator:
         """Return a new flow accumulator with ids remapped via `node_map`."""
-        # Remap both x/z flows using helper for speed
-        new_flow = {k: _remap_flow(v, node_map) for k, v in self.flow.items()}
+        new_flow = _remap_flow(self.flow, node_map)
         return FlowAccumulator(
             flow=new_flow,
         )
 
     def merge_with(self, other: FlowAccumulator) -> FlowAccumulator:
         """Union-merge two flow accumulators (local/global-agnostic)."""
-        new_flow = {}
-        for coord in set(self.flow.keys()).union(other.flow.keys()):
-            f1 = self.flow.get(coord, {})
-            f2 = other.flow.get(coord, {})
-            new_flow[coord] = _merge_flow(f1, f2)
+        new_flow = _merge_flow(self.flow, other.flow)
         return FlowAccumulator(
             flow=new_flow,
         )
