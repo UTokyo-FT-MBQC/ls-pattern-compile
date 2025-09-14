@@ -206,8 +206,6 @@ class RHGBlock:
         self._assign_meas_bases(g, self.meas_basis)
 
         self._construct_detectors()
-        self._construct_flow()
-        self._construct_schedule()
 
         # Store results on the block
         self.local_graph = g
@@ -227,7 +225,7 @@ class RHGBlock:
         x2d = list(self.template.x_coords or [])
         z2d = list(self.template.z_coords or [])
 
-        # Construct a 3D RHG slab of height ~2*d (T12 policy)
+        # Construct a 3D RHG slab of height ~2*d
         d_val = int(self.d)
         max_t = 2 * d_val
         z0 = int(self.source[2]) * (2 * d_val)  # base z-offset per block
@@ -240,9 +238,11 @@ class RHGBlock:
         # Assign nodes for each time slice
         nodes_by_z = self._assign_nodes_by_timeslice(g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role)
 
+        self._construct_schedule(nodes_by_z)
+
         # Add spatial and temporal edges
         RHGBlock._add_spatial_edges(g, nodes_by_z)
-        RHGBlock._add_temporal_edges(g, nodes_by_z)
+        self._add_temporal_edges(g, nodes_by_z)
 
         return g, node2coord, coord2node, node2role
 
@@ -315,8 +315,7 @@ class RHGBlock:
                         with suppress(Exception):
                             g.add_physical_edge(u, v)
 
-    @staticmethod
-    def _add_temporal_edges(g: GraphState, nodes_by_z: Mapping[int, Mapping[tuple[int, int], int]]) -> None:
+    def _add_temporal_edges(self, g: GraphState, nodes_by_z: Mapping[int, Mapping[tuple[int, int], int]]) -> None:
         """Add inter-slice temporal edges."""
         t_keys = sorted(nodes_by_z.keys())
         for i in range(1, len(t_keys)):
@@ -327,6 +326,7 @@ class RHGBlock:
                 if v is not None:
                     with suppress(Exception):
                         g.add_physical_edge(u, v)
+                    self.flow.flow.setdefault(NodeIdLocal(v), set()).add(NodeIdLocal(u))
 
     def _register_io_nodes(
         self,
@@ -365,11 +365,9 @@ class RHGBlock:
     def _construct_detectors(self) -> None:
         raise NotImplementedError
 
-    def _construct_flow(self) -> None:
-        raise NotImplementedError
-
-    def _construct_schedule(self) -> None:
-        raise NotImplementedError
+    def _construct_schedule(self, nodes_by_z: Mapping[int, Mapping[tuple[int, int], int]]) -> None:
+        for t, nodes in nodes_by_z.items():
+            self.schedule.schedule[t] = set(nodes.values())
 
     def _build_coordinate_mappings(
         self, coord2node: Mapping[tuple[int, int, int], int], zmin: int, zmax: int
