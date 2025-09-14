@@ -226,50 +226,23 @@ class ParityAccumulator(BaseAccumulator):
 class FlowAccumulator(BaseAccumulator):
     """Directed flow relations between nodes for X/Z types."""
 
-    xflow: dict[NodeIdLocal, set[NodeIdLocal]] = field(default_factory=dict)
+    flow: dict[PhysCoordLocal2D, FlowLocal] = field(default_factory=dict)
 
     def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> FlowAccumulator:
         """Return a new flow accumulator with ids remapped via `node_map`."""
         # Remap both x/z flows using helper for speed
+        new_flow = {k: _remap_flow(v, node_map) for k, v in self.flow.items()}
         return FlowAccumulator(
-            xflow=_remap_flow(self.xflow, node_map),
+            flow=new_flow,
         )
 
     def merge_with(self, other: FlowAccumulator) -> FlowAccumulator:
         """Union-merge two flow accumulators (local/global-agnostic)."""
+        new_flow = {}
+        for coord in set(self.flow.keys()).union(other.flow.keys()):
+            f1 = self.flow.get(coord, {})
+            f2 = other.flow.get(coord, {})
+            new_flow[coord] = _merge_flow(f1, f2)
         return FlowAccumulator(
-            xflow=_merge_flow(self.xflow, other.xflow),
+            flow=new_flow,
         )
-
-    def update_at(
-        self,
-        anchor: int,
-        graph: BaseGraphState,
-        node2coord: Mapping[int, PhysCoordGlobal3D],
-        coord2node: Mapping[PhysCoordGlobal3D, int],
-        node2role: Mapping[int, str],
-    ) -> None:
-        """Update X/Z flow from an ancilla to its data neighbors.
-
-        A minimal, monotone definition suitable for T23:
-        - For X-ancilla: add directed edges anchor -> data_nbr into ``xflow``.
-        - For Z-ancilla: add directed edges anchor -> data_nbr into ``zflow``.
-        - Skip classical outputs.
-        """
-        if anchor in graph.output_node_indices:
-            return
-
-        role = (self._role_of(anchor, node2role) or "").lower()
-        if role.startswith("ancilla"):
-            return
-
-        coord = node2coord.get(int(anchor))
-        if not coord:
-            msg = f"FlowAccumulator.update_at: missing coord for node {anchor}"
-            raise ValueError(msg)
-        parent_coord = (*coord[:2], coord[2] - 1)
-        parent = coord2node.get(PhysCoordGlobal3D(parent_coord))
-        if parent is None:
-            return
-
-        self.xflow.setdefault(NodeIdLocal(parent), set()).add(NodeIdLocal(anchor))
