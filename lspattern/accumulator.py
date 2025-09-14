@@ -24,63 +24,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal, PhysCoordGlobal3D, PhysCoordLocal2D
-
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
-
-    from graphix_zx.graphstate import BaseGraphState
-
-# -----------------------------------------------------------------------------
-# Shared helpers and base class
-# -----------------------------------------------------------------------------
-
-
-class BaseAccumulator:
-    """Common utilities for accumulator ``update_at`` implementations.
-
-    Subclasses should implement ``update_at`` and use helper methods here to
-    access graph context and enforce non-decreasing updates.
-    """
-
-    @staticmethod
-    def _role_of(node: int, node2role: Mapping[int, str] | None) -> str | None:
-        if node2role is None:
-            return None
-        try:
-            return str(node2role.get(int(node)))
-        except (TypeError, ValueError):
-            return None
-
-    @staticmethod
-    def _allows(u: int, v: int, allowed_pairs: Iterable[tuple[int, int]] | None) -> bool:
-        """Return True if the pair is allowed (or no filter provided).
-
-        This milestone treats allowed_pairs as node-id pairs. Order-agnostic.
-        Future work may lift this to tiling-id pairs.
-        """
-        if not allowed_pairs:
-            return True
-        uv = (int(u), int(v))
-        vu = (int(v), int(u))
-        try:
-            ap = {(int(a), int(b)) for (a, b) in allowed_pairs}
-        except (TypeError, ValueError):
-            return True
-        return uv in ap or vu in ap
-
-    # ---- monotonicity helpers ---------------------------------------------
-    @staticmethod
-    def _size_of_flow(flow: FlowLocal) -> int:
-        return sum(len(vs) for vs in flow.values())
-
-    @staticmethod
-    def _size_of_groups(groups: list[set[int]] | list[set[NodeIdLocal]]) -> int:
-        return sum(len(g) for g in groups)
-
-    @staticmethod
-    def _size_of_schedule(schedule: dict[int, set[int]] | dict[int, set[NodeIdGlobal]]) -> int:
-        return sum(len(v) for v in schedule.values())
+    from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal, PhysCoordLocal2D
 
 
 # Flow helpers (node maps guaranteed to contain all keys)
@@ -117,7 +62,7 @@ def _remap_groups(
 
 
 @dataclass
-class ScheduleAccumulator(BaseAccumulator):
+class ScheduleAccumulator:
     """Collect time-indexed node sets for measurement schedule."""
 
     schedule: dict[int, set[NodeIdGlobal]] = field(default_factory=dict)
@@ -133,8 +78,6 @@ class ScheduleAccumulator(BaseAccumulator):
         ScheduleAccumulator
             A new instance with remapped node ids.
         """
-        if not self.schedule:
-            return ScheduleAccumulator()
         remapped: dict[int, set[NodeIdGlobal]] = {}
         for t, nodes in self.schedule.items():
             remapped[t] = {node_map.get(n, n) for n in nodes}
@@ -150,50 +93,24 @@ class ScheduleAccumulator(BaseAccumulator):
                 new_schedule[t] = nodes
         return ScheduleAccumulator(new_schedule)
 
-    def shift_z(self, z_by: int) -> None:
+    def shift_z(self, z_by: int) -> ScheduleAccumulator:
         """Shift all time slots by `z_by` in-place."""
         new_schedule = {}
         for t, nodes in self.schedule.items():
             new_schedule[t + z_by] = nodes
-        self.schedule = new_schedule
+        return ScheduleAccumulator(new_schedule)
 
     def compose_sequential(self, late_schedule: ScheduleAccumulator) -> ScheduleAccumulator:
         """Concatenate schedules by placing `late_schedule` after this one."""
         new_schedule = self.schedule.copy()
-        late_schedule.shift_z(max(self.schedule.keys()) + 1)
-        for t, nodes in late_schedule.schedule.items():
+        shifted_late_schedule = late_schedule.shift_z(max(self.schedule.keys()) + 1)
+        for t, nodes in shifted_late_schedule.schedule.items():
             new_schedule[t] = new_schedule.get(t, set()).union(nodes)
         return ScheduleAccumulator(new_schedule)
 
-    def update_at(
-        self,
-        anchor: int,
-        graph: BaseGraphState,
-        node2coord: Mapping[int, PhysCoordGlobal3D],
-    ) -> None:
-        """Record the measurement of ``anchor`` at its time slice.
-
-        Uses node2coord if available to place the node into the correct t-slot.
-        Ignores classical outputs. Monotonic (non-decreasing) by construction.
-        """
-
-        if anchor in graph.output_node_indices:
-            return
-
-        before = self._size_of_schedule(self.schedule)
-
-        t = node2coord.get(int(anchor), (0, 0, 0))[2]
-
-        self.schedule.setdefault(t, set()).add(NodeIdGlobal(anchor))
-
-        after = self._size_of_schedule(self.schedule)
-        if after < before:
-            msg = "ScheduleAccumulator must be non-decreasing"
-            raise AssertionError(msg)
-
 
 @dataclass
-class ParityAccumulator(BaseAccumulator):
+class ParityAccumulator:
     """Parity check groups for X/Z stabilizers in local id space."""
 
     checks: dict[PhysCoordLocal2D, list[set[NodeIdLocal]]] = field(default_factory=dict)
@@ -223,7 +140,7 @@ class ParityAccumulator(BaseAccumulator):
 
 
 @dataclass
-class FlowAccumulator(BaseAccumulator):
+class FlowAccumulator:
     """Directed flow relations between nodes for X/Z types."""
 
     flow: dict[PhysCoordLocal2D, FlowLocal] = field(default_factory=dict)
