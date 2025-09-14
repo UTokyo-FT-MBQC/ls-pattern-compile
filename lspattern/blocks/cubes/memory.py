@@ -59,9 +59,9 @@ class MemoryCube(RHGCube):
         x2d = self.template.x_coords
         z2d = self.template.z_coords
 
-        max_t = max(self.schedule.schedule.keys(), default=0)
+        height = max(self.schedule.schedule.keys(), default=0) - min(self.schedule.schedule.keys(), default=0) + 1
         dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
-        for t in range(max_t + 1):
+        for t in range(height):
             for x, y in x2d:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, t)))
                 if node_id is None:
@@ -81,3 +81,7 @@ class MemoryCube(RHGCube):
                     {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
                 )
                 dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+
+        # add dangling detectors for connectivity to next block
+        for coord, nodes in dangling_detectors.items():
+            self.parity.checks.setdefault(coord, []).append(nodes)
