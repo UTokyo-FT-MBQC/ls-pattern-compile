@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import ClassVar
 
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
-from lspattern.mytype import PhysCoordGlobal3D, PhysCoordLocal2D
+from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D, PhysCoordLocal2D
 
 
 class MemoryCubeSkeleton(RHGCubeSkeleton):
@@ -60,7 +60,7 @@ class MemoryCube(RHGCube):
         z2d = self.template.z_coords
 
         max_t = max(self.schedule.schedule.keys(), default=0)
-        dangling_detectors: dict[PhysCoordLocal2D, set[int]] = {}
+        dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
         for t in range(max_t + 1):
             for x, y in x2d:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, t)))
