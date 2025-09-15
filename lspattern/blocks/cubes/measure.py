@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, ClassVar
 from graphix_zx.common import Axis, AxisMeasBasis, Sign
 
 from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
-from lspattern.mytype import PhysCoordGlobal3D, PhysCoordLocal2D, NodeIdLocal
+from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D, PhysCoordLocal2D
 
 if TYPE_CHECKING:
     from lspattern.canvas import RHGCanvas
