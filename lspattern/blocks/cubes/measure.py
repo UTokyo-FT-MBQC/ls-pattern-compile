@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from graphix_zx.common import Axis, AxisMeasBasis, Sign
 
@@ -25,7 +25,8 @@ class _MeasureBase(RHGCube):
     - Provide X-cap parity directives that close the top with the previous X layer.
     """
 
-    def __init__(self, logical: int, basis: Axis) -> None:
+    def __init__(self, logical: int, basis: Axis, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
         self.logical = logical
         self.meas_basis = AxisMeasBasis(basis, Sign.PLUS)  # is it actually override the base class's meas_basis?
 
@@ -46,8 +47,8 @@ class _MeasureBase(RHGCube):
 class MeasureX(_MeasureBase):
     """Measure a logical block in the X basis."""
 
-    def __init__(self, logical: int) -> None:
-        super().__init__(logical, Axis.X)
+    def __init__(self, logical: int, **kwargs: Any) -> None:
+        super().__init__(logical, Axis.X, **kwargs)
 
     def set_cout_ports(self) -> None:
         pass
@@ -69,8 +70,8 @@ class MeasureX(_MeasureBase):
 class MeasureZ(_MeasureBase):
     """Measure a logical block in the Z basis."""
 
-    def __init__(self, logical: int) -> None:
-        super().__init__(logical, Axis.Z)
+    def __init__(self, logical: int, **kwargs: Any) -> None:
+        super().__init__(logical, Axis.Z, **kwargs)
 
     def set_cout_ports(self) -> None:
         pass
@@ -105,6 +106,9 @@ class MeasureXSkeleton(RHGCubeSkeleton):
 
         block = MeasureX(
             logical=self.d,
+            d=self.d,
+            edge_spec=self.edgespec,
+            template=self.template,
         )
         block.final_layer = "MX"
         return block
@@ -126,6 +130,9 @@ class MeasureZSkeleton(RHGCubeSkeleton):
 
         block = MeasureZ(
             logical=self.d,
+            d=self.d,
+            edge_spec=self.edgespec,
+            template=self.template,
         )
         block.final_layer = "MZ"
         return block
