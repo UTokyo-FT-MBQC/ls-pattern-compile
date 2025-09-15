@@ -15,7 +15,7 @@ from graphix_zx.pattern import print_pattern
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.cubes.measure import MeasureXSkeleton
-from lspattern.blocks.pipes.memory import MemoryPipeSkeleton
+from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
 from lspattern.mytype import PatchCoordGlobal3D
@@ -64,16 +64,12 @@ edgespec = {"TOP": "X", "BOTTOM": "X", "LEFT": "Z", "RIGHT": "Z"}
 init_skeleton = InitPlusCubeSkeleton(d=d, edgespec=edgespec)
 skeleton.add_cube(PatchCoordGlobal3D((0, 0, 0)), init_skeleton)
 
-# Add memory rounds
-for i in range(r):
-    z_current = i
-    z_next = i + 1
 
-    memory_skeleton = MemoryPipeSkeleton(d=d, edgespec=edgespec)
-    skeleton.add_pipe(PatchCoordGlobal3D((0, 0, z_current)), PatchCoordGlobal3D((0, 0, z_next)), memory_skeleton)
+memory_skeleton = MemoryCubeSkeleton(d=d, edgespec=edgespec)
+skeleton.add_cube(PatchCoordGlobal3D((0, 0, 1)), memory_skeleton)
 
 measure_skeleton = MeasureXSkeleton(d=d, edgespec=edgespec)
-skeleton.add_cube(PatchCoordGlobal3D((0, 0, z_next)), measure_skeleton)
+skeleton.add_cube(PatchCoordGlobal3D((0, 0, 2)), measure_skeleton)
 
 extended_canvas = skeleton.to_canvas()
 print(f"Created extended canvas with {len(extended_canvas.cubes_)} cubes and {len(extended_canvas.pipes_)} pipes")
