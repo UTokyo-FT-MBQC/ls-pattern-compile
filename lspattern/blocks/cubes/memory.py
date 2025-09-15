@@ -39,7 +39,7 @@ class MemoryCube(RHGCube):
         idx_map = self.template.get_data_indices()
         indices = set(idx_map.values())
         if len(indices) == 0:
-            msg = "Memory: in_ports は空であってはならない"
+            msg = "Memory: in_ports should not be empty."
             raise AssertionError(msg)
         self.in_ports = indices
 
