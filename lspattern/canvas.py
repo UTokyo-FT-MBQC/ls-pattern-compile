@@ -194,18 +194,18 @@ class TemporalLayer:
 
     def _remap_portsets(self, node_map: Mapping[int, int]) -> None:
         """Remap portsets with given node map."""
-        for p, nodes in list(self.in_portset.items()):
+        for p, nodes in self.in_portset.items():
             self.in_portset[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
-        for p, nodes in list(self.out_portset.items()):
+        for p, nodes in self.out_portset.items():
             self.out_portset[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
-        for p, nodes in list(self.cout_portset.items()):
+        for p, nodes in self.cout_portset.items():
             self.cout_portset[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
         self.in_ports = [NodeIdLocal(node_map.get(n, n)) for n in self.in_ports]
         self.out_ports = [NodeIdLocal(node_map.get(n, n)) for n in self.out_ports]
 
     @staticmethod
     def _compose_single_cube(
-        _pos: tuple[int, int, int], blk: RHGCube, g: BaseGraphState
+        _pos: PatchCoordGlobal3D, blk: RHGCube, g: BaseGraphState
     ) -> tuple[BaseGraphState, Mapping[int, int], Mapping[int, int]]:
         """Compose a single cube into the graph."""
         g2 = blk.local_graph
@@ -1105,6 +1105,8 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
 
     # Compose graphs and remap
     # TODO: should specify connecting qubits indices
+    print(f"output-before: {cgraph.global_graph.output_node_indices}")
+    print(f"input-after: {next_layer.local_graph.input_node_indices}")
     new_graph, node_map1, node_map2 = compose(cgraph.global_graph, next_layer.local_graph)
     cgraph = cgraph.remap_nodes({NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map1.items()})
     _remap_layer_mappings(next_layer, node_map2)
