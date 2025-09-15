@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, ClassVar
 from graphix_zx.common import Axis, AxisMeasBasis, Sign
 
 from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
-from lspattern.mytype import PhysCoordGlobal3D, PhysCoordLocal2D
+from lspattern.mytype import PhysCoordGlobal3D, PhysCoordLocal2D, NodeIdLocal
 
 if TYPE_CHECKING:
     from lspattern.canvas import RHGCanvas
@@ -58,7 +58,7 @@ class MeasureX(_MeasureBase):
         t = min(self.schedule.schedule.keys(), default=0)
 
         for x, y in x2d:
-            node_group = {}
+            node_group: set[NodeIdLocal] = set()
             for dx, dy in ANCILLA_TARGET_DIRECTION2D:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, t)))
                 if node_id is not None:
@@ -81,7 +81,7 @@ class MeasureZ(_MeasureBase):
         t = min(self.schedule.schedule.keys(), default=0)
 
         for x, y in z2d:
-            node_group = {}
+            node_group: set[NodeIdLocal] = set()
             for dx, dy in ANCILLA_TARGET_DIRECTION2D:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, t)))
                 if node_id is not None:
