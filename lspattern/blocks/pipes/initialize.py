@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, overload
 
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
-from lspattern.mytype import PatchCoordGlobal3D, SpatialEdgeSpec
+from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D, PhysCoordLocal2D, SpatialEdgeSpec
 from lspattern.tiling.template import RotatedPlanarPipetemplate
 from lspattern.utils import get_direction
 
@@ -76,3 +76,35 @@ class InitPlusPipe(RHGPipe):
     def set_cout_ports(self) -> None:
         # 古典出力はなし
         return super().set_cout_ports()
+
+    def _construct_detectors(self) -> None:
+        x2d = self.template.x_coords
+        z2d = self.template.z_coords
+
+        t_offset = min(self.schedule.schedule.keys(), default=0)
+        height = max(self.schedule.schedule.keys(), default=0) - t_offset + 1
+        dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
+        # ancillas of first layer is not deterministic
+        for x, y in x2d + z2d:
+            node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, t_offset)))
+            if node_id is None:
+                continue
+            dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+        for t in range(1, height):
+            for x, y in x2d:
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, t + t_offset)))
+                if node_id is None:
+                    continue
+                self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
+                    {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
+                )
+                dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+
+            for x, y in z2d:
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, t + t_offset)))
+                if node_id is None:
+                    continue
+                self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
+                    {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
+                )
+                dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
