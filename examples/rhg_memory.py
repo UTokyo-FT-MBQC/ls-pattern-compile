@@ -79,12 +79,10 @@ extended_canvas = skeleton.to_canvas()
 print(f"Created extended canvas with {len(extended_canvas.cubes_)} cubes and {len(extended_canvas.pipes_)} pipes")
 
 # # %%
-# # Demo 4: Compile and visualize the extended canvas
+# Demo 4: Compile and visualize the extended canvas
 compiled_canvas = extended_canvas.compile()
-
 print(f"Compiled canvas has {len(compiled_canvas.layers)} temporal layers")
 print(f"Global graph has {getattr(compiled_canvas.global_graph, 'num_qubits', 'unknown')} qubits")
-
 print(f"Schedule has {len(compiled_canvas.schedule.schedule)} time slots")
 for t, nodes in compiled_canvas.schedule.schedule.items():
     print(f"Time {t}: {len(nodes)} nodes")
