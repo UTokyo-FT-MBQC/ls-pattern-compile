@@ -35,7 +35,8 @@ from lspattern.utils import UnionFind, get_direction, is_allowed_pair
 EDGE_TUPLE_SIZE = 2
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Set as AbstractSet
 
     from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
     from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
@@ -115,12 +116,12 @@ class TemporalLayer:
     def __post_init__(self) -> None:
         """Post-initialization hook."""
 
-    def add_cubes(self, cubes: dict[PatchCoordGlobal3D, RHGCube]) -> None:
+    def add_cubes(self, cubes: Mapping[PatchCoordGlobal3D, RHGCube]) -> None:
         """Add multiple cubes to this temporal layer."""
         for pos, cube in cubes.items():
             self.add_cube(pos, cube)
 
-    def add_pipes(self, pipes: dict[PipeCoordGlobal3D, RHGPipe]) -> None:
+    def add_pipes(self, pipes: Mapping[PipeCoordGlobal3D, RHGPipe]) -> None:
         """Add multiple pipes to this temporal layer."""
         for pipe_coord, pipe in pipes.items():
             source, sink = pipe_coord
@@ -142,7 +143,7 @@ class TemporalLayer:
         self.pipes_[pipe_coord] = spatial_pipe
         self.lines.append(pipe_coord)
 
-    def _setup_union_find(self) -> tuple[UnionFind, dict[PhysCoordGlobal3D, QubitGroupIdGlobal]]:
+    def _setup_union_find(self) -> tuple[UnionFind, Mapping[PhysCoordGlobal3D, QubitGroupIdGlobal]]:
         """Initialize Union-Find structure and process tiling IDs.
 
         Returns:
@@ -183,7 +184,7 @@ class TemporalLayer:
 
         return uf, coord2gid
 
-    def _remap_node_mappings(self, node_map: dict[int, int]) -> None:
+    def _remap_node_mappings(self, node_map: Mapping[int, int]) -> None:
         """Remap node mappings with given node map."""
         if not node_map:
             return
@@ -191,7 +192,7 @@ class TemporalLayer:
         self.coord2node = {c: NodeIdLocal(node_map.get(n, n)) for c, n in self.coord2node.items()}
         self.node2role = {NodeIdLocal(node_map.get(n, n)): r for n, r in self.node2role.items()}
 
-    def _remap_portsets(self, node_map: dict[int, int]) -> None:
+    def _remap_portsets(self, node_map: Mapping[int, int]) -> None:
         """Remap portsets with given node map."""
         for p, nodes in list(self.in_portset.items()):
             self.in_portset[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
@@ -205,7 +206,7 @@ class TemporalLayer:
     @staticmethod
     def _compose_single_cube(
         _pos: tuple[int, int, int], blk: object, g: BaseGraphState | None
-    ) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
+    ) -> tuple[BaseGraphState, Mapping[int, int], Mapping[int, int]]:
         """Compose a single cube into the graph."""
         g2 = blk.local_graph  # type: ignore[attr-defined]
 
@@ -215,7 +216,7 @@ class TemporalLayer:
         g_new, node_map1, node_map2 = compose(g, g2, target_q_indices=set())
         return g_new, node_map1, node_map2
 
-    def _process_cube_coordinates(self, blk: object, pos: tuple[int, int, int], node_map2: dict[int, int]) -> None:
+    def _process_cube_coordinates(self, blk: object, pos: tuple[int, int, int], node_map2: Mapping[int, int]) -> None:
         """Process cube coordinates and roles."""
         d_val = int(blk.d)  # type: ignore[attr-defined]
         z_base = int(pos[2]) * (2 * d_val)
@@ -242,7 +243,7 @@ class TemporalLayer:
             if new_n is not None:
                 self.node2role[NodeIdLocal(new_n)] = role
 
-    def _process_cube_ports(self, pos: tuple[int, int, int], blk: object, node_map2: dict[int, int]) -> None:
+    def _process_cube_ports(self, pos: tuple[int, int, int], blk: object, node_map2: Mapping[int, int]) -> None:
         """Process cube ports."""
         if getattr(blk, "in_ports", None):
             patch_pos = PatchCoordGlobal3D(pos)
@@ -333,7 +334,7 @@ class TemporalLayer:
 
         return g
 
-    def _build_xy_regions(self, coord_gid_2d: dict[tuple[int, int], QubitGroupIdGlobal]) -> set[tuple[int, int]]:
+    def _build_xy_regions(self, coord_gid_2d: Mapping[tuple[int, int], QubitGroupIdGlobal]) -> set[tuple[int, int]]:
         """Build XY coordinate sets for cubes and pipes."""
         cube_xy_all: set[tuple[int, int]] = set()
 
@@ -373,7 +374,7 @@ class TemporalLayer:
         self,
         xy_u: tuple[int, int],
         xy_v: tuple[int, int],
-        cube_xy_all: set[tuple[int, int]],
+        cube_xy_all: AbstractSet[tuple[int, int]],
         gid_u: QubitGroupIdGlobal,
         gid_v: QubitGroupIdGlobal,
     ) -> bool:
@@ -393,10 +394,10 @@ class TemporalLayer:
         u: NodeIdLocal,
         coord_u: PhysCoordGlobal3D,
         gid_u: QubitGroupIdGlobal,
-        cube_xy_all: set[tuple[int, int]],
-        coord_gid_2d: dict[tuple[int, int], QubitGroupIdGlobal],
+        cube_xy_all: AbstractSet[tuple[int, int]],
+        coord_gid_2d: Mapping[tuple[int, int], QubitGroupIdGlobal],
         g: BaseGraphState,
-        existing: set[tuple[int, int]],
+        existing: AbstractSet[tuple[int, int]],
     ) -> None:
         """Process connections to neighboring nodes."""
         xu, yu, zu = int(coord_u[0]), int(coord_u[1]), int(coord_u[2])
@@ -439,7 +440,7 @@ class TemporalLayer:
                 existing.add(edge)
 
     def _add_seam_edges(
-        self, g: BaseGraphState | None, coord_gid_2d: dict[tuple[int, int], QubitGroupIdGlobal]
+        self, g: BaseGraphState | None, coord_gid_2d: Mapping[tuple[int, int], QubitGroupIdGlobal]
     ) -> BaseGraphState:
         """Add CZ edges across cube-pipe seams within the same temporal layer."""
         if g is None:
@@ -534,7 +535,7 @@ class TemporalLayer:
 
     @staticmethod
     def _create_face_checker(
-        face: str, bounds: tuple[int, int, int, int, int, int], depths: list[int]
+        face: str, bounds: tuple[int, int, int, int, int, int], depths: Sequence[int]
     ) -> Callable[[tuple[int, int, int]], bool]:
         """Create function to check if coordinate is on requested face."""
         xmin, xmax, ymin, ymax, zmin, zmax = bounds
@@ -579,12 +580,11 @@ class TemporalLayer:
 
         return {"data": data, "xcheck": xcheck, "zcheck": zcheck}
 
-    # ---- T25: boundary queries ---------------------------------------------
     def get_boundary_nodes(
         self,
         *,
         face: str,
-        depth: list[int] | None = None,
+        depth: Sequence[int] | None = None,
     ) -> dict[str, list[PhysCoordGlobal3D]]:
         """Return nodes on a given face at the requested depths, grouped by role."""
         if not self.node2coord:
