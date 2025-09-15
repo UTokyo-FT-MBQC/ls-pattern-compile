@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-# import layout acceptable; avoid heavy reordering for clarity
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
@@ -8,7 +7,6 @@ import matplotlib.pyplot as plt
 
 from lspattern.consts.consts import PIPEDIRECTION
 from lspattern.mytype import (
-    EdgeSpecValue,
     QubitIndexLocal,
     SpatialEdgeSpec,
     TilingCoord2D,
@@ -599,77 +597,3 @@ def pipe_offset_xy(
 
     msg = f"Invalid direction for pipe offset: {direction}"
     raise ValueError(msg)
-
-
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-
-    from lspattern.mytype import EdgeSpec
-
-    def set_edgespec(**kw: EdgeSpecValue) -> None:
-        EdgeSpec.update(
-            {
-                "TOP": "O",
-                "BOTTOM": "O",
-                "LEFT": "O",
-                "RIGHT": "O",
-                "UP": "O",
-                "DOWN": "O",
-            }
-        )
-        EdgeSpec.update({k.upper(): v for k, v in kw.items()})
-
-    SHOW_BLOCK = False
-    SHOW_PIPE = True
-
-    if SHOW_BLOCK:
-        d = 3
-        configs: list[tuple[str, SpatialEdgeSpec]] = [
-            ("L/R=X, T/B=Z", {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}),
-            ("L/R=Z, T/B=X", {"LEFT": "Z", "RIGHT": "Z", "TOP": "X", "BOTTOM": "X"}),
-            ("All X", {"LEFT": "X", "RIGHT": "X", "TOP": "X", "BOTTOM": "X"}),
-            ("All Z", {"LEFT": "Z", "RIGHT": "Z", "TOP": "Z", "BOTTOM": "Z"}),
-        ]
-
-        fig, axes = plt.subplots(2, 2, figsize=(10, 10))
-        for (label, spec), ax in zip(configs, axes.ravel(), strict=False):
-            set_edgespec(**spec)
-            template = RotatedPlanarCubeTemplate(d=d, edgespec=spec)
-            template.to_tiling()
-            template.visualize_tiling(ax=ax, show=False, title_suffix=label)
-
-        fig.suptitle(f"Rotated Planar (EdgeSpec-driven) d={d}")
-        fig.tight_layout()
-        plt.show()
-
-    if SHOW_PIPE:
-        d = 7
-        pipe_cfgs: list[tuple[str, SpatialEdgeSpec]] = [
-            (
-                "Pipe X: TOP=X, BOTTOM=Z",
-                {"TOP": "X", "BOTTOM": "Z", "LEFT": "O", "RIGHT": "O"},
-            ),
-            (
-                "Pipe X: TOP=Z, BOTTOM=X",
-                {"TOP": "Z", "BOTTOM": "X", "LEFT": "O", "RIGHT": "O"},
-            ),
-            (
-                "Pipe Y: LEFT=X, RIGHT=Z",
-                {"LEFT": "X", "RIGHT": "Z", "TOP": "O", "BOTTOM": "O"},
-            ),
-            (
-                "Pipe Y: LEFT=Z, RIGHT=X",
-                {"LEFT": "Z", "RIGHT": "X", "TOP": "O", "BOTTOM": "O"},
-            ),
-        ]
-
-        fig2, axes2 = plt.subplots(2, 2, figsize=(10, 10))
-        for (label, spec), ax in zip(pipe_cfgs, axes2.ravel(), strict=False):
-            set_edgespec(**spec)
-            ptemp = RotatedPlanarPipetemplate(d=d, edgespec=spec)
-            ptemp.to_tiling()
-            ptemp.visualize_tiling(ax=ax, show=False, title_suffix=label)
-
-        fig2.suptitle(f"Rotated Planar Pipes (EdgeSpec) d={d}")
-        fig2.tight_layout()
-        plt.show()
