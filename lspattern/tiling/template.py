@@ -14,6 +14,36 @@ from lspattern.mytype import (
 from lspattern.tiling.base import Tiling
 from lspattern.utils import sort_xy
 
+
+def calculate_qindex_base(patch_coord: tuple[int, int], d: int) -> int:
+    """Calculate the starting q_index for data qubits in a patch.
+
+    Each patch at coordinate (px, py) gets a unique range of q_indices.
+    This ensures that patches at the same coordinate always get the same q_indices,
+    enabling consistent mapping across different temporal layers.
+
+    Parameters
+    ----------
+    patch_coord : tuple[int, int]
+        The (px, py) coordinate of the patch in the global tiling
+    d : int
+        The distance parameter, determines number of data qubits per patch
+
+    Returns
+    -------
+    int
+        The starting q_index for this patch's data qubits
+    """
+    px, py = patch_coord
+    # Use a large enough stride to ensure no overlap between patches
+    # Each patch can have at most d*d data qubits
+    max_qubits_per_patch = d * d
+    # Create a unique index for this patch coordinate
+    # Use a grid layout with sufficient spacing
+    patch_index = py * 1000 + px  # 1000 should be enough for reasonable grid sizes
+    return patch_index * max_qubits_per_patch
+
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -49,9 +79,21 @@ class ScalableTemplate(Tiling):
             v = "O"
         return str(v).upper()
 
-    def get_data_indices(self) -> dict[TilingCoord2D, QubitIndexLocal]:
+    def get_data_indices(self, patch_coord: tuple[int, int] | None = None) -> dict[TilingCoord2D, QubitIndexLocal]:
         coord_set = {(coord[0], coord[1]) for coord in self.data_coords}
         sorted_coords = sort_xy(coord_set)
+
+        # If data_indices have been explicitly set, use them (legacy compatibility)
+        if self.data_indices and len(self.data_indices) == len(sorted_coords):
+            return {TilingCoord2D(coor): self.data_indices[i] for i, coor in enumerate(sorted_coords)}
+
+        # If patch coordinate is provided, use it to calculate consistent q_indices
+        if patch_coord is not None:
+            base_qindex = calculate_qindex_base(patch_coord, self.d)
+            result = {TilingCoord2D(coor): QubitIndexLocal(base_qindex + i) for i, coor in enumerate(sorted_coords)}
+            return result
+
+        # Otherwise, generate default indices starting from 0 (fallback for backward compatibility)
         return {TilingCoord2D(coor): QubitIndexLocal(i) for i, coor in enumerate(sorted_coords)}
 
     # ---- Coordinate and index shifting APIs ---------------------------------
@@ -108,25 +150,6 @@ class ScalableTemplate(Tiling):
         new.x_coords = t.x_coords
         new.z_coords = t.z_coords
         return new
-
-    def shift_qindex(self, by: int, *, inplace: bool = True) -> ScalableTemplate:
-        """Shift local qubit indices, if present in this template instance.
-
-        This is optional; ConnectedTiling rebuilds indexes, but callers may
-        use this for standalone composition.
-        """
-        if self.data_indices:
-            shifted = [QubitIndexLocal(int(i) + int(by)) for i in self.data_indices]
-            if inplace:
-                self.data_indices = shifted
-            else:
-                new = type(self)(d=self.d, edgespec=self.edgespec)
-                new.data_coords = list(self.data_coords)
-                new.x_coords = list(self.x_coords)
-                new.z_coords = list(self.z_coords)
-                new.data_indices = shifted
-                return new
-        return self
 
     def trim_spatial_boundary(self, direction: str) -> None:
         """Remove ancilla/two-body checks on a given boundary in 2D tiling.
@@ -545,9 +568,6 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         new.x_coords = t.x_coords
         new.z_coords = t.z_coords
         return new
-
-    def shift_qindex(self, by: int, *, inplace: bool = True) -> RotatedPlanarPipetemplate:
-        return super().shift_qindex(by, inplace=inplace)  # type: ignore[return-value]
 
 
 def pipe_offset_xy(
