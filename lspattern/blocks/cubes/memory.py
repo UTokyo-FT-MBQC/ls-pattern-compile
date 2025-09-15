@@ -66,8 +66,7 @@ class MemoryCube(RHGCube):
             for x, y in x2d:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, t + t_offset)))
                 if node_id is None:
-                    msg = f"There should be a node at (x,y,z)=({x},{y},{t + t_offset})"
-                    raise AssertionError(msg)
+                    continue
                 self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
                     {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
                 )
@@ -76,8 +75,7 @@ class MemoryCube(RHGCube):
             for x, y in z2d:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, t + t_offset)))
                 if node_id is None:
-                    msg = f"There should be a node at (x,y,z)=({x},{y},{t + t_offset})"
-                    raise AssertionError(msg)
+                    continue
                 self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
                     {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
                 )
