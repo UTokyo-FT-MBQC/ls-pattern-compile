@@ -205,14 +205,13 @@ class RHGBlock:
         # Assign measurement basis for non-output nodes
         self._assign_meas_bases(g, self.meas_basis)
 
-        self._construct_detectors()
-
-        # Store results on the block
         self.local_graph = g
         # Convert to proper NewType dictionaries
         self.node2coord = {NodeIdLocal(k): PhysCoordGlobal3D(v) for k, v in node2coord.items()}
         self.coord2node = {PhysCoordGlobal3D(k): NodeIdLocal(v) for k, v in coord2node.items()}
         self.node2role = {NodeIdLocal(k): v for k, v in node2role.items()}
+
+        self._construct_detectors()
         self.coord2gid = dict.fromkeys(node2coord.values(), self.template.id_)
         return self
 
