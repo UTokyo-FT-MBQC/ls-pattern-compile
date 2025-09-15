@@ -28,7 +28,7 @@ from lspattern.mytype import (
     QubitGroupIdGlobal,
     TilingId,
 )
-from lspattern.tiling.template import cube_offset_xy, pipe_offset_xy
+from lspattern.tiling.template import ScalableTemplate, cube_offset_xy, pipe_offset_xy
 from lspattern.utils import UnionFind, get_direction, is_allowed_pair
 
 # Constants
@@ -240,17 +240,17 @@ class TemporalLayer:
             if new_n is not None:
                 self.node2role[NodeIdLocal(new_n)] = role
 
-    def _process_cube_ports(self, pos: tuple[int, int, int], blk: object, node_map2: Mapping[int, int]) -> None:
+    def _process_cube_ports(self, pos: tuple[int, int, int], blk: RHGCube, node_map2: Mapping[int, int]) -> None:
         """Process cube ports."""
-        if getattr(blk, "in_ports", None):
+        if blk.in_ports:
             patch_pos = PatchCoordGlobal3D(pos)
             self.in_portset[patch_pos] = [NodeIdLocal(node_map2[n]) for n in blk.in_ports if n in node_map2]  # type: ignore[attr-defined]
             self.in_ports.extend(self.in_portset[patch_pos])
-        if getattr(blk, "out_ports", None):
+        if blk.out_ports:
             patch_pos = PatchCoordGlobal3D(pos)
             self.out_portset[patch_pos] = [NodeIdLocal(node_map2[n]) for n in blk.out_ports if n in node_map2]  # type: ignore[attr-defined]
             self.out_ports.extend(self.out_portset[patch_pos])
-        if getattr(blk, "cout_ports", None):
+        if blk.cout_ports:
             patch_pos = PatchCoordGlobal3D(pos)
             self.cout_portset[patch_pos] = [
                 NodeIdLocal(node_map2[n])
@@ -794,7 +794,7 @@ class CompiledRHGCanvas:
 class RHGCanvasSkeleton:  # BlockGraph in tqec
     name: str = "Blank Canvas Skeleton"
     # Optional template placeholder for future use
-    template: object | None = None
+    template: ScalableTemplate | None = None
     cubes_: dict[PatchCoordGlobal3D, RHGCubeSkeleton] = field(default_factory=dict)
     pipes_: dict[PipeCoordGlobal3D, RHGPipeSkeleton] = field(default_factory=dict)
 
