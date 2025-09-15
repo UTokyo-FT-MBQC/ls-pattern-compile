@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from graphix_zx.common import Axis, AxisMeasBasis, Sign
 
-from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
+from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
 from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D, PhysCoordLocal2D
 
 if TYPE_CHECKING:
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 ANCILLA_TARGET_DIRECTION2D = {(1, 1), (1, -1), (-1, 1), (-1, -1)}
 
 
-class _MeasureBase(RHGBlock):
+class _MeasureBase(RHGCube):
     """MBQC measurement block on the latest DATA layer (RHG parity-aware).
 
     Behavior
@@ -89,7 +89,7 @@ class MeasureZ(_MeasureBase):
             self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(node_group)
 
 
-class MeasureXSkelton(RHGBlockSkeleton):
+class MeasureXSkeleton(RHGCubeSkeleton):
     """Skeleton for X-basis measurement blocks in cube-shaped RHG structures."""
 
     name: ClassVar[str] = "MeasureXSkelton"
@@ -110,7 +110,7 @@ class MeasureXSkelton(RHGBlockSkeleton):
         return block
 
 
-class MeasureZSkelton(RHGBlockSkeleton):
+class MeasureZSkeleton(RHGCubeSkeleton):
     """Skeleton for Z-basis measurement blocks in cube-shaped RHG structures."""
 
     name: ClassVar[str] = "MeasureZSkelton"
