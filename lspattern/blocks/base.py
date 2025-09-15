@@ -129,25 +129,14 @@ class RHGBlock:
         self.template.to_tiling()
 
     # Child class will handle them without any input arguments
-    def set_in_ports(self) -> None:
+    def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         """Set the input ports for the block."""
 
-    def set_out_ports(self) -> None:
+    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         """Set the output ports for the block."""
 
-    def set_cout_ports(self) -> None:
+    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         """Set the classical output ports for the block."""
-
-    def shift_ids(self, by: int) -> None:
-        """
-        Shift the qubit indices in the template by a specified integer offset.
-
-        Parameters
-        ----------
-        by : int
-            The amount by which to shift all qubit indices.
-        """
-        self.template.shift_qindex(by)
 
     def shift_coords(self, by: PatchCoordGlobal3D) -> None:
         """Shift the patch anchor and the template by a 2D offset.
@@ -193,9 +182,10 @@ class RHGBlock:
         self._sync_template_parameters()
 
         # Initialize logical port sets (child classes may override these hooks)
-        self.set_in_ports()
-        self.set_out_ports()
-        self.set_cout_ports()
+        patch_coord = (self.source[0], self.source[1]) if self.source else None
+        self.set_in_ports(patch_coord)
+        self.set_out_ports(patch_coord)
+        self.set_cout_ports(patch_coord)
 
         # Build the local RHG graph (nodes/edges and coordinate maps)
         g, node2coord, coord2node, node2role = self._build_3d_graph()
@@ -396,7 +386,9 @@ class RHGBlock:
         if not self.in_ports:  # is this branch necessary?
             return xy_to_lidx
 
-        xy_to_q = self.template.get_data_indices()
+        # Use patch coordinate from source for consistent q_index calculation
+        patch_coord = (self.source[0], self.source[1]) if self.source else None
+        xy_to_q = self.template.get_data_indices(patch_coord)
         inv_q_to_xy = {q: xy for xy, q in xy_to_q.items()}
 
         for qidx in self.in_ports:
@@ -419,7 +411,9 @@ class RHGBlock:
         if not self.out_ports:
             return
 
-        xy_to_q = self.template.get_data_indices()
+        # Use patch coordinate from source for consistent q_index calculation
+        patch_coord = (self.source[0], self.source[1]) if self.source else None
+        xy_to_q = self.template.get_data_indices(patch_coord)
         inv_q_to_xy = {q: xy for xy, q in xy_to_q.items()}
 
         for qidx in self.out_ports:

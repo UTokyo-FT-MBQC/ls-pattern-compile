@@ -42,20 +42,18 @@ class InitPlusCubeSkeleton(RHGCubeSkeleton):
 class InitPlus(RHGCube):
     name: ClassVar[str] = "InitPlus"
 
-    def set_in_ports(self) -> None:
+    def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         # Init plus sets no input ports
-        # idx_map = self.template.get_data_indices()
-        # self.in_ports = set(idx_map.values())
-        super().set_in_ports()
+        super().set_in_ports(patch_coord)
 
-    def set_out_ports(self) -> None:
+    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         # Init: 最終スライス(z+)の data を出力ポート(テンプレートの data 全インデックス)とみなす
-        idx_map = self.template.get_data_indices()
+        idx_map = self.template.get_data_indices(patch_coord)
         self.out_ports = set(idx_map.values())
 
-    def set_cout_ports(self) -> None:
+    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         # sets no classical output ports
-        return super().set_cout_ports()
+        return super().set_cout_ports(patch_coord)
 
     def _construct_detectors(self) -> None:
         x2d = self.template.x_coords
