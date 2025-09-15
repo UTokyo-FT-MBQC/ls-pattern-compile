@@ -5,9 +5,12 @@ from typing import TYPE_CHECKING, ClassVar
 from graphix_zx.common import Axis, AxisMeasBasis, Sign
 
 from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
+from lspattern.mytype import PhysCoordGlobal3D, PhysCoordLocal2D
 
 if TYPE_CHECKING:
     from lspattern.canvas import RHGCanvas
+
+ANCILLA_TARGET_DIRECTION2D = {(1, 1), (1, -1), (-1, 1), (-1, -1)}
 
 
 class _MeasureBase(RHGBlock):
@@ -49,6 +52,19 @@ class MeasureX(_MeasureBase):
     def set_cout_ports(self) -> None:
         pass
 
+    def _construct_detectors(self) -> None:
+        x2d = self.template.x_coords
+
+        t = min(self.schedule.schedule.keys(), default=0)
+
+        for x, y in x2d:
+            node_group = {}
+            for dx, dy in ANCILLA_TARGET_DIRECTION2D:
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, t)))
+                if node_id is not None:
+                    node_group.add(node_id)
+            self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(node_group)
+
 
 class MeasureZ(_MeasureBase):
     """Measure a logical block in the Z basis."""
@@ -58,6 +74,19 @@ class MeasureZ(_MeasureBase):
 
     def set_cout_ports(self) -> None:
         pass
+
+    def _construct_detectors(self) -> None:
+        z2d = self.template.z_coords
+
+        t = min(self.schedule.schedule.keys(), default=0)
+
+        for x, y in z2d:
+            node_group = {}
+            for dx, dy in ANCILLA_TARGET_DIRECTION2D:
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, t)))
+                if node_id is not None:
+                    node_group.add(node_id)
+            self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(node_group)
 
 
 class MeasureXSkelton(RHGBlockSkeleton):
