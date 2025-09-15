@@ -59,13 +59,14 @@ class MemoryCube(RHGCube):
         x2d = self.template.x_coords
         z2d = self.template.z_coords
 
-        height = max(self.schedule.schedule.keys(), default=0) - min(self.schedule.schedule.keys(), default=0) + 1
+        t_offset = min(self.schedule.schedule.keys(), default=0)
+        height = max(self.schedule.schedule.keys(), default=0) - t_offset + 1
         dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
         for t in range(height):
             for x, y in x2d:
-                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, t)))
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, t + t_offset)))
                 if node_id is None:
-                    msg = f"There should be a node at (x,y,z)=({x},{y},{t})"
+                    msg = f"There should be a node at (x,y,z)=({x},{y},{t + t_offset})"
                     raise AssertionError(msg)
                 self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
                     {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
@@ -73,9 +74,9 @@ class MemoryCube(RHGCube):
                 dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
 
             for x, y in z2d:
-                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, t)))
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, t + t_offset)))
                 if node_id is None:
-                    msg = f"There should be a node at (x,y,z)=({x},{y},{t})"
+                    msg = f"There should be a node at (x,y,z)=({x},{y},{t + t_offset})"
                     raise AssertionError(msg)
                 self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
                     {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
