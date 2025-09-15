@@ -669,8 +669,7 @@ class CompiledRHGCanvas:
         for old, new_id in nmap.items():
             mb = gsrc.meas_bases.get(int(old))
             if mb is not None:
-                with suppress(Exception):
-                    gdst.assign_meas_basis(created.get(int(new_id), int(new_id)), mb)
+                gdst.assign_meas_basis(created.get(int(new_id), int(new_id)), mb)
 
     @staticmethod
     def _remap_graph_edges(
@@ -683,8 +682,7 @@ class CompiledRHGCanvas:
         for u, v in gsrc.physical_edges:
             nu = nmap.get(NodeIdLocal(u), NodeIdLocal(u))
             nv = nmap.get(NodeIdLocal(v), NodeIdLocal(v))
-            with suppress(Exception):
-                gdst.add_physical_edge(created.get(int(nu), int(nu)), created.get(int(nv), int(nv)))
+            gdst.add_physical_edge(created.get(int(nu), int(nu)), created.get(int(nv), int(nv)))
 
     @staticmethod
     def _create_remapped_graphstate(
