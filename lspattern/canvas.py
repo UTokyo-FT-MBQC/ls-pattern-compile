@@ -811,7 +811,6 @@ class CompiledRHGCanvas:
         selected = [c for c in coords if on_face(c)]
         return {"data": selected, "xcheck": [], "zcheck": []}
 
-    # ---- T25: method form of temporal composition --------------------------
     def add_temporal_layer(self, next_layer: TemporalLayer, *, pipes: list[RHGPipe] | None = None) -> CompiledRHGCanvas:
         """Compose this compiled canvas with `next_layer`.
 
@@ -888,28 +887,20 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
         trimmed_cubes_skeleton = self.cubes_.copy()
         trimmed_pipes_skeleton = self.pipes_.copy()
 
-        cubes_ = {}
+        cubes_: dict[PatchCoordGlobal3D, RHGCube] = {}
         for pos, c in trimmed_cubes_skeleton.items():
             # Materialize block and attach its 3D anchor so z-offset is correct
             blk = c.to_block()
-            with suppress(Exception):
-                # Ensure blocks know their placement (x, y, z)
-                blk.source = pos
+            blk.source = pos
             cubes_[pos] = blk
         pipes_: dict[PipeCoordGlobal3D, RHGPipe] = {}
         for pipe_coord, p in trimmed_pipes_skeleton.items():
-            coord_tuple = tuple(pipe_coord)
-            if len(coord_tuple) != EDGE_TUPLE_SIZE:
-                continue
-            _start, _end = coord_tuple
             block = p.to_block()
-            if hasattr(block, "local_graph"):
-                pipes_[pipe_coord] = block  # type: ignore[assignment]
+            pipes_[pipe_coord] = block
 
-        cubes_filtered = {k: v for k, v in cubes_.items() if hasattr(v, "local_graph")}
         return RHGCanvas(
             name=self.name,
-            cubes_=cubes_filtered,  # type: ignore[arg-type]
+            cubes_=cubes_,
             pipes_=pipes_,
         )
 
@@ -920,7 +911,7 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
 
     cubes_: dict[PatchCoordGlobal3D, RHGCube] = field(default_factory=dict)
     pipes_: dict[PipeCoordGlobal3D, RHGPipe] = field(default_factory=dict)
-    layers: list[TemporalLayer] | None = None
+    layers: list[TemporalLayer] = field(default_factory=list)
 
     def add_cube(self, position: PatchCoordGlobal3D, cube: RHGCube) -> None:
         self.cubes_[position] = cube
@@ -1152,7 +1143,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         return _create_first_layer_canvas(next_layer)
 
     # Compose graphs and remap
-    if next_layer.local_graph is None:
+    if len(next_layer.local_graph) == 0:
         error_msg = "next_layer.local_graph cannot be None"
         raise ValueError(error_msg)
     # TODO: should specify connecting qubits indices
