@@ -107,13 +107,24 @@ class ParityAccumulator:
 
     def merge_with(self, other: ParityAccumulator) -> ParityAccumulator:
         new_checks: dict[PhysCoordLocal2D, list[set[NodeIdLocal]]] = {}
+
+        # Handle coordinates that exist in both accumulators
         for coord, groups in self.checks.items():
-            new_checks[coord] = groups[:-1]
-            # NOTE: assumes no empty groups in self.checks
-            dangling_check1 = self.checks[coord][-1]
-            dangling_check2 = other.checks[coord][0]
-            new_checks[coord].append(dangling_check1.union(dangling_check2))
-            new_checks[coord].extend(other.checks[coord][1:])
+            if coord in other.checks and groups and other.checks[coord]:
+                new_checks[coord] = groups[:-1]
+                # Merge dangling checks from both accumulators
+                dangling_check1 = self.checks[coord][-1]
+                dangling_check2 = other.checks[coord][0]
+                new_checks[coord].append(dangling_check1.union(dangling_check2))
+                new_checks[coord].extend(other.checks[coord][1:])
+            else:
+                # Copy groups from self if other doesn't have this coord
+                new_checks[coord] = groups[:]
+
+        # Add coordinates that exist only in other
+        for coord, groups in other.checks.items():
+            if coord not in self.checks and groups:
+                new_checks[coord] = groups[:]
 
         return ParityAccumulator(
             checks=new_checks,
