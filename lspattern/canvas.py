@@ -205,20 +205,17 @@ class TemporalLayer:
 
     @staticmethod
     def _compose_single_cube(
-        _pos: tuple[int, int, int], blk: object, g: BaseGraphState | None
+        _pos: tuple[int, int, int], blk: RHGCube, g: BaseGraphState
     ) -> tuple[BaseGraphState, Mapping[int, int], Mapping[int, int]]:
         """Compose a single cube into the graph."""
-        g2 = blk.local_graph  # type: ignore[attr-defined]
-
-        if g is None:
-            return g2, {}, {n: n for n in getattr(g2, "physical_nodes", [])}
+        g2 = blk.local_graph
 
         g_new, node_map1, node_map2 = compose(g, g2, target_q_indices=set())
         return g_new, node_map1, node_map2
 
-    def _process_cube_coordinates(self, blk: object, pos: tuple[int, int, int], node_map2: Mapping[int, int]) -> None:
+    def _process_cube_coordinates(self, blk: RHGCube, pos: tuple[int, int, int], node_map2: Mapping[int, int]) -> None:
         """Process cube coordinates and roles."""
-        d_val = int(blk.d)  # type: ignore[attr-defined]
+        d_val = int(blk.d)
         z_base = int(pos[2]) * (2 * d_val)
 
         # Compute z-shift
@@ -262,9 +259,9 @@ class TemporalLayer:
                 if n in node_map2
             ]
 
-    def _build_graph_from_blocks(self) -> BaseGraphState | None:
+    def _build_graph_from_blocks(self) -> BaseGraphState:
         """Build the quantum graph state from cubes and pipes."""
-        g: BaseGraphState | None = None
+        g: GraphState = GraphState()
 
         # Compose cube graphs
         for pos, blk in self.cubes_.items():
@@ -277,7 +274,7 @@ class TemporalLayer:
         # Compose pipe graphs (spatial pipes in this layer)
         return self._compose_pipe_graphs(g)
 
-    def _compose_pipe_graphs(self, g: BaseGraphState | None) -> BaseGraphState | None:  # noqa: C901
+    def _compose_pipe_graphs(self, g: BaseGraphState) -> BaseGraphState:
         """Compose pipe graphs into the main graph state."""
         for pipe_coord, pipe in self.pipes_.items():
             source, _sink = pipe_coord
@@ -287,26 +284,11 @@ class TemporalLayer:
             # Use materialized pipe if local_graph is None
             pipe_block = pipe
             g2 = pipe.local_graph
-            if g2 is None:
-                materialized = pipe.materialize()
-                if hasattr(materialized, "local_graph"):
-                    pipe_block = materialized  # type: ignore[assignment]
-                    g2 = pipe_block.local_graph
-                else:
-                    g2 = None
 
-            if g is None:
-                g = g2
-                node_map1: dict[int, int] = {}
-                node_map2: dict[int, int] = {n: n for n in getattr(g2, "physical_nodes", [])}
-            elif g2 is not None:
-                g_new, node_map1, node_map2 = compose(g, g2, target_q_indices=set())
-                self._remap_node_mappings(node_map1)
-                self._remap_portsets(node_map1)
-                g = g_new
-            else:
-                node_map1 = {}
-                node_map2 = {}
+            g_new, node_map1, node_map2 = compose(g, g2, target_q_indices=set())
+            self._remap_node_mappings(node_map1)
+            self._remap_portsets(node_map1)
+            g = g_new
 
             try:
                 bmin_z = min(c[2] for c in pipe_block.node2coord.values())
@@ -358,17 +340,13 @@ class TemporalLayer:
     @staticmethod
     def _get_existing_edges(g: BaseGraphState) -> set[tuple[int, int]]:
         """Get existing edges from graph to avoid duplicates."""
-        try:
-            edges = getattr(g, "physical_edges", []) or []
-            result: set[tuple[int, int]] = set()
-            for u, v in edges:
-                edge = tuple(sorted((int(u), int(v))))
-                if len(edge) == EDGE_TUPLE_SIZE:
-                    result.add((edge[0], edge[1]))
-        except (AttributeError, TypeError, ValueError):
-            return set()
-        else:
-            return result
+        edges = g.physical_edges
+        result: set[tuple[int, int]] = set()
+        for u, v in edges:
+            edge = tuple(sorted((int(u), int(v))))
+            if len(edge) == EDGE_TUPLE_SIZE:
+                result.add((edge[0], edge[1]))
+        return result
 
     def _should_connect_nodes(
         self,
@@ -440,12 +418,9 @@ class TemporalLayer:
                 existing.add(edge)
 
     def _add_seam_edges(
-        self, g: BaseGraphState | None, coord_gid_2d: Mapping[tuple[int, int], QubitGroupIdGlobal]
+        self, g: BaseGraphState, coord_gid_2d: Mapping[tuple[int, int], QubitGroupIdGlobal]
     ) -> BaseGraphState:
         """Add CZ edges across cube-pipe seams within the same temporal layer."""
-        if g is None:
-            g = GraphState()
-
         # Build XY regions
         cube_xy_all = self._build_xy_regions(coord_gid_2d)
         existing = self._get_existing_edges(g)
@@ -493,10 +468,8 @@ class TemporalLayer:
         g = self._add_seam_edges(g, coord_gid_2d)
 
         # Finalize
-        if g is None:
-            g = GraphState()
         self.local_graph = g
-        self.qubit_count = len(getattr(g, "physical_nodes", []) or [])
+        self.qubit_count = len(g.physical_nodes)
 
         # Preserve simple XY maps for inspection
         cube_xy_all: set[tuple[int, int]] = set()
@@ -613,9 +586,6 @@ class TemporalLayer:
         if not self.tiling_node_maps:
             self.compile()
         return self.tiling_node_maps  # type: ignore[return-value]
-
-
-# (removed duplicate CompiledRHGCanvas definition)
 
 
 @dataclass
@@ -825,9 +795,7 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
     name: str = "Blank Canvas Skeleton"
     # Optional template placeholder for future use
     template: object | None = None
-    # {(0,0,0): InitPlusSkeleton(), ..}
     cubes_: dict[PatchCoordGlobal3D, RHGCubeSkeleton] = field(default_factory=dict)
-    # {((0,0,0),(1,0,0)): StabilizeSkeleton(), ((0,0,0), (0,0,1)): MeasureSkeleton(basis=X)}
     pipes_: dict[PipeCoordGlobal3D, RHGPipeSkeleton] = field(default_factory=dict)
 
     def add_cube(self, position: PatchCoordGlobal3D, cube: RHGCubeSkeleton) -> None:
@@ -975,7 +943,7 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
         for z in sorted(temporal_layers.keys()):
             layer = temporal_layers[z]
             # Select pipes whose start.z is the last compiled z and end.z is this layer z
-            prev_z = cgraph.zlist[-1] if getattr(cgraph, "zlist", []) else None
+            prev_z = cgraph.zlist[-1] if cgraph.zlist else None
             if prev_z is None:
                 pipes: list[RHGPipe] = []
             else:
@@ -1005,8 +973,8 @@ def _create_first_layer_canvas(next_layer: TemporalLayer) -> CompiledRHGCanvas:
         out_portset={k: [NodeIdLocal(v) for v in vs] for k, vs in next_layer.out_portset.items()},
         cout_portset={k: [NodeIdLocal(v) for v in vs] for k, vs in next_layer.cout_portset.items()},
         schedule=next_layer.schedule,
-        parity=next_layer.parity,  # This was missing!
-        flow=next_layer.flow,  # This was missing!
+        parity=next_layer.parity,
+        flow=next_layer.flow,
         zlist=[next_layer.z],
         cubes_=next_layer.cubes_,
         pipes_=next_layer.pipes_,
@@ -1024,7 +992,7 @@ def to_temporal_layer(
     # shift position before materialization(テンプレートは ScalableTemplate を保持したままXY移動)
     for pos, c in cubes.items():
         dx, dy = cube_offset_xy(c.d, pos)
-        # 直接テンプレートをXY移動(inplace=True)
+        # directory move the template (inplace=True)
         c.template.shift_coords((dx, dy), coordinate="tiling2d", inplace=True)
     for pipe_coord, p in pipes.items():
         coord_tuple = tuple(pipe_coord)
@@ -1033,26 +1001,22 @@ def to_temporal_layer(
         source, sink = coord_tuple
         direction = get_direction(source, sink)
         dx, dy = pipe_offset_xy(p.d, source, sink, direction)
-        # 直接テンプレートをXY移動(inplace=True)
+        # directory move the template (inplace=True)
         p.template.shift_coords((dx, dy), coordinate="tiling2d", inplace=True)
 
     # materialize blocks before adding
     cubes_mat = {pos: blk.materialize() for pos, blk in cubes.items()}
     pipes_mat = {pipe_coord: p.materialize() for pipe_coord, p in pipes.items()}
 
-    # Ensure proper typing for layer addition
-    cubes_typed = {pos: cube for pos, cube in cubes_mat.items() if hasattr(cube, "local_graph")}
-    pipes_typed = {pipe_coord: pipe for pipe_coord, pipe in pipes_mat.items() if hasattr(pipe, "local_graph")}
-
-    layer.add_cubes(cubes_typed)  # type: ignore[arg-type]
-    layer.add_pipes(pipes_typed)  # type: ignore[arg-type]
+    layer.add_cubes(cubes_mat)
+    layer.add_pipes(pipes_mat)
 
     # compile this layer
     layer.compile()
     return layer
 
 
-def _remap_layer_mappings(next_layer: TemporalLayer, node_map2: dict[int, int]) -> None:
+def _remap_layer_mappings(next_layer: TemporalLayer, node_map2: Mapping[int, int]) -> None:
     """Remap next layer mappings."""
     next_layer.coord2node = {c: NodeIdLocal(node_map2.get(int(n), int(n))) for c, n in next_layer.coord2node.items()}
     next_layer.node2coord = {NodeIdLocal(node_map2.get(int(n), int(n))): c for n, c in next_layer.node2coord.items()}
@@ -1107,14 +1071,13 @@ def _setup_temporal_connections(
     """Setup temporal connections between layers."""
     allowed_gid_pairs: set[tuple[QubitGroupIdGlobal, QubitGroupIdGlobal]] = set()
 
-    for p in pipes:
-        if hasattr(p, "source") and p.source and hasattr(p, "sink") and p.sink:
-            allowed_gid_pairs.add(
-                (
-                    QubitGroupIdGlobal(cgraph.cubes_[p.source].get_tiling_id()),
-                    QubitGroupIdGlobal(next_layer.cubes_[p.sink].get_tiling_id()),
-                )
-            )
+    allowed_gid_pairs.update(
+        (
+            QubitGroupIdGlobal(cgraph.cubes_[p.source].get_tiling_id()),
+            QubitGroupIdGlobal(next_layer.cubes_[p.sink].get_tiling_id()),
+        )
+        for p in pipes
+    )
 
     for source in next_layer.get_boundary_nodes(face="z-", depth=[-1])["data"]:
         sink_coord = PhysCoordGlobal3D((source[0], source[1], source[2] - 1))
@@ -1143,9 +1106,6 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         return _create_first_layer_canvas(next_layer)
 
     # Compose graphs and remap
-    if len(next_layer.local_graph) == 0:
-        error_msg = "next_layer.local_graph cannot be None"
-        raise ValueError(error_msg)
     # TODO: should specify connecting qubits indices
     new_graph, node_map1, node_map2 = compose(cgraph.global_graph, next_layer.local_graph)
     cgraph = cgraph.remap_nodes({NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map1.items()})
@@ -1178,5 +1138,5 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         schedule=new_schedule,
         flow=merged_flow,
         parity=new_parity,
-        zlist=[*list(getattr(cgraph, "zlist", [])), next_layer.z],
+        zlist=[*list(cgraph.zlist), next_layer.z],
     )
