@@ -35,7 +35,7 @@ from lspattern.utils import UnionFind, get_direction, is_allowed_pair
 EDGE_TUPLE_SIZE = 2
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
+    from collections.abc import Callable
 
     from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
     from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
