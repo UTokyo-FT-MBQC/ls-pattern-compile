@@ -513,6 +513,17 @@ class TemporalLayer:
             "xy": dict(enumerate(data2d)),  # type: ignore[arg-type]
         }
 
+        # Merge accumulators from all blocks
+        for cube in self.cubes_.values():
+            self.schedule = self.schedule.compose_parallel(cube.schedule)
+            self.flow = self.flow.merge_with(cube.flow)
+            self.parity = self.parity.merge_with(cube.parity)
+
+        for pipe in self.pipes_.values():
+            self.schedule = self.schedule.compose_parallel(pipe.schedule)
+            self.flow = self.flow.merge_with(pipe.flow)
+            self.parity = self.parity.merge_with(pipe.parity)
+
     def _get_coordinate_bounds(self) -> tuple[int, int, int, int, int, int]:
         """Get min/max bounds for all coordinates."""
         coords = list(self.node2coord.values())
