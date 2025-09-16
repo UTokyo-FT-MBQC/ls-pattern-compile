@@ -81,8 +81,23 @@ class ScheduleAccumulator:
             new_schedule[t + z_by] = nodes
         return ScheduleAccumulator(new_schedule)
 
-    def compose_sequential(self, late_schedule: ScheduleAccumulator) -> ScheduleAccumulator:
-        """Concatenate schedules by placing `late_schedule` after this one."""
+    def compose_sequential(
+        self, late_schedule: ScheduleAccumulator, exclude_nodes: set[NodeIdGlobal] | None = None
+    ) -> ScheduleAccumulator:
+        """Concatenate schedules by placing `late_schedule` after this one.
+
+        Parameters
+        ----------
+        late_schedule : ScheduleAccumulator
+            The schedule to append after this one.
+        exclude_nodes : set[NodeIdGlobal] | None, optional
+            Set of nodes to exclude from the late_schedule when merging.
+
+        Returns
+        -------
+        ScheduleAccumulator
+            New accumulator with schedules concatenated.
+        """
         new_schedule = self.schedule.copy()
 
         # Calculate the shift amount to ensure continuity
@@ -99,9 +114,45 @@ class ScheduleAccumulator:
             shift_amount = max_time + 1 - min_late_time
 
         shifted_late_schedule = late_schedule.shift_z(shift_amount)
+        exclude_set = exclude_nodes or set()
+
         for t, nodes in shifted_late_schedule.schedule.items():
-            new_schedule[t] = new_schedule.get(t, set()).union(nodes)
+            # Filter out excluded nodes from the late schedule
+            filtered_nodes = nodes - exclude_set
+            if filtered_nodes:  # Only add if there are remaining nodes
+                new_schedule[t] = new_schedule.get(t, set()).union(filtered_nodes)
         return ScheduleAccumulator(new_schedule)
+
+    def compact(self) -> ScheduleAccumulator:
+        """Remove empty time slots and reindex times to be consecutive starting from 0.
+
+        Example
+        -------
+        If the schedule has nodes at times [0, 2, 5, 7], this method will
+        remap them to times [0, 1, 2, 3] while preserving the order.
+
+        Returns
+        -------
+        ScheduleAccumulator
+            New accumulator with compacted time slots.
+        """
+        if not self.schedule:
+            return ScheduleAccumulator()
+
+        # Get sorted list of times that actually have nodes
+        occupied_times = sorted(t for t, nodes in self.schedule.items() if nodes)
+
+        # Create mapping from old time to new consecutive time
+        time_mapping = {old_time: new_time for new_time, old_time in enumerate(occupied_times)}
+
+        # Build new schedule with compacted times
+        compacted_schedule: dict[int, set[NodeIdGlobal]] = {}
+        for old_time, nodes in self.schedule.items():
+            if nodes and old_time in time_mapping:  # Only include non-empty slots
+                new_time = time_mapping[old_time]
+                compacted_schedule[new_time] = nodes.copy()
+
+        return ScheduleAccumulator(compacted_schedule)
 
 
 @dataclass
