@@ -18,6 +18,8 @@ from graphix_zx.graphstate import (
 )
 
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
+from lspattern.blocks.cubes.base import RHGCube
+from lspattern.blocks.pipes.base import RHGPipe
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import (
     NodeIdGlobal,
@@ -36,10 +38,9 @@ EDGE_TUPLE_SIZE = 2
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
-    from collections.abc import Set as AbstractSet
 
-    from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
-    from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
+    from lspattern.blocks.cubes.base import RHGCubeSkeleton
+    from lspattern.blocks.pipes.base import RHGPipeSkeleton
 
 
 class MixedCodeDistanceError(Exception):
@@ -229,13 +230,13 @@ class TemporalLayer:
 
         # Compute z-shift
         try:
-            bmin_z = min(c[2] for c in blk.node2coord.values())  # type: ignore[attr-defined]
+            bmin_z = min(c[2] for c in blk.node2coord.values())
         except ValueError:
             bmin_z = z_base
         z_shift = int(z_base - bmin_z)
 
         # Ingest coords/roles
-        for old_n, coord in blk.node2coord.items():  # type: ignore[attr-defined]
+        for old_n, coord in blk.node2coord.items():
             new_n = node_map2.get(old_n)
             if new_n is None:
                 continue
@@ -244,7 +245,7 @@ class TemporalLayer:
             self.node2coord[NodeIdLocal(new_n)] = c_new
             self.coord2node[c_new] = NodeIdLocal(new_n)
 
-        for old_n, role in blk.node2role.items():  # type: ignore[attr-defined]
+        for old_n, role in blk.node2role.items():
             new_n = node_map2.get(old_n)
             if new_n is not None:
                 self.node2role[NodeIdLocal(new_n)] = role
@@ -253,17 +254,17 @@ class TemporalLayer:
         """Process cube ports."""
         if blk.in_ports:
             patch_pos = PatchCoordGlobal3D(pos)
-            self.in_portset[patch_pos] = [NodeIdLocal(node_map2[n]) for n in blk.in_ports if n in node_map2]  # type: ignore[attr-defined]
+            self.in_portset[patch_pos] = [NodeIdLocal(node_map2[n]) for n in blk.in_ports if n in node_map2]
             self.in_ports.extend(self.in_portset[patch_pos])
         if blk.out_ports:
             patch_pos = PatchCoordGlobal3D(pos)
-            self.out_portset[patch_pos] = [NodeIdLocal(node_map2[n]) for n in blk.out_ports if n in node_map2]  # type: ignore[attr-defined]
+            self.out_portset[patch_pos] = [NodeIdLocal(node_map2[n]) for n in blk.out_ports if n in node_map2]
             self.out_ports.extend(self.out_portset[patch_pos])
         if blk.cout_ports:
             patch_pos = PatchCoordGlobal3D(pos)
             self.cout_portset[patch_pos] = [
                 NodeIdLocal(node_map2[n])
-                for s in blk.cout_ports  # type: ignore[attr-defined]
+                for s in blk.cout_ports
                 for n in s
                 if n in node_map2
             ]
@@ -280,18 +281,18 @@ class TemporalLayer:
             return g
 
         # Multiple blocks case - compose as before
-        g: GraphState = GraphState()
+        g_state: GraphState = GraphState()
 
         # Compose cube graphs
         for pos, blk in self.cubes_.items():
-            g, node_map1, node_map2 = self._compose_single_cube(pos, blk, g)
+            g_state, node_map1, node_map2 = self._compose_single_cube(pos, blk, g_state)
             self._remap_node_mappings(node_map1)
             self._remap_portsets(node_map1)
             self._process_cube_coordinates(blk, pos, node_map2)
             self._process_cube_ports(pos, blk, node_map2)
 
         # Compose pipe graphs (spatial pipes in this layer)
-        return self._compose_pipe_graphs(g)
+        return self._compose_pipe_graphs(g_state)
 
     def _process_cube_coordinates_direct(self, blk: RHGCube, pos: tuple[int, int, int]) -> None:
         """Process cube coordinates directly without node mapping."""
@@ -374,7 +375,7 @@ class TemporalLayer:
 
         return g
 
-    def _build_xy_regions(self, coord_gid_2d: Mapping[tuple[int, int], QubitGroupIdGlobal]) -> set[tuple[int, int]]:
+    def _build_xy_regions(self, coord_gid_2d: dict[tuple[int, int], QubitGroupIdGlobal]) -> set[tuple[int, int]]:
         """Build XY coordinate sets for cubes and pipes."""
         cube_xy_all: set[tuple[int, int]] = set()
 
@@ -410,7 +411,7 @@ class TemporalLayer:
         self,
         xy_u: tuple[int, int],
         xy_v: tuple[int, int],
-        cube_xy_all: AbstractSet[tuple[int, int]],
+        cube_xy_all: set[tuple[int, int]],
         gid_u: QubitGroupIdGlobal,
         gid_v: QubitGroupIdGlobal,
     ) -> bool:
@@ -430,10 +431,10 @@ class TemporalLayer:
         u: NodeIdLocal,
         coord_u: PhysCoordGlobal3D,
         gid_u: QubitGroupIdGlobal,
-        cube_xy_all: AbstractSet[tuple[int, int]],
+        cube_xy_all: set[tuple[int, int]],
         coord_gid_2d: Mapping[tuple[int, int], QubitGroupIdGlobal],
         g: BaseGraphState,
-        existing: AbstractSet[tuple[int, int]],
+        existing: set[tuple[int, int]],
     ) -> None:
         """Process connections to neighboring nodes."""
         xu, yu, zu = int(coord_u[0]), int(coord_u[1]), int(coord_u[2])
@@ -480,7 +481,7 @@ class TemporalLayer:
     ) -> BaseGraphState:
         """Add CZ edges across cube-pipe seams within the same temporal layer."""
         # Build XY regions
-        cube_xy_all = self._build_xy_regions(coord_gid_2d)
+        cube_xy_all = self._build_xy_regions(dict(coord_gid_2d))
         existing = self._get_existing_edges(g)
 
         for u, coord_u in list(self.node2coord.items()):
@@ -512,7 +513,7 @@ class TemporalLayer:
             for source, sink in self.pipes_
         )
 
-        self.coord2gid = coord2gid
+        self.coord2gid = dict(coord2gid)
         self.allowed_gid_pairs = allowed_gid_pairs
 
         # Build GraphState by composing pre-materialized block graphs
@@ -542,7 +543,7 @@ class TemporalLayer:
                 pipe_xy_all.update((int(x), int(y)) for x, y in coord_list or [])
         data2d = sorted(cube_xy_all.union(pipe_xy_all))
         self.tiling_node_maps = {
-            "xy": dict(enumerate(data2d)),  # type: ignore[arg-type]
+            "xy": dict(enumerate(data2d)),
         }
 
         # Merge accumulators from all blocks
@@ -643,7 +644,7 @@ class TemporalLayer:
         """
         if not self.tiling_node_maps:
             self.compile()
-        return self.tiling_node_maps  # type: ignore[return-value]
+        return self.tiling_node_maps
 
 
 @dataclass
@@ -796,8 +797,8 @@ class CompiledRHGCanvas:
             remapped_layer.schedule = layer.schedule.remap_nodes(
                 {NodeIdGlobal(k): NodeIdGlobal(v) for k, v in node_map.items()}
             )
-            remapped_layer.flow = layer.flow.remap_nodes(node_map)
-            remapped_layer.parity = layer.parity.remap_nodes(node_map)
+            remapped_layer.flow = layer.flow.remap_nodes(dict(node_map))
+            remapped_layer.parity = layer.parity.remap_nodes(dict(node_map))
             remapped_layer.cubes_ = layer.cubes_.copy()
             remapped_layer.pipes_ = layer.pipes_.copy()
             remapped_layer.tiling_node_maps = layer.tiling_node_maps.copy()
@@ -808,14 +809,14 @@ class CompiledRHGCanvas:
 
         new_cgraph = CompiledRHGCanvas(
             layers=remapped_layers,
-            global_graph=self._create_remapped_graphstate(self.global_graph, node_map),
+            global_graph=self._create_remapped_graphstate(self.global_graph, dict(node_map)),
             coord2node={},
             in_portset={},
             out_portset={},
             cout_portset={},
             schedule=self.schedule.remap_nodes({NodeIdGlobal(k): NodeIdGlobal(v) for k, v in node_map.items()}),
-            flow=self.flow.remap_nodes(node_map),
-            parity=self.parity.remap_nodes(node_map),
+            flow=self.flow.remap_nodes(dict(node_map)),
+            parity=self.parity.remap_nodes(dict(node_map)),
             cubes_=self.cubes_.copy(),
             pipes_=self.pipes_.copy(),
             zlist=list(self.zlist),
@@ -963,10 +964,16 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
             # Materialize block and attach its 3D anchor so z-offset is correct
             blk = c.to_block()
             blk.source = pos
+            if not isinstance(blk, RHGCube):
+                msg = f"Expected RHGCube, got {type(blk)}"
+                raise TypeError(msg)
             cubes_[pos] = blk
         pipes_: dict[PipeCoordGlobal3D, RHGPipe] = {}
         for pipe_coord, p in trimmed_pipes_skeleton.items():
             block = p.to_block()
+            if not isinstance(block, RHGPipe):
+                msg = f"Expected RHGPipe, got {type(block)}"
+                raise TypeError(msg)
             pipes_[pipe_coord] = block
 
         return RHGCanvas(
@@ -1072,8 +1079,16 @@ def _determine_connection_qindices(cgraph: CompiledRHGCanvas, next_layer: Tempor
     With patch coordinate-based q_index calculation, the connection indices are simply
     the intersection of output indices from the previous layer and input indices of the next layer.
     """
-    prev_output_qindices = set(cgraph.global_graph.output_node_indices.values())
-    next_input_qindices = set(next_layer.local_graph.input_node_indices.values())
+    prev_output_qindices = (
+        set(cgraph.global_graph.output_node_indices.values())
+        if cgraph.global_graph and cgraph.global_graph.output_node_indices
+        else set()
+    )
+    next_input_qindices = (
+        set(next_layer.local_graph.input_node_indices.values())
+        if next_layer.local_graph and next_layer.local_graph.input_node_indices
+        else set()
+    )
 
     # Return the intersection - these are the q_indices that should be connected
     return prev_output_qindices & next_input_qindices
@@ -1123,8 +1138,21 @@ def to_temporal_layer(
         p.template.shift_coords((dx, dy), coordinate="tiling2d", inplace=True)
 
     # materialize blocks before adding
-    cubes_mat = {pos: blk.materialize() for pos, blk in cubes.items()}
-    pipes_mat = {pipe_coord: p.materialize() for pipe_coord, p in pipes.items()}
+    cubes_mat = {}
+    for pos, blk in cubes.items():
+        materialized = blk.materialize()
+        if not isinstance(materialized, RHGCube):
+            msg = f"Expected RHGCube after materialization, got {type(materialized)}"
+            raise TypeError(msg)
+        cubes_mat[pos] = materialized
+
+    pipes_mat = {}
+    for pipe_coord, p in pipes.items():
+        materialized = p.materialize()
+        if not isinstance(materialized, RHGPipe):
+            msg = f"Expected RHGPipe after materialization, got {type(materialized)}"
+            raise TypeError(msg)
+        pipes_mat[pipe_coord] = materialized
 
     layer.add_cubes(cubes_mat)
     layer.add_pipes(pipes_mat)
@@ -1203,6 +1231,7 @@ def _setup_temporal_connections(
             QubitGroupIdGlobal(next_layer.cubes_[p.sink].get_tiling_id()),
         )
         for p in pipes
+        if p.sink is not None
     )
 
     for source in next_layer.get_boundary_nodes(face="z-", depth=[-1])["data"]:

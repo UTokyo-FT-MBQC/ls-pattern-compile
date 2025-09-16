@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Literal, cast
 
 from graphix_zx.common import Axis, AxisMeasBasis, MeasBasis, Sign
 from graphix_zx.graphstate import GraphState
 
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
-from lspattern.mytype import PhysCoordGlobal3D, PhysCoordLocal2D
+from lspattern.mytype import PatchCoordGlobal3D, PhysCoordGlobal3D, PhysCoordLocal2D, QubitIndexLocal
+from lspattern.tiling.template import ScalableTemplate
 
 if TYPE_CHECKING:
     from collections.abc import MutableMapping, Sequence
@@ -32,7 +33,27 @@ class _MeasureBase(RHGCube):
     """
 
     def __init__(self, logical: int, basis: Axis, **kwargs: object) -> None:
-        super().__init__(**kwargs)
+        # Extract specific arguments for the parent dataclass
+        d = cast('int', kwargs.pop('d', 3))
+        edge_spec = cast('dict[str, Literal["X", "Z", "O"]] | None', kwargs.pop('edge_spec', None))
+        source = cast('PatchCoordGlobal3D', kwargs.pop('source', PatchCoordGlobal3D((0, 0, 0))))
+        sink = cast('PatchCoordGlobal3D | None', kwargs.pop('sink', None))
+        template = cast('ScalableTemplate', kwargs.pop('template', ScalableTemplate(d=3, edgespec={})))
+        in_ports = cast('set[QubitIndexLocal]', kwargs.pop('in_ports', set()))
+        out_ports = cast('set[QubitIndexLocal]', kwargs.pop('out_ports', set()))
+        cout_ports = cast('list[set[QubitIndexLocal]]', kwargs.pop('cout_ports', []))
+
+        # Initialize parent with explicit arguments
+        super().__init__(
+            d=d,
+            edge_spec=edge_spec,
+            source=source,
+            sink=sink,
+            template=template,
+            in_ports=in_ports,
+            out_ports=out_ports,
+            cout_ports=cout_ports
+        )
         self.logical = logical
         self.meas_basis = AxisMeasBasis(basis, Sign.PLUS)  # is it actually override the base class's meas_basis?
 

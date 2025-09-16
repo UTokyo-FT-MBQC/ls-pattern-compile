@@ -105,9 +105,9 @@ def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:
         return snap
 
     # Convert portsets to correct format
-    in_portset_conv = {tuple(k): [int(v) for v in lst] for k, lst in cg.in_portset.items()}
-    out_portset_conv = {tuple(k): [int(v) for v in lst] for k, lst in cg.out_portset.items()}
-    cout_portset_conv = {tuple(k): [int(v) for v in lst] for k, lst in cg.cout_portset.items()}
+    in_portset_conv: dict[tuple[int, int, int], list[int]] = {(k[0], k[1], k[2]): [int(v) for v in lst] for k, lst in cg.in_portset.items()}
+    out_portset_conv: dict[tuple[int, int, int], list[int]] = {(k[0], k[1], k[2]): [int(v) for v in lst] for k, lst in cg.out_portset.items()}
+    cout_portset_conv: dict[tuple[int, int, int], list[int]] = {(k[0], k[1], k[2]): [int(v) for v in lst] for k, lst in cg.cout_portset.items()}
 
     in_ports = _ports_to_coords(in_portset_conv)
     out_ports = _ports_to_coords(out_portset_conv)
@@ -136,7 +136,8 @@ def _load_expected_snapshot(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
     with path.open("r", encoding="utf-8") as f:
-        result = json.load(f)\n        return result
+        result: dict[str, Any] = json.load(f)
+        return result
 
 
 def _save_snapshot(path: Path, data: dict[str, Any]) -> None:
