@@ -64,12 +64,8 @@ edgespec = {"TOP": "X", "BOTTOM": "X", "LEFT": "Z", "RIGHT": "Z"}
 init_skeleton = InitPlusCubeSkeleton(d=d, edgespec=edgespec)
 skeleton.add_cube(PatchCoordGlobal3D((0, 0, 0)), init_skeleton)
 
-
-memory_skeleton = MemoryCubeSkeleton(d=d, edgespec=edgespec)
-skeleton.add_cube(PatchCoordGlobal3D((0, 0, 1)), memory_skeleton)
-
 measure_skeleton = MeasureXSkeleton(d=d, edgespec=edgespec)
-skeleton.add_cube(PatchCoordGlobal3D((0, 0, 2)), measure_skeleton)
+skeleton.add_cube(PatchCoordGlobal3D((0, 0, 1)), measure_skeleton)
 
 extended_canvas = skeleton.to_canvas()
 print(f"Created extended canvas with {len(extended_canvas.cubes_)} cubes and {len(extended_canvas.pipes_)} pipes")
@@ -96,7 +92,9 @@ for t, nodes in compiled_canvas.schedule.schedule.items():
 xflow = {}
 for src, dsts in compiled_canvas.flow.flow.items():
     xflow[int(src)] = {int(dst) for dst in dsts}
-x_parity = [{int(node) for node in group} for group in compiled_canvas.parity.checks]
+x_parity = []
+for _, group_list in compiled_canvas.parity.checks.items():
+    x_parity.extend(group_list)
 print(f"X flow: {xflow}")
 print(f"X parity: {x_parity}")
 
