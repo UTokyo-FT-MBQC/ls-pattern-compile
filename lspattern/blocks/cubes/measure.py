@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from graphix_zx.common import Axis, AxisMeasBasis, MeasBasis, Sign
 from graphix_zx.graphstate import GraphState
@@ -31,7 +31,7 @@ class _MeasureBase(RHGCube):
     - Provide X-cap parity directives that close the top with the previous X layer.
     """
 
-    def __init__(self, logical: int, basis: Axis, **kwargs: Any) -> None:
+    def __init__(self, logical: int, basis: Axis, **kwargs: object) -> None:
         super().__init__(**kwargs)
         self.logical = logical
         self.meas_basis = AxisMeasBasis(basis, Sign.PLUS)  # is it actually override the base class's meas_basis?
@@ -65,7 +65,9 @@ class _MeasureBase(RHGCube):
         node2role: dict[int, str] = {}
 
         # Assign nodes for single time slice only
-        nodes_by_z = self._assign_nodes_by_timeslice(g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role)
+        nodes_by_z = _MeasureBase._assign_nodes_by_timeslice(
+            g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role
+        )
 
         self._assign_meas_bases(g, self.meas_basis)
 
@@ -77,8 +79,8 @@ class _MeasureBase(RHGCube):
 
         return g, node2coord, coord2node, node2role
 
+    @staticmethod
     def _assign_nodes_by_timeslice(
-        self,
         g: GraphState,
         data2d: Sequence[tuple[int, int]],
         x2d: Sequence[tuple[int, int]],  # Unused for measurement blocks
@@ -130,7 +132,7 @@ class _MeasureBase(RHGCube):
 class MeasureX(_MeasureBase):
     """Measure a logical block in the X basis."""
 
-    def __init__(self, logical: int, **kwargs: Any) -> None:
+    def __init__(self, logical: int, **kwargs: object) -> None:
         super().__init__(logical, Axis.X, **kwargs)
 
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
@@ -162,7 +164,7 @@ class MeasureX(_MeasureBase):
 class MeasureZ(_MeasureBase):
     """Measure a logical block in the Z basis."""
 
-    def __init__(self, logical: int, **kwargs: Any) -> None:
+    def __init__(self, logical: int, **kwargs: object) -> None:
         super().__init__(logical, Axis.Z, **kwargs)
 
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:

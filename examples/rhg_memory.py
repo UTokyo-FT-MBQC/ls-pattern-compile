@@ -10,9 +10,9 @@ import pathlib
 
 import pymatching
 import stim
+from graphix_zx.pattern import Pattern, print_pattern
 from graphix_zx.scheduler import Scheduler
 from graphix_zx.stim_compiler import stim_compile
-from graphix_zx.pattern import print_pattern
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.cubes.measure import MeasureXSkeleton
@@ -20,7 +20,6 @@ from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
 from lspattern.mytype import PatchCoordGlobal3D
 from lspattern.visualizers import visualize_compiled_canvas_plotly
-
 
 # %%
 # Demo 3: Create extended memory canvas with multiple rounds
@@ -68,7 +67,7 @@ xflow = {}
 for src, dsts in compiled_canvas.flow.flow.items():
     xflow[int(src)] = {int(dst) for dst in dsts}
 x_parity = []
-for _, group_list in compiled_canvas.parity.checks.items():
+for group_list in compiled_canvas.parity.checks.values():
     x_parity.extend(group_list)
 print(f"X flow: {xflow}")
 print("X parity")
@@ -127,7 +126,7 @@ logical_observables = {0: logical}
 
 # %%
 # Demo 6: Circuit creation
-def create_circuit(pattern, noise):
+def create_circuit(pattern: Pattern, noise: float) -> stim.Circuit:
     print(f"Using logical observables: {logical_observables}")
     stim_str = stim_compile(
         pattern,

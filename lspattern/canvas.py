@@ -205,7 +205,7 @@ class TemporalLayer:
 
     @staticmethod
     def _compose_single_cube(
-        pos: PatchCoordGlobal3D, blk: RHGCube, g: BaseGraphState
+        pos: PatchCoordGlobal3D, blk: RHGCube, g: BaseGraphState  # noqa: ARG004
     ) -> tuple[BaseGraphState, Mapping[int, int], Mapping[int, int]]:
         """Compose a single cube into the graph."""
         g2 = blk.local_graph

@@ -59,7 +59,7 @@ class MemoryPipe(RHGPipe):
         self.direction = direction
         self.template = RotatedPlanarPipetemplate(d=d, edgespec=edgespec or {})
 
-    def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
+    def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
         # Pipe: data の全インデックスを in とする(z- 側相当)
         idx_map = self.template.get_data_indices()
         indices = set(idx_map.values())
@@ -68,7 +68,7 @@ class MemoryPipe(RHGPipe):
             raise AssertionError(msg)
         self.in_ports = indices
 
-    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
+    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
         # Pipe: data の全インデックスを out とする(z 側相当)
         idx_map = self.template.get_data_indices()
         self.out_ports = set(idx_map.values())

@@ -90,8 +90,7 @@ class ScalableTemplate(Tiling):
         # If patch coordinate is provided, use it to calculate consistent q_indices
         if patch_coord is not None:
             base_qindex = calculate_qindex_base(patch_coord, self.d)
-            result = {TilingCoord2D(coor): QubitIndexLocal(base_qindex + i) for i, coor in enumerate(sorted_coords)}
-            return result
+            return {TilingCoord2D(coor): QubitIndexLocal(base_qindex + i) for i, coor in enumerate(sorted_coords)}
 
         # Otherwise, generate default indices starting from 0 (fallback for backward compatibility)
         return {TilingCoord2D(coor): QubitIndexLocal(i) for i, coor in enumerate(sorted_coords)}
@@ -129,7 +128,7 @@ class ScalableTemplate(Tiling):
             bx, by_ = by  # type: ignore[misc]
             dx, dy = int(bx), int(by_)
         elif coordinate == "phys3d":
-            bx, by_, _bz = by  # type: ignore[misc]
+            bx, by_, _ = by  # type: ignore[misc]
             dx, dy = int(bx), int(by_)
         elif coordinate == "patch3d":
             # Default block-style behavior (INNER offset)
@@ -362,7 +361,7 @@ def cube_offset_xy(
     d: int,
     patch: tuple[int, int, int],
 ) -> tuple[int, int]:
-    px, py, _pz = patch
+    px, py, _ = patch
     base_x = 2 * (d + 1) * int(px)
     base_y = 2 * (d + 1) * int(py)
     # INNER anchor only (global policy)
@@ -541,7 +540,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
             bx, by_ = by  # type: ignore[misc]
             dx, dy = int(bx), int(by_)
         elif coordinate == "phys3d":
-            bx, by_, _bz = by  # type: ignore[misc]
+            bx, by_, _ = by  # type: ignore[misc]
             dx, dy = int(bx), int(by_)
         elif coordinate == "patch3d":
             if direction is None:

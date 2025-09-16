@@ -68,7 +68,7 @@ class InitPlusPipe(RHGPipe):
         # Init pipe: 入力ポートは持たない
         return super().set_in_ports(patch_coord)
 
-    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
+    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
         # Init pipe: 出力はテンプレートの data 全インデックス
         idx_map = self.template.get_data_indices()
         self.out_ports = set(idx_map.values())
