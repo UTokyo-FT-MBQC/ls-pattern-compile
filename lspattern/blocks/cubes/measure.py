@@ -69,7 +69,7 @@ class _MeasureBase(RHGCube):
 
         self._assign_meas_bases(g, self.meas_basis)
 
-        self._construct_schedule(nodes_by_z)
+        self._construct_schedule(nodes_by_z, node2role)
 
         # Add spatial edges only (no temporal edges needed for single layer)
         self._add_spatial_edges(g, nodes_by_z)
