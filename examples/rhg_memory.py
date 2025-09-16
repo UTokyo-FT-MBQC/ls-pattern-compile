@@ -99,12 +99,13 @@ xflow = {}
 for src, dsts in compiled_canvas.flow.flow.items():
     xflow[int(src)] = {int(dst) for dst in dsts}
 x_parity = []
-# filter = {(1, 1), (5, 1), (-1, 3), (3, 3)}
-filter = {(1, -1), (3, 1), (1, 3), (3, 5)}
+filter = {(1, 1), (5, 1), (-1, 3), (3, 3)}
+# filter = {(1, -1), (3, 1), (1, 3), (3, 5)}
 for coord, group_list in compiled_canvas.parity.checks.items():
-    if coord not in filter:
-        continue
-    x_parity.extend(group_list)
+    if coord in filter:
+        x_parity.extend(group_list)
+    else:
+        x_parity.extend(group_list[:-1])
 print(f"X flow: {xflow}")
 # print(f"X parity: {x_parity}")
 print("X parity")
