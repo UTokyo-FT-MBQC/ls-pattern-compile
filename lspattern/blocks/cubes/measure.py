@@ -145,12 +145,12 @@ class MeasureX(_MeasureBase):
         pass
 
     def _construct_detectors(self) -> None:
-        x2d = self.template.x_coords
+        z2d = self.template.z_coords
 
         # Use the actual z-coordinate where nodes are placed
         t = int(self.source[2]) * 1  # Same as z0 in _build_3d_graph
 
-        for x, y in x2d:
+        for x, y in z2d:
             node_group: set[NodeIdLocal] = set()
             for dx, dy in ANCILLA_TARGET_DIRECTION2D:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, t)))
@@ -177,12 +177,12 @@ class MeasureZ(_MeasureBase):
         pass
 
     def _construct_detectors(self) -> None:
-        z2d = self.template.z_coords
+        x2d = self.template.x_coords  # NOTE: I'm not sure
 
         # Use the actual z-coordinate where nodes are placed
         t = int(self.source[2]) * 1  # Same as z0 in _build_3d_graph
 
-        for x, y in z2d:
+        for x, y in x2d:
             node_group: set[NodeIdLocal] = set()
             for dx, dy in ANCILLA_TARGET_DIRECTION2D:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, t)))
