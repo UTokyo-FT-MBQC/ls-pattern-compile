@@ -160,39 +160,68 @@ class ParityAccumulator:
     """Parity check groups for X/Z stabilizers in local id space."""
 
     checks: dict[PhysCoordLocal2D, list[set[NodeIdLocal]]] = field(default_factory=dict)
+    dangling_parity: dict[PhysCoordLocal2D, set[NodeIdLocal]] = field(default_factory=dict)
 
     def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> ParityAccumulator:
         """Return a new parity accumulator with nodes remapped via `node_map`."""
         # Fast remap via set/list comprehensions
         new_checks = {k: _remap_groups(v, node_map) for k, v in self.checks.items()}
 
+        # Remap dangling_parity as well
+        new_dangling = {
+            coord: {node_map.get(n, n) for n in nodes}
+            for coord, nodes in self.dangling_parity.items()
+        }
+
         return ParityAccumulator(
             checks=new_checks,
+            dangling_parity=new_dangling,
         )
 
     def merge_with(self, other: ParityAccumulator) -> ParityAccumulator:
+        """Merge two parity accumulators with dangling parity handling."""
         new_checks: dict[PhysCoordLocal2D, list[set[NodeIdLocal]]] = {}
+        new_dangling: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
 
-        # Handle coordinates that exist in both accumulators
-        for coord, groups in self.checks.items():
-            if coord in other.checks and groups and other.checks[coord]:
-                new_checks[coord] = groups[:-1]
-                # Merge dangling checks from both accumulators
-                dangling_check1 = self.checks[coord][-1]
-                dangling_check2 = other.checks[coord][0]
-                new_checks[coord].append(dangling_check1.union(dangling_check2))
-                new_checks[coord].extend(other.checks[coord][1:])
-            else:
-                # Copy groups from self if other doesn't have this coord
-                new_checks[coord] = groups[:]
+        # Get all coordinates from both accumulators
+        all_coords = (
+            set(self.checks.keys())
+            | set(self.dangling_parity.keys())
+            | set(other.checks.keys())
+            | set(other.dangling_parity.keys())
+        )
 
-        # Add coordinates that exist only in other
-        for coord, groups in other.checks.items():
-            if coord not in self.checks and groups:
-                new_checks[coord] = groups[:]
+        for coord in all_coords:
+            # Start with self's completed checks
+            sequence = self.checks.get(coord, [])[:]
+
+            # Handle connection between self.dangling and other.checks
+            if coord in self.dangling_parity and coord in other.checks:
+                # Connect: merge self's dangling with other's first parity
+                if other.checks[coord]:
+                    merged = self.dangling_parity[coord].union(other.checks[coord][0])
+                    sequence.append(merged)
+                    # Add remaining checks from other
+                    sequence.extend(other.checks[coord][1:])
+            elif coord in self.dangling_parity and coord not in other.checks:
+                # self has dangling but other doesn't have this coord
+                # => Keep dangling for potential future connection
+                new_dangling[coord] = self.dangling_parity[coord].copy()
+            elif coord not in self.dangling_parity and coord in other.checks:
+                # self has no dangling, other has checks
+                sequence.extend(other.checks[coord])
+
+            # Set new dangling from other (overwrites any existing)
+            if coord in other.dangling_parity:
+                new_dangling[coord] = other.dangling_parity[coord].copy()
+
+            # Save sequence if it has content
+            if sequence:
+                new_checks[coord] = sequence
 
         return ParityAccumulator(
             checks=new_checks,
+            dangling_parity=new_dangling,
         )
 
 
