@@ -2,13 +2,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from graphix_zx.common import Axis, AxisMeasBasis, Sign
+from graphix_zx.common import Axis, AxisMeasBasis, Sign, MeasBasis
+from graphix_zx.graphstate import GraphState
 
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
-from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D, PhysCoordLocal2D
+from lspattern.mytype import PhysCoordGlobal3D, PhysCoordLocal2D
 
 if TYPE_CHECKING:
+    from collections.abc import MutableMapping, Sequence
+
     from lspattern.canvas import RHGCanvas
+    from lspattern.mytype import (
+        NodeIdLocal,
+    )
 
 ANCILLA_TARGET_DIRECTION2D = {(1, 1), (1, -1), (-1, 1), (-1, -1)}
 
@@ -35,6 +41,83 @@ class _MeasureBase(RHGCube):
         # Kept as a placeholder to satisfy imports without runtime use.
         msg = "Measure blocks are not implemented in this build"
         raise NotImplementedError(msg)
+
+    def _build_3d_graph(
+        self,
+    ) -> tuple[GraphState, dict[int, tuple[int, int, int]], dict[tuple[int, int, int], int], dict[int, str]]:
+        """Build 3D RHG graph structure optimized for measurement blocks.
+
+        Measurement blocks only need a single layer (thickness=1) with data qubits only.
+        This overrides the base implementation to avoid creating unnecessary temporal layers.
+        """
+        # Collect 2D coordinates from the evaluated template
+        data2d = list(self.template.data_coords or [])
+        x2d = list(self.template.x_coords or [])
+        z2d = list(self.template.z_coords or [])
+
+        # For measurement blocks, use only single layer (max_t = 0)
+        max_t = 0
+        z0 = int(self.source[2]) * 1  # Use thickness 1 instead of 2*d
+
+        g = GraphState()
+        node2coord: dict[int, tuple[int, int, int]] = {}
+        coord2node: dict[tuple[int, int, int], int] = {}
+        node2role: dict[int, str] = {}
+
+        # Assign nodes for single time slice only
+        nodes_by_z = self._assign_nodes_by_timeslice(g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role)
+
+        self._assign_meas_bases(g, self.meas_basis)
+
+        self._construct_schedule(nodes_by_z)
+
+        # Add spatial edges only (no temporal edges needed for single layer)
+        self._add_spatial_edges(g, nodes_by_z)
+        # Skip temporal edges for single layer measurement
+
+        return g, node2coord, coord2node, node2role
+
+    def _assign_nodes_by_timeslice(
+        self,
+        g: GraphState,
+        data2d: Sequence[tuple[int, int]],
+        x2d: Sequence[tuple[int, int]],  # Unused for measurement blocks
+        z2d: Sequence[tuple[int, int]],  # Unused for measurement blocks
+        max_t: int,
+        z0: int,
+        node2coord: MutableMapping[int, tuple[int, int, int]],
+        coord2node: MutableMapping[tuple[int, int, int], int],
+        node2role: MutableMapping[int, str],
+    ) -> dict[int, dict[tuple[int, int], int]]:
+        """Assign nodes for measurement blocks - data qubits only, no ancillas.
+
+        Note: x2d and z2d parameters are kept for interface compatibility but unused
+        since measurement blocks don't need ancilla qubits.
+        """
+        _ = x2d, z2d  # Mark as intentionally unused
+        nodes_by_z: dict[int, dict[tuple[int, int], int]] = {}
+
+        # For measurement blocks, only create data nodes at t=0
+        for t_local in range(max_t + 1):
+            t = z0 + t_local
+            cur: dict[tuple[int, int], int] = {}
+
+            # Only add data nodes, no ancilla nodes for measurement blocks
+            for x, y in data2d:
+                n = g.add_physical_node()
+                node2coord[n] = (int(x), int(y), int(t))
+                coord2node[int(x), int(y), int(t)] = n
+                node2role[n] = "data"
+                cur[int(x), int(y)] = n
+
+            nodes_by_z[t] = cur
+
+        return nodes_by_z
+
+    def _assign_meas_bases(self, g: GraphState, meas_basis: MeasBasis) -> None:  # noqa: PLR6301
+        """Assign measurement basis for non-output nodes."""
+        for node in g.physical_nodes:
+            g.assign_meas_basis(node, meas_basis)
 
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         idx_map = self.template.get_data_indices(patch_coord)
