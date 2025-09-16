@@ -71,9 +71,8 @@ def visualize_parity_mpl(  # noqa: C901
             ax.scatter(xs, ys, zs, s=20, c=color, edgecolors="black", label=label, alpha=0.9)  # type: ignore[misc]
 
     if kind in {"both", "x"}:
-        draw_groups(par.x_checks, COLOR_X, "Parity X")
-    if kind in {"both", "z"}:
-        draw_groups(par.z_checks, COLOR_Z, "Parity Z")
+        checks = [grp for group_list in par.checks.values() for grp in group_list]
+        draw_groups(checks, COLOR_X, "Parity X")
 
     if annotate:
         for nid, (x, y, z) in node2coord.items():
@@ -134,10 +133,8 @@ def visualize_flow_mpl(  # noqa: C901
                     if max_edges is not None and count >= max_edges:
                         return
 
-    if kind in {"both", "x"} and flow.xflow:
-        draw_edges(flow.xflow, COLOR_X, "X-flow")
-    if kind in {"both", "z"} and flow.zflow:
-        draw_edges(flow.zflow, COLOR_Z, "Z-flow")
+    if kind in {"both", "x"} and flow.flow:
+        draw_edges(flow.flow, COLOR_X, "X-flow")
 
     # Draw nodes lightly for context
     xs = [node2coord[n][0] for n in node2coord]
@@ -287,9 +284,8 @@ def visualize_parity_plotly(
             )
 
     if kind in {"both", "x"}:
-        add_group(par.x_checks, COLOR_X, "Parity X")
-    if kind in {"both", "z"}:
-        add_group(par.z_checks, COLOR_Z, "Parity Z")
+        checks = [grp for group_list in par.checks.values() for grp in group_list]
+        add_group(checks, COLOR_X, "Parity X")
 
     fig.update_layout(
         title=f"Parity (z={layer.z})",
@@ -340,10 +336,8 @@ def visualize_flow_plotly(
                 )
             )
 
-    if kind in {"both", "x"} and flow.xflow:
-        add_edges(flow.xflow, COLOR_X, "X-flow")
-    if kind in {"both", "z"} and flow.zflow:
-        add_edges(flow.zflow, COLOR_Z, "Z-flow")
+    if kind in {"both", "x"} and flow.flow:
+        add_edges(flow.flow, COLOR_X, "X-flow")
 
     fig.update_layout(
         title=f"Flow (z={layer.z})",
