@@ -84,7 +84,21 @@ class ScheduleAccumulator:
     def compose_sequential(self, late_schedule: ScheduleAccumulator) -> ScheduleAccumulator:
         """Concatenate schedules by placing `late_schedule` after this one."""
         new_schedule = self.schedule.copy()
-        shifted_late_schedule = late_schedule.shift_z(max(self.schedule.keys()) + 1)
+
+        # Calculate the shift amount to ensure continuity
+        if not self.schedule:
+            # If this schedule is empty, no shift needed
+            shift_amount = 0
+        elif not late_schedule.schedule:
+            # If late_schedule is empty, just return copy of this schedule
+            return ScheduleAccumulator(new_schedule)
+        else:
+            # Find the next available time slot after the last occupied slot
+            max_time = max(self.schedule.keys())
+            min_late_time = min(late_schedule.schedule.keys())
+            shift_amount = max_time + 1 - min_late_time
+
+        shifted_late_schedule = late_schedule.shift_z(shift_amount)
         for t, nodes in shifted_late_schedule.schedule.items():
             new_schedule[t] = new_schedule.get(t, set()).union(nodes)
         return ScheduleAccumulator(new_schedule)
