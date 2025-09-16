@@ -55,7 +55,6 @@ from lspattern.visualizers import visualize_compiled_canvas_plotly
 # %%
 # Demo 3: Create extended memory canvas with multiple rounds
 d = 3
-r = 3  # number of memory rounds
 
 skeleton = RHGCanvasSkeleton(name="Extended RHG Memory Canvas")
 
@@ -66,8 +65,8 @@ edgespec = {"TOP": "X", "BOTTOM": "X", "LEFT": "Z", "RIGHT": "Z"}
 init_skeleton = InitPlusCubeSkeleton(d=d, edgespec=edgespec)
 skeleton.add_cube(PatchCoordGlobal3D((0, 0, 0)), init_skeleton)
 
-# init_skeleton = MemoryCubeSkeleton(d=d, edgespec=edgespec)
-# skeleton.add_cube(PatchCoordGlobal3D((0, 0, 1)), init_skeleton)
+# memory_skeleton = MemoryCubeSkeleton(d=d, edgespec=edgespec)
+# skeleton.add_cube(PatchCoordGlobal3D((0, 0, 1)), memory_skeleton)
 
 measure_skeleton = MeasureXSkeleton(d=d, edgespec=edgespec)
 skeleton.add_cube(PatchCoordGlobal3D((0, 0, 1)), measure_skeleton)
@@ -85,12 +84,12 @@ print(f"Schedule has {len(schedule.schedule)} time slots")
 for t, nodes in schedule.schedule.items():
     print(f"Time {t}: {nodes}")
 
-# fig = visualize_compiled_canvas_plotly(compiled_canvas, width=800, height=600)
-# fig.update_layout(title=f"Extended RHG Memory Canvas (d={d}, r={r})")
-# pathlib.Path("figures").mkdir(exist_ok=True)
-# fig.write_html("figures/extended_rhg_lattice_plotly.html")
-# fig.show()
-# print("Extended canvas plotly visualization completed and saved to figures/extended_rhg_lattice_plotly.html")
+fig = visualize_compiled_canvas_plotly(compiled_canvas, width=800, height=600)
+fig.update_layout(title=f"Extended RHG Memory Canvas (d={d})")
+pathlib.Path("figures").mkdir(exist_ok=True)
+fig.write_html("figures/extended_rhg_lattice_plotly.html")
+fig.show()
+print("Extended canvas plotly visualization completed and saved to figures/extended_rhg_lattice_plotly.html")
 
 
 # %%
@@ -99,13 +98,8 @@ xflow = {}
 for src, dsts in compiled_canvas.flow.flow.items():
     xflow[int(src)] = {int(dst) for dst in dsts}
 x_parity = []
-filter = {(1, 1), (5, 1), (-1, 3), (3, 3)}
-# filter = {(1, -1), (3, 1), (1, 3), (3, 5)}
-for coord, group_list in compiled_canvas.parity.checks.items():
-    if coord in filter:
-        x_parity.extend(group_list)
-    else:
-        x_parity.extend(group_list[:-1])
+for _, group_list in compiled_canvas.parity.checks.items():
+    x_parity.extend(group_list)
 print(f"X flow: {xflow}")
 # print(f"X parity: {x_parity}")
 print("X parity")
@@ -184,7 +178,7 @@ print(f"num_qubits: {circuit.num_qubits}")
 # %%
 # Demo 7: Error correction simulation
 dem = circuit.detector_error_model(decompose_errors=True)
-print(dem)
+# print(dem)
 
 matching = pymatching.Matching.from_detector_error_model(dem)
 print(matching)

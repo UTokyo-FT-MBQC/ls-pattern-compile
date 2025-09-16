@@ -83,4 +83,4 @@ class MemoryCube(RHGCube):
 
         # add dangling detectors for connectivity to next block
         for coord, nodes in dangling_detectors.items():
-            self.parity.checks.setdefault(coord, []).append(nodes)
+            self.parity.dangling_parity[coord] = nodes
