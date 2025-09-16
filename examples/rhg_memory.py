@@ -13,44 +13,14 @@ import stim
 from graphix_zx.scheduler import Scheduler
 from graphix_zx.stim_compiler import stim_compile
 from graphix_zx.pattern import print_pattern
-from graphix_zx.command import M
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.cubes.measure import MeasureXSkeleton
-from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
 from lspattern.mytype import PatchCoordGlobal3D
 from lspattern.visualizers import visualize_compiled_canvas_plotly
 
-# # %%
-# # Demo 1: Create simple RHG memory canvas (InitPlus -> Memory)
-# d = 3
-
-# skeleton = RHGCanvasSkeleton(name="Simple RHG Memory Canvas")
-
-# # Add InitPlus cube at position (0,0,0)
-# edgespec = {"TOP": "X", "BOTTOM": "X", "LEFT": "Z", "RIGHT": "Z"}
-# init_skeleton = InitPlusCubeSkeleton(d=d, edgespec=edgespec)
-# skeleton.add_cube(PatchCoordGlobal3D((0, 0, 0)), init_skeleton)
-
-# # Add memory pipe from (0,0,0) to (0,0,1) - temporal connection
-# memory_skeleton = MemoryPipeSkeleton(d=d, edgespec=edgespec)
-# skeleton.add_pipe(PatchCoordGlobal3D((0, 0, 0)), PatchCoordGlobal3D((0, 0, 1)), memory_skeleton)
-
-# simple_canvas = skeleton.to_canvas()
-# print(f"Created simple canvas with {len(simple_canvas.cubes_)} cubes and {len(simple_canvas.pipes_)} pipes")
-
-# # %%
-# # Demo 2: Visualize the simple canvas
-# compiled_simple = simple_canvas.compile()
-
-# fig = visualize_compiled_canvas_plotly(compiled_simple, width=800, height=600)
-# fig.update_layout(title="Simple RHG Memory Canvas")
-# pathlib.Path("figures").mkdir(exist_ok=True)
-# fig.write_html("figures/simple_rhg_lattice_plotly.html")
-# fig.show()
-# print("Plotly visualization completed and saved to figures/simple_rhg_lattice_plotly.html")
 
 # %%
 # Demo 3: Create extended memory canvas with multiple rounds
@@ -101,7 +71,6 @@ x_parity = []
 for _, group_list in compiled_canvas.parity.checks.items():
     x_parity.extend(group_list)
 print(f"X flow: {xflow}")
-# print(f"X parity: {x_parity}")
 print("X parity")
 for coord, group_list in compiled_canvas.parity.checks.items():
     print(f"  {coord}: {group_list}")
@@ -147,10 +116,9 @@ pattern = compile_canvas(
     x_parity=x_parity,
     z_parity=[],
     scheduler=scheduler,
-    # z_parity=[{int(node) for node in group} for group in compiled_canvas.parity.z_checks],
 )
 print("Pattern compilation successful")
-# print_pattern(pattern)
+print_pattern(pattern)
 
 logical = set(range(d))
 print(f"Logical X: {logical}")
@@ -173,12 +141,12 @@ def create_circuit(pattern, noise):
 noise = 0.001
 circuit = create_circuit(pattern, noise)
 print(f"num_qubits: {circuit.num_qubits}")
-# print(circuit)
+print(circuit)
 
 # %%
 # Demo 7: Error correction simulation
 dem = circuit.detector_error_model(decompose_errors=True)
-# print(dem)
+print(dem)
 
 matching = pymatching.Matching.from_detector_error_model(dem)
 print(matching)
@@ -187,11 +155,11 @@ err = dem.shortest_graphlike_error(ignore_ungraphlike_errors=False)
 print(len(err))
 print(err)
 
-# # %%
-# # Demo 8: Visualization export
-# svg = dem.diagram(type="match-graph-svg")
-# pathlib.Path("figures").mkdir(exist_ok=True)
-# pathlib.Path("figures/rhg_memory_dem.svg").write_text(str(svg), encoding="utf-8")
-# print("SVG diagram saved to figures/rhg_memory_dem.svg")
+# %%
+# Demo 8: Visualization export
+svg = dem.diagram(type="match-graph-svg")
+pathlib.Path("figures").mkdir(exist_ok=True)
+pathlib.Path("figures/rhg_memory_dem.svg").write_text(str(svg), encoding="utf-8")
+print("SVG diagram saved to figures/rhg_memory_dem.svg")
 
 # %%
