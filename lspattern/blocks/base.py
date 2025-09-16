@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
 
     from lspattern.mytype import (
+        NodeIdGlobal,
         NodeIdLocal,
         PatchCoordGlobal3D,
         PatchCoordLocal2D,
@@ -37,6 +38,7 @@ if TYPE_CHECKING:
 else:
     # Import NewType factories for runtime use
     from lspattern.mytype import (
+        NodeIdGlobal,
         NodeIdLocal,
         PatchCoordGlobal3D,
         PatchCoordLocal2D,
@@ -227,7 +229,7 @@ class RHGBlock:
         # Assign nodes for each time slice
         nodes_by_z = self._assign_nodes_by_timeslice(g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role)
 
-        self._construct_schedule(nodes_by_z)
+        self._construct_schedule(nodes_by_z, node2role)
 
         # Add spatial and temporal edges
         RHGBlock._add_spatial_edges(g, nodes_by_z)
@@ -354,9 +356,30 @@ class RHGBlock:
     def _construct_detectors(self) -> None:
         raise NotImplementedError
 
-    def _construct_schedule(self, nodes_by_z: Mapping[int, Mapping[tuple[int, int], int]]) -> None:
+    def _construct_schedule(
+        self, nodes_by_z: Mapping[int, Mapping[tuple[int, int], int]], node2role: Mapping[int, str]
+    ) -> None:
         for t, nodes in nodes_by_z.items():
-            self.schedule.schedule[t] = set(nodes.values())
+            # Separate nodes by role: ancillas first, then data
+            ancilla_nodes = []
+            data_nodes = []
+
+            for node_id in nodes.values():
+                role = node2role.get(NodeIdLocal(node_id), "")
+                if role in {"ancilla_x", "ancilla_z"}:
+                    ancilla_nodes.append(node_id)
+                else:  # data or other roles
+                    data_nodes.append(node_id)
+
+            # Schedule ancillas and data at different time slots
+            # ancillas at 2*t, data at 2*t+1 to ensure temporal separation
+            if ancilla_nodes:
+                ancilla_global_nodes = {NodeIdGlobal(node_id) for node_id in ancilla_nodes}
+                self.schedule.schedule[2 * t] = ancilla_global_nodes
+
+            if data_nodes:
+                data_global_nodes = {NodeIdGlobal(node_id) for node_id in data_nodes}
+                self.schedule.schedule[2 * t + 1] = data_global_nodes
 
     def _build_coordinate_mappings(
         self, coord2node: Mapping[tuple[int, int, int], int], zmin: int, zmax: int
