@@ -64,6 +64,9 @@ edgespec = {"TOP": "X", "BOTTOM": "X", "LEFT": "Z", "RIGHT": "Z"}
 init_skeleton = InitPlusCubeSkeleton(d=d, edgespec=edgespec)
 skeleton.add_cube(PatchCoordGlobal3D((0, 0, 0)), init_skeleton)
 
+# init_skeleton = MemoryCubeSkeleton(d=d, edgespec=edgespec)
+# skeleton.add_cube(PatchCoordGlobal3D((0, 0, 1)), init_skeleton)
+
 measure_skeleton = MeasureXSkeleton(d=d, edgespec=edgespec)
 skeleton.add_cube(PatchCoordGlobal3D((0, 0, 1)), measure_skeleton)
 
@@ -75,9 +78,10 @@ print(f"Created extended canvas with {len(extended_canvas.cubes_)} cubes and {le
 compiled_canvas = extended_canvas.compile()
 print(f"Compiled canvas has {len(compiled_canvas.layers)} temporal layers")
 print(f"Global graph has {getattr(compiled_canvas.global_graph, 'num_qubits', 'unknown')} qubits")
-print(f"Schedule has {len(compiled_canvas.schedule.schedule)} time slots")
-for t, nodes in compiled_canvas.schedule.schedule.items():
-    print(f"Time {t}: {len(nodes)} nodes")
+schedule = compiled_canvas.schedule.compact()
+print(f"Schedule has {len(schedule.schedule)} time slots")
+for t, nodes in schedule.schedule.items():
+    print(f"Time {t}: {nodes}")
 
 # fig = visualize_compiled_canvas_plotly(compiled_canvas, width=800, height=600)
 # fig.update_layout(title=f"Extended RHG Memory Canvas (d={d}, r={r})")
@@ -87,16 +91,27 @@ for t, nodes in compiled_canvas.schedule.schedule.items():
 # print("Extended canvas plotly visualization completed and saved to figures/extended_rhg_lattice_plotly.html")
 
 
+
 # %%
 # Demo 5: Generate pattern from compiled canvas
 xflow = {}
 for src, dsts in compiled_canvas.flow.flow.items():
     xflow[int(src)] = {int(dst) for dst in dsts}
 x_parity = []
-for _, group_list in compiled_canvas.parity.checks.items():
+# filter = {(1, 1), (5, 1), (-1, 3), (3, 3)}
+filter = {(1, -1), (3, 1), (1, 3), (3, 5)}
+for coord, group_list in compiled_canvas.parity.checks.items():
+    if coord not in filter:
+        continue
     x_parity.extend(group_list)
 print(f"X flow: {xflow}")
-print(f"X parity: {x_parity}")
+# print(f"X parity: {x_parity}")
+print("X parity")
+for coord, group_list in compiled_canvas.parity.checks.items():
+    print(f"  {coord}: {group_list}")
+
+
+print(f"output qubits: {compiled_canvas.global_graph.output_node_indices}")
 
 pattern = compile_canvas(
     compiled_canvas.global_graph,
@@ -141,11 +156,11 @@ err = dem.shortest_graphlike_error(ignore_ungraphlike_errors=False)
 print(len(err))
 print(err)
 
-# %%
-# Demo 8: Visualization export
-svg = dem.diagram(type="match-graph-svg")
-pathlib.Path("figures").mkdir(exist_ok=True)
-pathlib.Path("figures/rhg_memory_dem.svg").write_text(str(svg), encoding="utf-8")
-print("SVG diagram saved to figures/rhg_memory_dem.svg")
+# # %%
+# # Demo 8: Visualization export
+# svg = dem.diagram(type="match-graph-svg")
+# pathlib.Path("figures").mkdir(exist_ok=True)
+# pathlib.Path("figures/rhg_memory_dem.svg").write_text(str(svg), encoding="utf-8")
+# print("SVG diagram saved to figures/rhg_memory_dem.svg")
 
 # %%
