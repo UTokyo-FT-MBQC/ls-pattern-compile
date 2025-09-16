@@ -755,11 +755,58 @@ class CompiledRHGCanvas:
         CompiledRHGCanvas._remap_graph_edges(gsrc, gdst, nmap, created)
         return gdst
 
-    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> CompiledRHGCanvas:
+    def remap_nodes(self, node_map: Mapping[NodeIdLocal, NodeIdLocal]) -> CompiledRHGCanvas:
         """Remap nodes according to the given node mapping."""
 
+        # Deep copy and remap each layer
+        remapped_layers = []
+        for layer in self.layers:
+            # Create a copy of the layer and remap its node mappings
+            remapped_layer = TemporalLayer(layer.z)
+            remapped_layer.qubit_count = layer.qubit_count
+            remapped_layer.patches = layer.patches.copy()
+            remapped_layer.lines = layer.lines.copy()
+
+            # Remap layer's node mappings
+            remapped_layer.coord2node = {c: node_map.get(n, n) for c, n in layer.coord2node.items()}
+            remapped_layer.node2coord = {node_map.get(n, n): c for n, c in layer.node2coord.items()}
+            remapped_layer.node2role = {node_map.get(n, n): r for n, r in layer.node2role.items()}
+
+            # Remap portsets
+            remapped_layer.in_portset = {
+                p: [node_map.get(n, n) for n in nodes] for p, nodes in layer.in_portset.items()
+            }
+            remapped_layer.out_portset = {
+                p: [node_map.get(n, n) for n in nodes] for p, nodes in layer.out_portset.items()
+            }
+            remapped_layer.cout_portset = {
+                p: [node_map.get(n, n) for n in nodes] for p, nodes in layer.cout_portset.items()
+            }
+
+            # Remap port lists
+            remapped_layer.in_ports = [node_map.get(n, n) for n in layer.in_ports]
+            remapped_layer.out_ports = [node_map.get(n, n) for n in layer.out_ports]
+            remapped_layer.cout_ports = [node_map.get(n, n) for n in layer.cout_ports]
+
+            # Copy other attributes
+            remapped_layer.local_graph = layer.local_graph  # GraphState will be remapped separately
+
+            # Remap accumulators to use new node IDs
+            remapped_layer.schedule = layer.schedule.remap_nodes(
+                {NodeIdGlobal(k): NodeIdGlobal(v) for k, v in node_map.items()}
+            )
+            remapped_layer.flow = layer.flow.remap_nodes(node_map)
+            remapped_layer.parity = layer.parity.remap_nodes(node_map)
+            remapped_layer.cubes_ = layer.cubes_.copy()
+            remapped_layer.pipes_ = layer.pipes_.copy()
+            remapped_layer.tiling_node_maps = layer.tiling_node_maps.copy()
+            remapped_layer.coord2gid = layer.coord2gid.copy()
+            remapped_layer.allowed_gid_pairs = layer.allowed_gid_pairs.copy()
+
+            remapped_layers.append(remapped_layer)
+
         new_cgraph = CompiledRHGCanvas(
-            layers=self.layers.copy(),
+            layers=remapped_layers,
             global_graph=self._create_remapped_graphstate(self.global_graph, node_map),
             coord2node={},
             in_portset={},
@@ -790,7 +837,6 @@ class CompiledRHGCanvas:
 
         return new_cgraph
 
-    # ---- T25: boundary queries ---------------------------------------------
     def get_boundary_nodes(
         self,
         *,
@@ -1093,6 +1139,14 @@ def _remap_layer_mappings(next_layer: TemporalLayer, node_map2: Mapping[int, int
     next_layer.node2coord = {NodeIdLocal(node_map2.get(int(n), int(n))): c for n, c in next_layer.node2coord.items()}
     next_layer.node2role = {NodeIdLocal(node_map2.get(int(n), int(n))): r for n, r in next_layer.node2role.items()}
 
+    # Also remap accumulators
+    local_node_map = {NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map2.items()}
+    next_layer.schedule = next_layer.schedule.remap_nodes(
+        {NodeIdGlobal(k): NodeIdGlobal(v) for k, v in node_map2.items()}
+    )
+    next_layer.flow = next_layer.flow.remap_nodes(local_node_map)
+    next_layer.parity = next_layer.parity.remap_nodes(local_node_map)
+
 
 def _build_merged_coord2node(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> dict[PhysCoordGlobal3D, int]:
     """Build merged coordinate to node mapping."""
@@ -1124,9 +1178,9 @@ def _build_coordinate_gid_mapping(
 ) -> dict[PhysCoordGlobal3D, QubitGroupIdGlobal]:
     """Build coordinate to group ID mapping."""
     new_coord2gid: dict[PhysCoordGlobal3D, QubitGroupIdGlobal] = {}
-    for _pos, cube in [*cgraph.cubes_.items(), *next_layer.cubes_.items()]:
+    for cube in [*cgraph.cubes_.values(), *next_layer.cubes_.values()]:
         new_coord2gid.update({PhysCoordGlobal3D(k): QubitGroupIdGlobal(v) for k, v in cube.coord2gid.items()})
-    for _pipe_pos, pipe in [*cgraph.pipes_.items(), *next_layer.pipes_.items()]:
+    for pipe in [*cgraph.pipes_.values(), *next_layer.pipes_.values()]:
         new_coord2gid.update({PhysCoordGlobal3D(k): QubitGroupIdGlobal(v) for k, v in pipe.coord2gid.items()})
     return new_coord2gid
 
