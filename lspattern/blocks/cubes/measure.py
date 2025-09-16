@@ -55,7 +55,8 @@ class MeasureX(_MeasureBase):
         self.in_ports = set(idx_map.values())
 
     def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        return super().set_out_ports(patch_coord)
+        idx_map = self.template.get_data_indices(patch_coord)
+        self.out_ports = set(idx_map.values())
 
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         pass
@@ -85,7 +86,8 @@ class MeasureZ(_MeasureBase):
         self.in_ports = set(idx_map.values())
 
     def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        return super().set_out_ports(patch_coord)
+        idx_map = self.template.get_data_indices(patch_coord)
+        self.out_ports = set(idx_map.values())
 
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         pass
