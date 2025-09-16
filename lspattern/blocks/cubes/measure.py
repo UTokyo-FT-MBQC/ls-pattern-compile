@@ -147,7 +147,8 @@ class MeasureX(_MeasureBase):
     def _construct_detectors(self) -> None:
         x2d = self.template.x_coords
 
-        t = min(self.schedule.schedule.keys(), default=0)
+        # Use the actual z-coordinate where nodes are placed
+        t = int(self.source[2]) * 1  # Same as z0 in _build_3d_graph
 
         for x, y in x2d:
             node_group: set[NodeIdLocal] = set()
@@ -178,7 +179,8 @@ class MeasureZ(_MeasureBase):
     def _construct_detectors(self) -> None:
         z2d = self.template.z_coords
 
-        t = min(self.schedule.schedule.keys(), default=0)
+        # Use the actual z-coordinate where nodes are placed
+        t = int(self.source[2]) * 1  # Same as z0 in _build_3d_graph
 
         for x, y in z2d:
             node_group: set[NodeIdLocal] = set()
