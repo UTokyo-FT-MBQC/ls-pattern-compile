@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 
@@ -19,8 +19,8 @@ def _build_compiled_canvas_T43() -> CompiledRHGCanvas:
     d = 3
     canvass = RHGCanvasSkeleton("Memory X")
 
-    edgespec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
-    edgespec_trimmed = {"LEFT": "O", "RIGHT": "O", "TOP": "O", "BOTTOM": "O"}
+    edgespec: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
+    edgespec_trimmed: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "O", "TOP": "O", "BOTTOM": "O"}
 
     blocks = [
         (PatchCoordGlobal3D((0, 0, 0)), InitPlusCubeSkeleton(d=d, edgespec=edgespec)),
@@ -92,7 +92,7 @@ def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:
                     outputs[_coord_key(c)] = int(lidx)
 
     # Portsets mapped to coords per patch
-    def _ports_to_coords(portset: dict[tuple[int, int, int], list[int]]):
+    def _ports_to_coords(portset: dict[tuple[int, int, int], list[int]]) -> dict[str, list[str]]:
         snap: dict[str, list[str]] = {}
         for pos, nodes in (portset or {}).items():
             key = _coord_key((int(pos[0]), int(pos[1]), int(pos[2])))
@@ -104,9 +104,14 @@ def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:
             snap[key] = sorted(lst)
         return snap
 
-    in_ports = _ports_to_coords(cg.in_portset)
-    out_ports = _ports_to_coords(cg.out_portset)
-    cout_ports = _ports_to_coords(cg.cout_portset)
+    # Convert portsets to correct format
+    in_portset_conv = {tuple(k): [int(v) for v in lst] for k, lst in cg.in_portset.items()}
+    out_portset_conv = {tuple(k): [int(v) for v in lst] for k, lst in cg.out_portset.items()}
+    cout_portset_conv = {tuple(k): [int(v) for v in lst] for k, lst in cg.cout_portset.items()}
+
+    in_ports = _ports_to_coords(in_portset_conv)
+    out_ports = _ports_to_coords(out_portset_conv)
+    cout_ports = _ports_to_coords(cout_portset_conv)
 
     snapshot = {
         "meta": {
@@ -131,7 +136,7 @@ def _load_expected_snapshot(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
     with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
+        result = json.load(f)\n        return result
 
 
 def _save_snapshot(path: Path, data: dict[str, Any]) -> None:

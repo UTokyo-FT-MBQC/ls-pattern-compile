@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+from typing import Literal
+
 import pytest
 
 from lspattern.blocks.cubes.measure import MeasureXSkeleton, MeasureZSkeleton
 
 
-def test_measure_blocks_single_layer_optimization():
+def test_measure_blocks_single_layer_optimization() -> None:
     """Test that measurement blocks use only single layer with data qubits only."""
     # Test MeasureX with d=3
-    spec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
+    spec: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
     measure_x = MeasureXSkeleton(d=3, edgespec=spec).to_block()
 
     # Materialize the block to build the graph
@@ -42,9 +44,9 @@ def test_measure_blocks_single_layer_optimization():
     assert len(unique_z_coords_z) == 1
 
 
-def test_measure_blocks_schedule_optimization():
+def test_measure_blocks_schedule_optimization() -> None:
     """Test that measurement blocks have optimized schedule with single time slot."""
-    spec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
+    spec: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
     measure_x = MeasureXSkeleton(d=3, edgespec=spec).to_block()
     materialized_x = measure_x.materialize()
 
@@ -60,9 +62,9 @@ def test_measure_blocks_schedule_optimization():
     assert len(scheduled_nodes) == data_node_count
 
 
-def test_measure_blocks_no_temporal_edges():
+def test_measure_blocks_no_temporal_edges() -> None:
     """Test that measurement blocks have no temporal edges (since they're single layer)."""
-    spec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
+    spec: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
     measure_x = MeasureXSkeleton(d=3, edgespec=spec).to_block()
     materialized_x = measure_x.materialize()
 
@@ -78,9 +80,9 @@ def test_measure_blocks_no_temporal_edges():
     assert temporal_edges == 0, f"Expected 0 temporal edges, got {temporal_edges}"
 
 
-def test_measure_blocks_memory_efficiency():
+def test_measure_blocks_memory_efficiency() -> None:
     """Test memory efficiency compared to theoretical full cube implementation."""
-    spec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
+    spec: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
     measure_x = MeasureXSkeleton(d=3, edgespec=spec).to_block()
     materialized_x = measure_x.materialize()
 
