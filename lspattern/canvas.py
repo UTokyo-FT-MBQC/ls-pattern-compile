@@ -755,6 +755,7 @@ class CompiledRHGCanvas:
         CompiledRHGCanvas._remap_graph_edges(gsrc, gdst, nmap, created)
         return gdst
 
+    # TODO: this could be made more efficient by avoiding deep copies
     def remap_nodes(self, node_map: Mapping[NodeIdLocal, NodeIdLocal]) -> CompiledRHGCanvas:
         """Remap nodes according to the given node mapping."""
 
