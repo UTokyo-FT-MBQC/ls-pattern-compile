@@ -1,14 +1,9 @@
 # %%
 """
-Merge and Splitのmockup
-
-* Measure Xが未実装.現状InitPlus, Memoryのみ
-* detector, prity, xflowも未実装
-* temporal pipeが一部動かない.
+Merge and Split
 """
 
 # %%
-from matplotlib.patches import Patch
 import matplotlib.pyplot as plt
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
@@ -23,7 +18,7 @@ from lspattern.visualizers import visualize_compiled_canvas, visualize_compiled_
 d = 3
 
 
-canvass = RHGCanvasSkeleton("Memory X")
+canvass = RHGCanvasSkeleton("Merge and Split")
 
 edgespec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
 edgespec1 = {"LEFT": "X", "RIGHT": "O", "TOP": "Z", "BOTTOM": "Z"}
@@ -38,42 +33,42 @@ blocks = [
         PatchCoordGlobal3D((1, 0, 0)),
         InitPlusCubeSkeleton(d=3, edgespec=edgespec),
     ),
-    (
-        PatchCoordGlobal3D((0, 0, 1)),
-        MemoryCubeSkeleton(d=3, edgespec=edgespec1),
-    ),
-    (
-        PatchCoordGlobal3D((1, 0, 1)),
-        MemoryCubeSkeleton(d=3, edgespec=edgespec2),
-    ),
-    (
-        PatchCoordGlobal3D((0, 0, 2)),
-        MemoryCubeSkeleton(d=3, edgespec=edgespec),
-    ),
-    (
-        PatchCoordGlobal3D((1, 0, 2)),
-        MemoryCubeSkeleton(d=3, edgespec=edgespec),
-    ),
-    (
-        PatchCoordGlobal3D((0, 0, 3)),
-        MeasureXSkeleton(d=3, edgespec=edgespec),
-    ),
-    (
-        PatchCoordGlobal3D((1, 0, 3)),
-        MeasureXSkeleton(d=3, edgespec=edgespec),
-    )
+    # (
+    #     PatchCoordGlobal3D((0, 0, 1)),
+    #     MemoryCubeSkeleton(d=3, edgespec=edgespec1),
+    # ),
+    # (
+    #     PatchCoordGlobal3D((1, 0, 1)),
+    #     MemoryCubeSkeleton(d=3, edgespec=edgespec2),
+    # ),
+    # (
+    #     PatchCoordGlobal3D((0, 0, 2)),
+    #     MemoryCubeSkeleton(d=3, edgespec=edgespec),
+    # ),
+    # (
+    #     PatchCoordGlobal3D((1, 0, 2)),
+    #     MemoryCubeSkeleton(d=3, edgespec=edgespec),
+    # ),
+    # (
+    #     PatchCoordGlobal3D((0, 0, 3)),
+    #     MeasureXSkeleton(d=3, edgespec=edgespec),
+    # ),
+    # (
+    #     PatchCoordGlobal3D((1, 0, 3)),
+    #     MeasureXSkeleton(d=3, edgespec=edgespec),
+    # )
 ]
 pipes = [
-    (
-        PatchCoordGlobal3D((0, 0, 1)),
-        PatchCoordGlobal3D((1, 0, 1)),
-        MemoryPipeSkeleton(d=3, edgespec=edgespec_trimmed),
-    ),
-    (
-        PatchCoordGlobal3D((0, 0, 0)),
-        PatchCoordGlobal3D((0, 0, 1)),
-        MemoryPipeSkeleton(d=3, edgespec=edgespec_trimmed),
-    ),
+    # (
+    #     PatchCoordGlobal3D((0, 0, 1)),
+    #     PatchCoordGlobal3D((1, 0, 1)),
+    #     MemoryPipeSkeleton(d=3, edgespec=edgespec_trimmed),
+    # ),
+    # (
+    #     PatchCoordGlobal3D((0, 0, 0)),
+    #     PatchCoordGlobal3D((0, 0, 1)),
+    #     MemoryPipeSkeleton(d=3, edgespec=edgespec_trimmed),
+    # ),
 ]
 
 for block in blocks:
