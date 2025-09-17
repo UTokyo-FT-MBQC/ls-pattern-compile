@@ -725,7 +725,9 @@ class CompiledRHGCanvas:
     #     pass
 
     @staticmethod
-    def _remap_graph_nodes(gsrc: BaseGraphState, nmap: dict[NodeIdLocal, NodeIdLocal]) -> dict[int, int]:
+    def _remap_graph_nodes(
+        gsrc: BaseGraphState, nmap: dict[NodeIdLocal, NodeIdLocal]
+    ) -> tuple[dict[int, int], GraphState]:
         """Create new nodes in destination graph."""
         gdst = GraphState()
         created: dict[int, int] = {}
@@ -734,7 +736,7 @@ class CompiledRHGCanvas:
             if int(new_id) in created:
                 continue
             created[int(new_id)] = gdst.add_physical_node()
-        return created
+        return created, gdst
 
     @staticmethod
     def _remap_measurement_bases(
@@ -769,8 +771,7 @@ class CompiledRHGCanvas:
         """Create a remapped GraphState."""
         if gsrc is None:
             return None
-        gdst = GraphState()
-        created = CompiledRHGCanvas._remap_graph_nodes(gsrc, nmap)
+        created, gdst = CompiledRHGCanvas._remap_graph_nodes(gsrc, nmap)
         CompiledRHGCanvas._remap_measurement_bases(gsrc, gdst, nmap, created)
         CompiledRHGCanvas._remap_graph_edges(gsrc, gdst, nmap, created)
         return gdst
