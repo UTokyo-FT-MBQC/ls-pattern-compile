@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """New-API demo: RHG memory experiment (InitPlus -> Memory -> MeasureX).
 
-This example builds a single-logical memory line by stacking blocks on a growing canvas.
-
-Usage:
-  python examples/rhg_memory.py
+This example builds a single-logical memory line using the current codebase structure
+with RHGCanvas, TemporalLayer composition, and compilation.
 """
 
 # %%
@@ -12,80 +10,124 @@ import pathlib
 
 import pymatching
 import stim
-from graphix_zx.stim_compiler import stim_compile
 from graphix_zx.pattern import Pattern, print_pattern
-from lspattern.canvas import RHGCanvas
-from lspattern.blocks import InitPlus, Memory, MeasureX
-from lspattern.visualize import visualize_canvas
+from graphix_zx.scheduler import Scheduler
+from graphix_zx.stim_compiler import stim_compile
+
+from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
+from lspattern.blocks.cubes.measure import MeasureXSkeleton
+from lspattern.canvas import RHGCanvasSkeleton
+from lspattern.compile import compile_canvas
+from lspattern.mytype import PatchCoordGlobal3D
+from lspattern.visualizers import visualize_compiled_canvas_plotly
 
 # %%
-d = 2
-r = 1
+# Demo 3: Create extended memory canvas with multiple rounds
+d = 3
 
-canvas = RHGCanvas()
-canvas.append(InitPlus(logical=0, dx=d, dy=d))
-visualize_canvas(
-    canvas,
-    show=True,
+skeleton = RHGCanvasSkeleton(name="Extended RHG Memory Canvas")
+
+# Define edge specification
+edgespec = {"TOP": "X", "BOTTOM": "X", "LEFT": "Z", "RIGHT": "Z"}
+
+# Add InitPlus cube at the beginning
+init_skeleton = InitPlusCubeSkeleton(d=d, edgespec=edgespec)
+skeleton.add_cube(PatchCoordGlobal3D((0, 0, 0)), init_skeleton)
+
+# memory_skeleton = MemoryCubeSkeleton(d=d, edgespec=edgespec)
+# skeleton.add_cube(PatchCoordGlobal3D((0, 0, 1)), memory_skeleton)
+
+measure_skeleton = MeasureXSkeleton(d=d, edgespec=edgespec)
+skeleton.add_cube(PatchCoordGlobal3D((0, 0, 1)), measure_skeleton)
+
+extended_canvas = skeleton.to_canvas()
+print(f"Created extended canvas with {len(extended_canvas.cubes_)} cubes and {len(extended_canvas.pipes_)} pipes")
+
+# # %%
+# Demo 4: Compile and visualize the extended canvas
+compiled_canvas = extended_canvas.compile()
+print(f"Compiled canvas has {len(compiled_canvas.layers)} temporal layers")
+print(f"Global graph has {getattr(compiled_canvas.global_graph, 'num_qubits', 'unknown')} qubits")
+schedule = compiled_canvas.schedule.compact()
+print(f"Schedule has {len(schedule.schedule)} time slots")
+for t, nodes in schedule.schedule.items():
+    print(f"Time {t}: {nodes}")
+
+fig = visualize_compiled_canvas_plotly(compiled_canvas, width=800, height=600)
+fig.update_layout(title=f"Extended RHG Memory Canvas (d={d})")
+pathlib.Path("figures").mkdir(exist_ok=True)
+fig.write_html("figures/extended_rhg_lattice_plotly.html")
+fig.show()
+print("Extended canvas plotly visualization completed and saved to figures/extended_rhg_lattice_plotly.html")
+
+
+# %%
+# Demo 5: Generate pattern from compiled canvas
+xflow = {}
+for src, dsts in compiled_canvas.flow.flow.items():
+    xflow[int(src)] = {int(dst) for dst in dsts}
+x_parity = []
+for group_list in compiled_canvas.parity.checks.values():
+    x_parity.extend(group_list)
+print(f"X flow: {xflow}")
+print("X parity")
+for coord, group_list in compiled_canvas.parity.checks.items():
+    print(f"  {coord}: {group_list}")
+
+
+print(f"output qubits: {compiled_canvas.global_graph.output_node_indices}")
+
+# Create scheduler
+scheduler = Scheduler(compiled_canvas.global_graph, xflow=xflow)
+
+# Set up timing based on compiled_canvas.schedule
+compact_schedule = compiled_canvas.schedule.compact()
+print(f"Schedule has {len(compact_schedule.schedule)} time slots")
+
+# Initialize prepare_time and measure_time dictionaries
+prep_time = {}
+meas_time = {}
+
+# Set input nodes to have no preparation time (None)
+if compiled_canvas.global_graph is not None:
+    input_nodes = set(compiled_canvas.global_graph.input_node_indices.keys())
+    for node in compiled_canvas.global_graph.physical_nodes:
+        if node not in input_nodes:
+            prep_time[node] = 0  # Non-input nodes prepared at time 0
+
+    # Set measurement times based on schedule
+    output_nodes = set(compiled_canvas.global_graph.output_node_indices.keys())
+    for node in compiled_canvas.global_graph.physical_nodes:
+        if node not in output_nodes:
+            # Find when this node is scheduled for measurement
+            meas_time[node] = 1  # Default measurement time
+            for time_slot, nodes in compact_schedule.schedule.items():
+                if node in nodes:
+                    meas_time[node] = time_slot + 1  # Shift by 1 to account for preparation at time 0
+                    break
+
+# Configure scheduler with manual timing
+scheduler.manual_schedule(prepare_time=prep_time, measure_time=meas_time)
+
+pattern = compile_canvas(
+    compiled_canvas.global_graph,
+    xflow=xflow,
+    x_parity=x_parity,
+    z_parity=[],
+    scheduler=scheduler,
 )
-
-# %%
-canvas = RHGCanvas()
-canvas.append(InitPlus(logical=0, dx=d, dy=d))
-canvas.append(Memory(logical=0, rounds=r))
-visualize_canvas(
-    canvas,
-    save_path="figures/rhg_lattice.png",
-    show=True,
-)
-
-# %%
-canvas = RHGCanvas()
-canvas.append(InitPlus(logical=0, dx=d, dy=d))
-canvas.append(Memory(logical=0, rounds=r))
-canvas.append(Memory(logical=0, rounds=r))
-canvas.append(MeasureX(logical=0))
-visualize_canvas(
-    canvas,
-    save_path="figures/rhg_lattice.png",
-    show=True,
-)
-
-# %%
-d = 5
-r = 5
-
-canvas = RHGCanvas()
-canvas.append(InitPlus(logical=0, dx=d, dy=d))
-canvas.append(Memory(logical=0, rounds=r))
-canvas.append(Memory(logical=0, rounds=r))
-canvas.append(MeasureX(logical=0))
-
-for group in canvas.schedule_accum.measure_groups:
-    print(f"group: {group}")
-
-logical = set(i for i in range(d))
-print(f"logical X: {logical}")
-logical_observables = {0: logical}
-
-# %%
-pattern = canvas.compile()
+print("Pattern compilation successful")
 print_pattern(pattern)
 
-# %%
-stim_str = stim_compile(
-    pattern,
-    logical_observables,
-    after_clifford_depolarization=0,
-    before_measure_flip_probability=0,
-)
-print(stim_str)
+logical = set(range(d))
+print(f"Logical X: {logical}")
+logical_observables = {0: logical}
+
 
 # %%
-
-
+# Demo 6: Circuit creation
 def create_circuit(pattern: Pattern, noise: float) -> stim.Circuit:
-    logical_observables = {0: {i for i in range(d)}}
+    print(f"Using logical observables: {logical_observables}")
     stim_str = stim_compile(
         pattern,
         logical_observables,
@@ -95,29 +137,28 @@ def create_circuit(pattern: Pattern, noise: float) -> stim.Circuit:
     return stim.Circuit(stim_str)
 
 
-# %%
-
 noise = 0.001
 circuit = create_circuit(pattern, noise)
 print(f"num_qubits: {circuit.num_qubits}")
+print(circuit)
 
+# %%
+# Demo 7: Error correction simulation
 dem = circuit.detector_error_model(decompose_errors=True)
 print(dem)
 
-# %%
-
 matching = pymatching.Matching.from_detector_error_model(dem)
 print(matching)
-# matching.draw()
 
-
-# %%
 err = dem.shortest_graphlike_error(ignore_ungraphlike_errors=False)
 print(len(err))
 print(err)
 
 # %%
+# Demo 8: Visualization export
 svg = dem.diagram(type="match-graph-svg")
+pathlib.Path("figures").mkdir(exist_ok=True)
 pathlib.Path("figures/rhg_memory_dem.svg").write_text(str(svg), encoding="utf-8")
+print("SVG diagram saved to figures/rhg_memory_dem.svg")
 
 # %%

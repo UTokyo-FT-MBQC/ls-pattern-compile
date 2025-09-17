@@ -10,6 +10,7 @@ Usage:
 # %%
 import pathlib
 import sys
+from typing import Literal
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvas, RHGCanvasSkeleton
@@ -21,8 +22,8 @@ r = 3
 
 canvass = RHGCanvasSkeleton("Memory X")
 
-edgespec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
-edgespec_trimmed = {"LEFT": "O", "RIGHT": "O", "TOP": "O", "BOTTOM": "O"}
+edgespec: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
+edgespec_trimmed: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "O", "TOP": "O", "BOTTOM": "O"}
 # tmpl = RotatedPlanarTemplate(d=3, edgespec=edgespec)
 # _ = tmpl.to_tiling()
 blocks = [
@@ -30,7 +31,7 @@ blocks = [
     (PatchCoordGlobal3D((1, 1, 0)), InitPlusCubeSkeleton(d=3, edgespec=edgespec_trimmed)),
     (PatchCoordGlobal3D((2, 2, 0)), InitPlusCubeSkeleton(d=3, edgespec=edgespec)),
 ]
-pipes = []
+pipes: list[tuple[PatchCoordGlobal3D, PatchCoordGlobal3D, object]] = []
 
 for block in blocks:
     # RHGCanvasSkeleton は skeleton を受け取り、to_canvas() で block 化します
@@ -61,13 +62,13 @@ sys.exit(0)  # Skip stim/pymatching path below
 
 if False:  # Optional stim/pymatching path (requires a defined Pattern)
     noise = 0.001
-    circuit = create_circuit(pattern, noise)
+    circuit = create_circuit(pattern, noise)  # type: ignore  # create_circuit and pattern are not defined in this demo
     print(f"num_qubits: {circuit.num_qubits}")
 
     dem = circuit.detector_error_model(decompose_errors=True)
     print(dem)
 
-    matching = pymatching.Matching.from_detector_error_model(dem)
+    matching = pymatching.Matching.from_detector_error_model(dem)  # type: ignore  # pymatching not imported
     print(matching)
     err = dem.shortest_graphlike_error(ignore_ungraphlike_errors=False)
     print(len(err))

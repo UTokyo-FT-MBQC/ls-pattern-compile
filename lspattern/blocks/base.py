@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
 
     from lspattern.mytype import (
+        NodeIdGlobal,
         NodeIdLocal,
         PatchCoordGlobal3D,
         PatchCoordLocal2D,
@@ -37,6 +38,7 @@ if TYPE_CHECKING:
 else:
     # Import NewType factories for runtime use
     from lspattern.mytype import (
+        NodeIdGlobal,
         NodeIdLocal,
         PatchCoordGlobal3D,
         PatchCoordLocal2D,
@@ -71,6 +73,9 @@ class RHGBlock:
         Grouped classical output ports (one group per logical result).
     local_graph : GraphState
         Local RHG graph constructed by ``materialize()``.
+    meas_basis : MeasBasis
+        Measurement basis for non-output nodes in the local graph.
+        Currently, the measurement basis is uniform across all non-output nodes.
     node2coord, coord2node : dict
         Bidirectional maps between node ids and 3D coordinates.
     node2role : dict[int, str]
@@ -97,6 +102,7 @@ class RHGBlock:
     parity: ParityAccumulator = field(init=False, default_factory=ParityAccumulator)
 
     local_graph: GraphState = field(init=False, default_factory=GraphState)
+    meas_basis: MeasBasis = field(init=False, default_factory=lambda: AxisMeasBasis(Axis.X, Sign.PLUS))
     node2coord: dict[NodeIdLocal, PhysCoordGlobal3D] = field(init=False, default_factory=dict)
     coord2node: dict[PhysCoordGlobal3D, NodeIdLocal] = field(init=False, default_factory=dict)
     node2role: dict[NodeIdLocal, str] = field(init=False, default_factory=dict)
@@ -125,25 +131,14 @@ class RHGBlock:
         self.template.to_tiling()
 
     # Child class will handle them without any input arguments
-    def set_in_ports(self) -> None:
+    def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         """Set the input ports for the block."""
 
-    def set_out_ports(self) -> None:
+    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         """Set the output ports for the block."""
 
-    def set_cout_ports(self) -> None:
+    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         """Set the classical output ports for the block."""
-
-    def shift_ids(self, by: int) -> None:
-        """
-        Shift the qubit indices in the template by a specified integer offset.
-
-        Parameters
-        ----------
-        by : int
-            The amount by which to shift all qubit indices.
-        """
-        self.template.shift_qindex(by)
 
     def shift_coords(self, by: PatchCoordGlobal3D) -> None:
         """Shift the patch anchor and the template by a 2D offset.
@@ -189,26 +184,26 @@ class RHGBlock:
         self._sync_template_parameters()
 
         # Initialize logical port sets (child classes may override these hooks)
-        self.set_in_ports()
-        self.set_out_ports()
-        self.set_cout_ports()
+        patch_coord = (self.source[0], self.source[1]) if self.source else None
+        self.set_in_ports(patch_coord)
+        self.set_out_ports(patch_coord)
+        self.set_cout_ports(patch_coord)
 
         # Build the local RHG graph (nodes/edges and coordinate maps)
         g, node2coord, coord2node, node2role = self._build_3d_graph()
 
         # Register GraphState input/output nodes for visualization
-        self._register_io_nodes(g, node2coord, coord2node)
-        # Assign measurement bases for non-output nodes
-        # TODO: add interface to registre meas_bases_map
-        meas_bases_map: dict[int, MeasBasis] = {}
-        self._assign_meas_bases(g, meas_bases_map)
+        self._register_io_nodes(g, node2coord, coord2node, node2role)
+        # Assign measurement basis for non-output nodes
+        self._assign_meas_bases(g, self.meas_basis)
 
-        # Store results on the block
         self.local_graph = g
         # Convert to proper NewType dictionaries
         self.node2coord = {NodeIdLocal(k): PhysCoordGlobal3D(v) for k, v in node2coord.items()}
         self.coord2node = {PhysCoordGlobal3D(k): NodeIdLocal(v) for k, v in coord2node.items()}
         self.node2role = {NodeIdLocal(k): v for k, v in node2role.items()}
+
+        self._construct_detectors()
         self.coord2gid = dict.fromkeys(node2coord.values(), self.template.id_)
         return self
 
@@ -221,7 +216,7 @@ class RHGBlock:
         x2d = list(self.template.x_coords or [])
         z2d = list(self.template.z_coords or [])
 
-        # Construct a 3D RHG slab of height ~2*d (T12 policy)
+        # Construct a 3D RHG slab of height ~2*d
         d_val = int(self.d)
         max_t = 2 * d_val
         z0 = int(self.source[2]) * (2 * d_val)  # base z-offset per block
@@ -234,12 +229,15 @@ class RHGBlock:
         # Assign nodes for each time slice
         nodes_by_z = self._assign_nodes_by_timeslice(g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role)
 
+        self._construct_schedule(nodes_by_z, node2role)
+
         # Add spatial and temporal edges
         RHGBlock._add_spatial_edges(g, nodes_by_z)
-        RHGBlock._add_temporal_edges(g, nodes_by_z)
+        self._add_temporal_edges(g, nodes_by_z)
 
         return g, node2coord, coord2node, node2role
 
+    # TODO: avoid MutableMapping since it's not safe
     def _assign_nodes_by_timeslice(
         self,
         g: GraphState,
@@ -308,8 +306,7 @@ class RHGBlock:
                         with suppress(Exception):
                             g.add_physical_edge(u, v)
 
-    @staticmethod
-    def _add_temporal_edges(g: GraphState, nodes_by_z: Mapping[int, Mapping[tuple[int, int], int]]) -> None:
+    def _add_temporal_edges(self, g: GraphState, nodes_by_z: Mapping[int, Mapping[tuple[int, int], int]]) -> None:
         """Add inter-slice temporal edges."""
         t_keys = sorted(nodes_by_z.keys())
         for i in range(1, len(t_keys)):
@@ -320,18 +317,21 @@ class RHGBlock:
                 if v is not None:
                     with suppress(Exception):
                         g.add_physical_edge(u, v)
+                    self.flow.flow.setdefault(NodeIdLocal(v), set()).add(NodeIdLocal(u))
 
     def _register_io_nodes(
         self,
         g: GraphState,
         node2coord: Mapping[int, tuple[int, int, int]],
         coord2node: Mapping[tuple[int, int, int], int],
+        node2role: Mapping[int, str],
     ) -> None:
         """Register input/output nodes for visualization."""
         try:
             # Determine z- (min) and z+ (max) among DATA nodes only
-            data_coords_all = [c for n, c in node2coord.items() if self.node2role.get(NodeIdLocal(n)) == "data"]
+            data_coords_all = [c for n, c in node2coord.items() if node2role.get(n) == "data"]
             if not data_coords_all:
+                print("Warning: no data nodes found in RHGBlock; skipping I/O registration")
                 return
 
             zmin = min(c[2] for c in data_coords_all)
@@ -348,13 +348,38 @@ class RHGBlock:
             # Visualization aid only; avoid breaking materialization pipelines
             print(f"Warning: failed to register I/O nodes on RHGBlock: {e}")
 
-    def _assign_meas_bases(self, g: GraphState, meas_bases_map: Mapping[int, MeasBasis]) -> None:  # noqa: PLR6301
-        """Assign measurement bases for non-output nodes."""
+    def _assign_meas_bases(self, g: GraphState, meas_basis: MeasBasis) -> None:  # noqa: PLR6301
+        """Assign measurement basis for non-output nodes."""
         for node in g.physical_nodes - g.output_node_indices.keys():
-            meas_basis = meas_bases_map.get(node)
-            if meas_basis is None:
-                meas_basis = AxisMeasBasis(Axis.X, Sign.PLUS)
             g.assign_meas_basis(node, meas_basis)
+
+    def _construct_detectors(self) -> None:
+        raise NotImplementedError
+
+    def _construct_schedule(
+        self, nodes_by_z: Mapping[int, Mapping[tuple[int, int], int]], node2role: Mapping[int, str]
+    ) -> None:
+        for t, nodes in nodes_by_z.items():
+            # Separate nodes by role: ancillas first, then data
+            ancilla_nodes = []
+            data_nodes = []
+
+            for node_id in nodes.values():
+                role = node2role.get(NodeIdLocal(node_id), "")
+                if role in {"ancilla_x", "ancilla_z"}:
+                    ancilla_nodes.append(node_id)
+                else:  # data or other roles
+                    data_nodes.append(node_id)
+
+            # Schedule ancillas and data at different time slots
+            # ancillas at 2*t, data at 2*t+1 to ensure temporal separation
+            if ancilla_nodes:
+                ancilla_global_nodes = {NodeIdGlobal(node_id) for node_id in ancilla_nodes}
+                self.schedule.schedule[2 * t] = ancilla_global_nodes
+
+            if data_nodes:
+                data_global_nodes = {NodeIdGlobal(node_id) for node_id in data_nodes}
+                self.schedule.schedule[2 * t + 1] = data_global_nodes
 
     def _build_coordinate_mappings(
         self, coord2node: Mapping[tuple[int, int, int], int], zmin: int, zmax: int
@@ -381,10 +406,12 @@ class RHGBlock:
     ) -> dict[tuple[int, int], int]:
         """Register input ports and return logical index mapping."""
         xy_to_lidx: dict[tuple[int, int], int] = {}
-        if not self.in_ports:
+        if not self.in_ports:  # is this branch necessary?
             return xy_to_lidx
 
-        xy_to_q = self.template.get_data_indices()
+        # Use patch coordinate from source for consistent q_index calculation
+        patch_coord = (self.source[0], self.source[1]) if self.source else None
+        xy_to_q = self.template.get_data_indices(patch_coord)
         inv_q_to_xy = {q: xy for xy, q in xy_to_q.items()}
 
         for qidx in self.in_ports:
@@ -395,8 +422,8 @@ class RHGBlock:
             xy_tuple = (int(xy_raw[0]), int(xy_raw[1]))
             n_in = xy_to_innode.get(xy_tuple)
             if n_in is not None:
-                lidx = g.register_input(n_in)
-                xy_to_lidx[xy_tuple] = lidx
+                g.register_input(n_in, qidx)
+                xy_to_lidx[xy_tuple] = qidx
 
         return xy_to_lidx
 
@@ -407,7 +434,9 @@ class RHGBlock:
         if not self.out_ports:
             return
 
-        xy_to_q = self.template.get_data_indices()
+        # Use patch coordinate from source for consistent q_index calculation
+        patch_coord = (self.source[0], self.source[1]) if self.source else None
+        xy_to_q = self.template.get_data_indices(patch_coord)
         inv_q_to_xy = {q: xy for xy, q in xy_to_q.items()}
 
         for qidx in self.out_ports:

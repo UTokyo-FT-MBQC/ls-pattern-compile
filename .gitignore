@@ -213,6 +213,7 @@ __marimo__/
 # Custom
 *.png
 *.svg
+*.html
 uv.lock
 AGENTS.md
 

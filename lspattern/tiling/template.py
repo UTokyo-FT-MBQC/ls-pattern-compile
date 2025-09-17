@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-# import layout acceptable; avoid heavy reordering for clarity
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
@@ -8,13 +7,42 @@ import matplotlib.pyplot as plt
 
 from lspattern.consts.consts import PIPEDIRECTION
 from lspattern.mytype import (
-    EdgeSpecValue,
     QubitIndexLocal,
     SpatialEdgeSpec,
     TilingCoord2D,
 )
 from lspattern.tiling.base import Tiling
 from lspattern.utils import sort_xy
+
+
+def calculate_qindex_base(patch_coord: tuple[int, int], d: int) -> int:
+    """Calculate the starting q_index for data qubits in a patch.
+
+    Each patch at coordinate (px, py) gets a unique range of q_indices.
+    This ensures that patches at the same coordinate always get the same q_indices,
+    enabling consistent mapping across different temporal layers.
+
+    Parameters
+    ----------
+    patch_coord : tuple[int, int]
+        The (px, py) coordinate of the patch in the global tiling
+    d : int
+        The distance parameter, determines number of data qubits per patch
+
+    Returns
+    -------
+    int
+        The starting q_index for this patch's data qubits
+    """
+    px, py = patch_coord
+    # Use a large enough stride to ensure no overlap between patches
+    # Each patch can have at most d*d data qubits
+    max_qubits_per_patch = d * d
+    # Create a unique index for this patch coordinate
+    # Use a grid layout with sufficient spacing
+    patch_index = py * 1000 + px  # 1000 should be enough for reasonable grid sizes
+    return patch_index * max_qubits_per_patch
+
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -51,9 +79,20 @@ class ScalableTemplate(Tiling):
             v = "O"
         return str(v).upper()
 
-    def get_data_indices(self) -> dict[TilingCoord2D, QubitIndexLocal]:
+    def get_data_indices(self, patch_coord: tuple[int, int] | None = None) -> dict[TilingCoord2D, QubitIndexLocal]:
         coord_set = {(coord[0], coord[1]) for coord in self.data_coords}
         sorted_coords = sort_xy(coord_set)
+
+        # If data_indices have been explicitly set, use them (legacy compatibility)
+        if self.data_indices and len(self.data_indices) == len(sorted_coords):
+            return {TilingCoord2D(coor): self.data_indices[i] for i, coor in enumerate(sorted_coords)}
+
+        # If patch coordinate is provided, use it to calculate consistent q_indices
+        if patch_coord is not None:
+            base_qindex = calculate_qindex_base(patch_coord, self.d)
+            return {TilingCoord2D(coor): QubitIndexLocal(base_qindex + i) for i, coor in enumerate(sorted_coords)}
+
+        # Otherwise, generate default indices starting from 0 (fallback for backward compatibility)
         return {TilingCoord2D(coor): QubitIndexLocal(i) for i, coor in enumerate(sorted_coords)}
 
     # ---- Coordinate and index shifting APIs ---------------------------------
@@ -89,7 +128,7 @@ class ScalableTemplate(Tiling):
             bx, by_ = by  # type: ignore[misc]
             dx, dy = int(bx), int(by_)
         elif coordinate == "phys3d":
-            bx, by_, _bz = by  # type: ignore[misc]
+            bx, by_, _ = by  # type: ignore[misc]
             dx, dy = int(bx), int(by_)
         elif coordinate == "patch3d":
             # Default block-style behavior (INNER offset)
@@ -110,25 +149,6 @@ class ScalableTemplate(Tiling):
         new.x_coords = t.x_coords
         new.z_coords = t.z_coords
         return new
-
-    def shift_qindex(self, by: int, *, inplace: bool = True) -> ScalableTemplate:
-        """Shift local qubit indices, if present in this template instance.
-
-        This is optional; ConnectedTiling rebuilds indexes, but callers may
-        use this for standalone composition.
-        """
-        if self.data_indices:
-            shifted = [QubitIndexLocal(int(i) + int(by)) for i in self.data_indices]
-            if inplace:
-                self.data_indices = shifted
-            else:
-                new = type(self)(d=self.d, edgespec=self.edgespec)
-                new.data_coords = list(self.data_coords)
-                new.x_coords = list(self.x_coords)
-                new.z_coords = list(self.z_coords)
-                new.data_indices = shifted
-                return new
-        return self
 
     def trim_spatial_boundary(self, direction: str) -> None:
         """Remove ancilla/two-body checks on a given boundary in 2D tiling.
@@ -341,7 +361,7 @@ def cube_offset_xy(
     d: int,
     patch: tuple[int, int, int],
 ) -> tuple[int, int]:
-    px, py, _pz = patch
+    px, py, _ = patch
     base_x = 2 * (d + 1) * int(px)
     base_y = 2 * (d + 1) * int(py)
     # INNER anchor only (global policy)
@@ -520,7 +540,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
             bx, by_ = by  # type: ignore[misc]
             dx, dy = int(bx), int(by_)
         elif coordinate == "phys3d":
-            bx, by_, _bz = by  # type: ignore[misc]
+            bx, by_, _ = by  # type: ignore[misc]
             dx, dy = int(bx), int(by_)
         elif coordinate == "patch3d":
             if direction is None:
@@ -547,9 +567,6 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         new.x_coords = t.x_coords
         new.z_coords = t.z_coords
         return new
-
-    def shift_qindex(self, by: int, *, inplace: bool = True) -> RotatedPlanarPipetemplate:
-        return super().shift_qindex(by, inplace=inplace)  # type: ignore[return-value]
 
 
 def pipe_offset_xy(
@@ -599,77 +616,3 @@ def pipe_offset_xy(
 
     msg = f"Invalid direction for pipe offset: {direction}"
     raise ValueError(msg)
-
-
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-
-    from lspattern.mytype import EdgeSpec
-
-    def set_edgespec(**kw: EdgeSpecValue) -> None:
-        EdgeSpec.update(
-            {
-                "TOP": "O",
-                "BOTTOM": "O",
-                "LEFT": "O",
-                "RIGHT": "O",
-                "UP": "O",
-                "DOWN": "O",
-            }
-        )
-        EdgeSpec.update({k.upper(): v for k, v in kw.items()})
-
-    SHOW_BLOCK = False
-    SHOW_PIPE = True
-
-    if SHOW_BLOCK:
-        d = 3
-        configs: list[tuple[str, SpatialEdgeSpec]] = [
-            ("L/R=X, T/B=Z", {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}),
-            ("L/R=Z, T/B=X", {"LEFT": "Z", "RIGHT": "Z", "TOP": "X", "BOTTOM": "X"}),
-            ("All X", {"LEFT": "X", "RIGHT": "X", "TOP": "X", "BOTTOM": "X"}),
-            ("All Z", {"LEFT": "Z", "RIGHT": "Z", "TOP": "Z", "BOTTOM": "Z"}),
-        ]
-
-        fig, axes = plt.subplots(2, 2, figsize=(10, 10))
-        for (label, spec), ax in zip(configs, axes.ravel(), strict=False):
-            set_edgespec(**spec)
-            template = RotatedPlanarCubeTemplate(d=d, edgespec=spec)
-            template.to_tiling()
-            template.visualize_tiling(ax=ax, show=False, title_suffix=label)
-
-        fig.suptitle(f"Rotated Planar (EdgeSpec-driven) d={d}")
-        fig.tight_layout()
-        plt.show()
-
-    if SHOW_PIPE:
-        d = 7
-        pipe_cfgs: list[tuple[str, SpatialEdgeSpec]] = [
-            (
-                "Pipe X: TOP=X, BOTTOM=Z",
-                {"TOP": "X", "BOTTOM": "Z", "LEFT": "O", "RIGHT": "O"},
-            ),
-            (
-                "Pipe X: TOP=Z, BOTTOM=X",
-                {"TOP": "Z", "BOTTOM": "X", "LEFT": "O", "RIGHT": "O"},
-            ),
-            (
-                "Pipe Y: LEFT=X, RIGHT=Z",
-                {"LEFT": "X", "RIGHT": "Z", "TOP": "O", "BOTTOM": "O"},
-            ),
-            (
-                "Pipe Y: LEFT=Z, RIGHT=X",
-                {"LEFT": "Z", "RIGHT": "X", "TOP": "O", "BOTTOM": "O"},
-            ),
-        ]
-
-        fig2, axes2 = plt.subplots(2, 2, figsize=(10, 10))
-        for (label, spec), ax in zip(pipe_cfgs, axes2.ravel(), strict=False):
-            set_edgespec(**spec)
-            ptemp = RotatedPlanarPipetemplate(d=d, edgespec=spec)
-            ptemp.to_tiling()
-            ptemp.visualize_tiling(ax=ax, show=False, title_suffix=label)
-
-        fig2.suptitle(f"Rotated Planar Pipes (EdgeSpec) d={d}")
-        fig2.tight_layout()
-        plt.show()
