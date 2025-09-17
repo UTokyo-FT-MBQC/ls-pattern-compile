@@ -59,7 +59,7 @@ class MemoryCube(RHGCube):
         x2d = self.template.x_coords
         z2d = self.template.z_coords
 
-        t_offset = min(self.schedule.schedule.keys(), default=0)
+        t_offset = int(self.source[2])
         height = max(self.schedule.schedule.keys(), default=0) - t_offset + 1
         dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
         for t in range(height):
