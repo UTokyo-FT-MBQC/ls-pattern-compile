@@ -1279,15 +1279,11 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
     new_layers = [*cgraph.layers, next_layer]
 
     # Update accumulators
-    # Collect input nodes from next_layer to exclude from schedule
-    input_nodes_to_exclude: set[NodeIdGlobal] = set()
-    for nodes in next_layer.in_portset.values():
-        for node_id in nodes:
-            # Convert to NodeIdGlobal after node remapping
-            remapped_node = node_map2.get(int(node_id), int(node_id))
-            input_nodes_to_exclude.add(NodeIdGlobal(remapped_node))
-
-    new_schedule = cgraph.schedule.compose_sequential(next_layer.schedule, exclude_nodes=input_nodes_to_exclude)
+    last_nodes = set(next_layer.in_ports)
+    # remap to global node IDs
+    last_nodes_remapped = {node_map2[int(n)] for n in last_nodes}
+    cgraph_filtered_schedule = cgraph.schedule.exclude_nodes(last_nodes_remapped)
+    new_schedule = cgraph_filtered_schedule.compose_sequential(next_layer.schedule, exclude_nodes=None)
     # TODO: Fix flow merge to handle connected q_indices properly
     try:
         merged_flow = cgraph.flow.merge_with(next_layer.flow)

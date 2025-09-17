@@ -123,6 +123,26 @@ class ScheduleAccumulator:
                 new_schedule[t] = new_schedule.get(t, set()).union(filtered_nodes)
         return ScheduleAccumulator(new_schedule)
 
+    def exclude_nodes(self, nodes_to_exclude: set[NodeIdGlobal]) -> ScheduleAccumulator:
+        """Remove specified nodes from the schedule.
+
+        Parameters
+        ----------
+        nodes_to_exclude : set[NodeIdGlobal]
+            Set of nodes to remove from the schedule.
+
+        Returns
+        -------
+        ScheduleAccumulator
+            New accumulator with specified nodes removed.
+        """
+        new_schedule = {}
+        for t, nodes in self.schedule.items():
+            filtered_nodes = nodes - nodes_to_exclude
+            if filtered_nodes:  # Only add if there are remaining nodes
+                new_schedule[t] = filtered_nodes
+        return ScheduleAccumulator(new_schedule)
+
     def compact(self) -> ScheduleAccumulator:
         """Remove empty time slots and reindex times to be consecutive starting from 0.
 
