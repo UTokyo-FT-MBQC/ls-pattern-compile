@@ -4,15 +4,13 @@ Merge and Split
 """
 
 # %%
-import matplotlib.pyplot as plt
-
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.memory import MemoryPipeSkeleton
 from lspattern.blocks.cubes.measure import MeasureXSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.mytype import PatchCoordGlobal3D
-from lspattern.visualizers import visualize_compiled_canvas, visualize_compiled_canvas_plotly
+from lspattern.visualizers import visualize_compiled_canvas_plotly
 
 # %%
 d = 3
@@ -33,14 +31,14 @@ blocks = [
         PatchCoordGlobal3D((1, 0, 0)),
         InitPlusCubeSkeleton(d=3, edgespec=edgespec),
     ),
-    # (
-    #     PatchCoordGlobal3D((0, 0, 1)),
-    #     MemoryCubeSkeleton(d=3, edgespec=edgespec1),
-    # ),
-    # (
-    #     PatchCoordGlobal3D((1, 0, 1)),
-    #     MemoryCubeSkeleton(d=3, edgespec=edgespec2),
-    # ),
+    (
+        PatchCoordGlobal3D((0, 0, 1)),
+        MemoryCubeSkeleton(d=3, edgespec=edgespec1),
+    ),
+    (
+        PatchCoordGlobal3D((1, 0, 1)),
+        MemoryCubeSkeleton(d=3, edgespec=edgespec2),
+    ),
     # (
     #     PatchCoordGlobal3D((0, 0, 2)),
     #     MemoryCubeSkeleton(d=3, edgespec=edgespec),
@@ -90,18 +88,37 @@ print(
     }
 )
 
-# %%
+# Print flow and parity information
+xflow = {}
+for src, dsts in compiled_canvas.flow.flow.items():
+    xflow[int(src)] = {int(dst) for dst in dsts}
+x_parity = []
+for group_list in compiled_canvas.parity.checks.values():
+    x_parity.extend(group_list)
 
-fig = visualize_compiled_canvas(compiled_canvas, show=True, show_edges=True)
-# fig  # This would display the figure in Jupyter
+# Print X flow organized by schedule if available
+print("X flow:")
+compact_schedule = compiled_canvas.schedule.compact()
+for t, nodes in compact_schedule.schedule.items():
+    flows_at_time = []
+    for node in nodes:
+        if node in xflow:
+            flows_at_time.append(f"{node} -> {xflow[node]}")
+    if flows_at_time:
+        print(f"  Time {t}: {', '.join(flows_at_time)}")
+# Print any remaining flows not in schedule
+scheduled_nodes = set()
+for nodes in compact_schedule.schedule.values():
+    scheduled_nodes.update(nodes)
+remaining_flows = {src: dsts for src, dsts in xflow.items() if src not in scheduled_nodes}
+if remaining_flows:
+    remaining_flow_strs = [f"{src} -> {dsts}" for src, dsts in remaining_flows.items()]
+    print(f"  Unscheduled flows: {', '.join(remaining_flow_strs)}")
 
-# %%
+print("X parity")
+for coord, group_list in compiled_canvas.parity.checks.items():
+    print(f"  {coord}: {group_list}")
 
-vals = compiled_canvas.coord2node
-vals2d = set((x, y) for (x, y, z) in vals)
-plt.scatter(*[list(t) for t in zip(*vals2d, strict=False)], s=1)
-plt.gca().set_aspect("equal", "box")
-plt.show()
 
 # %%
 
