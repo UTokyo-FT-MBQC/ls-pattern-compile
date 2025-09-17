@@ -80,6 +80,8 @@ class RHGBlock:
         Bidirectional maps between node ids and 3D coordinates.
     node2role : dict[int, str]
         Role of each node: ``'data'``, ``'ancilla_x'`` or ``'ancilla_z'``.
+    node_map_global : dict[NodeIdLocal, NodeIdLocal]
+        Mapping from local node IDs to global node IDs (set during graph composition).
     """
 
     name: ClassVar[str] = __qualname__
@@ -106,6 +108,9 @@ class RHGBlock:
     node2coord: dict[NodeIdLocal, PhysCoordGlobal3D] = field(init=False, default_factory=dict)
     coord2node: dict[PhysCoordGlobal3D, NodeIdLocal] = field(init=False, default_factory=dict)
     node2role: dict[NodeIdLocal, str] = field(init=False, default_factory=dict)
+
+    # Node mapping from local to global space (set during graph composition)
+    node_map_global: dict[NodeIdLocal, NodeIdLocal] = field(init=False, default_factory=dict)
 
     final_layer: str | None = None  # "M", "MX", "MZ", "MY" or "O" (open, no measurement)
 
