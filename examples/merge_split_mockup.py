@@ -8,18 +8,19 @@ Merge and Splitのmockup
 """
 
 # %%
+from matplotlib.patches import Patch
 import matplotlib.pyplot as plt
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.memory import MemoryPipeSkeleton
+from lspattern.blocks.cubes.measure import MeasureXSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.mytype import PatchCoordGlobal3D
 from lspattern.visualizers import visualize_compiled_canvas, visualize_compiled_canvas_plotly
 
 # %%
 d = 3
-r = 3
 
 
 canvass = RHGCanvasSkeleton("Memory X")
@@ -53,6 +54,14 @@ blocks = [
         PatchCoordGlobal3D((1, 0, 2)),
         MemoryCubeSkeleton(d=3, edgespec=edgespec),
     ),
+    (
+        PatchCoordGlobal3D((0, 0, 3)),
+        MeasureXSkeleton(d=3, edgespec=edgespec),
+    ),
+    (
+        PatchCoordGlobal3D((1, 0, 3)),
+        MeasureXSkeleton(d=3, edgespec=edgespec),
+    )
 ]
 pipes = [
     (
@@ -65,25 +74,9 @@ pipes = [
         PatchCoordGlobal3D((0, 0, 1)),
         MemoryPipeSkeleton(d=3, edgespec=edgespec_trimmed),
     ),
-    # (
-    #     PatchCoordGlobal3D((0, 0, 1)),
-    #     PatchCoordGlobal3D((0, 0, 2)),
-    #     MemoryPipeSkeleton(d=3, edgespec=edgespec_trimmed),
-    # ),
-    # (
-    #     PatchCoordGlobal3D((1, 0, 0)),
-    #     PatchCoordGlobal3D((1, 0, 1)),
-    #     MemoryPipeSkeleton(d=3, edgespec=edgespec_trimmed),
-    # ),
-    # (
-    #     PatchCoordGlobal3D((1, 0, 1)),
-    #     PatchCoordGlobal3D((1, 0, 2)),
-    #     MemoryPipeSkeleton(d=3, edgespec=edgespec_trimmed),
-    # ),
 ]
 
 for block in blocks:
-    # RHGCanvasSkeleton は skeleton を受け取り、to_canvas() で block 化します
     canvass.add_cube(*block)
 for pipe in pipes:
     canvass.add_pipe(*pipe)
