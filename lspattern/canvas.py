@@ -206,21 +206,14 @@ class TemporalLayer:
 
     @staticmethod
     def _compose_single_cube(
-        pos: PatchCoordGlobal3D, blk: RHGCube, g: BaseGraphState  # noqa: ARG004
+        pos: PatchCoordGlobal3D,
+        blk: RHGCube,
+        g: BaseGraphState,
     ) -> tuple[BaseGraphState, Mapping[int, int], Mapping[int, int]]:
         """Compose a single cube into the graph."""
         g2 = blk.local_graph
 
-        # Use the block's actual input_node_indices to preserve q_index consistency
-        # This ensures that q_indices calculated from patch coordinates are maintained
-        # Only apply this when the first graph has output nodes to connect to
-        if g.output_node_indices:
-            target_q_indices = set(g2.input_node_indices.values()) if g2.input_node_indices else set()
-        else:
-            # For the first composition (empty graph), use empty target_q_indices
-            target_q_indices = set()
-
-        g_new, node_map1, node_map2 = compose(g, g2, target_q_indices=target_q_indices)
+        g_new, node_map1, node_map2 = compose(g, g2)
         return g_new, node_map1, node_map2
 
     def _process_cube_coordinates(self, blk: RHGCube, pos: tuple[int, int, int], node_map2: Mapping[int, int]) -> None:
@@ -263,10 +256,7 @@ class TemporalLayer:
         if blk.cout_ports:
             patch_pos = PatchCoordGlobal3D(pos)
             self.cout_portset[patch_pos] = [
-                NodeIdLocal(node_map2[n])
-                for s in blk.cout_ports
-                for n in s
-                if n in node_map2
+                NodeIdLocal(node_map2[n]) for s in blk.cout_ports for n in s if n in node_map2
             ]
 
     def _build_graph_from_blocks(self) -> BaseGraphState:
@@ -339,12 +329,7 @@ class TemporalLayer:
             pipe_block = pipe
             g2 = pipe.local_graph
 
-            # Use the pipe's actual input_node_indices to preserve q_index consistency
-            if g.output_node_indices:
-                target_q_indices = set(g2.input_node_indices.values()) if g2.input_node_indices else set()
-            else:
-                target_q_indices = set()
-            g_new, node_map1, node_map2 = compose(g, g2, target_q_indices=target_q_indices)
+            g_new, node_map1, node_map2 = compose(g, g2)
             self._remap_node_mappings(node_map1)
             self._remap_portsets(node_map1)
             g = g_new
@@ -1261,9 +1246,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         return _create_first_layer_canvas(next_layer)
 
     # Compose graphs and remap
-    # Determine connection mapping based on coordinate matching
-    target_q_indices = _determine_connection_qindices(cgraph, next_layer)
-    new_graph, node_map1, node_map2 = compose(cgraph.global_graph, next_layer.local_graph, target_q_indices)
+    new_graph, node_map1, node_map2 = compose(cgraph.global_graph, next_layer.local_graph)
 
     # Only remap if node mapping actually changes node IDs
     if any(k != v for k, v in node_map1.items()):
