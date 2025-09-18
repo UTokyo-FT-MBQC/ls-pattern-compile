@@ -46,6 +46,9 @@ class InitPlusPipeSkeleton(RHGPipeSkeleton):
             edgespec=self.edgespec,
             direction=direction,
         )
+        # Set source and sink for boundary-based qindex calculation
+        block.source = source
+        block.sink = sink
         # Init blocks: final layer is open (O) without measurement
         block.final_layer = "O"
         return block
@@ -68,9 +71,17 @@ class InitPlusPipe(RHGPipe):
         # Init pipe: 入力ポートは持たない
         return super().set_in_ports(patch_coord)
 
-    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
+    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         # Init pipe: 出力はテンプレートの data 全インデックス
-        idx_map = self.template.get_data_indices()
+        if patch_coord is not None and self.source is not None and self.sink is not None:
+            source_2d = (self.source[0], self.source[1])
+            sink_2d = (self.sink[0], self.sink[1])
+            idx_map = self.template.get_data_indices(
+                source_2d, patch_type="pipe", sink_patch=sink_2d
+            )
+        else:
+            # Fallback for backward compatibility (no patch coordinate or source/sink info)
+            idx_map = self.template.get_data_indices()
         self.out_ports = set(idx_map.values())
 
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
