@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, overload
 
 import matplotlib.pyplot as plt
 
@@ -15,12 +15,37 @@ from lspattern.tiling.base import Tiling
 from lspattern.utils import sort_xy
 
 
-def calculate_qindex_base(patch_coord: tuple[int, int], d: int) -> int:
+@overload
+def calculate_qindex_base(patch_coord: tuple[int, int], d: int) -> int: ...
+
+
+@overload
+def calculate_qindex_base(
+    patch_coord: tuple[int, int],
+    d: int,
+    *,
+    patch_type: Literal["pipe"],
+    sink_patch: tuple[int, int],
+) -> int: ...
+
+
+def calculate_qindex_base(
+    patch_coord: tuple[int, int],
+    d: int,
+    *,
+    patch_type: Literal["cube", "pipe"] = "cube",
+    sink_patch: tuple[int, int] | None = None,
+) -> int:
     """Calculate the starting q_index for data qubits in a patch.
 
     Each patch at coordinate (px, py) gets a unique range of q_indices.
     This ensures that patches at the same coordinate always get the same q_indices,
     enabling consistent mapping across different temporal layers.
+
+    For cubes and pipes, we allocate separate index ranges to avoid conflicts:
+    - Cube: d*d data qubits at base offset
+    - Horizontal pipes: d data qubits at base + d*d
+    - Vertical pipes: d data qubits at base + d*d + d
 
     Parameters
     ----------
@@ -28,6 +53,10 @@ def calculate_qindex_base(patch_coord: tuple[int, int], d: int) -> int:
         The (px, py) coordinate of the patch in the global tiling
     d : int
         The distance parameter, determines number of data qubits per patch
+    patch_type : Literal["cube", "pipe"], default "cube"
+        Type of the patch (cube or pipe)
+    sink_patch : tuple[int, int] | None, default None
+        Sink patch coordinate (required for pipes)
 
     Returns
     -------
@@ -35,13 +64,85 @@ def calculate_qindex_base(patch_coord: tuple[int, int], d: int) -> int:
         The starting q_index for this patch's data qubits
     """
     px, py = patch_coord
-    # Use a large enough stride to ensure no overlap between patches
-    # Each patch can have at most d*d data qubits
-    max_qubits_per_patch = d * d
-    # Create a unique index for this patch coordinate
+
+    # Use a large enough stride to ensure no overlap between different grid positions
+    # Each grid position can have:
+    # - 1 cube with d*d data qubits
+    # - up to 2 pipes (horizontal + vertical) with d data qubits each
+    max_qubits_per_grid_position = d * d + 2 * d
+
+    # Create a unique base index for this grid coordinate
     # Use a grid layout with sufficient spacing
     patch_index = py * 1000 + px  # 1000 should be enough for reasonable grid sizes
-    return patch_index * max_qubits_per_patch
+    base_index = patch_index * max_qubits_per_grid_position
+
+    if patch_type == "cube":
+        return base_index
+    if patch_type == "pipe":
+        # Pipes require sink_patch for boundary-based qindex calculation
+        if sink_patch is None:
+            msg = "sink_patch is required when patch_type='pipe'"
+            raise ValueError(msg)
+        return _calculate_pipe_boundary_qindex(patch_coord, sink_patch, d)
+    msg = f"Invalid patch_type: {patch_type}"
+    raise ValueError(msg)
+
+
+def _calculate_pipe_boundary_qindex(source_patch: tuple[int, int], sink_patch: tuple[int, int], d: int) -> int:
+    """Calculate qindex for a pipe based on the boundary between source and sink patches.
+
+    This ensures that pipes sharing the same physical data qubits get the same qindex.
+
+    Parameters
+    ----------
+    source_patch : tuple[int, int]
+        Source patch coordinate (px, py)
+    sink_patch : tuple[int, int]
+        Sink patch coordinate (px, py)
+    d : int
+        Distance parameter
+
+    Returns
+    -------
+    int
+        The base qindex for the pipe's data qubits
+    """
+    spx, spy = source_patch
+    dpx, dpy = sink_patch
+
+    # Determine pipe direction and boundary position
+    dx = dpx - spx
+    dy = dpy - spy
+
+    # Validate that patches are adjacent
+    if abs(dx) + abs(dy) != 1:
+        msg = f"Source {source_patch} and sink {sink_patch} must be adjacent (Manhattan distance 1)"
+        raise ValueError(msg)
+
+    # Calculate boundary position - use the lower coordinate value for consistency
+    if dx != 0:  # Horizontal pipe
+        boundary_x = min(spx, dpx)
+        boundary_y = spy  # Same Y coordinate
+        boundary_pos = (boundary_x, boundary_y)
+        direction = "horizontal"
+    else:  # Vertical pipe (dy != 0)
+        boundary_x = spx  # Same X coordinate
+        boundary_y = min(spy, dpy)
+        boundary_pos = (boundary_x, boundary_y)
+        direction = "vertical"
+
+    # Calculate qindex based on boundary position
+    px, py = boundary_pos
+    max_qubits_per_grid_position = d * d + 2 * d
+    patch_index = py * 1000 + px
+    base_index = patch_index * max_qubits_per_grid_position
+
+    # Add offset for pipe type
+    cube_range = d * d
+    if direction == "horizontal":
+        return base_index + cube_range
+    # vertical
+    return base_index + cube_range + d
 
 
 if TYPE_CHECKING:
@@ -79,7 +180,37 @@ class ScalableTemplate(Tiling):
             v = "O"
         return str(v).upper()
 
-    def get_data_indices(self, patch_coord: tuple[int, int] | None = None) -> dict[TilingCoord2D, QubitIndexLocal]:
+    @overload
+    def get_data_indices(
+        self,
+        patch_coord: tuple[int, int] | None = None,
+    ) -> dict[TilingCoord2D, QubitIndexLocal]: ...
+
+    @overload
+    def get_data_indices(
+        self,
+        patch_coord: tuple[int, int] | None = None,
+        *,
+        patch_type: Literal["cube"],
+        sink_patch: tuple[int, int] | None = None,
+    ) -> dict[TilingCoord2D, QubitIndexLocal]: ...
+
+    @overload
+    def get_data_indices(
+        self,
+        patch_coord: tuple[int, int] | None = None,
+        *,
+        patch_type: Literal["pipe"],
+        sink_patch: tuple[int, int],
+    ) -> dict[TilingCoord2D, QubitIndexLocal]: ...
+
+    def get_data_indices(
+        self,
+        patch_coord: tuple[int, int] | None = None,
+        *,
+        patch_type: Literal["cube", "pipe"] = "cube",
+        sink_patch: tuple[int, int] | None = None,
+    ) -> dict[TilingCoord2D, QubitIndexLocal]:
         coord_set = {(coord[0], coord[1]) for coord in self.data_coords}
         sorted_coords = sort_xy(coord_set)
 
@@ -89,7 +220,14 @@ class ScalableTemplate(Tiling):
 
         # If patch coordinate is provided, use it to calculate consistent q_indices
         if patch_coord is not None:
-            base_qindex = calculate_qindex_base(patch_coord, self.d)
+            if patch_type == "pipe":
+                # For pipes, sink_patch is required (validated by overload)
+                if sink_patch is None:
+                    msg = "sink_patch is required for pipes"
+                    raise ValueError(msg)
+                base_qindex = calculate_qindex_base(patch_coord, self.d, patch_type="pipe", sink_patch=sink_patch)
+            else:
+                base_qindex = calculate_qindex_base(patch_coord, self.d)
             return {TilingCoord2D(coor): QubitIndexLocal(base_qindex + i) for i, coor in enumerate(sorted_coords)}
 
         # Otherwise, generate default indices starting from 0 (fallback for backward compatibility)

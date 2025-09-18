@@ -206,21 +206,14 @@ class TemporalLayer:
 
     @staticmethod
     def _compose_single_cube(
-        pos: PatchCoordGlobal3D, blk: RHGCube, g: BaseGraphState  # noqa: ARG004
+        pos: PatchCoordGlobal3D,  # noqa: ARG004
+        blk: RHGCube,
+        g: BaseGraphState,
     ) -> tuple[BaseGraphState, Mapping[int, int], Mapping[int, int]]:
         """Compose a single cube into the graph."""
         g2 = blk.local_graph
 
-        # Use the block's actual input_node_indices to preserve q_index consistency
-        # This ensures that q_indices calculated from patch coordinates are maintained
-        # Only apply this when the first graph has output nodes to connect to
-        if g.output_node_indices:
-            target_q_indices = set(g2.input_node_indices.values()) if g2.input_node_indices else set()
-        else:
-            # For the first composition (empty graph), use empty target_q_indices
-            target_q_indices = set()
-
-        g_new, node_map1, node_map2 = compose(g, g2, target_q_indices=target_q_indices)
+        g_new, node_map1, node_map2 = compose(g, g2)
         return g_new, node_map1, node_map2
 
     def _process_cube_coordinates(self, blk: RHGCube, pos: tuple[int, int, int], node_map2: Mapping[int, int]) -> None:
@@ -250,6 +243,24 @@ class TemporalLayer:
             if new_n is not None:
                 self.node2role[NodeIdLocal(new_n)] = role
 
+    def _process_pipe_ports(self, pipe_coord: PipeCoordGlobal3D, pipe: RHGPipe, node_map2: Mapping[int, int]) -> None:
+        """Process pipe ports with node mapping."""
+        source, sink = pipe_coord
+        if pipe.in_ports:
+            patch_pos = PatchCoordGlobal3D(source)
+            self.in_portset[patch_pos] = [NodeIdLocal(node_map2[n]) for n in pipe.in_ports if n in node_map2]
+            self.in_ports.extend(self.in_portset[patch_pos])
+        if pipe.out_ports:
+            patch_pos = PatchCoordGlobal3D(sink)
+            mapped_nodes = [NodeIdLocal(node_map2[n]) for n in pipe.out_ports if n in node_map2]
+            self.out_portset[patch_pos] = mapped_nodes
+            self.out_ports.extend(self.out_portset[patch_pos])
+        if pipe.cout_ports:
+            patch_pos = PatchCoordGlobal3D(sink)
+            self.cout_portset[patch_pos] = [
+                NodeIdLocal(node_map2[n]) for s in pipe.cout_ports for n in s if n in node_map2
+            ]
+
     def _process_cube_ports(self, pos: tuple[int, int, int], blk: RHGCube, node_map2: Mapping[int, int]) -> None:
         """Process cube ports."""
         if blk.in_ports:
@@ -263,10 +274,7 @@ class TemporalLayer:
         if blk.cout_ports:
             patch_pos = PatchCoordGlobal3D(pos)
             self.cout_portset[patch_pos] = [
-                NodeIdLocal(node_map2[n])
-                for s in blk.cout_ports
-                for n in s
-                if n in node_map2
+                NodeIdLocal(node_map2[n]) for s in blk.cout_ports for n in s if n in node_map2
             ]
 
     def _build_graph_from_blocks(self) -> BaseGraphState:
@@ -286,6 +294,8 @@ class TemporalLayer:
         # Compose cube graphs
         for pos, blk in self.cubes_.items():
             g_state, node_map1, node_map2 = self._compose_single_cube(pos, blk, g_state)
+            # Store node mapping for later use in accumulator merging
+            blk.node_map_global = {NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map2.items()}
             self._remap_node_mappings(node_map1)
             self._remap_portsets(node_map1)
             self._process_cube_coordinates(blk, pos, node_map2)
@@ -339,12 +349,9 @@ class TemporalLayer:
             pipe_block = pipe
             g2 = pipe.local_graph
 
-            # Use the pipe's actual input_node_indices to preserve q_index consistency
-            if g.output_node_indices:
-                target_q_indices = set(g2.input_node_indices.values()) if g2.input_node_indices else set()
-            else:
-                target_q_indices = set()
-            g_new, node_map1, node_map2 = compose(g, g2, target_q_indices=target_q_indices)
+            g_new, node_map1, node_map2 = compose(g, g2)
+            # Store node mapping for later use in accumulator merging
+            pipe.node_map_global = {NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map2.items()}
             self._remap_node_mappings(node_map1)
             self._remap_portsets(node_map1)
             g = g_new
@@ -372,6 +379,9 @@ class TemporalLayer:
                 new_n = node_map2.get(old_n)
                 if new_n is not None:
                     self.node2role[NodeIdLocal(new_n)] = role
+
+            # Process pipe ports with node mapping
+            self._process_pipe_ports(pipe_coord, pipe_block, node_map2)
 
         return g
 
@@ -468,6 +478,10 @@ class TemporalLayer:
         existing: set[tuple[int, int]],
     ) -> None:
         """Add edge if valid and not duplicate."""
+        # Check if either node is an output node - if so, don't add edge
+        if int(u) in g.output_node_indices or int(v) in g.output_node_indices:
+            return
+
         # Avoid duplicates by canonical edge ordering
         sorted_edge = tuple(sorted((int(u), int(v))))
         if len(sorted_edge) == EDGE_TUPLE_SIZE:
@@ -523,7 +537,7 @@ class TemporalLayer:
         g = self._build_graph_from_blocks()
 
         # Add CZ edges across cube-pipe seams within the same temporal layer
-        coord_gid_2d: dict[tuple[int, int], QubitGroupIdGlobal] = {}
+        coord_gid_2d = {(x, y): gid for (x, y, _), gid in coord2gid.items()}
         g = self._add_seam_edges(g, coord_gid_2d)
 
         # Finalize
@@ -546,16 +560,46 @@ class TemporalLayer:
             "xy": dict(enumerate(data2d)),
         }
 
-        # Merge accumulators from all blocks
+        # Merge accumulators from all blocks using node mappings from graph composition
         for cube in self.cubes_.values():
-            self.schedule = self.schedule.compose_parallel(cube.schedule)
-            self.flow = self.flow.merge_with(cube.flow)
-            self.parity = self.parity.merge_with(cube.parity)
+            # Get node mapping for this cube (stored during graph composition)
+            node_map = cube.node_map_global
+            if node_map:
+                # Remap cube's accumulators to global node space
+                remapped_schedule = cube.schedule.remap_nodes(
+                    {NodeIdGlobal(k): NodeIdGlobal(v) for k, v in node_map.items()}
+                )
+                remapped_flow = cube.flow.remap_nodes(node_map)
+                remapped_parity = cube.parity.remap_nodes(node_map)
+            else:
+                # Single cube case or no remapping needed
+                remapped_schedule = cube.schedule
+                remapped_flow = cube.flow
+                remapped_parity = cube.parity
+
+            self.schedule = self.schedule.compose_parallel(remapped_schedule)
+            self.flow = self.flow.merge_with(remapped_flow)
+            self.parity = self.parity.merge_with(remapped_parity)
 
         for pipe in self.pipes_.values():
-            self.schedule = self.schedule.compose_parallel(pipe.schedule)
-            self.flow = self.flow.merge_with(pipe.flow)
-            self.parity = self.parity.merge_with(pipe.parity)
+            # Get node mapping for this pipe (stored during graph composition)
+            node_map = pipe.node_map_global
+            if node_map:
+                # Remap pipe's accumulators to global node space
+                remapped_schedule = pipe.schedule.remap_nodes(
+                    {NodeIdGlobal(k): NodeIdGlobal(v) for k, v in node_map.items()}
+                )
+                remapped_flow = pipe.flow.remap_nodes(node_map)
+                remapped_parity = pipe.parity.remap_nodes(node_map)
+            else:
+                # Single pipe case or no remapping needed
+                remapped_schedule = pipe.schedule
+                remapped_flow = pipe.flow
+                remapped_parity = pipe.parity
+
+            self.schedule = self.schedule.compose_parallel(remapped_schedule)
+            self.flow = self.flow.merge_with(remapped_flow)
+            self.parity = self.parity.merge_with(remapped_parity)
 
     def _get_coordinate_bounds(self) -> tuple[int, int, int, int, int, int]:
         """Get min/max bounds for all coordinates."""
@@ -706,7 +750,9 @@ class CompiledRHGCanvas:
     #     pass
 
     @staticmethod
-    def _remap_graph_nodes(gsrc: BaseGraphState, nmap: dict[NodeIdLocal, NodeIdLocal]) -> dict[int, int]:
+    def _remap_graph_nodes(
+        gsrc: BaseGraphState, nmap: dict[NodeIdLocal, NodeIdLocal]
+    ) -> tuple[dict[int, int], GraphState]:
         """Create new nodes in destination graph."""
         gdst = GraphState()
         created: dict[int, int] = {}
@@ -715,7 +761,7 @@ class CompiledRHGCanvas:
             if int(new_id) in created:
                 continue
             created[int(new_id)] = gdst.add_physical_node()
-        return created
+        return created, gdst
 
     @staticmethod
     def _remap_measurement_bases(
@@ -750,8 +796,7 @@ class CompiledRHGCanvas:
         """Create a remapped GraphState."""
         if gsrc is None:
             return None
-        gdst = GraphState()
-        created = CompiledRHGCanvas._remap_graph_nodes(gsrc, nmap)
+        created, gdst = CompiledRHGCanvas._remap_graph_nodes(gsrc, nmap)
         CompiledRHGCanvas._remap_measurement_bases(gsrc, gdst, nmap, created)
         CompiledRHGCanvas._remap_graph_edges(gsrc, gdst, nmap, created)
         return gdst
@@ -1073,27 +1118,6 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
         return cgraph
 
 
-def _determine_connection_qindices(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> set[int]:
-    """Determine which q_indices should be connected between layers.
-
-    With patch coordinate-based q_index calculation, the connection indices are simply
-    the intersection of output indices from the previous layer and input indices of the next layer.
-    """
-    prev_output_qindices = (
-        set(cgraph.global_graph.output_node_indices.values())
-        if cgraph.global_graph and cgraph.global_graph.output_node_indices
-        else set()
-    )
-    next_input_qindices = (
-        set(next_layer.local_graph.input_node_indices.values())
-        if next_layer.local_graph and next_layer.local_graph.input_node_indices
-        else set()
-    )
-
-    # Return the intersection - these are the q_indices that should be connected
-    return prev_output_qindices & next_input_qindices
-
-
 def _create_first_layer_canvas(next_layer: TemporalLayer) -> CompiledRHGCanvas:
     """Create compiled canvas for the first temporal layer."""
 
@@ -1194,7 +1218,10 @@ def _remap_temporal_portsets(
 ]:
     """Remap portsets for temporal composition."""
     in_portset = {pos: [node_map2[int(n)] for n in nodes] for pos, nodes in next_layer.in_portset.items()}
-    out_portset = {pos: [node_map1[int(n)] for n in nodes] for pos, nodes in cgraph.out_portset.items()}
+    out_portset = {
+        **{pos: [node_map1[int(n)] for n in nodes] for pos, nodes in cgraph.out_portset.items()},
+        **{pos: [node_map2[int(n)] for n in nodes] for pos, nodes in next_layer.out_portset.items()},
+    }
     cout_portset = {
         **{pos: [node_map1[int(n)] for n in nodes] for pos, nodes in cgraph.cout_portset.items()},
         **{pos: [node_map2[int(n)] for n in nodes] for pos, nodes in next_layer.cout_portset.items()},
@@ -1250,7 +1277,7 @@ def _setup_temporal_connections(
         ):
             source_node = new_coord2node.get(PhysCoordGlobal3D(source))
             sink_node = new_coord2node.get(sink_coord)
-            if source_node is not None and sink_node is not None:
+            if source_node is not None and sink_node is not None and sink_node not in new_graph.neighbors(source_node):
                 new_graph.add_physical_edge(source_node, sink_node)
 
 
@@ -1261,9 +1288,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         return _create_first_layer_canvas(next_layer)
 
     # Compose graphs and remap
-    # Determine connection mapping based on coordinate matching
-    target_q_indices = _determine_connection_qindices(cgraph, next_layer)
-    new_graph, node_map1, node_map2 = compose(cgraph.global_graph, next_layer.local_graph, target_q_indices)
+    new_graph, node_map1, node_map2 = compose(cgraph.global_graph, next_layer.local_graph)
 
     # Only remap if node mapping actually changes node IDs
     if any(k != v for k, v in node_map1.items()):
@@ -1282,15 +1307,11 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
     new_layers = [*cgraph.layers, next_layer]
 
     # Update accumulators
-    # Collect input nodes from next_layer to exclude from schedule
-    input_nodes_to_exclude: set[NodeIdGlobal] = set()
-    for nodes in next_layer.in_portset.values():
-        for node_id in nodes:
-            # Convert to NodeIdGlobal after node remapping
-            remapped_node = node_map2.get(int(node_id), int(node_id))
-            input_nodes_to_exclude.add(NodeIdGlobal(remapped_node))
-
-    new_schedule = cgraph.schedule.compose_sequential(next_layer.schedule, exclude_nodes=input_nodes_to_exclude)
+    last_nodes = set(next_layer.in_ports)
+    # remap to global node IDs
+    last_nodes_remapped = {node_map2[int(n)] for n in last_nodes}
+    cgraph_filtered_schedule = cgraph.schedule.exclude_nodes(last_nodes_remapped)
+    new_schedule = cgraph_filtered_schedule.compose_sequential(next_layer.schedule, exclude_nodes=None)
     # TODO: Fix flow merge to handle connected q_indices properly
     try:
         merged_flow = cgraph.flow.merge_with(next_layer.flow)

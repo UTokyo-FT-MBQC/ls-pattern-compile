@@ -80,6 +80,8 @@ class RHGBlock:
         Bidirectional maps between node ids and 3D coordinates.
     node2role : dict[int, str]
         Role of each node: ``'data'``, ``'ancilla_x'`` or ``'ancilla_z'``.
+    node_map_global : dict[NodeIdLocal, NodeIdLocal]
+        Mapping from local node IDs to global node IDs (set during graph composition).
     """
 
     name: ClassVar[str] = __qualname__
@@ -106,6 +108,9 @@ class RHGBlock:
     node2coord: dict[NodeIdLocal, PhysCoordGlobal3D] = field(init=False, default_factory=dict)
     coord2node: dict[PhysCoordGlobal3D, NodeIdLocal] = field(init=False, default_factory=dict)
     node2role: dict[NodeIdLocal, str] = field(init=False, default_factory=dict)
+
+    # Node mapping from local to global space (set during graph composition)
+    node_map_global: dict[NodeIdLocal, NodeIdLocal] = field(init=False, default_factory=dict)
 
     final_layer: str | None = None  # "M", "MX", "MZ", "MY" or "O" (open, no measurement)
 
@@ -411,7 +416,16 @@ class RHGBlock:
 
         # Use patch coordinate from source for consistent q_index calculation
         patch_coord = (self.source[0], self.source[1]) if self.source else None
-        xy_to_q = self.template.get_data_indices(patch_coord)
+
+        # For pipes, need to use the same parameters as in set_in_ports
+        # TODO: this branch should be refactored without hasattr
+        if hasattr(self, "sink") and self.sink is not None:
+            # This is a pipe - use pipe-specific parameters
+            sink_2d = (self.sink[0], self.sink[1])
+            xy_to_q = self.template.get_data_indices(patch_coord, patch_type="pipe", sink_patch=sink_2d)
+        else:
+            # This is a cube - use standard parameters
+            xy_to_q = self.template.get_data_indices(patch_coord)
         inv_q_to_xy = {q: xy for xy, q in xy_to_q.items()}
 
         for qidx in self.in_ports:
@@ -436,7 +450,14 @@ class RHGBlock:
 
         # Use patch coordinate from source for consistent q_index calculation
         patch_coord = (self.source[0], self.source[1]) if self.source else None
-        xy_to_q = self.template.get_data_indices(patch_coord)
+        # For pipes, need to use the same parameters as in set_out_ports
+        if hasattr(self, "sink") and self.sink is not None:
+            # This is a pipe - use pipe-specific parameters
+            sink_2d = (self.sink[0], self.sink[1])
+            xy_to_q = self.template.get_data_indices(patch_coord, patch_type="pipe", sink_patch=sink_2d)
+        else:
+            # This is a cube - use standard parameters
+            xy_to_q = self.template.get_data_indices(patch_coord)
         inv_q_to_xy = {q: xy for xy, q in xy_to_q.items()}
 
         for qidx in self.out_ports:

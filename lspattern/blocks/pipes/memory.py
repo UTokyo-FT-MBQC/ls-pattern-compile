@@ -59,18 +59,30 @@ class MemoryPipe(RHGPipe):
         self.direction = direction
         self.template = RotatedPlanarPipetemplate(d=d, edgespec=edgespec or {})
 
-    def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
+    def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         # Pipe: data の全インデックスを in とする(z- 側相当)
-        idx_map = self.template.get_data_indices()
+        if patch_coord is not None and self.source is not None and self.sink is not None:
+            source_2d = (self.source[0], self.source[1])
+            sink_2d = (self.sink[0], self.sink[1])
+            idx_map = self.template.get_data_indices(source_2d, patch_type="pipe", sink_patch=sink_2d)
+        else:
+            # Fallback for backward compatibility (no patch coordinate or source/sink info)
+            idx_map = self.template.get_data_indices()
         indices = set(idx_map.values())
         if len(indices) == 0:
             msg = "MemoryPipe: in_ports should not be empty."
             raise AssertionError(msg)
         self.in_ports = indices
 
-    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
+    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         # Pipe: data の全インデックスを out とする(z 側相当)
-        idx_map = self.template.get_data_indices()
+        if patch_coord is not None and self.source is not None and self.sink is not None:
+            source_2d = (self.source[0], self.source[1])
+            sink_2d = (self.sink[0], self.sink[1])
+            idx_map = self.template.get_data_indices(source_2d, patch_type="pipe", sink_patch=sink_2d)
+        else:
+            # Fallback for backward compatibility (no patch coordinate or source/sink info)
+            idx_map = self.template.get_data_indices()
         self.out_ports = set(idx_map.values())
 
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:

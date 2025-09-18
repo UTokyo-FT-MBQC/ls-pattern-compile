@@ -34,14 +34,14 @@ class _MeasureBase(RHGCube):
 
     def __init__(self, logical: int, basis: Axis, **kwargs: object) -> None:
         # Extract specific arguments for the parent dataclass
-        d = cast('int', kwargs.pop('d', 3))
-        edge_spec = cast('dict[str, Literal["X", "Z", "O"]] | None', kwargs.pop('edge_spec', None))
-        source = cast('PatchCoordGlobal3D', kwargs.pop('source', PatchCoordGlobal3D((0, 0, 0))))
-        sink = cast('PatchCoordGlobal3D | None', kwargs.pop('sink', None))
-        template = cast('ScalableTemplate', kwargs.pop('template', ScalableTemplate(d=3, edgespec={})))
-        in_ports = cast('set[QubitIndexLocal]', kwargs.pop('in_ports', set()))
-        out_ports = cast('set[QubitIndexLocal]', kwargs.pop('out_ports', set()))
-        cout_ports = cast('list[set[QubitIndexLocal]]', kwargs.pop('cout_ports', []))
+        d = cast("int", kwargs.pop("d", 3))
+        edge_spec = cast('dict[str, Literal["X", "Z", "O"]] | None', kwargs.pop("edge_spec", None))
+        source = cast("PatchCoordGlobal3D", kwargs.pop("source", PatchCoordGlobal3D((0, 0, 0))))
+        sink = cast("PatchCoordGlobal3D | None", kwargs.pop("sink", None))
+        template = cast("ScalableTemplate", kwargs.pop("template", ScalableTemplate(d=3, edgespec={})))
+        in_ports = cast("set[QubitIndexLocal]", kwargs.pop("in_ports", set()))
+        out_ports = cast("set[QubitIndexLocal]", kwargs.pop("out_ports", set()))
+        cout_ports = cast("list[set[QubitIndexLocal]]", kwargs.pop("cout_ports", []))
 
         # Initialize parent with explicit arguments
         super().__init__(
@@ -52,7 +52,7 @@ class _MeasureBase(RHGCube):
             template=template,
             in_ports=in_ports,
             out_ports=out_ports,
-            cout_ports=cout_ports
+            cout_ports=cout_ports,
         )
         self.logical = logical
         self.meas_basis = AxisMeasBasis(basis, Sign.PLUS)  # is it actually override the base class's meas_basis?
@@ -86,9 +86,7 @@ class _MeasureBase(RHGCube):
         node2role: dict[int, str] = {}
 
         # Assign nodes for single time slice only
-        nodes_by_z = _MeasureBase._assign_nodes_by_timeslice(
-            g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role
-        )
+        nodes_by_z = self._assign_nodes_by_timeslice(g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role)
 
         self._assign_meas_bases(g, self.meas_basis)
 
@@ -100,8 +98,8 @@ class _MeasureBase(RHGCube):
 
         return g, node2coord, coord2node, node2role
 
-    @staticmethod
-    def _assign_nodes_by_timeslice(
+    def _assign_nodes_by_timeslice(  # noqa: PLR6301
+        self,
         g: GraphState,
         data2d: Sequence[tuple[int, int]],
         x2d: Sequence[tuple[int, int]],  # Unused for measurement blocks
