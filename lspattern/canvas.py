@@ -533,7 +533,7 @@ class TemporalLayer:
         g = self._build_graph_from_blocks()
 
         # Add CZ edges across cube-pipe seams within the same temporal layer
-        coord_gid_2d: dict[tuple[int, int], QubitGroupIdGlobal] = {}
+        coord_gid_2d = {(x, y): gid for (x, y, _), gid in coord2gid.items()}
         g = self._add_seam_edges(g, coord_gid_2d)
 
         # Finalize
