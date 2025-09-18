@@ -478,6 +478,10 @@ class TemporalLayer:
         existing: set[tuple[int, int]],
     ) -> None:
         """Add edge if valid and not duplicate."""
+        # Check if either node is an output node - if so, don't add edge
+        if int(u) in g.output_node_indices or int(v) in g.output_node_indices:
+            return
+
         # Avoid duplicates by canonical edge ordering
         sorted_edge = tuple(sorted((int(u), int(v))))
         if len(sorted_edge) == EDGE_TUPLE_SIZE:
