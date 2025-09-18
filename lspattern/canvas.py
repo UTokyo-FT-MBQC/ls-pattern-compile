@@ -243,6 +243,24 @@ class TemporalLayer:
             if new_n is not None:
                 self.node2role[NodeIdLocal(new_n)] = role
 
+    def _process_pipe_ports(self, pipe_coord: PipeCoordGlobal3D, pipe: RHGPipe, node_map2: Mapping[int, int]) -> None:
+        """Process pipe ports with node mapping."""
+        source, sink = pipe_coord
+        if pipe.in_ports:
+            patch_pos = PatchCoordGlobal3D(source)
+            self.in_portset[patch_pos] = [NodeIdLocal(node_map2[n]) for n in pipe.in_ports if n in node_map2]
+            self.in_ports.extend(self.in_portset[patch_pos])
+        if pipe.out_ports:
+            patch_pos = PatchCoordGlobal3D(sink)
+            mapped_nodes = [NodeIdLocal(node_map2[n]) for n in pipe.out_ports if n in node_map2]
+            self.out_portset[patch_pos] = mapped_nodes
+            self.out_ports.extend(self.out_portset[patch_pos])
+        if pipe.cout_ports:
+            patch_pos = PatchCoordGlobal3D(sink)
+            self.cout_portset[patch_pos] = [
+                NodeIdLocal(node_map2[n]) for s in pipe.cout_ports for n in s if n in node_map2
+            ]
+
     def _process_cube_ports(self, pos: tuple[int, int, int], blk: RHGCube, node_map2: Mapping[int, int]) -> None:
         """Process cube ports."""
         if blk.in_ports:
@@ -361,6 +379,9 @@ class TemporalLayer:
                 new_n = node_map2.get(old_n)
                 if new_n is not None:
                     self.node2role[NodeIdLocal(new_n)] = role
+
+            # Process pipe ports with node mapping
+            self._process_pipe_ports(pipe_coord, pipe_block, node_map2)
 
         return g
 
@@ -1193,7 +1214,10 @@ def _remap_temporal_portsets(
 ]:
     """Remap portsets for temporal composition."""
     in_portset = {pos: [node_map2[int(n)] for n in nodes] for pos, nodes in next_layer.in_portset.items()}
-    out_portset = {pos: [node_map1[int(n)] for n in nodes] for pos, nodes in cgraph.out_portset.items()}
+    out_portset = {
+        **{pos: [node_map1[int(n)] for n in nodes] for pos, nodes in cgraph.out_portset.items()},
+        **{pos: [node_map2[int(n)] for n in nodes] for pos, nodes in next_layer.out_portset.items()},
+    }
     cout_portset = {
         **{pos: [node_map1[int(n)] for n in nodes] for pos, nodes in cgraph.cout_portset.items()},
         **{pos: [node_map2[int(n)] for n in nodes] for pos, nodes in next_layer.cout_portset.items()},
@@ -1249,7 +1273,11 @@ def _setup_temporal_connections(
         ):
             source_node = new_coord2node.get(PhysCoordGlobal3D(source))
             sink_node = new_coord2node.get(sink_coord)
-            if source_node is not None and sink_node is not None:
+            if (
+                source_node is not None
+                and sink_node is not None
+                and sink_node not in new_graph.neighbors(source_node)
+            ):
                 new_graph.add_physical_edge(source_node, sink_node)
 
 
