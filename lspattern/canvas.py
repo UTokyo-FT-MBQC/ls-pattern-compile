@@ -206,7 +206,7 @@ class TemporalLayer:
 
     @staticmethod
     def _compose_single_cube(
-        pos: PatchCoordGlobal3D,
+        pos: PatchCoordGlobal3D,  # noqa: ARG004
         blk: RHGCube,
         g: BaseGraphState,
     ) -> tuple[BaseGraphState, Mapping[int, int], Mapping[int, int]]:
@@ -295,7 +295,7 @@ class TemporalLayer:
         for pos, blk in self.cubes_.items():
             g_state, node_map1, node_map2 = self._compose_single_cube(pos, blk, g_state)
             # Store node mapping for later use in accumulator merging
-            blk.node_map_global = node_map2
+            blk.node_map_global = {NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map2.items()}
             self._remap_node_mappings(node_map1)
             self._remap_portsets(node_map1)
             self._process_cube_coordinates(blk, pos, node_map2)
@@ -351,7 +351,7 @@ class TemporalLayer:
 
             g_new, node_map1, node_map2 = compose(g, g2)
             # Store node mapping for later use in accumulator merging
-            pipe.node_map_global = node_map2
+            pipe.node_map_global = {NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map2.items()}
             self._remap_node_mappings(node_map1)
             self._remap_portsets(node_map1)
             g = g_new
@@ -596,6 +596,32 @@ class TemporalLayer:
             self.schedule = self.schedule.compose_parallel(remapped_schedule)
             self.flow = self.flow.merge_with(remapped_flow)
             self.parity = self.parity.merge_with(remapped_parity)
+
+        # Set up input/output node mappings from pipe ports
+        self._setup_temporal_io_mappings()
+
+    def _setup_temporal_io_mappings(self) -> None:
+        """Set up input/output node mappings for the temporal layer graph."""
+        # For pipes, directly use the qindices from their ports
+        for pipe in self.pipes_.values():
+            node_map = pipe.node_map_global
+            if not node_map:
+                continue
+
+            # Map input ports to qindices
+            for local_port in pipe.in_ports:
+                global_node_id = node_map.get(NodeIdLocal(int(local_port)))
+                if global_node_id is not None and self.local_graph is not None:
+                    # For pipes, the qindex is the same as the local port ID
+                    # (since pipe ports are set to the template's data qindices)
+                    self.local_graph.register_input(int(global_node_id), int(local_port))
+
+            # Map output ports to qindices
+            for local_port in pipe.out_ports:
+                global_node_id = node_map.get(NodeIdLocal(int(local_port)))
+                if global_node_id is not None and self.local_graph is not None:
+                    # For pipes, the qindex is the same as the local port ID
+                    self.local_graph.register_output(int(global_node_id), int(local_port))
 
     def _get_coordinate_bounds(self) -> tuple[int, int, int, int, int, int]:
         """Get min/max bounds for all coordinates."""
@@ -1273,11 +1299,7 @@ def _setup_temporal_connections(
         ):
             source_node = new_coord2node.get(PhysCoordGlobal3D(source))
             sink_node = new_coord2node.get(sink_coord)
-            if (
-                source_node is not None
-                and sink_node is not None
-                and sink_node not in new_graph.neighbors(source_node)
-            ):
+            if source_node is not None and sink_node is not None and sink_node not in new_graph.neighbors(source_node):
                 new_graph.add_physical_edge(source_node, sink_node)
 
 
