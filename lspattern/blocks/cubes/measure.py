@@ -86,9 +86,7 @@ class _MeasureBase(RHGCube):
         node2role: dict[int, str] = {}
 
         # Assign nodes for single time slice only
-        nodes_by_z = self._assign_nodes_by_timeslice(
-            g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role
-        )
+        nodes_by_z = self._assign_nodes_by_timeslice(g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role)
 
         self._assign_meas_bases(g, self.meas_basis)
 
