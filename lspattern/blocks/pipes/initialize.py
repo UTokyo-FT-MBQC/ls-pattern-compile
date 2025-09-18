@@ -175,55 +175,42 @@ class InitPlusPipeSingleLayer(RHGPipe):
         self.direction = direction
         self.template = RotatedPlanarPipetemplate(d=d, edgespec=edge_spec)
 
-    def _construct_graph(self) -> tuple:
-        """Override to create single-layer graph at z_max position."""
-
+    def _build_3d_graph(self) -> tuple:
+        """Override to create single-layer graph with only 13 nodes (9 data + 4 ancilla) at z=2*d."""
         data2d = list(self.template.data_coords or [])
         x2d = list(self.template.x_coords or [])
         z2d = list(self.template.z_coords or [])
-
-        # Generate nodes at the final layer position (z_max equivalent)
-        d_val = int(self.d)
-        max_t = 2 * d_val - 1  # Final layer index
-        z0 = int(self.source[2]) * (2 * d_val)  # Base z-offset per block
-        final_z = z0 + max_t  # Actual z coordinate for the final layer
 
         g = GraphState()
         node2coord: dict[int, tuple[int, int, int]] = {}
         coord2node: dict[tuple[int, int, int], int] = {}
         node2role: dict[int, str] = {}
 
-        # Create nodes at the final layer
-        nodes_by_z: dict[int, dict[tuple[int, int], int]] = {}
-        cur: dict[tuple[int, int], int] = {}
+        # Calculate z-coordinate based on source position and 2*d
+        d_val = int(self.d)
+        z0 = int(self.source[2]) * (2 * d_val)  # Base z-offset per block
+        single_layer_z = z0 + (2 * d_val)  # Place at z = 2*d position
 
-        # Add data nodes
+        nodes_by_z: dict[int, dict[tuple[int, int], int]] = {}
+        single_layer_nodes: dict[tuple[int, int], int] = {}
+
+        # Add data nodes at z=2*d
         for x, y in data2d:
             n = g.add_physical_node()
-            node2coord[n] = (int(x), int(y), int(final_z))
-            coord2node[int(x), int(y), int(final_z)] = n
+            node2coord[n] = (int(x), int(y), single_layer_z)
+            coord2node[int(x), int(y), single_layer_z] = n
             node2role[n] = "data"
-            cur[int(x), int(y)] = n
+            single_layer_nodes[int(x), int(y)] = n
 
-        # Add ancilla nodes (based on layer parity - final layer should have appropriate ancillas)
-        if (max_t % 2) == 0:
-            # Even layer: X ancillas
-            for x, y in x2d:
-                n = g.add_physical_node()
-                node2coord[n] = (int(x), int(y), int(final_z))
-                coord2node[int(x), int(y), int(final_z)] = n
-                node2role[n] = "ancilla_x"
-                cur[int(x), int(y)] = n
-        else:
-            # Odd layer: Z ancillas
-            for x, y in z2d:
-                n = g.add_physical_node()
-                node2coord[n] = (int(x), int(y), int(final_z))
-                coord2node[int(x), int(y), int(final_z)] = n
-                node2role[n] = "ancilla_z"
-                cur[int(x), int(y)] = n
+        # Add ancilla nodes at the same z=2*d (use Z ancillas for initialization)
+        for x, y in z2d:
+            n = g.add_physical_node()
+            node2coord[n] = (int(x), int(y), single_layer_z)
+            coord2node[int(x), int(y), single_layer_z] = n
+            node2role[n] = "ancilla_z"
+            single_layer_nodes[int(x), int(y)] = n
 
-        nodes_by_z[final_z] = cur
+        nodes_by_z[single_layer_z] = single_layer_nodes
 
         self._construct_schedule(nodes_by_z, node2role)
 
@@ -231,6 +218,25 @@ class InitPlusPipeSingleLayer(RHGPipe):
         self._add_spatial_edges(g, nodes_by_z)
 
         return g, node2coord, coord2node, node2role
+
+    def _construct_schedule(self, nodes_by_z, node2role) -> None:  # noqa: ARG002
+        """Construct schedule for single-layer initialization with latest time slots (2*d)."""
+        from lspattern.accumulator import ScheduleAccumulator
+
+        self.schedule = ScheduleAccumulator()
+
+        # Calculate the latest time based on d
+        latest_time = 2 * self.d - 1
+
+        # Schedule data nodes at the latest time
+        data_nodes = {node for node, role in node2role.items() if role == "data"}
+        if data_nodes:
+            self.schedule.schedule[latest_time] = data_nodes
+
+        # Schedule ancilla nodes at latest_time + 1
+        ancilla_nodes = {node for node, role in node2role.items() if "ancilla" in role}
+        if ancilla_nodes:
+            self.schedule.schedule[latest_time + 1] = ancilla_nodes
 
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         # Init pipe: 入力ポートは持たない

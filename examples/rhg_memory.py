@@ -36,11 +36,11 @@ edgespec = {"TOP": "X", "BOTTOM": "X", "LEFT": "Z", "RIGHT": "Z"}
 init_skeleton = InitPlusCubeSingleLayerSkeleton(d=d, edgespec=edgespec)
 skeleton.add_cube(PatchCoordGlobal3D((0, 0, 0)), init_skeleton)
 
-# memory_skeleton = MemoryCubeSkeleton(d=d, edgespec=edgespec)
-# skeleton.add_cube(PatchCoordGlobal3D((0, 0, 1)), memory_skeleton)
+memory_skeleton = MemoryCubeSkeleton(d=d, edgespec=edgespec)
+skeleton.add_cube(PatchCoordGlobal3D((0, 0, 1)), memory_skeleton)
 
-# measure_skeleton = MeasureXSkeleton(d=d, edgespec=edgespec)
-# skeleton.add_cube(PatchCoordGlobal3D((0, 0, 2)), measure_skeleton)
+measure_skeleton = MeasureXSkeleton(d=d, edgespec=edgespec)
+skeleton.add_cube(PatchCoordGlobal3D((0, 0, 2)), measure_skeleton)
 
 extended_canvas = skeleton.to_canvas()
 print(f"Created extended canvas with {len(extended_canvas.cubes_)} cubes and {len(extended_canvas.pipes_)} pipes")
@@ -50,6 +50,14 @@ print(f"Created extended canvas with {len(extended_canvas.cubes_)} cubes and {le
 compiled_canvas = extended_canvas.compile()
 print(f"Compiled canvas has {len(compiled_canvas.layers)} temporal layers")
 print(f"Global graph has {getattr(compiled_canvas.global_graph, 'num_qubits', 'unknown')} qubits")
+
+# Debug: Print node coordinates to check z-values
+if hasattr(compiled_canvas, 'layers') and compiled_canvas.layers:
+    first_layer = compiled_canvas.layers[0]
+    if hasattr(first_layer, 'node2coord'):
+        print(f"Node coordinates (first few):")
+        for node_id, coord in list(first_layer.node2coord.items())[:10]:
+            print(f"  Node {node_id}: {coord}")
 schedule = compiled_canvas.schedule.compact()
 print(f"Schedule has {len(schedule.schedule)} time slots")
 for t, nodes in schedule.schedule.items():
