@@ -6,7 +6,8 @@ Merge and Split
 # %%
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
-from lspattern.blocks.pipes.memory import MemoryPipeSkeleton
+from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
+from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton
 from lspattern.blocks.cubes.measure import MeasureXSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.mytype import PatchCoordGlobal3D
@@ -39,34 +40,34 @@ blocks = [
         PatchCoordGlobal3D((1, 0, 1)),
         MemoryCubeSkeleton(d=3, edgespec=edgespec2),
     ),
-    # (
-    #     PatchCoordGlobal3D((0, 0, 2)),
-    #     MemoryCubeSkeleton(d=3, edgespec=edgespec),
-    # ),
-    # (
-    #     PatchCoordGlobal3D((1, 0, 2)),
-    #     MemoryCubeSkeleton(d=3, edgespec=edgespec),
-    # ),
-    # (
-    #     PatchCoordGlobal3D((0, 0, 3)),
-    #     MeasureXSkeleton(d=3, edgespec=edgespec),
-    # ),
-    # (
-    #     PatchCoordGlobal3D((1, 0, 3)),
-    #     MeasureXSkeleton(d=3, edgespec=edgespec),
-    # )
+    (
+        PatchCoordGlobal3D((0, 0, 2)),
+        MemoryCubeSkeleton(d=3, edgespec=edgespec),
+    ),
+    (
+        PatchCoordGlobal3D((1, 0, 2)),
+        MemoryCubeSkeleton(d=3, edgespec=edgespec),
+    ),
+    (
+        PatchCoordGlobal3D((0, 0, 3)),
+        MeasureXSkeleton(d=3, edgespec=edgespec),
+    ),
+    (
+        PatchCoordGlobal3D((1, 0, 3)),
+        MeasureXSkeleton(d=3, edgespec=edgespec),
+    )
 ]
 pipes = [
-    # (
-    #     PatchCoordGlobal3D((0, 0, 1)),
-    #     PatchCoordGlobal3D((1, 0, 1)),
-    #     MemoryPipeSkeleton(d=3, edgespec=edgespec_trimmed),
-    # ),
-    # (
-    #     PatchCoordGlobal3D((0, 0, 0)),
-    #     PatchCoordGlobal3D((0, 0, 1)),
-    #     MemoryPipeSkeleton(d=3, edgespec=edgespec_trimmed),
-    # ),
+    (
+        PatchCoordGlobal3D((0, 0, 1)),
+        PatchCoordGlobal3D((1, 0, 1)),
+        InitPlusPipeSkeleton(d=3, edgespec=edgespec_trimmed),
+    ),
+    (
+        PatchCoordGlobal3D((0, 0, 2)),
+        PatchCoordGlobal3D((1, 0, 2)),
+        MeasureXPipeSkeleton(d=3, edgespec=edgespec_trimmed),
+    ),
 ]
 
 for block in blocks:
@@ -87,6 +88,7 @@ print(
         "coord_map": len(compiled_canvas.coord2node),
     }
 )
+print(f"output qubits: {compiled_canvas.global_graph.output_node_indices}")
 
 # Print flow and parity information
 xflow = {}
