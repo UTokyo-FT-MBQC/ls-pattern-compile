@@ -131,29 +131,59 @@ class InitPlusSingleLayer(RHGCube):
     name: ClassVar[str] = "InitPlusSingleLayer"
 
     def _construct_graph(self) -> tuple:
-        """Override to create single-layer graph."""
+        """Override to create single-layer graph at z_max position."""
 
         data2d = list(self.template.data_coords or [])
         x2d = list(self.template.x_coords or [])
         z2d = list(self.template.z_coords or [])
 
-        # Single layer only (height = 1, max_t = 0)
-        max_t = 0
-        z0 = int(self.source[2]) * 1  # Only 1 layer per block
+        # Generate nodes at the final layer position (z_max equivalent)
+        d_val = int(self.d)
+        max_t = 2 * d_val - 1  # Final layer index
+        z0 = int(self.source[2]) * (2 * d_val)  # Base z-offset per block
+        final_z = z0 + max_t  # Actual z coordinate for the final layer
 
         g = GraphState()
         node2coord: dict[int, tuple[int, int, int]] = {}
         coord2node: dict[tuple[int, int, int], int] = {}
         node2role: dict[int, str] = {}
 
-        # Assign nodes for single time slice
-        nodes_by_z = self._assign_nodes_by_timeslice(g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role)
+        # Create nodes at the final layer
+        nodes_by_z: dict[int, dict[tuple[int, int], int]] = {}
+        cur: dict[tuple[int, int], int] = {}
+
+        # Add data nodes
+        for x, y in data2d:
+            n = g.add_physical_node()
+            node2coord[n] = (int(x), int(y), int(final_z))
+            coord2node[int(x), int(y), int(final_z)] = n
+            node2role[n] = "data"
+            cur[int(x), int(y)] = n
+
+        # Add ancilla nodes (based on layer parity - final layer should have appropriate ancillas)
+        if (max_t % 2) == 0:
+            # Even layer: X ancillas
+            for x, y in x2d:
+                n = g.add_physical_node()
+                node2coord[n] = (int(x), int(y), int(final_z))
+                coord2node[int(x), int(y), int(final_z)] = n
+                node2role[n] = "ancilla_x"
+                cur[int(x), int(y)] = n
+        else:
+            # Odd layer: Z ancillas
+            for x, y in z2d:
+                n = g.add_physical_node()
+                node2coord[n] = (int(x), int(y), int(final_z))
+                coord2node[int(x), int(y), int(final_z)] = n
+                node2role[n] = "ancilla_z"
+                cur[int(x), int(y)] = n
+
+        nodes_by_z[final_z] = cur
 
         self._construct_schedule(nodes_by_z, node2role)
 
         # Add spatial edges only (no temporal edges for single layer)
-
-        RHGBlock._add_spatial_edges(g, nodes_by_z)
+        self._add_spatial_edges(g, nodes_by_z)
 
         return g, node2coord, coord2node, node2role
 
