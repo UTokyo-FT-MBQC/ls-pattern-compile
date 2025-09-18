@@ -76,9 +76,7 @@ class InitPlusPipe(RHGPipe):
         if self.source is not None and self.sink is not None:
             source_2d = (self.source[0], self.source[1])
             sink_2d = (self.sink[0], self.sink[1])
-            idx_map = self.template.get_data_indices(
-                source_2d, patch_type="pipe", sink_patch=sink_2d
-            )
+            idx_map = self.template.get_data_indices(source_2d, patch_type="pipe", sink_patch=sink_2d)
         else:
             # Fallback for backward compatibility (no source/sink info)
             idx_map = self.template.get_data_indices()

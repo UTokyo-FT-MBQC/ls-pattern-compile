@@ -188,10 +188,7 @@ class ParityAccumulator:
         new_checks = {k: _remap_groups(v, node_map) for k, v in self.checks.items()}
 
         # Remap dangling_parity as well
-        new_dangling = {
-            coord: {node_map.get(n, n) for n in nodes}
-            for coord, nodes in self.dangling_parity.items()
-        }
+        new_dangling = {coord: {node_map.get(n, n) for n in nodes} for coord, nodes in self.dangling_parity.items()}
 
         return ParityAccumulator(
             checks=new_checks,
