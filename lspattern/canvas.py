@@ -597,32 +597,6 @@ class TemporalLayer:
             self.flow = self.flow.merge_with(remapped_flow)
             self.parity = self.parity.merge_with(remapped_parity)
 
-        # Set up input/output node mappings from pipe ports
-        self._setup_temporal_io_mappings()
-
-    def _setup_temporal_io_mappings(self) -> None:
-        """Set up input/output node mappings for the temporal layer graph."""
-        # For pipes, directly use the qindices from their ports
-        for pipe in self.pipes_.values():
-            node_map = pipe.node_map_global
-            if not node_map:
-                continue
-
-            # Map input ports to qindices
-            for local_port in pipe.in_ports:
-                global_node_id = node_map.get(NodeIdLocal(int(local_port)))
-                if global_node_id is not None and self.local_graph is not None:
-                    # For pipes, the qindex is the same as the local port ID
-                    # (since pipe ports are set to the template's data qindices)
-                    self.local_graph.register_input(int(global_node_id), int(local_port))
-
-            # Map output ports to qindices
-            for local_port in pipe.out_ports:
-                global_node_id = node_map.get(NodeIdLocal(int(local_port)))
-                if global_node_id is not None and self.local_graph is not None:
-                    # For pipes, the qindex is the same as the local port ID
-                    self.local_graph.register_output(int(global_node_id), int(local_port))
-
     def _get_coordinate_bounds(self) -> tuple[int, int, int, int, int, int]:
         """Get min/max bounds for all coordinates."""
         coords = list(self.node2coord.values())

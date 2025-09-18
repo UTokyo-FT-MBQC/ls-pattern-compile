@@ -416,7 +416,16 @@ class RHGBlock:
 
         # Use patch coordinate from source for consistent q_index calculation
         patch_coord = (self.source[0], self.source[1]) if self.source else None
-        xy_to_q = self.template.get_data_indices(patch_coord)
+
+        # For pipes, need to use the same parameters as in set_in_ports
+        # TODO: this branch should be refactored without hasattr
+        if hasattr(self, "sink") and self.sink is not None:
+            # This is a pipe - use pipe-specific parameters
+            sink_2d = (self.sink[0], self.sink[1])
+            xy_to_q = self.template.get_data_indices(patch_coord, patch_type="pipe", sink_patch=sink_2d)
+        else:
+            # This is a cube - use standard parameters
+            xy_to_q = self.template.get_data_indices(patch_coord)
         inv_q_to_xy = {q: xy for xy, q in xy_to_q.items()}
 
         for qidx in self.in_ports:
@@ -442,7 +451,7 @@ class RHGBlock:
         # Use patch coordinate from source for consistent q_index calculation
         patch_coord = (self.source[0], self.source[1]) if self.source else None
         # For pipes, need to use the same parameters as in set_out_ports
-        if hasattr(self, 'sink') and self.sink is not None:
+        if hasattr(self, "sink") and self.sink is not None:
             # This is a pipe - use pipe-specific parameters
             sink_2d = (self.sink[0], self.sink[1])
             xy_to_q = self.template.get_data_indices(patch_coord, patch_type="pipe", sink_patch=sink_2d)
