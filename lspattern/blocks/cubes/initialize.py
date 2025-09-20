@@ -211,43 +211,118 @@ class InitPlusThinLayer(RHGCube):
             self.parity.dangling_parity[coord] = nodes
 
 
-if __name__ == "__main__":
-    # NOTE: Interactive 3D preview code omitted for brevity
+class InitZeroCubeThinLayerSkeleton(RHGCubeSkeleton):
+    """Skeleton for thin-layer Zero State initialization blocks in cube-shaped RHG structures."""
 
-    # Hardcoded options (edit here as needed)
-    d = 3
-    edgespec: dict[str, Literal["X", "Z", "O"]] = {
-        "TOP": "X",
-        "BOTTOM": "Z",
-        "LEFT": "X",
-        "RIGHT": "Z",
-    }  # e.g., {"TOP":"X","BOTTOM":"Z",...}
-    ANCILLA_MODE = "both"  # "both" | "x" | "z"
-    EDGE_WIDTH = 0.5  # thicker black edges
-    INTERACTIVE = True  # interactive plot
+    name: ClassVar[str] = "InitZeroCubeThinLayerSkeleton"
 
-    # Build template and block
-    template = RotatedPlanarCubeTemplate(d=d, edgespec=edgespec)
-    _ = template.to_tiling()  # populate internal coords for indices
+    def to_block(self) -> RHGCube:
+        """
+        Return a template-holding block for single-layer initialization.
 
-    block = InitPlus(d=d, template=template)
+        Returns
+        -------
+        RHGBlock
+            A block containing the template with no local graph state.
+        """
+        for direction in ["LEFT", "RIGHT", "TOP", "BOTTOM"]:
+            if self.edgespec[direction] == "O":
+                self.trim_spatial_boundary(direction)
+        self.template.to_tiling()
 
-    # Prepare colored point clouds (match template colors)
-    # data: white, X ancilla: green, Z ancilla: blue
-    color_map = {
-        "data": {
-            "face": "white",
-            "edge": "black",
-            "size": 40,
-        },
-        "ancilla_x": {
-            "face": "#2ecc71",
-            "edge": "#1e8449",
-            "size": 36,
-        },
-        "ancilla_z": {
-            "face": "#3498db",
-            "edge": "#1f618d",
-            "size": 36,
-        },
-    }
+        block = InitZeroThinLayer(
+            d=self.d,
+            edge_spec=self.edgespec,
+            template=self.template,
+        )
+
+        block.final_layer = "O"
+
+        return block
+
+
+class InitZeroThinLayer(RHGCube):
+    """Thin-layer Zero State initialization cube (height=2) for compose-based initialization."""
+
+    name: ClassVar[str] = "InitZeroThinLayer"
+
+    def _build_3d_graph(self) -> tuple:
+        """Override to create single-layer graph with only 13 nodes (9 data + 4 ancilla) at z=2*d."""
+        data2d = list(self.template.data_coords or [])
+        x2d = list(self.template.x_coords or [])
+        z2d = list(self.template.z_coords or [])
+
+        # Calculate z-coordinate based on source position and 2*d
+        d_val = int(self.d)
+        z0 = int(self.source[2]) * (2 * d_val)  # Base z-offset per block
+        start_layer_z = z0 + (2 * d_val) - 1
+        max_t = 1
+
+        g = GraphState()
+        node2coord: dict[int, tuple[int, int, int]] = {}
+        coord2node: dict[tuple[int, int, int], int] = {}
+        node2role: dict[int, str] = {}
+
+        # Assign nodes for each time slice
+        nodes_by_z = self._assign_nodes_by_timeslice(
+            g, data2d, x2d, z2d, max_t, start_layer_z, node2coord, coord2node, node2role
+        )
+
+        self._construct_schedule(nodes_by_z, node2role)
+
+        self._add_spatial_edges(g, nodes_by_z)
+        self._add_temporal_edges(g, nodes_by_z)
+
+        return g, node2coord, coord2node, node2role
+
+    def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
+        # Init plus sets no input ports
+        super().set_in_ports(patch_coord)
+
+    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
+        # set output ports to all data indices in the template
+        idx_map = self.template.get_data_indices(patch_coord)
+        self.out_ports = set(idx_map.values())
+
+    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
+        # sets no classical output ports
+        return super().set_cout_ports(patch_coord)
+
+    def _construct_detectors(self) -> None:
+        """Construct detectors for the thin-layer initialization block."""
+        x2d = self.template.x_coords
+        z2d = self.template.z_coords
+
+        z_offset = self.source[2] * (2 * self.d)
+        dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
+
+        # add dangling detectors for connectivity to next block
+        for x, y in x2d + z2d:
+            node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z_offset + 2 * self.d - 2)))
+            if node_id is None:
+                continue
+            dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+
+        # TODO: this code can be simplified with plus block
+        for z in range(2 * self.d, 2 * self.d + 1):  # height is fixed to 1
+            for x, y in x2d:
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
+                if node_id is None:
+                    continue
+                self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
+                    {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
+                )
+                dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+
+            for x, y in z2d:
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
+                if node_id is None:
+                    continue
+                self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
+                    {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
+                )
+                dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+
+        # Add dangling detectors for connectivity to next block
+        for coord, nodes in dangling_detectors.items():
+            self.parity.dangling_parity[coord] = nodes
