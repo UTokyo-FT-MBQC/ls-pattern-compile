@@ -19,6 +19,7 @@ from graphix_zx.graphstate import (
 
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
 from lspattern.blocks.cubes.base import RHGCube
+from lspattern.blocks.cubes.initialize import ThinLayerMixin
 from lspattern.blocks.pipes.base import RHGPipe
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import (
@@ -223,9 +224,7 @@ class TemporalLayer:
 
         # TODO: In the future, all blocks will use absolute coordinates and z_shift will be deprecated
         # For now, ThinLayer blocks already use absolute coordinates, so skip z_shift for them
-        is_thin_layer = "ThinLayer" in blk.__class__.__name__
-
-        if is_thin_layer:
+        if isinstance(blk, ThinLayerMixin):
             # ThinLayer blocks already use absolute coordinates - no z_shift needed
             z_shift = 0
         else:
@@ -319,9 +318,7 @@ class TemporalLayer:
 
         # TODO: In the future, all blocks will use absolute coordinates and z_shift will be deprecated
         # For now, ThinLayer blocks already use absolute coordinates, so skip z_shift for them
-        is_thin_layer = "ThinLayer" in blk.__class__.__name__
-
-        if is_thin_layer:
+        if isinstance(blk, ThinLayerMixin):
             # ThinLayer blocks already use absolute coordinates - no z_shift needed
             z_shift = 0
         else:

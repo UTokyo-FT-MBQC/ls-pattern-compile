@@ -125,7 +125,11 @@ class InitPlusCubeThinLayerSkeleton(RHGCubeSkeleton):
         return block
 
 
-class InitPlusThinLayer(RHGCube):
+class ThinLayerMixin:
+    """Mixin class to identify blocks that use absolute coordinates."""
+
+
+class InitPlusThinLayer(RHGCube, ThinLayerMixin):
     """Thin-layer Plus State initialization cube (height=3) for compose-based initialization."""
 
     name: ClassVar[str] = "InitPlusThinLayer"
@@ -241,7 +245,7 @@ class InitZeroCubeThinLayerSkeleton(RHGCubeSkeleton):
         return block
 
 
-class InitZeroThinLayer(RHGCube):
+class InitZeroThinLayer(RHGCube, ThinLayerMixin):
     """Thin-layer Zero State initialization cube (height=2) for compose-based initialization."""
 
     name: ClassVar[str] = "InitZeroThinLayer"
