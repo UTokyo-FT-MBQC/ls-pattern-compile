@@ -10,6 +10,7 @@ import pathlib
 
 import pymatching
 import stim
+from graphix_zx.common import Axis
 from graphix_zx.pattern import Pattern, print_pattern
 from graphix_zx.scheduler import Scheduler
 from graphix_zx.stim_compiler import stim_compile
@@ -129,7 +130,9 @@ pattern = compile_canvas(
 print("Pattern compilation successful")
 print_pattern(pattern)
 
-logical = set(range(d))
+logical = {}
+for i in range(d):
+    logical[i] = Axis.X
 print(f"Logical X: {logical}")
 logical_observables = {0: logical}
 
