@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, overload
 
 from graphix_zx.graphstate import GraphState
 
-from lspattern.blocks.base import RHGBlock
+from lspattern.accumulator import ScheduleAccumulator
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
 from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D, PhysCoordLocal2D, SpatialEdgeSpec
 from lspattern.tiling.template import RotatedPlanarPipetemplate
@@ -221,7 +221,6 @@ class InitPlusPipeSingleLayer(RHGPipe):
 
     def _construct_schedule(self, nodes_by_z, node2role) -> None:  # noqa: ARG002
         """Construct schedule for single-layer initialization with latest time slots (2*d)."""
-        from lspattern.accumulator import ScheduleAccumulator
 
         self.schedule = ScheduleAccumulator()
 
