@@ -264,7 +264,7 @@ class RHGBlock:
                 msg = "final_layer must be set"
                 raise AssertionError(msg)
             if t_local == max_t and self.final_layer == "O":
-                # add data node only if it is not measurement node
+                # add data node
                 for x, y in data2d:
                     n = g.add_physical_node()
                     node2coord[n] = (int(x), int(y), int(t))
