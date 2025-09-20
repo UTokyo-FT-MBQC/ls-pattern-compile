@@ -62,18 +62,18 @@ class InitPlus(RHGCube):
         x2d = self.template.x_coords
         z2d = self.template.z_coords
 
-        t_offset = min(self.schedule.schedule.keys(), default=0)
-        height = max(self.schedule.schedule.keys(), default=0) - t_offset + 1
+        z_offset = self.source[2] * (2 * self.d)
+        height = max({coord[2] for coord in self.coord2node}, default=0) - z_offset + 1
         dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
         # ancillas of first layer is not deterministic
         for x, y in x2d + z2d:
-            node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, t_offset)))
+            node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z_offset)))
             if node_id is None:
                 continue
             dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
-        for t in range(1, height):
+        for z in range(1, height):
             for x, y in x2d:
-                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, t + t_offset)))
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
                 if node_id is None:
                     continue
                 self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
@@ -82,7 +82,7 @@ class InitPlus(RHGCube):
                 dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
 
             for x, y in z2d:
-                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, t + t_offset)))
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
                 if node_id is None:
                     continue
                 self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
@@ -173,19 +173,38 @@ class InitPlusThinLayer(RHGCube):
         return super().set_cout_ports(patch_coord)
 
     def _construct_detectors(self) -> None:
-        """Single layer only has dangling detectors, no parity checks."""
+        """Construct detectors for the thin-layer initialization block."""
         x2d = self.template.x_coords
         z2d = self.template.z_coords
 
-        t_offset = min(self.schedule.schedule.keys(), default=0)
+        z_offset = self.source[2] * (2 * self.d)
         dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
 
-        # For single layer, all ancillas become dangling detectors
+        # add dangling detectors for connectivity to next block
         for x, y in x2d + z2d:
-            node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, t_offset)))
+            node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z_offset + 2 * self.d - 2)))
             if node_id is None:
                 continue
             dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+
+        for z in range(2 * self.d - 1, 2 * self.d + 1):  # height is fixed to 2
+            for x, y in x2d:
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
+                if node_id is None:
+                    continue
+                self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
+                    {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
+                )
+                dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+
+            for x, y in z2d:
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
+                if node_id is None:
+                    continue
+                self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
+                    {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
+                )
+                dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
 
         # Add dangling detectors for connectivity to next block
         for coord, nodes in dangling_detectors.items():
