@@ -198,7 +198,7 @@ class MeasureZ(_MeasureBase):
         pass
 
     def _construct_detectors(self) -> None:
-        x2d = self.template.x_coords  # NOTE: I'm not sure
+        x2d = self.template.x_coords
 
         # Use the actual z-coordinate where nodes are placed
         z0 = int(self.source[2]) * (2 * self.d)
