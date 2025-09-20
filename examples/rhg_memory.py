@@ -14,7 +14,7 @@ from graphix_zx.pattern import Pattern, print_pattern
 from graphix_zx.scheduler import Scheduler
 from graphix_zx.stim_compiler import stim_compile
 
-from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton, InitPlusCubeSingleLayerSkeleton
+from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton, InitPlusCubeThinLayerSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.cubes.measure import MeasureXSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
@@ -33,7 +33,7 @@ edgespec = {"TOP": "X", "BOTTOM": "X", "LEFT": "Z", "RIGHT": "Z"}
 
 # Add InitPlus cube at the beginning
 # init_skeleton = InitPlusCubeSkeleton(d=d, edgespec=edgespec)
-init_skeleton = InitPlusCubeSingleLayerSkeleton(d=d, edgespec=edgespec)
+init_skeleton = InitPlusCubeThinLayerSkeleton(d=d, edgespec=edgespec)
 skeleton.add_cube(PatchCoordGlobal3D((0, 0, 0)), init_skeleton)
 
 memory_skeleton = MemoryCubeSkeleton(d=d, edgespec=edgespec)
