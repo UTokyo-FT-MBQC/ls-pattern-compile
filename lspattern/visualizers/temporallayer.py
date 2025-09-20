@@ -175,7 +175,7 @@ def visualize_temporal_layer(  # noqa: C901
 
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
-    ax.set_zlabel("Z")  # type: ignore[union-attr]
+    ax.set_zlabel("Z")  # type: ignore[attr-defined]
     plt.legend()
     plt.tight_layout()
 

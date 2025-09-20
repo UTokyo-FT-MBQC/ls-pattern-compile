@@ -18,8 +18,8 @@ from graphix_zx.graphstate import (
 )
 
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
+from lspattern.blocks.base import ThinLayerMixin
 from lspattern.blocks.cubes.base import RHGCube
-from lspattern.blocks.cubes.initialize import ThinLayerMixin
 from lspattern.blocks.pipes.base import RHGPipe
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import (
