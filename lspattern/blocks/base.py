@@ -280,7 +280,7 @@ class RHGBlock:
                     node2role[n] = "data"
                     cur[int(x), int(y)] = n
                 # Interleave ancillas X/Z by time parity
-                if (t_local % 2) == 0:
+                if (t % 2) == 0:
                     for x, y in x2d:
                         n = g.add_physical_node()
                         node2coord[n] = (int(x), int(y), int(t))
