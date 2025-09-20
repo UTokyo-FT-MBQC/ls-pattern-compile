@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, overload
 
 from graphix_zx.graphstate import GraphState
 
-from lspattern.accumulator import ScheduleAccumulator
+from lspattern.blocks.base import ThinLayerMixin
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
 from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D, PhysCoordLocal2D, SpatialEdgeSpec
 from lspattern.tiling.template import RotatedPlanarPipetemplate
@@ -127,18 +127,26 @@ class InitPlusPipe(RHGPipe):
 
 
 @dataclass
-class InitPlusPipeSingleLayerSkeleton(RHGPipeSkeleton):
-    """Skeleton for a single-layer InitPlus-style pipe."""
+class InitPlusPipeThinLayerSkeleton(RHGPipeSkeleton):
+    """Skeleton for thin-layer Plus State initialization pipes in pipe-shaped RHG structures."""
 
     @overload
-    def to_block(self) -> InitPlusPipeSingleLayer: ...
+    def to_block(self) -> InitPlusThinLayerPipe: ...
 
     @overload
-    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> InitPlusPipeSingleLayer: ...
+    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> InitPlusThinLayerPipe: ...
 
     def to_block(
         self, source: PatchCoordGlobal3D | None = None, sink: PatchCoordGlobal3D | None = None
-    ) -> InitPlusPipeSingleLayer:
+    ) -> InitPlusThinLayerPipe:
+        """
+        Return a template-holding block for single-layer initialization.
+
+        Returns
+        -------
+        InitPlusThinLayerPipe
+            A block containing the template with no local graph state.
+        """
         # Default values if not provided
         if source is None:
             source = PatchCoordGlobal3D((0, 0, 0))
@@ -147,7 +155,7 @@ class InitPlusPipeSingleLayerSkeleton(RHGPipeSkeleton):
 
         direction = get_direction(source, sink)
 
-        block = InitPlusPipeSingleLayer(
+        block = InitPlusThinLayerPipe(
             d=self.d,
             edgespec=self.edgespec,
             direction=direction,
@@ -160,8 +168,8 @@ class InitPlusPipeSingleLayerSkeleton(RHGPipeSkeleton):
         return block
 
 
-class InitPlusPipeSingleLayer(RHGPipe):
-    """Single-layer initialization pipe (height=1) for compose-based initialization."""
+class InitPlusThinLayerPipe(RHGPipe, ThinLayerMixin):
+    """Thin-layer Plus State initialization pipe (height=3) for compose-based initialization."""
 
     def __init__(
         self,
@@ -181,61 +189,28 @@ class InitPlusPipeSingleLayer(RHGPipe):
         x2d = list(self.template.x_coords or [])
         z2d = list(self.template.z_coords or [])
 
+        # Calculate z-coordinate based on source position and 2*d
+        d_val = int(self.d)
+        z0 = int(self.source[2]) * (2 * d_val)  # Base z-offset per block
+        start_layer_z = z0 + (2 * d_val) - 2
+        max_t = 2
+
         g = GraphState()
         node2coord: dict[int, tuple[int, int, int]] = {}
         coord2node: dict[tuple[int, int, int], int] = {}
         node2role: dict[int, str] = {}
 
-        # Calculate z-coordinate based on source position and 2*d
-        d_val = int(self.d)
-        z0 = int(self.source[2]) * (2 * d_val)  # Base z-offset per block
-        single_layer_z = z0 + (2 * d_val)  # Place at z = 2*d position
-
-        nodes_by_z: dict[int, dict[tuple[int, int], int]] = {}
-        single_layer_nodes: dict[tuple[int, int], int] = {}
-
-        # Add data nodes at z=2*d
-        for x, y in data2d:
-            n = g.add_physical_node()
-            node2coord[n] = (int(x), int(y), single_layer_z)
-            coord2node[int(x), int(y), single_layer_z] = n
-            node2role[n] = "data"
-            single_layer_nodes[int(x), int(y)] = n
-
-        # Add ancilla nodes at the same z=2*d (use Z ancillas for initialization)
-        for x, y in z2d:
-            n = g.add_physical_node()
-            node2coord[n] = (int(x), int(y), single_layer_z)
-            coord2node[int(x), int(y), single_layer_z] = n
-            node2role[n] = "ancilla_z"
-            single_layer_nodes[int(x), int(y)] = n
-
-        nodes_by_z[single_layer_z] = single_layer_nodes
+        # Assign nodes for each time slice
+        nodes_by_z = self._assign_nodes_by_timeslice(
+            g, data2d, x2d, z2d, max_t, start_layer_z, node2coord, coord2node, node2role
+        )
 
         self._construct_schedule(nodes_by_z, node2role)
 
-        # Add spatial edges only (no temporal edges for single layer)
         self._add_spatial_edges(g, nodes_by_z)
+        self._add_temporal_edges(g, nodes_by_z)
 
         return g, node2coord, coord2node, node2role
-
-    def _construct_schedule(self, nodes_by_z, node2role) -> None:  # noqa: ARG002
-        """Construct schedule for single-layer initialization with latest time slots (2*d)."""
-
-        self.schedule = ScheduleAccumulator()
-
-        # Calculate the latest time based on d
-        latest_time = 2 * self.d - 1
-
-        # Schedule data nodes at the latest time
-        data_nodes = {node for node, role in node2role.items() if role == "data"}
-        if data_nodes:
-            self.schedule.schedule[latest_time] = data_nodes
-
-        # Schedule ancilla nodes at latest_time + 1
-        ancilla_nodes = {node for node, role in node2role.items() if "ancilla" in role}
-        if ancilla_nodes:
-            self.schedule.schedule[latest_time + 1] = ancilla_nodes
 
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         # Init pipe: 入力ポートは持たない
@@ -257,19 +232,183 @@ class InitPlusPipeSingleLayer(RHGPipe):
         return super().set_cout_ports(patch_coord)
 
     def _construct_detectors(self) -> None:
-        """Single layer only has dangling detectors, no parity checks."""
+        """Construct detectors for the thin-layer initialization pipe."""
         x2d = self.template.x_coords
         z2d = self.template.z_coords
 
-        t_offset = min(self.schedule.schedule.keys(), default=0)
+        z_offset = int(self.source[2]) * (2 * self.d)
         dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
 
-        # For single layer, all ancillas become dangling detectors
+        # add dangling detectors for connectivity to next block
         for x, y in x2d + z2d:
-            node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, t_offset)))
+            node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z_offset + 2 * self.d - 2)))
             if node_id is None:
                 continue
             dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+
+        for z in range(2 * self.d - 1, 2 * self.d + 1):  # height is fixed to 2
+            for x, y in x2d:
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
+                if node_id is None:
+                    continue
+                self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
+                    {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
+                )
+                dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+
+            for x, y in z2d:
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
+                if node_id is None:
+                    continue
+                self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
+                    {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
+                )
+                dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+
+        # Add dangling detectors for connectivity to next block
+        for coord, nodes in dangling_detectors.items():
+            self.parity.dangling_parity[coord] = nodes
+
+
+@dataclass
+class InitZeroPipeThinLayerSkeleton(RHGPipeSkeleton):
+    """Skeleton for thin-layer Zero State initialization pipes in pipe-shaped RHG structures."""
+
+    @overload
+    def to_block(self) -> InitZeroThinLayerPipe: ...
+
+    @overload
+    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> InitZeroThinLayerPipe: ...
+
+    def to_block(
+        self, source: PatchCoordGlobal3D | None = None, sink: PatchCoordGlobal3D | None = None
+    ) -> InitZeroThinLayerPipe:
+        """
+        Return a template-holding block for single-layer initialization.
+
+        Returns
+        -------
+        InitZeroThinLayerPipe
+            A block containing the template with no local graph state.
+        """
+        # Default values if not provided
+        if source is None:
+            source = PatchCoordGlobal3D((0, 0, 0))
+        if sink is None:
+            sink = PatchCoordGlobal3D((1, 0, 0))
+
+        direction = get_direction(source, sink)
+
+        block = InitZeroThinLayerPipe(
+            d=self.d,
+            edgespec=self.edgespec,
+            direction=direction,
+        )
+        # Set source and sink for boundary-based qindex calculation
+        block.source = source
+        block.sink = sink
+        # Init blocks: final layer is open (O) without measurement
+        block.final_layer = "O"
+        return block
+
+
+class InitZeroThinLayerPipe(RHGPipe, ThinLayerMixin):
+    """Thin-layer Zero State initialization pipe (height=2) for compose-based initialization."""
+
+    def __init__(
+        self,
+        d: int,
+        edgespec: SpatialEdgeSpec | None,
+        direction: PIPEDIRECTION,
+    ) -> None:
+        # Convert None to empty dict for compatibility
+        edge_spec = edgespec or {}
+        super().__init__(d=d, edge_spec=edge_spec)
+        self.direction = direction
+        self.template = RotatedPlanarPipetemplate(d=d, edgespec=edge_spec)
+
+    def _build_3d_graph(self) -> tuple:
+        """Override to create single-layer graph with only 13 nodes (9 data + 4 ancilla) at z=2*d."""
+        data2d = list(self.template.data_coords or [])
+        x2d = list(self.template.x_coords or [])
+        z2d = list(self.template.z_coords or [])
+
+        # Calculate z-coordinate based on source position and 2*d
+        d_val = int(self.d)
+        z0 = int(self.source[2]) * (2 * d_val)  # Base z-offset per block
+        start_layer_z = z0 + (2 * d_val) - 1
+        max_t = 1
+
+        g = GraphState()
+        node2coord: dict[int, tuple[int, int, int]] = {}
+        coord2node: dict[tuple[int, int, int], int] = {}
+        node2role: dict[int, str] = {}
+
+        # Assign nodes for each time slice
+        nodes_by_z = self._assign_nodes_by_timeslice(
+            g, data2d, x2d, z2d, max_t, start_layer_z, node2coord, coord2node, node2role
+        )
+
+        self._construct_schedule(nodes_by_z, node2role)
+
+        self._add_spatial_edges(g, nodes_by_z)
+        self._add_temporal_edges(g, nodes_by_z)
+
+        return g, node2coord, coord2node, node2role
+
+    def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
+        # Init pipe: 入力ポートは持たない
+        return super().set_in_ports(patch_coord)
+
+    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
+        # set output ports to all data indices in the template
+        if self.source is not None and self.sink is not None:
+            source_2d = (self.source[0], self.source[1])
+            sink_2d = (self.sink[0], self.sink[1])
+            idx_map = self.template.get_data_indices(source_2d, patch_type="pipe", sink_patch=sink_2d)
+        else:
+            # Fallback for backward compatibility (no source/sink info)
+            idx_map = self.template.get_data_indices()
+        self.out_ports = set(idx_map.values())
+
+    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
+        # sets no classical output ports
+        return super().set_cout_ports(patch_coord)
+
+    def _construct_detectors(self) -> None:
+        """Construct detectors for the thin-layer initialization pipe."""
+        x2d = self.template.x_coords
+        z2d = self.template.z_coords
+
+        z_offset = int(self.source[2]) * (2 * self.d)
+        dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
+
+        # add dangling detectors for connectivity to next block
+        for x, y in x2d + z2d:
+            node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z_offset + 2 * self.d - 1)))
+            if node_id is None:
+                continue
+            dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+
+        # TODO: this code can be simplified with plus block
+        for z in range(2 * self.d, 2 * self.d + 1):  # height is fixed to 1
+            for x, y in x2d:
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
+                if node_id is None:
+                    continue
+                self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
+                    {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
+                )
+                dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+
+            for x, y in z2d:
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
+                if node_id is None:
+                    continue
+                self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
+                    {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
+                )
+                dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
 
         # Add dangling detectors for connectivity to next block
         for coord, nodes in dangling_detectors.items():

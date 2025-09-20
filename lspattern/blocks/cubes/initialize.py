@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 from graphix_zx.graphstate import GraphState
 
-from lspattern.blocks.base import RHGBlock
+from lspattern.blocks.base import ThinLayerMixin
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
 from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D, PhysCoordLocal2D
-from lspattern.tiling.template import RotatedPlanarCubeTemplate
 
 
 class InitPlusCubeSkeleton(RHGCubeSkeleton):
@@ -123,10 +122,6 @@ class InitPlusCubeThinLayerSkeleton(RHGCubeSkeleton):
         block.final_layer = "O"
 
         return block
-
-
-class ThinLayerMixin:
-    """Mixin class to identify blocks that use absolute coordinates."""
 
 
 class InitPlusThinLayer(RHGCube, ThinLayerMixin):

@@ -666,3 +666,7 @@ class RHGBlockSkeleton:
     def trim_spatial_boundary(self, direction: str) -> None:
         """Trim the spatial boundaries of the tiling."""
         self.template.trim_spatial_boundary(direction)
+
+
+class ThinLayerMixin:
+    """Mixin class to identify blocks that use absolute coordinates."""
