@@ -98,8 +98,9 @@ xflow = {}
 for src, dsts in compiled_canvas.flow.flow.items():
     xflow[int(src)] = {int(dst) for dst in dsts}
 x_parity = []
-for group_list in compiled_canvas.parity.checks.values():
-    x_parity.extend(group_list)
+for group_dict in compiled_canvas.parity.checks.values():
+    for group in group_dict.values():
+        x_parity.append({int(node) for node in group})
 
 # Print X flow organized by schedule if available
 print("X flow:")
