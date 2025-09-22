@@ -80,9 +80,10 @@ def create_circuit(d: int, noise: float) -> stim.Circuit:
 
     scheduler, xflow = _setup_scheduler(compiled_canvas)
 
-    x_parity = []
-    for group_list in compiled_canvas.parity.checks.values():
-        x_parity.extend(group_list)
+    x_parity: list[set[int]] = []
+    for group_dict in compiled_canvas.parity.checks.values():
+        for group in group_dict.values():
+            x_parity.append({int(node) for node in group})
 
     pattern = compile_canvas(
         compiled_canvas.global_graph,
@@ -92,6 +93,8 @@ def create_circuit(d: int, noise: float) -> stim.Circuit:
         scheduler=scheduler,
     )
 
+    if compiled_canvas.global_graph is None:
+        raise ValueError("Global graph is None")
     qindex2output = {v: k for k, v in compiled_canvas.global_graph.output_node_indices.items()}
     logical = {qindex2output[i] for i in range(d)}
     logical_observables = {0: logical}

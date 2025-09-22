@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING
 
 from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
 from lspattern.mytype import (
+    NodeIdLocal,
     PatchCoordGlobal3D,
     PatchCoordLocal2D,
-    NodeIdLocal,
     QubitIndexLocal,
     SpatialEdgeSpec,
 )

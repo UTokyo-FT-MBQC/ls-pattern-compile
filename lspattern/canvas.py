@@ -905,9 +905,9 @@ class CompiledRHGCanvas:
         if missing:
             detail_parts = []
             for key, coords in missing.items():
-                rendered = ', '.join(str(tuple(c)) for c in coords)
+                rendered = ", ".join(str(tuple(c)) for c in coords)
                 detail_parts.append(f"{key}: [{rendered}]")
-            details = '; '.join(detail_parts)
+            details = "; ".join(detail_parts)
             msg = f"cout group not found for coordinates -> {details}"
             raise KeyError(msg)
         return resolved
@@ -974,75 +974,91 @@ class CompiledRHGCanvas:
         CompiledRHGCanvas._remap_graph_edges(gsrc, gdst, nmap, created)
         return gdst
 
+    @staticmethod
+    def _remap_layer(layer: TemporalLayer, node_map: Mapping[NodeIdLocal, NodeIdLocal]) -> TemporalLayer:
+        """Remap a single temporal layer."""
+        # Create a copy of the layer and remap its node mappings
+        remapped_layer = TemporalLayer(layer.z)
+        remapped_layer.qubit_count = layer.qubit_count
+        remapped_layer.patches = layer.patches.copy()
+        remapped_layer.lines = layer.lines.copy()
+
+        # Remap layer's node mappings
+        remapped_layer.coord2node = {c: node_map.get(n, n) for c, n in layer.coord2node.items()}
+        remapped_layer.node2coord = {node_map.get(n, n): c for n, c in layer.node2coord.items()}
+        remapped_layer.node2role = {node_map.get(n, n): r for n, r in layer.node2role.items()}
+
+        # Remap portsets
+        CompiledRHGCanvas._remap_layer_portsets(layer, remapped_layer, node_map)
+
+        # Remap port lists
+        remapped_layer.in_ports = [NodeIdLocal(node_map.get(n, n)) for n in layer.in_ports]
+        remapped_layer.out_ports = [NodeIdLocal(node_map.get(n, n)) for n in layer.out_ports]
+        CompiledRHGCanvas._remap_layer_cout_ports(layer, remapped_layer, node_map)
+
+        # Copy other attributes
+        remapped_layer.local_graph = layer.local_graph  # GraphState will be remapped separately
+
+        # Remap accumulators to use new node IDs
+        remapped_layer.schedule = layer.schedule.remap_nodes(
+            {NodeIdGlobal(k): NodeIdGlobal(v) for k, v in node_map.items()}
+        )
+        remapped_layer.flow = layer.flow.remap_nodes(dict(node_map))
+        remapped_layer.parity = layer.parity.remap_nodes(dict(node_map))
+        remapped_layer.cubes_ = layer.cubes_.copy()
+        remapped_layer.pipes_ = layer.pipes_.copy()
+        remapped_layer.tiling_node_maps = layer.tiling_node_maps.copy()
+        remapped_layer.coord2gid = layer.coord2gid.copy()
+        remapped_layer.allowed_gid_pairs = layer.allowed_gid_pairs.copy()
+
+        return remapped_layer
+
+    @staticmethod
+    def _remap_layer_portsets(
+        layer: TemporalLayer, remapped_layer: TemporalLayer, node_map: Mapping[NodeIdLocal, NodeIdLocal]
+    ) -> None:
+        """Remap portsets for a layer."""
+        remapped_layer.in_portset = {
+            p: [NodeIdLocal(node_map.get(n, n)) for n in nodes] for p, nodes in layer.in_portset.items()
+        }
+        remapped_layer.out_portset = {
+            p: [NodeIdLocal(node_map.get(n, n)) for n in nodes] for p, nodes in layer.out_portset.items()
+        }
+        if layer.cout_port_groups:
+            remapped_groups: dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]] = {}
+            for patch_pos, groups in layer.cout_port_groups.items():
+                remapped_group_list: list[list[NodeIdLocal]] = []
+                for group in groups:
+                    remapped_group = [NodeIdLocal(node_map.get(n, n)) for n in group]
+                    remapped_group_list.append(remapped_group)
+                remapped_groups[patch_pos] = remapped_group_list
+            remapped_layer.cout_port_groups = remapped_groups
+            remapped_layer._rebuild_cout_group_cache()  # noqa: SLF001
+        else:
+            remapped_layer.cout_portset = {
+                p: [NodeIdLocal(node_map.get(n, n)) for n in nodes] for p, nodes in layer.cout_portset.items()
+            }
+
+    @staticmethod
+    def _remap_layer_cout_ports(
+        layer: TemporalLayer, remapped_layer: TemporalLayer, node_map: Mapping[NodeIdLocal, NodeIdLocal]
+    ) -> None:
+        """Remap cout ports for a layer."""
+        if layer.cout_port_groups:
+            remapped_layer.cout_ports = [
+                NodeIdLocal(node_map.get(n, n))
+                for groups in layer.cout_port_groups.values()
+                for group in groups
+                for n in group
+            ]
+        else:
+            remapped_layer.cout_ports = [NodeIdLocal(node_map.get(n, n)) for n in layer.cout_ports]
+
     # TODO: this could be made more efficient by avoiding deep copies
     def remap_nodes(self, node_map: Mapping[NodeIdLocal, NodeIdLocal]) -> CompiledRHGCanvas:
         """Remap nodes according to the given node mapping."""
-
         # Deep copy and remap each layer
-        remapped_layers = []
-        for layer in self.layers:
-            # Create a copy of the layer and remap its node mappings
-            remapped_layer = TemporalLayer(layer.z)
-            remapped_layer.qubit_count = layer.qubit_count
-            remapped_layer.patches = layer.patches.copy()
-            remapped_layer.lines = layer.lines.copy()
-
-            # Remap layer's node mappings
-            remapped_layer.coord2node = {c: node_map.get(n, n) for c, n in layer.coord2node.items()}
-            remapped_layer.node2coord = {node_map.get(n, n): c for n, c in layer.node2coord.items()}
-            remapped_layer.node2role = {node_map.get(n, n): r for n, r in layer.node2role.items()}
-
-            # Remap portsets
-            remapped_layer.in_portset = {
-                p: [NodeIdLocal(node_map.get(n, n)) for n in nodes] for p, nodes in layer.in_portset.items()
-            }
-            remapped_layer.out_portset = {
-                p: [NodeIdLocal(node_map.get(n, n)) for n in nodes] for p, nodes in layer.out_portset.items()
-            }
-            if layer.cout_port_groups:
-                remapped_groups: dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]] = {}
-                for patch_pos, groups in layer.cout_port_groups.items():
-                    remapped_group_list: list[list[NodeIdLocal]] = []
-                    for group in groups:
-                        remapped_group = [NodeIdLocal(node_map.get(n, n)) for n in group]
-                        remapped_group_list.append(remapped_group)
-                    remapped_groups[patch_pos] = remapped_group_list
-                remapped_layer.cout_port_groups = remapped_groups
-                remapped_layer._rebuild_cout_group_cache()
-            else:
-                remapped_layer.cout_portset = {
-                    p: [NodeIdLocal(node_map.get(n, n)) for n in nodes] for p, nodes in layer.cout_portset.items()
-                }
-
-            # Remap port lists
-            remapped_layer.in_ports = [NodeIdLocal(node_map.get(n, n)) for n in layer.in_ports]
-            remapped_layer.out_ports = [NodeIdLocal(node_map.get(n, n)) for n in layer.out_ports]
-            if layer.cout_port_groups:
-                remapped_layer.cout_ports = [
-                    NodeIdLocal(node_map.get(n, n))
-                    for groups in layer.cout_port_groups.values()
-                    for group in groups
-                    for n in group
-                ]
-            else:
-                remapped_layer.cout_ports = [NodeIdLocal(node_map.get(n, n)) for n in layer.cout_ports]
-
-            # Copy other attributes
-            remapped_layer.local_graph = layer.local_graph  # GraphState will be remapped separately
-
-            # Remap accumulators to use new node IDs
-            remapped_layer.schedule = layer.schedule.remap_nodes(
-                {NodeIdGlobal(k): NodeIdGlobal(v) for k, v in node_map.items()}
-            )
-            remapped_layer.flow = layer.flow.remap_nodes(dict(node_map))
-            remapped_layer.parity = layer.parity.remap_nodes(dict(node_map))
-            remapped_layer.cubes_ = layer.cubes_.copy()
-            remapped_layer.pipes_ = layer.pipes_.copy()
-            remapped_layer.tiling_node_maps = layer.tiling_node_maps.copy()
-            remapped_layer.coord2gid = layer.coord2gid.copy()
-            remapped_layer.allowed_gid_pairs = layer.allowed_gid_pairs.copy()
-
-            remapped_layers.append(remapped_layer)
+        remapped_layers = [CompiledRHGCanvas._remap_layer(layer, node_map) for layer in self.layers]
 
         new_cgraph = CompiledRHGCanvas(
             layers=remapped_layers,
@@ -1074,14 +1090,14 @@ class CompiledRHGCanvas:
         for pos, nodes in self.out_portset.items():
             new_cgraph.out_portset[pos] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
         if self.cout_port_groups:
-            remapped_groups: dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]] = {}
+            remapped_global_groups: dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]] = {}
             for patch_pos, groups in self.cout_port_groups.items():
-                remapped_group_list: list[list[NodeIdLocal]] = []
+                remapped_global_group_list: list[list[NodeIdLocal]] = []
                 for group in groups:
                     remapped_group = [NodeIdLocal(node_map.get(n, n)) for n in group]
-                    remapped_group_list.append(remapped_group)
-                remapped_groups[patch_pos] = remapped_group_list
-            new_cgraph.cout_port_groups = remapped_groups
+                    remapped_global_group_list.append(remapped_group)
+                remapped_global_groups[patch_pos] = remapped_global_group_list
+            new_cgraph.cout_port_groups = remapped_global_groups
             new_cgraph._rebuild_cout_group_cache()
         else:
             for pos, nodes in self.cout_portset.items():
@@ -1347,7 +1363,7 @@ def _create_first_layer_canvas(next_layer: TemporalLayer) -> CompiledRHGCanvas:
         pipes_=next_layer.pipes_,
     )
     if compiled.cout_port_groups:
-        compiled._rebuild_cout_group_cache()
+        compiled._rebuild_cout_group_cache()  # noqa: SLF001
     return compiled
 
 
@@ -1422,6 +1438,22 @@ def _build_merged_coord2node(cgraph: CompiledRHGCanvas, next_layer: TemporalLaye
     }
 
 
+def _extend_cout_port_groups(
+    target: dict[PatchCoordGlobal3D, list[list[int]]],
+    source: dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]],
+    node_map: dict[int, int],
+) -> None:
+    """Extend cout port groups with remapped nodes."""
+    for patch_pos, groups in source.items():
+        mapped_groups: list[list[int]] = []
+        for group in groups:
+            mapped_group = [node_map.get(int(n), int(n)) for n in group]
+            if mapped_group:
+                mapped_groups.append(mapped_group)
+        if mapped_groups:
+            target.setdefault(patch_pos, []).extend(mapped_groups)
+
+
 def _remap_temporal_portsets(
     cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, node_map1: dict[int, int], node_map2: dict[int, int]
 ) -> tuple[
@@ -1442,23 +1474,8 @@ def _remap_temporal_portsets(
     }
 
     cout_port_groups: dict[PatchCoordGlobal3D, list[list[int]]] = {}
-
-    def _extend_groups(
-        target: dict[PatchCoordGlobal3D, list[list[int]]],
-        source: dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]],
-        node_map: dict[int, int],
-    ) -> None:
-        for patch_pos, groups in source.items():
-            mapped_groups: list[list[int]] = []
-            for group in groups:
-                mapped_group = [node_map.get(int(n), int(n)) for n in group]
-                if mapped_group:
-                    mapped_groups.append(mapped_group)
-            if mapped_groups:
-                target.setdefault(patch_pos, []).extend(mapped_groups)
-
-    _extend_groups(cout_port_groups, cgraph.cout_port_groups, node_map1)
-    _extend_groups(cout_port_groups, next_layer.cout_port_groups, node_map2)
+    _extend_cout_port_groups(cout_port_groups, cgraph.cout_port_groups, node_map1)
+    _extend_cout_port_groups(cout_port_groups, next_layer.cout_port_groups, node_map2)
 
     if not cgraph.cout_port_groups:
         for patch_pos, nodes in cgraph.cout_portset.items():
@@ -1580,8 +1597,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         out_portset={k: [NodeIdLocal(v) for v in vs] for k, vs in out_portset.items()},
         cout_portset={k: [NodeIdLocal(v) for v in vs] for k, vs in cout_portset.items()},
         cout_port_groups={
-            k: [[NodeIdLocal(v) for v in group] for group in groups]
-            for k, groups in cout_port_groups.items()
+            k: [[NodeIdLocal(v) for v in group] for group in groups] for k, groups in cout_port_groups.items()
         },
         cout_group_lookup={},
         schedule=new_schedule,
@@ -1590,5 +1606,5 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         zlist=[*list(cgraph.zlist), next_layer.z],
     )
     if compiled.cout_port_groups:
-        compiled._rebuild_cout_group_cache()
+        compiled._rebuild_cout_group_cache()  # noqa: SLF001
     return compiled
