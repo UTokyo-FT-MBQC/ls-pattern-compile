@@ -13,6 +13,7 @@ import sys
 from typing import Literal
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
+from lspattern.blocks.pipes.base import RHGPipeSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvas, RHGCanvasSkeleton
 from lspattern.mytype import PatchCoordGlobal3D
 
@@ -31,7 +32,7 @@ blocks = [
     (PatchCoordGlobal3D((1, 1, 0)), InitPlusCubeSkeleton(d=3, edgespec=edgespec_trimmed)),
     (PatchCoordGlobal3D((2, 2, 0)), InitPlusCubeSkeleton(d=3, edgespec=edgespec)),
 ]
-pipes: list[tuple[PatchCoordGlobal3D, PatchCoordGlobal3D, object]] = []
+pipes: list[tuple[PatchCoordGlobal3D, PatchCoordGlobal3D, RHGPipeSkeleton]] = []
 
 for block in blocks:
     # RHGCanvasSkeleton は skeleton を受け取り、to_canvas() で block 化します

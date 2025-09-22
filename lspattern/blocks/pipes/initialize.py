@@ -11,6 +11,9 @@ from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D,
 from lspattern.tiling.template import RotatedPlanarPipetemplate
 from lspattern.utils import get_direction
 
+# Type alias for the return type of _build_3d_graph method
+Build3DGraphReturn = tuple[GraphState, dict[int, tuple[int, int, int]], dict[tuple[int, int, int], int], dict[int, str]]
+
 if TYPE_CHECKING:
     from lspattern.consts.consts import PIPEDIRECTION
 
@@ -183,7 +186,7 @@ class InitPlusThinLayerPipe(RHGPipe, ThinLayerMixin):
         self.direction = direction
         self.template = RotatedPlanarPipetemplate(d=d, edgespec=edge_spec)
 
-    def _build_3d_graph(self) -> tuple[GraphState, dict[int, tuple[int, int, int]], dict[tuple[int, int, int], int], dict[int, str]]:
+    def _build_3d_graph(self) -> Build3DGraphReturn:
         """Override to create single-layer graph with only 13 nodes (9 data + 4 ancilla) at z=2*d."""
         data2d = list(self.template.data_coords or [])
         x2d = list(self.template.x_coords or [])
@@ -327,7 +330,7 @@ class InitZeroThinLayerPipe(RHGPipe, ThinLayerMixin):
         self.direction = direction
         self.template = RotatedPlanarPipetemplate(d=d, edgespec=edge_spec)
 
-    def _build_3d_graph(self) -> tuple[GraphState, dict[int, tuple[int, int, int]], dict[tuple[int, int, int], int], dict[int, str]]:
+    def _build_3d_graph(self) -> Build3DGraphReturn:
         """Override to create single-layer graph with only 13 nodes (9 data + 4 ancilla) at z=2*d."""
         data2d = list(self.template.data_coords or [])
         x2d = list(self.template.x_coords or [])

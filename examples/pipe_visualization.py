@@ -7,6 +7,7 @@ T26: パイプのinnerアンカー適用後の可視化
 
 # %%
 import pathlib
+from typing import Literal
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
@@ -18,12 +19,12 @@ from lspattern.visualizers.temporallayer import visualize_temporal_layer
 MeasureXCubeSkeleton = InitPlusCubeSkeleton
 
 
-def build_horizontal():
+def build_horizontal():  # type: ignore[no-untyped-def]
     """Build horizontal pipe configuration."""
     d = 3
-    edgespec_cube1 = {"LEFT": "X", "RIGHT": "O", "TOP": "Z", "BOTTOM": "Z"}
-    edgespec_cube2 = {"LEFT": "O", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
-    edgespec_pipe_h = {"LEFT": "O", "RIGHT": "O", "TOP": "Z", "BOTTOM": "Z"}
+    edgespec_cube1: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "O", "TOP": "Z", "BOTTOM": "Z"}
+    edgespec_cube2: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
+    edgespec_pipe_h: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "O", "TOP": "Z", "BOTTOM": "Z"}
     sk = RHGCanvasSkeleton("T26 horiz")
     a = PatchCoordGlobal3D((0, 0, 1))
     b = PatchCoordGlobal3D((1, 0, 1))
@@ -37,12 +38,12 @@ def build_horizontal():
     return layers[0]
 
 
-def build_vertical():
+def build_vertical():  # type: ignore[no-untyped-def]
     """Build vertical pipe configuration."""
     d = 3
-    edgespec_cube1 = {"LEFT": "X", "RIGHT": "X", "TOP": "O", "BOTTOM": "Z"}
-    edgespec_cube2 = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "O"}
-    edgespec_pipe_v = {"LEFT": "X", "RIGHT": "X", "TOP": "O", "BOTTOM": "O"}
+    edgespec_cube1: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "O", "BOTTOM": "Z"}
+    edgespec_cube2: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "O"}
+    edgespec_pipe_v: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "O", "BOTTOM": "O"}
     sk = RHGCanvasSkeleton("T26 vert")
     a = PatchCoordGlobal3D((0, 0, 0))
     b = PatchCoordGlobal3D((0, 1, 0))
@@ -56,7 +57,7 @@ def build_vertical():
 
 # %%
 # Matplotlib 可視化(水平)
-layer_h = build_horizontal()
+layer_h = build_horizontal()  # type: ignore[no-untyped-call]
 print(len(layer_h.cubes_), "cubes")
 print(len(layer_h.node2coord))
 print(layer_h.node2coord)
@@ -72,7 +73,7 @@ fig1.show()
 
 # %%
 # Matplotlib 可視化(垂直)
-layer_v = build_vertical()
+layer_v = build_vertical()  # type: ignore[no-untyped-call]
 out_png2 = pathlib.Path(".").resolve().with_name("fig_T26_vert.png")
 visualize_temporal_layer(layer_v, save_path=str(out_png2), show=False, show_axes=True, show_grid=True)
 print("Saved:", out_png2)

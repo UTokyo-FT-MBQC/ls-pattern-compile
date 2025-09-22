@@ -10,6 +10,9 @@ from lspattern.blocks.base import ThinLayerMixin
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
 from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D, PhysCoordLocal2D
 
+# Type alias for the return type of _build_3d_graph method
+Build3DGraphReturn = tuple[GraphState, dict[int, tuple[int, int, int]], dict[tuple[int, int, int], int], dict[int, str]]
+
 
 class InitPlusCubeSkeleton(RHGCubeSkeleton):
     """Skeleton for initialization blocks in cube-shaped RHG structures."""
@@ -129,7 +132,7 @@ class InitPlusThinLayer(RHGCube, ThinLayerMixin):
 
     name: ClassVar[str] = "InitPlusThinLayer"
 
-    def _build_3d_graph(self) -> tuple[GraphState, dict[int, tuple[int, int, int]], dict[tuple[int, int, int], int], dict[int, str]]:
+    def _build_3d_graph(self) -> Build3DGraphReturn:
         """Override to create single-layer graph with only 13 nodes (9 data + 4 ancilla) at z=2*d."""
         data2d = list(self.template.data_coords or [])
         x2d = list(self.template.x_coords or [])
@@ -245,7 +248,7 @@ class InitZeroThinLayer(RHGCube, ThinLayerMixin):
 
     name: ClassVar[str] = "InitZeroThinLayer"
 
-    def _build_3d_graph(self) -> tuple[GraphState, dict[int, tuple[int, int, int]], dict[tuple[int, int, int], int], dict[int, str]]:
+    def _build_3d_graph(self) -> Build3DGraphReturn:
         """Override to create single-layer graph with only 13 nodes (9 data + 4 ancilla) at z=2*d."""
         data2d = list(self.template.data_coords or [])
         x2d = list(self.template.x_coords or [])

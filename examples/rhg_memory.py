@@ -7,6 +7,7 @@ with RHGCanvas, TemporalLayer composition, and compilation.
 
 # %%
 import pathlib
+from typing import Literal
 
 import pymatching
 import stim
@@ -30,7 +31,7 @@ d = 3
 skeleton = RHGCanvasSkeleton(name="Extended RHG Memory Canvas")
 
 # Define edge specification
-edgespec = {"TOP": "X", "BOTTOM": "X", "LEFT": "Z", "RIGHT": "Z"}
+edgespec: dict[str, Literal["X", "Z", "O"]] = {"TOP": "X", "BOTTOM": "X", "LEFT": "Z", "RIGHT": "Z"}
 
 # Add InitPlus cube at the beginning
 # init_skeleton = InitPlusCubeSkeleton(d=d, edgespec=edgespec)
@@ -82,11 +83,12 @@ for group_list in compiled_canvas.parity.checks.values():
     x_parity.extend(group_list)
 print(f"X flow: {xflow}")
 print("X parity")
-for coord, group_list in compiled_canvas.parity.checks.items():
+for coord, group_list in compiled_canvas.parity.checks.items():  # type: ignore[assignment]
     print(f"  {coord}: {group_list}")
 
 
-print(f"output qubits: {compiled_canvas.global_graph.output_node_indices}")
+output_indices_main = compiled_canvas.global_graph.output_node_indices or {}  # type: ignore[union-attr]
+print(f"output qubits: {output_indices_main}")
 
 # Create scheduler
 scheduler = Scheduler(compiled_canvas.global_graph, xflow=xflow)
@@ -107,7 +109,8 @@ if compiled_canvas.global_graph is not None:
             prep_time[node] = 0  # Non-input nodes prepared at time 0
 
     # Set measurement times based on schedule
-    output_nodes = set(compiled_canvas.global_graph.output_node_indices.keys())
+    output_indices = compiled_canvas.global_graph.output_node_indices or {}
+    output_nodes = set(output_indices.keys())
     for node in compiled_canvas.global_graph.physical_nodes:
         if node not in output_nodes:
             # Find when this node is scheduled for measurement
