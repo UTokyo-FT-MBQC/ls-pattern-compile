@@ -89,7 +89,7 @@ class InitPlusPipe(RHGPipe):
         self.out_ports = set(idx_map.values())
 
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        # 古典出力はなし
+        # initialize does not have cout ports
         return super().set_cout_ports(patch_coord)
 
     def _construct_detectors(self) -> None:

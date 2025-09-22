@@ -41,7 +41,7 @@ class _MeasureBase(RHGCube):
         template = cast("ScalableTemplate", kwargs.pop("template", ScalableTemplate(d=3, edgespec={})))
         in_ports = cast("set[QubitIndexLocal]", kwargs.pop("in_ports", set()))
         out_ports = cast("set[QubitIndexLocal]", kwargs.pop("out_ports", set()))
-        cout_ports = cast("list[set[QubitIndexLocal]]", kwargs.pop("cout_ports", []))
+        cout_ports = cast("list[set[NodeIdLocal]]", kwargs.pop("cout_ports", []))
 
         # Initialize parent with explicit arguments
         super().__init__(

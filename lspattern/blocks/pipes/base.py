@@ -7,6 +7,7 @@ from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
 from lspattern.mytype import (
     PatchCoordGlobal3D,
     PatchCoordLocal2D,
+    NodeIdLocal,
     QubitIndexLocal,
     SpatialEdgeSpec,
 )
@@ -53,7 +54,7 @@ class RHGPipe(RHGBlock):
 
     in_ports: set[QubitIndexLocal] = field(default_factory=set)
     out_ports: set[QubitIndexLocal] = field(default_factory=set)
-    cout_ports: list[set[QubitIndexLocal]] = field(default_factory=list)
+    cout_ports: list[set[NodeIdLocal]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         # get direction
