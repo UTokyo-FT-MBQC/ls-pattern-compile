@@ -69,8 +69,9 @@ class RHGBlock:
         Backing scalable tiling; evaluated during init/materialization.
     in_ports, out_ports : set[QubitIndexLocal]
         Logical boundary port sets for this block.
-    cout_ports : list[set[QubitIndexLocal]]
-        Grouped classical output ports (one group per logical result).
+    cout_ports : list[set[NodeIdLocal]]
+        Grouped classical output ports, expressed as node-id groups once the
+        local graph has been materialized.
     local_graph : GraphState
         Local RHG graph constructed by ``materialize()``.
     meas_basis : MeasBasis
@@ -97,7 +98,7 @@ class RHGBlock:
     # classical output ports. One group represents one logical result (to be XORed)
     in_ports: set[QubitIndexLocal] = field(default_factory=set)
     out_ports: set[QubitIndexLocal] = field(default_factory=set)
-    cout_ports: list[set[QubitIndexLocal]] = field(default_factory=list)
+    cout_ports: list[set[NodeIdLocal]] = field(default_factory=list)
 
     schedule: ScheduleAccumulator = field(init=False, default_factory=ScheduleAccumulator)
     flow: FlowAccumulator = field(init=False, default_factory=FlowAccumulator)
@@ -184,7 +185,8 @@ class RHGBlock:
         - Sync `template.d` with `self.d`.
         - Ensure template edgespec mirrors `self.edge_spec` if provided.
         - Build tiling via `template.to_tiling()`.
-        - Invoke port initialization hooks (`set_in_ports`, `set_out_ports`, `set_cout_ports`).
+        - Invoke port initialization hooks for quantum ports; classical groups are
+          populated after node ids are assigned.
         """
         self._sync_template_parameters()
 
@@ -192,7 +194,6 @@ class RHGBlock:
         patch_coord = (self.source[0], self.source[1]) if self.source else None
         self.set_in_ports(patch_coord)
         self.set_out_ports(patch_coord)
-        self.set_cout_ports(patch_coord)
 
         # Build the local RHG graph (nodes/edges and coordinate maps)
         g, node2coord, coord2node, node2role = self._build_3d_graph()
@@ -207,6 +208,9 @@ class RHGBlock:
         self.node2coord = {NodeIdLocal(k): PhysCoordGlobal3D(v) for k, v in node2coord.items()}
         self.coord2node = {PhysCoordGlobal3D(k): NodeIdLocal(v) for k, v in coord2node.items()}
         self.node2role = {NodeIdLocal(k): v for k, v in node2role.items()}
+
+        # Populate classical output groups once node ids are known
+        self.set_cout_ports(patch_coord)
 
         self._construct_detectors()
         self.coord2gid = dict.fromkeys(node2coord.values(), self.template.id_)
