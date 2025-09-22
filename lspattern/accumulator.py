@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
-from collections.abc import Mapping
-from collections.abc import Set as AbstractSet
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from collections.abc import Set as AbstractSet
+
     from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal, PhysCoordLocal2D
 
 
@@ -249,7 +250,7 @@ class ParityAccumulator:
             dangling_parity=new_dangling,
         )
 
-    def merge_parallel(self, other: ParityAccumulator) -> ParityAccumulator:
+    def merge_parallel(self, other: ParityAccumulator) -> ParityAccumulator:  # noqa: C901
         """Merge two parity accumulators for parallel composition with XOR merging at same z coordinates."""
         new_checks: dict[PhysCoordLocal2D, dict[int, set[NodeIdLocal]]] = {}
         new_dangling: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
