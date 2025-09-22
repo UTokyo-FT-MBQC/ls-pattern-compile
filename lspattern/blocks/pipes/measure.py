@@ -89,7 +89,7 @@ class _MeasurePipeBase(RHGPipe):
 
         # For measurement pipes, use only single layer (max_t = 0)
         max_t = 0
-        z0 = int(self.source[2]) * 1  # Use thickness 1 instead of 2*d
+        z0 = int(self.source[2]) * 2 * self.d
 
         g = GraphState()
         node2coord: dict[int, tuple[int, int, int]] = {}
@@ -224,14 +224,14 @@ class MeasureXPipe(_MeasurePipeBase):
         """Construct Z-stabilizer detectors for X measurement."""
         z2d = self.template.z_coords
 
-        t_offset = min(self.schedule.schedule.keys(), default=0)
-        height = max(self.schedule.schedule.keys(), default=0) - t_offset + 1
+        z_offset = self.source[2] * (2 * self.d)
+        height = max({coord[2] for coord in self.coord2node}, default=0) - z_offset + 1
 
-        for t in range(height):
+        for z in range(height):
             for x, y in z2d:
                 node_group: set[NodeIdLocal] = set()
                 for dx, dy in ANCILLA_TARGET_DIRECTION2D:
-                    node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, t + t_offset)))
+                    node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z + z_offset)))
                     if node_id is not None:
                         node_group.add(node_id)
                 if node_group:
@@ -253,14 +253,14 @@ class MeasureZPipe(_MeasurePipeBase):
         """Construct X-stabilizer detectors for Z measurement."""
         x2d = self.template.x_coords
 
-        t_offset = min(self.schedule.schedule.keys(), default=0)
-        height = max(self.schedule.schedule.keys(), default=0) - t_offset + 1
+        z_offset = self.source[2] * (2 * self.d)
+        height = max({coord[2] for coord in self.coord2node}, default=0) - z_offset + 1
 
-        for t in range(height):
+        for z in range(height):
             for x, y in x2d:
                 node_group: set[NodeIdLocal] = set()
                 for dx, dy in ANCILLA_TARGET_DIRECTION2D:
-                    node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, t + t_offset)))
+                    node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z + z_offset)))
                     if node_id is not None:
                         node_group.add(node_id)
                 if node_group:

@@ -6,6 +6,7 @@ Matplotlib/Plotly で multi-layer の compiled キャンバスを俯瞰表示す
 """
 
 # %%
+from typing import Literal
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
@@ -20,8 +21,8 @@ r = 3
 
 canvass = RHGCanvasSkeleton("Memory X")
 
-edgespec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
-edgespec_trimmed = {"LEFT": "O", "RIGHT": "O", "TOP": "O", "BOTTOM": "O"}
+edgespec: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
+edgespec_trimmed: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "O", "TOP": "O", "BOTTOM": "O"}
 # tmpl = RotatedPlanarTemplate(d=3, edgespec=edgespec)
 # _ = tmpl.to_tiling()
 blocks = [
@@ -94,7 +95,9 @@ import matplotlib.pyplot as plt
 
 vals = compiled_canvas.coord2node
 vals2d = set((x, y) for (x, y, z) in vals)
-plt.scatter(*[list(t) for t in zip(*vals2d, strict=False)], s=1)
+coords = list(zip(*vals2d, strict=False))
+if coords:
+    plt.scatter(coords[0], coords[1], s=1)
 plt.gca().set_aspect("equal", "box")
 plt.show()
 

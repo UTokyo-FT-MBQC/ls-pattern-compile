@@ -264,7 +264,7 @@ class RHGBlock:
                 msg = "final_layer must be set"
                 raise AssertionError(msg)
             if t_local == max_t and self.final_layer == "O":
-                # add data node only if it is not measurement node
+                # add data node
                 for x, y in data2d:
                     n = g.add_physical_node()
                     node2coord[n] = (int(x), int(y), int(t))
@@ -280,7 +280,7 @@ class RHGBlock:
                     node2role[n] = "data"
                     cur[int(x), int(y)] = n
                 # Interleave ancillas X/Z by time parity
-                if (t_local % 2) == 0:
+                if (t % 2) == 0:
                     for x, y in x2d:
                         n = g.add_physical_node()
                         node2coord[n] = (int(x), int(y), int(t))
@@ -666,3 +666,7 @@ class RHGBlockSkeleton:
     def trim_spatial_boundary(self, direction: str) -> None:
         """Trim the spatial boundaries of the tiling."""
         self.template.trim_spatial_boundary(direction)
+
+
+class ThinLayerMixin:
+    """Mixin class to identify blocks that use absolute coordinates."""

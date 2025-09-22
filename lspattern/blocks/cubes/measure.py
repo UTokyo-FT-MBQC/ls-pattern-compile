@@ -78,7 +78,7 @@ class _MeasureBase(RHGCube):
 
         # For measurement blocks, use only single layer (max_t = 0)
         max_t = 0
-        z0 = int(self.source[2]) * 1  # Use thickness 1 instead of 2*d
+        z0 = int(self.source[2]) * (2 * self.d)
 
         g = GraphState()
         node2coord: dict[int, tuple[int, int, int]] = {}
@@ -169,12 +169,12 @@ class MeasureX(_MeasureBase):
         z2d = self.template.z_coords
 
         # Use the actual z-coordinate where nodes are placed
-        t = int(self.source[2]) * 1  # Same as z0 in _build_3d_graph
+        z0 = int(self.source[2]) * (2 * self.d)
 
         for x, y in z2d:
             node_group: set[NodeIdLocal] = set()
             for dx, dy in ANCILLA_TARGET_DIRECTION2D:
-                node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, t)))
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z0)))
                 if node_id is not None:
                     node_group.add(node_id)
             self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(node_group)
@@ -198,15 +198,15 @@ class MeasureZ(_MeasureBase):
         pass
 
     def _construct_detectors(self) -> None:
-        x2d = self.template.x_coords  # NOTE: I'm not sure
+        x2d = self.template.x_coords
 
         # Use the actual z-coordinate where nodes are placed
-        t = int(self.source[2]) * 1  # Same as z0 in _build_3d_graph
+        z0 = int(self.source[2]) * (2 * self.d)
 
         for x, y in x2d:
             node_group: set[NodeIdLocal] = set()
             for dx, dy in ANCILLA_TARGET_DIRECTION2D:
-                node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, t)))
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z0)))
                 if node_id is not None:
                     node_group.add(node_id)
             self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(node_group)

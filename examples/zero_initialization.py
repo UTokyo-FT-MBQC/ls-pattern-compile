@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""New-API demo: RHG memory experiment (InitPlus -> Memory -> MeasureX).
+"""Zero state initialization demo in MBQC (InitZero -> Memory -> MeasureZ).
 
 This example builds a single-logical memory line using the current codebase structure
 with RHGCanvas, TemporalLayer composition, and compilation.
@@ -16,9 +16,9 @@ from graphix_zx.pattern import Pattern, print_pattern
 from graphix_zx.scheduler import Scheduler
 from graphix_zx.stim_compiler import stim_compile
 
-from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton, InitPlusCubeThinLayerSkeleton
+from lspattern.blocks.cubes.initialize import InitZeroCubeThinLayerSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
-from lspattern.blocks.cubes.measure import MeasureXSkeleton
+from lspattern.blocks.cubes.measure import MeasureZSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
 from lspattern.mytype import PatchCoordGlobal3D
@@ -33,15 +33,14 @@ skeleton = RHGCanvasSkeleton(name="Extended RHG Memory Canvas")
 # Define edge specification
 edgespec: dict[str, Literal["X", "Z", "O"]] = {"TOP": "X", "BOTTOM": "X", "LEFT": "Z", "RIGHT": "Z"}
 
-# Add InitPlus cube at the beginning
-# init_skeleton = InitPlusCubeSkeleton(d=d, edgespec=edgespec)
-init_skeleton = InitPlusCubeThinLayerSkeleton(d=d, edgespec=edgespec)
+# Add InitZero cube at the beginning
+init_skeleton = InitZeroCubeThinLayerSkeleton(d=d, edgespec=edgespec)
 skeleton.add_cube(PatchCoordGlobal3D((0, 0, 0)), init_skeleton)
 
 memory_skeleton = MemoryCubeSkeleton(d=d, edgespec=edgespec)
 skeleton.add_cube(PatchCoordGlobal3D((0, 0, 1)), memory_skeleton)
 
-measure_skeleton = MeasureXSkeleton(d=d, edgespec=edgespec)
+measure_skeleton = MeasureZSkeleton(d=d, edgespec=edgespec)
 skeleton.add_cube(PatchCoordGlobal3D((0, 0, 2)), measure_skeleton)
 
 extended_canvas = skeleton.to_canvas()
@@ -87,8 +86,8 @@ for coord, group_list in compiled_canvas.parity.checks.items():  # type: ignore[
     print(f"  {coord}: {group_list}")
 
 
-output_indices_main = compiled_canvas.global_graph.output_node_indices or {}  # type: ignore[union-attr]
-print(f"output qubits: {output_indices_main}")
+output_indices = compiled_canvas.global_graph.output_node_indices or {}  # type: ignore[union-attr]
+print(f"output qubits: {output_indices}")
 
 # Create scheduler
 scheduler = Scheduler(compiled_canvas.global_graph, xflow=xflow)
@@ -135,8 +134,8 @@ print_pattern(pattern)
 
 logical = {}
 for i in range(d):
-    logical[i] = Axis.X
-print(f"Logical X: {logical}")
+    logical[i*d] = Axis.Z
+print(f"Logical Z: {logical}")
 logical_observables = {0: logical}
 
 

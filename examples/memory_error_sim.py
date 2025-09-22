@@ -1,7 +1,7 @@
 """RHG memory simulation with noise probability sweep."""
 
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import matplotlib.pyplot as plt
 import sinter
@@ -22,7 +22,7 @@ from lspattern.mytype import PatchCoordGlobal3D
 def _create_skeleton(d: int) -> RHGCanvasSkeleton:
     """Create RHG canvas skeleton with specified parameters."""
     skeleton = RHGCanvasSkeleton(name=f"RHG Memory Circuit d={d}")
-    edgespec = {"TOP": "X", "BOTTOM": "X", "LEFT": "Z", "RIGHT": "Z"}
+    edgespec: dict[str, Literal["X", "Z", "O"]] = {"TOP": "X", "BOTTOM": "X", "LEFT": "Z", "RIGHT": "Z"}
 
     # Add InitPlus cube at the beginning
     init_skeleton = InitPlusCubeSkeleton(d=d, edgespec=edgespec)

@@ -4,6 +4,8 @@ Merge and Split
 """
 
 # %%
+from typing import Literal
+
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
@@ -19,10 +21,10 @@ d = 3
 
 canvass = RHGCanvasSkeleton("Merge and Split")
 
-edgespec = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
-edgespec1 = {"LEFT": "X", "RIGHT": "O", "TOP": "Z", "BOTTOM": "Z"}
-edgespec2 = {"LEFT": "O", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
-edgespec_trimmed = {"LEFT": "O", "RIGHT": "O", "TOP": "Z", "BOTTOM": "Z"}
+edgespec: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
+edgespec1: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "O", "TOP": "Z", "BOTTOM": "Z"}
+edgespec2: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
+edgespec_trimmed: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "O", "TOP": "Z", "BOTTOM": "Z"}
 blocks = [
     (
         PatchCoordGlobal3D((0, 0, 0)),
@@ -88,7 +90,8 @@ print(
         "coord_map": len(compiled_canvas.coord2node),
     }
 )
-print(f"output qubits: {compiled_canvas.global_graph.output_node_indices}")
+output_indices = compiled_canvas.global_graph.output_node_indices or {}  # type: ignore[union-attr]
+print(f"output qubits: {output_indices}")
 
 # Print flow and parity information
 xflow = {}

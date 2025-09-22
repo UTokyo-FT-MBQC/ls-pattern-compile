@@ -18,6 +18,7 @@ from graphix_zx.graphstate import (
 )
 
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
+from lspattern.blocks.base import ThinLayerMixin
 from lspattern.blocks.cubes.base import RHGCube
 from lspattern.blocks.pipes.base import RHGPipe
 from lspattern.consts.consts import DIRECTIONS3D
@@ -221,12 +222,18 @@ class TemporalLayer:
         d_val = int(blk.d)
         z_base = int(pos[2]) * (2 * d_val)
 
-        # Compute z-shift
-        try:
-            bmin_z = min(c[2] for c in blk.node2coord.values())
-        except ValueError:
-            bmin_z = z_base
-        z_shift = int(z_base - bmin_z)
+        # TODO: In the future, all blocks will use absolute coordinates and z_shift will be deprecated
+        # For now, ThinLayer blocks already use absolute coordinates, so skip z_shift for them
+        if isinstance(blk, ThinLayerMixin):
+            # ThinLayer blocks already use absolute coordinates - no z_shift needed
+            z_shift = 0
+        else:
+            # Compute z-shift for blocks using relative coordinates
+            try:
+                bmin_z = min(c[2] for c in blk.node2coord.values())
+            except ValueError:
+                bmin_z = z_base
+            z_shift = int(z_base - bmin_z)
 
         # Ingest coords/roles
         for old_n, coord in blk.node2coord.items():
@@ -309,12 +316,18 @@ class TemporalLayer:
         d_val = int(blk.d)
         z_base = int(pos[2]) * (2 * d_val)
 
-        # Compute z-shift
-        try:
-            bmin_z = min(c[2] for c in blk.node2coord.values())
-        except ValueError:
-            bmin_z = z_base
-        z_shift = int(z_base - bmin_z)
+        # TODO: In the future, all blocks will use absolute coordinates and z_shift will be deprecated
+        # For now, ThinLayer blocks already use absolute coordinates, so skip z_shift for them
+        if isinstance(blk, ThinLayerMixin):
+            # ThinLayer blocks already use absolute coordinates - no z_shift needed
+            z_shift = 0
+        else:
+            # Compute z-shift for blocks using relative coordinates
+            try:
+                bmin_z = min(c[2] for c in blk.node2coord.values())
+            except ValueError:
+                bmin_z = z_base
+            z_shift = int(z_base - bmin_z)
 
         # Directly use node coordinates with z-shift
         for node, coord in blk.node2coord.items():
