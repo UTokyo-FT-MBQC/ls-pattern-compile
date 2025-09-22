@@ -92,7 +92,8 @@ def create_circuit(d: int, noise: float) -> stim.Circuit:
         scheduler=scheduler,
     )
 
-    logical = set(range(d))
+    qindex2output = {v: k for k, v in compiled_canvas.global_graph.output_node_indices.items()}
+    logical = {qindex2output[i] for i in range(d)}
     logical_observables = {0: logical}
     stim_str = stim_compile(
         pattern,

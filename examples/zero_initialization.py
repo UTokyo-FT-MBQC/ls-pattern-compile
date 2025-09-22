@@ -132,9 +132,10 @@ pattern = compile_canvas(
 print("Pattern compilation successful")
 print_pattern(pattern)
 
-logical = {}
+qindex2output = {v: k for k, v in output_indices.items()}
+logical = set()
 for i in range(d):
-    logical[i*d] = Axis.Z
+    logical |= {qindex2output[i*d]}
 print(f"Logical Z: {logical}")
 logical_observables = {0: logical}
 
