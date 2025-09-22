@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
+from collections.abc import Mapping
+from collections.abc import Set as AbstractSet
 
 if TYPE_CHECKING:
     from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal, PhysCoordLocal2D
@@ -30,16 +32,16 @@ def _merge_flow(a: FlowLocal, b: FlowLocal) -> FlowLocal:
     return out
 
 
-# Parity groups: remap list[set[int]] via node maps and concatenate.
+# Parity groups: remap dict[int, set[int]] via node maps.
 def _remap_groups(
-    groups: list[set[NodeIdLocal]],
-    node_map: dict[NodeIdLocal, NodeIdLocal],
-) -> list[set[NodeIdLocal]]:
-    return [
-        {node_map.get(n, n) for n in grp}
-        for grp in groups
+    groups: Mapping[int, AbstractSet[NodeIdLocal]],
+    node_map: Mapping[NodeIdLocal, NodeIdLocal],
+) -> dict[int, set[NodeIdLocal]]:
+    return {
+        z: {node_map.get(n, n) for n in grp}
+        for z, grp in groups.items()
         if grp  # skip empty
-    ]
+    }
 
 
 @dataclass
@@ -179,12 +181,12 @@ class ScheduleAccumulator:
 class ParityAccumulator:
     """Parity check groups for X/Z stabilizers in local id space."""
 
-    checks: dict[PhysCoordLocal2D, list[set[NodeIdLocal]]] = field(default_factory=dict)
+    checks: dict[PhysCoordLocal2D, dict[int, set[NodeIdLocal]]] = field(default_factory=dict)
     dangling_parity: dict[PhysCoordLocal2D, set[NodeIdLocal]] = field(default_factory=dict)
 
     def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> ParityAccumulator:
         """Return a new parity accumulator with nodes remapped via `node_map`."""
-        # Fast remap via set/list comprehensions
+        # Fast remap via dict comprehensions
         new_checks = {k: _remap_groups(v, node_map) for k, v in self.checks.items()}
 
         # Remap dangling_parity as well
@@ -195,9 +197,9 @@ class ParityAccumulator:
             dangling_parity=new_dangling,
         )
 
-    def merge_with(self, other: ParityAccumulator) -> ParityAccumulator:
-        """Merge two parity accumulators with dangling parity handling."""
-        new_checks: dict[PhysCoordLocal2D, list[set[NodeIdLocal]]] = {}
+    def merge_with(self, other: ParityAccumulator) -> ParityAccumulator:  # noqa: C901
+        """Merge two parity accumulators with dangling parity handling for sequential composition."""
+        new_checks: dict[PhysCoordLocal2D, dict[int, set[NodeIdLocal]]] = {}
         new_dangling: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
 
         # Get all coordinates from both accumulators
@@ -209,32 +211,88 @@ class ParityAccumulator:
         )
 
         for coord in all_coords:
-            # Start with self's completed checks
-            sequence = self.checks.get(coord, [])[:]
+            # Start with self's completed checks (copy the z-dict)
+            checks_dict = self.checks.get(coord, {}).copy()
 
             # Handle connection between self.dangling and other.checks
             if coord in self.dangling_parity and coord in other.checks:
-                # Connect: merge self's dangling with other's first parity
-                if other.checks[coord]:
-                    merged = self.dangling_parity[coord].union(other.checks[coord][0])
-                    sequence.append(merged)
+                # Connect: merge self's dangling with other's first parity check
+                other_checks = other.checks[coord]
+                if other_checks:
+                    # Find the smallest z in other's checks
+                    min_z = min(other_checks.keys())
+                    merged = self.dangling_parity[coord].union(other_checks[min_z])
+                    checks_dict[min_z] = merged
                     # Add remaining checks from other
-                    sequence.extend(other.checks[coord][1:])
+                    for z, check_group in other_checks.items():
+                        if z > min_z:
+                            checks_dict[z] = check_group.copy()
             elif coord in self.dangling_parity and coord not in other.checks:
                 # self has dangling but other doesn't have this coord
                 # => Keep dangling for potential future connection
                 new_dangling[coord] = self.dangling_parity[coord].copy()
             elif coord not in self.dangling_parity and coord in other.checks:
                 # self has no dangling, other has checks
-                sequence.extend(other.checks[coord])
+                for z, check_group in other.checks[coord].items():
+                    checks_dict[z] = check_group.copy()
 
             # Set new dangling from other (overwrites any existing)
             if coord in other.dangling_parity:
                 new_dangling[coord] = other.dangling_parity[coord].copy()
 
-            # Save sequence if it has content
-            if sequence:
-                new_checks[coord] = sequence
+            # Save checks dict if it has content
+            if checks_dict:
+                new_checks[coord] = checks_dict
+
+        return ParityAccumulator(
+            checks=new_checks,
+            dangling_parity=new_dangling,
+        )
+
+    def merge_parallel(self, other: ParityAccumulator) -> ParityAccumulator:
+        """Merge two parity accumulators for parallel composition with XOR merging at same z coordinates."""
+        new_checks: dict[PhysCoordLocal2D, dict[int, set[NodeIdLocal]]] = {}
+        new_dangling: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
+
+        # Get all coordinates from both accumulators
+        all_coords = (
+            set(self.checks.keys())
+            | set(other.checks.keys())
+            | set(self.dangling_parity.keys())
+            | set(other.dangling_parity.keys())
+        )
+
+        for coord in all_coords:
+            checks_dict: dict[int, set[NodeIdLocal]] = {}
+
+            # Process checks from self
+            if coord in self.checks:
+                for z, check_group in self.checks[coord].items():
+                    checks_dict[z] = check_group.copy()
+
+            # Process checks from other
+            if coord in other.checks:
+                for z, check_group in other.checks[coord].items():
+                    if z in checks_dict:
+                        # XOR merge for same z coordinate
+                        checks_dict[z] ^= check_group
+                    else:
+                        checks_dict[z] = check_group.copy()
+
+            # Remove empty checks
+            checks_dict = {z: group for z, group in checks_dict.items() if group}
+
+            # Save checks dict if it has content
+            if checks_dict:
+                new_checks[coord] = checks_dict
+
+            # Process dangling parity
+            if coord in other.dangling_parity:
+                new_dangling[coord] = other.dangling_parity[coord].copy()
+                if coord in self.dangling_parity:
+                    new_dangling[coord] ^= self.dangling_parity[coord]
+            elif coord in self.dangling_parity:
+                new_dangling[coord] = self.dangling_parity[coord].copy()
 
         return ParityAccumulator(
             checks=new_checks,
