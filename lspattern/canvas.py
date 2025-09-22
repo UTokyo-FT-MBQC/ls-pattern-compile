@@ -592,7 +592,8 @@ class TemporalLayer:
 
             self.schedule = self.schedule.compose_parallel(remapped_schedule)
             self.flow = self.flow.merge_with(remapped_flow)
-            self.parity = self.parity.merge_with(remapped_parity)
+            # Use parallel merge for same temporal layer (horizontal merge with XOR)
+            self.parity = self.parity.merge_parallel(remapped_parity)
 
         for pipe in self.pipes_.values():
             # Get node mapping for this pipe (stored during graph composition)
@@ -612,7 +613,8 @@ class TemporalLayer:
 
             self.schedule = self.schedule.compose_parallel(remapped_schedule)
             self.flow = self.flow.merge_with(remapped_flow)
-            self.parity = self.parity.merge_with(remapped_parity)
+            # Use parallel merge for same temporal layer (horizontal merge with XOR)
+            self.parity = self.parity.merge_parallel(remapped_parity)
 
     def _get_coordinate_bounds(self) -> tuple[int, int, int, int, int, int]:
         """Get min/max bounds for all coordinates."""
