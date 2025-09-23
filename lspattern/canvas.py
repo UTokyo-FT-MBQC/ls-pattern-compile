@@ -21,6 +21,7 @@ from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAc
 from lspattern.blocks.base import ThinLayerMixin
 from lspattern.blocks.cubes.base import RHGCube
 from lspattern.blocks.pipes.base import RHGPipe
+from lspattern.blocks.pipes.measure import _MeasurePipeBase
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import (
     NodeIdGlobal,
@@ -499,6 +500,25 @@ class TemporalLayer:
                 result.add((edge[0], edge[1]))
         return result
 
+    def _is_measure_pipe_node(
+        self,
+        xy: tuple[int, int],
+        cube_xy_all: set[tuple[int, int]],
+    ) -> bool:
+        """Check if a node belongs to a measure pipe."""
+        # If the node is in cube region, it's not a pipe node
+        if xy in cube_xy_all:
+            return False
+
+        # Check if this XY coordinate belongs to any measure pipe
+        for pipe in self.pipes_.values():
+            if isinstance(pipe, _MeasurePipeBase):
+                # Check if this xy coordinate is in the pipe's template
+                for coord in pipe.template.data_coords or []:
+                    if (int(coord[0]), int(coord[1])) == xy:
+                        return True
+        return False
+
     def _should_connect_nodes(
         self,
         xy_u: tuple[int, int],
@@ -510,6 +530,10 @@ class TemporalLayer:
         """Check if two nodes should be connected based on XY regions and group IDs."""
         u_in_cube = xy_u in cube_xy_all
         v_in_cube = xy_v in cube_xy_all
+
+        # Skip connection if either node belongs to a measure pipe
+        if self._is_measure_pipe_node(xy_u, cube_xy_all) or self._is_measure_pipe_node(xy_v, cube_xy_all):
+            return False
 
         # Connect iff one is in cube region, other in pipe region, and allowed pair
         return u_in_cube != v_in_cube and is_allowed_pair(

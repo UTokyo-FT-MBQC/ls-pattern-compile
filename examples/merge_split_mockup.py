@@ -31,7 +31,7 @@ canvass = RHGCanvasSkeleton("Merge and Split")
 edgespec: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
 edgespec1: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "O", "TOP": "Z", "BOTTOM": "Z"}
 edgespec2: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
-edgespec_trimmed: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
+edgespec_trimmed: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "O", "TOP": "Z", "BOTTOM": "Z"}
 edgespec_measure_trimmed: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "O", "TOP": "O", "BOTTOM": "O"}
 blocks = [
     (
