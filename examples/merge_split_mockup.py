@@ -31,7 +31,7 @@ canvass = RHGCanvasSkeleton("Merge and Split")
 edgespec: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
 edgespec1: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "O", "TOP": "Z", "BOTTOM": "Z"}
 edgespec2: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
-edgespec_trimmed: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "O", "TOP": "Z", "BOTTOM": "Z"}
+edgespec_trimmed: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
 edgespec_measure_trimmed: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "O", "TOP": "O", "BOTTOM": "O"}
 blocks = [
     (
@@ -216,7 +216,7 @@ def create_circuit(pattern: Pattern, noise: float) -> stim.Circuit:
     stim_str = stim_compile(
         pattern,
         logical_observables,
-        after_clifford_depolarization=noise,
+        after_clifford_depolarization=0,
         before_measure_flip_probability=noise,
     )
     return stim.Circuit(stim_str)
