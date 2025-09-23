@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import operator
 from typing import TYPE_CHECKING, ClassVar, Literal, cast
 
 from graphix_zx.common import Axis, AxisMeasBasis, MeasBasis, Sign
@@ -173,10 +174,22 @@ class MeasureX(_MeasureBase):
             raise ValueError(msg)
         idx_map = self.template.get_data_indices(patch_coord)
         direction = compute_logical_op_direction(self.edgespec, "X")
+
+        # Get actual data coordinates from template (after any shifts)
+        data_coords = sorted(self.template.data_coords) if self.template.data_coords else []
+
         if direction == "H":
-            cout_qindices = {idx_map[TilingCoord2D((2 * i, 0))] for i in range(self.d)}  # TODO: avoid hardcoding
+            # For horizontal direction, select coords with y=min_y at regular x intervals
+            min_y = min(y for _, y in data_coords) if data_coords else 0
+            target_coords = [(x, y) for x, y in data_coords if y == min_y]
+            target_coords = sorted(target_coords)[: self.d]  # Take first d coordinates
         else:  # direction == "V"
-            cout_qindices = {idx_map[TilingCoord2D((0, 2 * i))] for i in range(self.d)}
+            # For vertical direction, select coords with x=min_x at regular y intervals
+            min_x = min(x for x, _ in data_coords) if data_coords else 0
+            target_coords = [(x, y) for x, y in data_coords if x == min_x]
+            target_coords = sorted(target_coords, key=operator.itemgetter(1))[: self.d]  # Sort by y, take first d
+
+        cout_qindices = {idx_map[TilingCoord2D(coord)] for coord in target_coords if TilingCoord2D(coord) in idx_map}
 
         qindex2output_nodes = {v: k for k, v in self.local_graph.output_node_indices.items()}
         cout_group = {NodeIdLocal(qindex2output_nodes[q]) for q in cout_qindices if q in qindex2output_nodes}
@@ -218,10 +231,22 @@ class MeasureZ(_MeasureBase):
             raise ValueError(msg)
         idx_map = self.template.get_data_indices(patch_coord)
         direction = compute_logical_op_direction(self.edgespec, "Z")
+
+        # Get actual data coordinates from template (after any shifts)
+        data_coords = sorted(self.template.data_coords) if self.template.data_coords else []
+
         if direction == "H":
-            cout_qindices = {idx_map[TilingCoord2D((2 * i, 0))] for i in range(self.d)}
+            # For horizontal direction, select coords with y=min_y at regular x intervals
+            min_y = min(y for _, y in data_coords) if data_coords else 0
+            target_coords = [(x, y) for x, y in data_coords if y == min_y]
+            target_coords = sorted(target_coords)[: self.d]  # Take first d coordinates
         else:  # direction == "V"
-            cout_qindices = {idx_map[TilingCoord2D((0, 2 * i))] for i in range(self.d)}
+            # For vertical direction, select coords with x=min_x at regular y intervals
+            min_x = min(x for x, _ in data_coords) if data_coords else 0
+            target_coords = [(x, y) for x, y in data_coords if x == min_x]
+            target_coords = sorted(target_coords, key=operator.itemgetter(1))[: self.d]  # Sort by y, take first d
+
+        cout_qindices = {idx_map[TilingCoord2D(coord)] for coord in target_coords if TilingCoord2D(coord) in idx_map}
 
         qindex2output_nodes = {v: k for k, v in self.local_graph.output_node_indices.items()}
         cout_group = {NodeIdLocal(qindex2output_nodes[q]) for q in cout_qindices if q in qindex2output_nodes}
