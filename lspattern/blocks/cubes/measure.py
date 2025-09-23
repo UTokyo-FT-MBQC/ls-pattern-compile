@@ -5,17 +5,22 @@ from typing import TYPE_CHECKING, ClassVar, Literal, cast
 from graphix_zx.common import Axis, AxisMeasBasis, MeasBasis, Sign
 from graphix_zx.graphstate import GraphState
 
+from lspattern.blocks.base import compute_logical_op_direction
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
-from lspattern.mytype import PatchCoordGlobal3D, PhysCoordGlobal3D, PhysCoordLocal2D, QubitIndexLocal
+from lspattern.mytype import (
+    NodeIdLocal,
+    PatchCoordGlobal3D,
+    PhysCoordGlobal3D,
+    PhysCoordLocal2D,
+    QubitIndexLocal,
+    TilingCoord2D,
+)
 from lspattern.tiling.template import ScalableTemplate
 
 if TYPE_CHECKING:
     from collections.abc import MutableMapping, Sequence
 
     from lspattern.canvas import RHGCanvas
-    from lspattern.mytype import (
-        NodeIdLocal,
-    )
 
 ANCILLA_TARGET_DIRECTION2D = {(1, 1), (1, -1), (-1, 1), (-1, -1)}
 
@@ -163,7 +168,17 @@ class MeasureX(_MeasureBase):
         self.out_ports = set(idx_map.values())
 
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        pass
+        idx_map = self.template.get_data_indices(patch_coord)
+        direction = compute_logical_op_direction(self.edgespec, "X")
+        if direction == "H":
+            cout_qindices = {idx_map[TilingCoord2D((i, 0))] for i in range(self.d)}
+        else:  # direction == "V"
+            cout_qindices = {idx_map[TilingCoord2D((0, i))] for i in range(self.d)}
+
+        qindex2output_nodes = {v: k for k, v in self.local_graph.output_node_indices.items()}
+        cout_group = {NodeIdLocal(qindex2output_nodes[q]) for q in cout_qindices if q in qindex2output_nodes}
+
+        self.cout_ports = [cout_group]
 
     def _construct_detectors(self) -> None:
         z2d = self.template.z_coords
@@ -195,7 +210,17 @@ class MeasureZ(_MeasureBase):
         self.out_ports = set(idx_map.values())
 
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        pass
+        idx_map = self.template.get_data_indices(patch_coord)
+        direction = compute_logical_op_direction(self.edgespec, "Z")
+        if direction == "H":
+            cout_qindices = {idx_map[TilingCoord2D((i, 0))] for i in range(self.d)}
+        else:  # direction == "V"
+            cout_qindices = {idx_map[TilingCoord2D((0, i))] for i in range(self.d)}
+
+        qindex2output_nodes = {v: k for k, v in self.local_graph.output_node_indices.items()}
+        cout_group = {NodeIdLocal(qindex2output_nodes[q]) for q in cout_qindices if q in qindex2output_nodes}
+
+        self.cout_ports = [cout_group]
 
     def _construct_detectors(self) -> None:
         x2d = self.template.x_coords
