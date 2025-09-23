@@ -168,8 +168,10 @@ class MeasureX(_MeasureBase):
         self.out_ports = set(idx_map.values())
 
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
+        if self.edgespec is None:
+            msg = f"edgespec must be defined to determine logical operator direction at {self.source}"
+            raise ValueError(msg)
         idx_map = self.template.get_data_indices(patch_coord)
-        print(f"idx_map: {idx_map}")
         direction = compute_logical_op_direction(self.edgespec, "X")
         if direction == "H":
             cout_qindices = {idx_map[TilingCoord2D((2 * i, 0))] for i in range(self.d)}  # TODO: avoid hardcoding
@@ -211,6 +213,9 @@ class MeasureZ(_MeasureBase):
         self.out_ports = set(idx_map.values())
 
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
+        if self.edgespec is None:
+            msg = f"edgespec must be defined to determine logical operator direction at {self.source}"
+            raise ValueError(msg)
         idx_map = self.template.get_data_indices(patch_coord)
         direction = compute_logical_op_direction(self.edgespec, "Z")
         if direction == "H":
