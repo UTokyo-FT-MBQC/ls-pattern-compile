@@ -45,6 +45,8 @@ else:
         PhysCoordGlobal3D,
     )
 
+NUM_EDGE_SPEC_BOUDARY = 4
+
 
 @dataclass
 class RHGBlock:
@@ -697,7 +699,7 @@ def compute_logical_op_direction(edgespec: SpatialEdgeSpec, obs: str) -> str:
         If the edgespec is invalid or does not support the specified observable.
     """
     es = {k: str(v).upper() for k, v in edgespec.items() if k in {"LEFT", "RIGHT", "TOP", "BOTTOM"}}
-    if len(es) != 4:
+    if len(es) != NUM_EDGE_SPEC_BOUDARY:
         msg = "edgespec must contain exactly the keys: LEFT, RIGHT, TOP, BOTTOM"
         raise ValueError(msg)
 
