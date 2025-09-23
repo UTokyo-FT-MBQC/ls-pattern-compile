@@ -3,7 +3,14 @@ Merge and Split
 """
 
 # %%
+import pathlib
 from typing import Literal
+
+import pymatching
+import stim
+from graphix_zx.pattern import Pattern, print_pattern
+from graphix_zx.scheduler import Scheduler
+from graphix_zx.stim_compiler import stim_compile
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
@@ -11,6 +18,7 @@ from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
 from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton
 from lspattern.blocks.cubes.measure import MeasureXSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
+from lspattern.compile import compile_canvas
 from lspattern.mytype import PatchCoordGlobal3D
 from lspattern.visualizers import visualize_compiled_canvas_plotly
 
@@ -92,6 +100,11 @@ print(
 output_indices = compiled_canvas.global_graph.output_node_indices or {}  # type: ignore[union-attr]
 print(f"output qubits: {output_indices}")
 
+fig3d = visualize_compiled_canvas_plotly(compiled_canvas, show_edges=True)
+fig3d.show()
+
+# %%
+
 # Print flow and parity information
 xflow = {}
 for src, dsts in compiled_canvas.flow.flow.items():
@@ -124,14 +137,119 @@ print("X parity")
 for coord, group_list in compiled_canvas.parity.checks.items():
     print(f"  {coord}: {group_list}")
 
+# Print detailed flow information for visualization
+print("\nDetailed Flow Information:")
+print(f"Total flow edges: {sum(len(dsts) for dsts in xflow.values())}")
+print(f"Flow sources: {len(xflow)}")
+print(f"Flow coverage: {len(set().union(*xflow.values()) if xflow else set())} unique destinations")
+
+# Print detector/stabilizer information
+print("\nDetector Information:")
+total_detectors = sum(len(group_dict) for group_dict in compiled_canvas.parity.checks.values())
+print(f"Total detectors: {total_detectors}")
+for coord, group_dict in compiled_canvas.parity.checks.items():
+    print(f"  Patch {coord}: {len(group_dict)} detector groups")
+
 # classical outs
 cout_portmap = compiled_canvas.cout_portset
 print(f"Classical output ports: {cout_portmap}")
 
 
 # %%
+# Pattern generation
+# Create scheduler
+scheduler = Scheduler(compiled_canvas.global_graph, xflow=xflow)
 
-fig3d = visualize_compiled_canvas_plotly(compiled_canvas, show_edges=True)
-fig3d.show()
+# Set up timing based on compiled_canvas.schedule
+compact_schedule = compiled_canvas.schedule.compact()
+print(f"Schedule has {len(compact_schedule.schedule)} time slots")
+
+# Initialize prepare_time and measure_time dictionaries
+prep_time = {}
+meas_time = {}
+
+# Set input nodes to have no preparation time (None)
+if compiled_canvas.global_graph is not None:
+    input_nodes = set(compiled_canvas.global_graph.input_node_indices.keys())
+    for node in compiled_canvas.global_graph.physical_nodes:
+        if node not in input_nodes:
+            prep_time[node] = 0  # Non-input nodes prepared at time 0
+
+    # Set measurement times based on schedule
+    output_indices = compiled_canvas.global_graph.output_node_indices or {}
+    output_nodes = set(output_indices.keys())
+    for node in compiled_canvas.global_graph.physical_nodes:
+        if node not in output_nodes:
+            # Find when this node is scheduled for measurement
+            meas_time[node] = 1  # Default measurement time
+            for time_slot, nodes in compact_schedule.schedule.items():
+                if node in nodes:
+                    meas_time[node] = time_slot + 1  # Shift by 1 to account for preparation at time 0
+                    break
+
+# Configure scheduler with manual timing
+scheduler.manual_schedule(prepare_time=prep_time, measure_time=meas_time)
+
+pattern = compile_canvas(
+    compiled_canvas.global_graph,
+    xflow=xflow,
+    x_parity=x_parity,
+    z_parity=[],
+    scheduler=scheduler,
+)
+print("Pattern compilation successful")
+print_pattern(pattern)
+
+# set logical observables
+coord2logical_group = {
+    0: PatchCoordGlobal3D((0, 0, 3)),  # First output patch
+    1: PatchCoordGlobal3D((1, 0, 3)),  # Second output patch
+}
+logical_observables = {i: cout_portmap[coord] for i, coord in coord2logical_group.items() if coord in cout_portmap}
+print(f"Using logical observables: {logical_observables}")
+
+# %%
+# Circuit creation
+def create_circuit(pattern: Pattern, noise: float) -> stim.Circuit:
+    print(f"Using logical observables: {logical_observables}")
+    stim_str = stim_compile(
+        pattern,
+        logical_observables,
+        after_clifford_depolarization=noise,
+        before_measure_flip_probability=noise,
+    )
+    return stim.Circuit(stim_str)
+
+
+noise = 0.001
+circuit = create_circuit(pattern, noise)
+print(f"num_qubits: {circuit.num_qubits}")
+print(circuit)
+
+# %%
+# Error correction simulation
+try:
+    dem = circuit.detector_error_model(decompose_errors=True)
+    print(dem)
+except ValueError as e:
+    print(f"Error creating DEM with decompose_errors=True: {e}")
+    print("Retrying without decompose_errors...")
+    dem = circuit.detector_error_model(decompose_errors=False)
+    print(dem)
+
+matching = pymatching.Matching.from_detector_error_model(dem)
+print(matching)
+
+err = dem.shortest_graphlike_error(ignore_ungraphlike_errors=False)
+print(f"Shortest error length: {len(err)}")
+print(err)
+
+# %%
+# Visualization export
+svg = dem.diagram(type="match-graph-svg")
+pathlib.Path("figures").mkdir(exist_ok=True)
+pathlib.Path("figures/merge_split_dem.svg").write_text(str(svg), encoding="utf-8")
+print("SVG diagram saved to figures/merge_split_dem.svg")
+
 
 # %%
