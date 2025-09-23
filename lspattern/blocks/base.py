@@ -701,7 +701,7 @@ def compute_logical_op_direction(edgespec: SpatialEdgeSpec, obs: str) -> str:
         msg = "edgespec must contain exactly the keys: LEFT, RIGHT, TOP, BOTTOM"
         raise ValueError(msg)
 
-    if obs.upper() == "Z":
+    if obs.upper() == "X":  # TODO: should be Z?
         # X logical operator runs between Z boundaries
         if es["LEFT"] == "Z" and es["RIGHT"] == "Z":
             return "H"
@@ -710,7 +710,7 @@ def compute_logical_op_direction(edgespec: SpatialEdgeSpec, obs: str) -> str:
 
         msg = "edgespec does not support X logical operator"
         raise ValueError(msg)
-    if obs.upper() == "X":
+    if obs.upper() == "Z":
         # Z logical operator runs between X boundaries
         if es["LEFT"] == "X" and es["RIGHT"] == "X":
             return "H"

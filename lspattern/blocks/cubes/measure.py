@@ -169,11 +169,12 @@ class MeasureX(_MeasureBase):
 
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         idx_map = self.template.get_data_indices(patch_coord)
+        print(f"idx_map: {idx_map}")
         direction = compute_logical_op_direction(self.edgespec, "X")
         if direction == "H":
-            cout_qindices = {idx_map[TilingCoord2D((i, 0))] for i in range(self.d)}
+            cout_qindices = {idx_map[TilingCoord2D((2 * i, 0))] for i in range(self.d)}  # TODO: avoid hardcoding
         else:  # direction == "V"
-            cout_qindices = {idx_map[TilingCoord2D((0, i))] for i in range(self.d)}
+            cout_qindices = {idx_map[TilingCoord2D((0, 2 * i))] for i in range(self.d)}
 
         qindex2output_nodes = {v: k for k, v in self.local_graph.output_node_indices.items()}
         cout_group = {NodeIdLocal(qindex2output_nodes[q]) for q in cout_qindices if q in qindex2output_nodes}
