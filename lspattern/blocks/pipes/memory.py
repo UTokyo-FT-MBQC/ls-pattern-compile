@@ -92,7 +92,7 @@ class MemoryPipe(RHGPipe):
         x2d = self.template.x_coords
         z2d = self.template.z_coords
 
-        z_offset = self.source[2] * (2 * self.d)
+        z_offset = int(self.source[2]) * (2 * self.d)
         height = max({coord[2] for coord in self.coord2node}, default=0) - z_offset + 1
         dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
         for z in range(height):
