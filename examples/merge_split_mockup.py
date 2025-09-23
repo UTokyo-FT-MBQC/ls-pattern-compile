@@ -12,11 +12,11 @@ from graphix_zx.pattern import Pattern, print_pattern
 from graphix_zx.scheduler import Scheduler
 from graphix_zx.stim_compiler import stim_compile
 
-from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
+from lspattern.blocks.cubes.initialize import InitPlusCubeThinLayerSkeleton, InitZeroCubeThinLayerSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
 from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton
-from lspattern.blocks.cubes.measure import MeasureXSkeleton
+from lspattern.blocks.cubes.measure import MeasureXSkeleton, MeasureZSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
 from lspattern.mytype import PatchCoordGlobal3D
@@ -28,19 +28,19 @@ d = 3
 
 canvass = RHGCanvasSkeleton("Merge and Split")
 
-edgespec: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
-edgespec1: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "O", "TOP": "Z", "BOTTOM": "Z"}
-edgespec2: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
-edgespec_trimmed: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "O", "TOP": "Z", "BOTTOM": "Z"}
+edgespec: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "Z", "RIGHT": "Z", "TOP": "X", "BOTTOM": "X"}
+edgespec1: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "Z", "RIGHT": "O", "TOP": "X", "BOTTOM": "X"}
+edgespec2: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "Z", "TOP": "X", "BOTTOM": "X"}
+edgespec_trimmed: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "O", "TOP": "X", "BOTTOM": "X"}
 edgespec_measure_trimmed: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "O", "TOP": "O", "BOTTOM": "O"}
 blocks = [
     (
         PatchCoordGlobal3D((0, 0, 0)),
-        InitPlusCubeSkeleton(d=3, edgespec=edgespec),
+        InitZeroCubeThinLayerSkeleton(d=3, edgespec=edgespec),
     ),
     (
         PatchCoordGlobal3D((1, 0, 0)),
-        InitPlusCubeSkeleton(d=3, edgespec=edgespec),
+        InitZeroCubeThinLayerSkeleton(d=3, edgespec=edgespec),
     ),
     (
         PatchCoordGlobal3D((0, 0, 1)),
@@ -48,34 +48,42 @@ blocks = [
     ),
     (
         PatchCoordGlobal3D((1, 0, 1)),
-        MemoryCubeSkeleton(d=3, edgespec=edgespec2),
+        MemoryCubeSkeleton(d=3, edgespec=edgespec1),
     ),
     (
         PatchCoordGlobal3D((0, 0, 2)),
-        MemoryCubeSkeleton(d=3, edgespec=edgespec),
+        MemoryCubeSkeleton(d=3, edgespec=edgespec1),
     ),
     (
         PatchCoordGlobal3D((1, 0, 2)),
-        MemoryCubeSkeleton(d=3, edgespec=edgespec),
+        MemoryCubeSkeleton(d=3, edgespec=edgespec2),
     ),
     (
         PatchCoordGlobal3D((0, 0, 3)),
-        MeasureXSkeleton(d=3, edgespec=edgespec),
+        MemoryCubeSkeleton(d=3, edgespec=edgespec),
     ),
     (
         PatchCoordGlobal3D((1, 0, 3)),
-        MeasureXSkeleton(d=3, edgespec=edgespec),
+        MemoryCubeSkeleton(d=3, edgespec=edgespec),
+    ),
+    (
+        PatchCoordGlobal3D((0, 0, 4)),
+        MeasureZSkeleton(d=3, edgespec=edgespec),
+    ),
+    (
+        PatchCoordGlobal3D((1, 0, 4)),
+        MeasureZSkeleton(d=3, edgespec=edgespec),
     )
 ]
 pipes = [
     (
-        PatchCoordGlobal3D((0, 0, 1)),
-        PatchCoordGlobal3D((1, 0, 1)),
+        PatchCoordGlobal3D((0, 0, 2)),
+        PatchCoordGlobal3D((1, 0, 2)),
         InitPlusPipeSkeleton(d=3, edgespec=edgespec_trimmed),
     ),
     (
-        PatchCoordGlobal3D((0, 0, 2)),
-        PatchCoordGlobal3D((1, 0, 2)),
+        PatchCoordGlobal3D((0, 0, 3)),
+        PatchCoordGlobal3D((1, 0, 3)),
         MeasureXPipeSkeleton(d=3, edgespec=edgespec_measure_trimmed),
     ),
 ]
@@ -101,8 +109,8 @@ print(
 output_indices = compiled_canvas.global_graph.output_node_indices or {}  # type: ignore[union-attr]
 print(f"output qubits: {output_indices}")
 
-fig3d = visualize_compiled_canvas_plotly(compiled_canvas, show_edges=True)
-fig3d.show()
+# fig3d = visualize_compiled_canvas_plotly(compiled_canvas, show_edges=True)
+# fig3d.show()
 
 # %%
 
@@ -203,11 +211,18 @@ print_pattern(pattern)
 
 # set logical observables
 coord2logical_group = {
-    0: PatchCoordGlobal3D((0, 0, 3)),  # First output patch
-    1: PatchCoordGlobal3D((1, 0, 3)),  # Second output patch
+    # 0: {PatchCoordGlobal3D((0, 0, 3)), PatchCoordGlobal3D((1, 0, 3))},  # First output patch
+    0: {PatchCoordGlobal3D((0, 0, 4))},
+    # 1: {PatchCoordGlobal3D((1, 0, 3))},  # Second output patch
 }
-logical_observables = {i: cout_portmap[coord] for i, coord in coord2logical_group.items() if coord in cout_portmap}
-print(f"Using logical observables: {logical_observables}")
+logical_observables = {}
+for i, group in coord2logical_group.items():
+    nodes = []
+    for coord in group:
+        if coord in cout_portmap:
+            nodes.extend(cout_portmap[coord])
+    logical_observables[i] = set(nodes)
+
 
 # %%
 # Circuit creation
@@ -225,7 +240,7 @@ def create_circuit(pattern: Pattern, noise: float) -> stim.Circuit:
 noise = 0.001
 circuit = create_circuit(pattern, noise)
 print(f"num_qubits: {circuit.num_qubits}")
-print(circuit)
+# print(circuit)
 
 # %%
 # Error correction simulation
