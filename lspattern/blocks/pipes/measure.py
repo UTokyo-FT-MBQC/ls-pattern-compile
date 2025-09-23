@@ -223,7 +223,9 @@ class MeasureXPipe(_MeasurePipeBase):
                     if node_id is not None:
                         node_group.add(node_id)
                 if node_group:
-                    self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), {})[z + z_offset] = node_group
+                    self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), {})[z + z_offset + 1] = (
+                        node_group  # To group with neighboring X ancilla
+                    )
 
 
 class MeasureZPipe(_MeasurePipeBase):
