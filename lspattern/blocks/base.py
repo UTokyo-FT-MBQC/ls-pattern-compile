@@ -674,3 +674,49 @@ class RHGBlockSkeleton:
 
 class ThinLayerMixin:
     """Mixin class to identify blocks that use absolute coordinates."""
+
+
+def compute_logical_op_direction(edgespec: SpatialEdgeSpec, obs: str) -> str:
+    """Compute the logical operation direction from edge specification and observable.
+
+    Parameters
+    ----------
+    edgespec : SpatialEdgeSpec
+        Spatial edge specification with keys 'LEFT', 'RIGHT', 'TOP', 'BOTTOM'.
+    obs : {'X','Z'}
+        Logical observable type.
+
+    Returns
+    -------
+    str
+        Logical operation direction: 'H' (horizontal) or 'V' (vertical).
+
+    Raises
+    ------
+    ValueError
+        If the edgespec is invalid or does not support the specified observable.
+    """
+    es = {k: str(v).upper() for k, v in edgespec.items() if k in {"LEFT", "RIGHT", "TOP", "BOTTOM"}}
+    if len(es) != 4:
+        msg = "edgespec must contain exactly the keys: LEFT, RIGHT, TOP, BOTTOM"
+        raise ValueError(msg)
+
+    if obs.upper() == "Z":
+        # X logical operator runs between Z boundaries
+        if es["LEFT"] == "Z" and es["RIGHT"] == "Z":
+            return "H"
+        if es["TOP"] == "Z" and es["BOTTOM"] == "Z":
+            return "V"
+
+        msg = "edgespec does not support X logical operator"
+        raise ValueError(msg)
+    if obs.upper() == "X":
+        # Z logical operator runs between X boundaries
+        if es["LEFT"] == "X" and es["RIGHT"] == "X":
+            return "H"
+        if es["TOP"] == "X" and es["BOTTOM"] == "X":
+            return "V"
+        msg = "edgespec does not support Z logical operator"
+        raise ValueError(msg)
+    msg = "obs must be one of: X, Z"
+    raise ValueError(msg)
