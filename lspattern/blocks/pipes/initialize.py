@@ -105,6 +105,7 @@ class InitPlusPipe(RHGPipe):
             if node_id is None:
                 continue
             dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+            self.parity.ignore_dangling[PhysCoordLocal2D((x, y))] = True
         for z in range(1, height):
             for x, y in x2d:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
