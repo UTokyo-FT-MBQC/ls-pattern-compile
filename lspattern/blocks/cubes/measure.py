@@ -14,7 +14,6 @@ from lspattern.mytype import (
     PhysCoordGlobal3D,
     PhysCoordLocal2D,
     QubitIndexLocal,
-    TilingCoord2D,
 )
 from lspattern.tiling.template import ScalableTemplate
 
@@ -168,7 +167,7 @@ class MeasureX(_MeasureBase):
         # no out_ports for measurement blocks
         super().set_out_ports(patch_coord)
 
-    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
+    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
         z_pos = self.source[2] * (2 * self.d)
 
         if self.edgespec is None:
@@ -228,7 +227,7 @@ class MeasureZ(_MeasureBase):
         # no out_ports for measurement blocks
         super().set_out_ports(patch_coord)
 
-    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
+    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
         z_pos = self.source[2] * (2 * self.d)
 
         if self.edgespec is None:
