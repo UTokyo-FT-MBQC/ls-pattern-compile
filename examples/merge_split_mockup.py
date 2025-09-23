@@ -1,4 +1,3 @@
-# %%
 """
 Merge and Split
 """
@@ -124,6 +123,10 @@ if remaining_flows:
 print("X parity")
 for coord, group_list in compiled_canvas.parity.checks.items():
     print(f"  {coord}: {group_list}")
+
+# classical outs
+cout_portmap = compiled_canvas.cout_portset
+print(f"Classical output ports: {cout_portmap}")
 
 
 # %%
