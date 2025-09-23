@@ -266,9 +266,9 @@ class ParityAccumulator:
 
             # Inherit ignore_dangling information from other (prioritize other's settings)
             if coord in self.ignore_dangling:
-                new_ignore_dangling[coord] = other.ignore_dangling[coord]
-            elif coord in other.ignore_dangling:
                 new_ignore_dangling[coord] = self.ignore_dangling[coord]
+            elif coord in other.ignore_dangling:
+                new_ignore_dangling[coord] = other.ignore_dangling[coord]
 
             # Save checks dict if it has content
             if checks_dict:
