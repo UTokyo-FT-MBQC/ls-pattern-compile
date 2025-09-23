@@ -1490,12 +1490,16 @@ def _remap_temporal_portsets(
 ]:
     """Remap portsets for temporal composition."""
     in_portset = {pos: [node_map2[int(n)] for n in nodes] for pos, nodes in next_layer.in_portset.items()}
+
+    # NOTE: if int(n) in node_map1 sentence is unexpected handling. It might suggest a bug somewhere else.
     out_portset = {
-        **{pos: [node_map1[int(n)] for n in nodes] for pos, nodes in cgraph.out_portset.items()},
+        **{pos: [node_map1[int(n)] for n in nodes if int(n) in node_map1] for pos, nodes in cgraph.out_portset.items()},
         **{pos: [node_map2[int(n)] for n in nodes] for pos, nodes in next_layer.out_portset.items()},
     }
     cout_portset = {
-        **{pos: [node_map1[int(n)] for n in nodes] for pos, nodes in cgraph.cout_portset.items()},
+        **{
+            pos: [node_map1[int(n)] for n in nodes if int(n) in node_map1] for pos, nodes in cgraph.cout_portset.items()
+        },
         **{pos: [node_map2[int(n)] for n in nodes] for pos, nodes in next_layer.cout_portset.items()},
     }
 
