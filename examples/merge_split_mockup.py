@@ -36,55 +36,55 @@ edgespec_measure_trimmed: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIG
 blocks = [
     (
         PatchCoordGlobal3D((0, 0, 0)),
-        InitZeroCubeThinLayerSkeleton(d=3, edgespec=edgespec),
+        InitZeroCubeThinLayerSkeleton(d=d, edgespec=edgespec),
     ),
     (
         PatchCoordGlobal3D((1, 0, 0)),
-        InitZeroCubeThinLayerSkeleton(d=3, edgespec=edgespec),
+        InitZeroCubeThinLayerSkeleton(d=d, edgespec=edgespec),
     ),
     (
         PatchCoordGlobal3D((0, 0, 1)),
-        MemoryCubeSkeleton(d=3, edgespec=edgespec1),
+        MemoryCubeSkeleton(d=d, edgespec=edgespec1),
     ),
     (
         PatchCoordGlobal3D((1, 0, 1)),
-        MemoryCubeSkeleton(d=3, edgespec=edgespec1),
+        MemoryCubeSkeleton(d=d, edgespec=edgespec1),
     ),
     (
         PatchCoordGlobal3D((0, 0, 2)),
-        MemoryCubeSkeleton(d=3, edgespec=edgespec1),
+        MemoryCubeSkeleton(d=d, edgespec=edgespec1),
     ),
     (
         PatchCoordGlobal3D((1, 0, 2)),
-        MemoryCubeSkeleton(d=3, edgespec=edgespec2),
+        MemoryCubeSkeleton(d=d, edgespec=edgespec2),
     ),
     (
         PatchCoordGlobal3D((0, 0, 3)),
-        MemoryCubeSkeleton(d=3, edgespec=edgespec),
+        MemoryCubeSkeleton(d=d, edgespec=edgespec),
     ),
     (
         PatchCoordGlobal3D((1, 0, 3)),
-        MemoryCubeSkeleton(d=3, edgespec=edgespec),
+        MemoryCubeSkeleton(d=d, edgespec=edgespec),
     ),
     (
         PatchCoordGlobal3D((0, 0, 4)),
-        MeasureZSkeleton(d=3, edgespec=edgespec),
+        MeasureZSkeleton(d=d, edgespec=edgespec),
     ),
     (
         PatchCoordGlobal3D((1, 0, 4)),
-        MeasureZSkeleton(d=3, edgespec=edgespec),
+        MeasureZSkeleton(d=d, edgespec=edgespec),
     )
 ]
 pipes = [
     (
         PatchCoordGlobal3D((0, 0, 2)),
         PatchCoordGlobal3D((1, 0, 2)),
-        InitPlusPipeSkeleton(d=3, edgespec=edgespec_trimmed),
+        InitPlusPipeSkeleton(d=d, edgespec=edgespec_trimmed),
     ),
     (
         PatchCoordGlobal3D((0, 0, 3)),
         PatchCoordGlobal3D((1, 0, 3)),
-        MeasureXPipeSkeleton(d=3, edgespec=edgespec_measure_trimmed),
+        MeasureXPipeSkeleton(d=d, edgespec=edgespec_measure_trimmed),
     ),
 ]
 
@@ -109,8 +109,8 @@ print(
 output_indices = compiled_canvas.global_graph.output_node_indices or {}  # type: ignore[union-attr]
 print(f"output qubits: {output_indices}")
 
-# fig3d = visualize_compiled_canvas_plotly(compiled_canvas, show_edges=True)
-# fig3d.show()
+fig3d = visualize_compiled_canvas_plotly(compiled_canvas, show_edges=True)
+fig3d.show()
 
 # %%
 
