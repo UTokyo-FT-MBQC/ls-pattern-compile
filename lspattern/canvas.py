@@ -1260,7 +1260,9 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
             cubes_[pos] = blk
         pipes_: dict[PipeCoordGlobal3D, RHGPipe] = {}
         for pipe_coord, p in trimmed_pipes_skeleton.items():
-            block = p.to_block()
+            source, sink = pipe_coord
+            # Type: ignore because pipe skeletons override to_block with source/sink args
+            block = p.to_block(source, sink)  # type: ignore[call-arg]
             if not isinstance(block, RHGPipe):
                 msg = f"Expected RHGPipe, got {type(block)}"
                 raise TypeError(msg)
