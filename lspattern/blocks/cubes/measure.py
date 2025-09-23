@@ -165,14 +165,15 @@ class MeasureX(_MeasureBase):
         self.in_ports = set(idx_map.values())
 
     def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        idx_map = self.template.get_data_indices(patch_coord)
-        self.out_ports = set(idx_map.values())
+        # no out_ports for measurement blocks
+        super().set_out_ports(patch_coord)
 
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
+        z_pos = self.source[2] * (2 * self.d)
+
         if self.edgespec is None:
             msg = f"edgespec must be defined to determine logical operator direction at {self.source}"
             raise ValueError(msg)
-        idx_map = self.template.get_data_indices(patch_coord)
         direction = compute_logical_op_direction(self.edgespec, "X")
 
         # Get actual data coordinates from template (after any shifts)
@@ -189,10 +190,12 @@ class MeasureX(_MeasureBase):
             target_coords = [(x, y) for x, y in data_coords if x == min_x]
             target_coords = sorted(target_coords, key=operator.itemgetter(1))[: self.d]  # Sort by y, take first d
 
-        cout_qindices = {idx_map[TilingCoord2D(coord)] for coord in target_coords if TilingCoord2D(coord) in idx_map}
-
-        qindex2output_nodes = {v: k for k, v in self.local_graph.output_node_indices.items()}
-        cout_group = {NodeIdLocal(qindex2output_nodes[q]) for q in cout_qindices if q in qindex2output_nodes}
+        cout_coords = [(x, y, z_pos) for x, y in target_coords]
+        cout_group = {
+            self.coord2node[PhysCoordGlobal3D(coord)]
+            for coord in cout_coords
+            if PhysCoordGlobal3D(coord) in self.coord2node
+        }
 
         self.cout_ports = [cout_group]
 
@@ -222,14 +225,15 @@ class MeasureZ(_MeasureBase):
         self.in_ports = set(idx_map.values())
 
     def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        idx_map = self.template.get_data_indices(patch_coord)
-        self.out_ports = set(idx_map.values())
+        # no out_ports for measurement blocks
+        super().set_out_ports(patch_coord)
 
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
+        z_pos = self.source[2] * (2 * self.d)
+
         if self.edgespec is None:
             msg = f"edgespec must be defined to determine logical operator direction at {self.source}"
             raise ValueError(msg)
-        idx_map = self.template.get_data_indices(patch_coord)
         direction = compute_logical_op_direction(self.edgespec, "Z")
 
         # Get actual data coordinates from template (after any shifts)
@@ -246,10 +250,12 @@ class MeasureZ(_MeasureBase):
             target_coords = [(x, y) for x, y in data_coords if x == min_x]
             target_coords = sorted(target_coords, key=operator.itemgetter(1))[: self.d]  # Sort by y, take first d
 
-        cout_qindices = {idx_map[TilingCoord2D(coord)] for coord in target_coords if TilingCoord2D(coord) in idx_map}
-
-        qindex2output_nodes = {v: k for k, v in self.local_graph.output_node_indices.items()}
-        cout_group = {NodeIdLocal(qindex2output_nodes[q]) for q in cout_qindices if q in qindex2output_nodes}
+        cout_coords = [(x, y, z_pos) for x, y in target_coords]
+        cout_group = {
+            self.coord2node[PhysCoordGlobal3D(coord)]
+            for coord in cout_coords
+            if PhysCoordGlobal3D(coord) in self.coord2node
+        }
 
         self.cout_ports = [cout_group]
 
