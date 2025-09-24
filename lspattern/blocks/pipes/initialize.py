@@ -89,7 +89,7 @@ class InitPlusPipe(RHGPipe):
         self.out_ports = set(idx_map.values())
 
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        # 古典出力はなし
+        # initialize does not have cout ports
         return super().set_cout_ports(patch_coord)
 
     def _construct_detectors(self) -> None:
@@ -105,24 +105,25 @@ class InitPlusPipe(RHGPipe):
             if node_id is None:
                 continue
             dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+            self.parity.ignore_dangling[PhysCoordLocal2D((x, y))] = True
         for z in range(1, height):
             for x, y in x2d:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
                 if node_id is None:
                     continue
-                self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
-                    {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
-                )
-                dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+                coord = PhysCoordLocal2D((x, y))
+                node_group = {node_id} | dangling_detectors.get(coord, set())
+                self.parity.checks.setdefault(coord, {})[z + z_offset] = node_group
+                dangling_detectors[coord] = {node_id}
 
             for x, y in z2d:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
                 if node_id is None:
                     continue
-                self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
-                    {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
-                )
-                dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+                coord = PhysCoordLocal2D((x, y))
+                node_group = {node_id} | dangling_detectors.get(coord, set())
+                self.parity.checks.setdefault(coord, {})[z + z_offset] = node_group
+                dangling_detectors[coord] = {node_id}
 
         # add dangling detectors for connectivity to next block
         for coord, nodes in dangling_detectors.items():
@@ -254,19 +255,19 @@ class InitPlusThinLayerPipe(RHGPipe, ThinLayerMixin):
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
                 if node_id is None:
                     continue
-                self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
-                    {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
-                )
-                dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+                coord = PhysCoordLocal2D((x, y))
+                node_group = {node_id} | dangling_detectors.get(coord, set())
+                self.parity.checks.setdefault(coord, {})[z + z_offset] = node_group
+                dangling_detectors[coord] = {node_id}
 
             for x, y in z2d:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
                 if node_id is None:
                     continue
-                self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
-                    {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
-                )
-                dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+                coord = PhysCoordLocal2D((x, y))
+                node_group = {node_id} | dangling_detectors.get(coord, set())
+                self.parity.checks.setdefault(coord, {})[z + z_offset] = node_group
+                dangling_detectors[coord] = {node_id}
 
         # Add dangling detectors for connectivity to next block
         for coord, nodes in dangling_detectors.items():
@@ -399,19 +400,19 @@ class InitZeroThinLayerPipe(RHGPipe, ThinLayerMixin):
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
                 if node_id is None:
                     continue
-                self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
-                    {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
-                )
-                dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+                coord = PhysCoordLocal2D((x, y))
+                node_group = {node_id} | dangling_detectors.get(coord, set())
+                self.parity.checks.setdefault(coord, {})[z + z_offset] = node_group
+                dangling_detectors[coord] = {node_id}
 
             for x, y in z2d:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
                 if node_id is None:
                     continue
-                self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
-                    {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
-                )
-                dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+                coord = PhysCoordLocal2D((x, y))
+                node_group = {node_id} | dangling_detectors.get(coord, set())
+                self.parity.checks.setdefault(coord, {})[z + z_offset] = node_group
+                dangling_detectors[coord] = {node_id}
 
         # Add dangling detectors for connectivity to next block
         for coord, nodes in dangling_detectors.items():

@@ -92,7 +92,7 @@ class MemoryPipe(RHGPipe):
         x2d = self.template.x_coords
         z2d = self.template.z_coords
 
-        z_offset = self.source[2] * (2 * self.d)
+        z_offset = int(self.source[2]) * (2 * self.d)
         height = max({coord[2] for coord in self.coord2node}, default=0) - z_offset + 1
         dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
         for z in range(height):
@@ -100,19 +100,19 @@ class MemoryPipe(RHGPipe):
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
                 if node_id is None:
                     continue
-                self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
-                    {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
-                )
-                dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+                coord = PhysCoordLocal2D((x, y))
+                node_group = {node_id} | dangling_detectors.get(coord, set())
+                self.parity.checks.setdefault(coord, {})[z + z_offset] = node_group
+                dangling_detectors[coord] = {node_id}
 
             for x, y in z2d:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
                 if node_id is None:
                     continue
-                self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(
-                    {node_id} | dangling_detectors.get(PhysCoordLocal2D((x, y)), set())
-                )
-                dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
+                coord = PhysCoordLocal2D((x, y))
+                node_group = {node_id} | dangling_detectors.get(coord, set())
+                self.parity.checks.setdefault(coord, {})[z + z_offset] = node_group
+                dangling_detectors[coord] = {node_id}
 
         # add dangling detectors for connectivity to next block
         for coord, nodes in dangling_detectors.items():

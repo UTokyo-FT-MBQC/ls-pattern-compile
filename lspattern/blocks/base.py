@@ -45,6 +45,8 @@ else:
         PhysCoordGlobal3D,
     )
 
+NUM_EDGE_SPEC_BOUDARY = 4
+
 
 @dataclass
 class RHGBlock:
@@ -69,8 +71,9 @@ class RHGBlock:
         Backing scalable tiling; evaluated during init/materialization.
     in_ports, out_ports : set[QubitIndexLocal]
         Logical boundary port sets for this block.
-    cout_ports : list[set[QubitIndexLocal]]
-        Grouped classical output ports (one group per logical result).
+    cout_ports : list[set[NodeIdLocal]]
+        Grouped classical output ports, expressed as node-id groups once the
+        local graph has been materialized.
     local_graph : GraphState
         Local RHG graph constructed by ``materialize()``.
     meas_basis : MeasBasis
@@ -97,7 +100,7 @@ class RHGBlock:
     # classical output ports. One group represents one logical result (to be XORed)
     in_ports: set[QubitIndexLocal] = field(default_factory=set)
     out_ports: set[QubitIndexLocal] = field(default_factory=set)
-    cout_ports: list[set[QubitIndexLocal]] = field(default_factory=list)
+    cout_ports: list[set[NodeIdLocal]] = field(default_factory=list)
 
     schedule: ScheduleAccumulator = field(init=False, default_factory=ScheduleAccumulator)
     flow: FlowAccumulator = field(init=False, default_factory=FlowAccumulator)
@@ -184,7 +187,8 @@ class RHGBlock:
         - Sync `template.d` with `self.d`.
         - Ensure template edgespec mirrors `self.edge_spec` if provided.
         - Build tiling via `template.to_tiling()`.
-        - Invoke port initialization hooks (`set_in_ports`, `set_out_ports`, `set_cout_ports`).
+        - Invoke port initialization hooks for quantum ports; classical groups are
+          populated after node ids are assigned.
         """
         self._sync_template_parameters()
 
@@ -192,7 +196,6 @@ class RHGBlock:
         patch_coord = (self.source[0], self.source[1]) if self.source else None
         self.set_in_ports(patch_coord)
         self.set_out_ports(patch_coord)
-        self.set_cout_ports(patch_coord)
 
         # Build the local RHG graph (nodes/edges and coordinate maps)
         g, node2coord, coord2node, node2role = self._build_3d_graph()
@@ -207,6 +210,9 @@ class RHGBlock:
         self.node2coord = {NodeIdLocal(k): PhysCoordGlobal3D(v) for k, v in node2coord.items()}
         self.coord2node = {PhysCoordGlobal3D(k): NodeIdLocal(v) for k, v in coord2node.items()}
         self.node2role = {NodeIdLocal(k): v for k, v in node2role.items()}
+
+        # Populate classical output groups once node ids are known
+        self.set_cout_ports(patch_coord)
 
         self._construct_detectors()
         self.coord2gid = dict.fromkeys(node2coord.values(), self.template.id_)
@@ -670,3 +676,49 @@ class RHGBlockSkeleton:
 
 class ThinLayerMixin:
     """Mixin class to identify blocks that use absolute coordinates."""
+
+
+def compute_logical_op_direction(edgespec: SpatialEdgeSpec, obs: str) -> str:
+    """Compute the logical operation direction from edge specification and observable.
+
+    Parameters
+    ----------
+    edgespec : SpatialEdgeSpec
+        Spatial edge specification with keys 'LEFT', 'RIGHT', 'TOP', 'BOTTOM'.
+    obs : {'X','Z'}
+        Logical observable type.
+
+    Returns
+    -------
+    str
+        Logical operation direction: 'H' (horizontal) or 'V' (vertical).
+
+    Raises
+    ------
+    ValueError
+        If the edgespec is invalid or does not support the specified observable.
+    """
+    es = {k: str(v).upper() for k, v in edgespec.items() if k in {"LEFT", "RIGHT", "TOP", "BOTTOM"}}
+    if len(es) != NUM_EDGE_SPEC_BOUDARY:
+        msg = "edgespec must contain exactly the keys: LEFT, RIGHT, TOP, BOTTOM"
+        raise ValueError(msg)
+
+    if obs.upper() == "X":  # TODO: should be Z?
+        # X logical operator runs between Z boundaries
+        if es["LEFT"] == "Z" and es["RIGHT"] == "Z":
+            return "H"
+        if es["TOP"] == "Z" and es["BOTTOM"] == "Z":
+            return "V"
+
+        msg = "edgespec does not support X logical operator"
+        raise ValueError(msg)
+    if obs.upper() == "Z":
+        # Z logical operator runs between X boundaries
+        if es["LEFT"] == "X" and es["RIGHT"] == "X":
+            return "H"
+        if es["TOP"] == "X" and es["BOTTOM"] == "X":
+            return "V"
+        msg = "edgespec does not support Z logical operator"
+        raise ValueError(msg)
+    msg = "obs must be one of: X, Z"
+    raise ValueError(msg)

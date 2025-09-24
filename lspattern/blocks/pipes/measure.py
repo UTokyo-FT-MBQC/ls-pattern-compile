@@ -51,23 +51,11 @@ class _MeasurePipeBase(RHGPipe):
 
     def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         """Set output ports from template data indices."""
-        if patch_coord is not None and self.source is not None and self.sink is not None:
-            source_2d = (self.source[0], self.source[1])
-            sink_2d = (self.sink[0], self.sink[1])
-            idx_map = self.template.get_data_indices(source_2d, patch_type="pipe", sink_patch=sink_2d)
-        else:
-            idx_map = self.template.get_data_indices()
-        self.out_ports = set(idx_map.values())
+        super().set_out_ports(patch_coord)
 
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        """Set classical output ports from template data indices."""
-        if patch_coord is not None and self.source is not None and self.sink is not None:
-            source_2d = (self.source[0], self.source[1])
-            sink_2d = (self.sink[0], self.sink[1])
-            idx_map = self.template.get_data_indices(source_2d, patch_type="pipe", sink_patch=sink_2d)
-        else:
-            idx_map = self.template.get_data_indices()
-        self.cout_ports = [set(idx_map.values())]
+        """Measurement pipes do not have classical output ports."""
+        return super().set_cout_ports(patch_coord)
 
     def _assign_meas_bases(self, g: GraphState, meas_basis: object) -> None:  # noqa: ARG002
         """Assign measurement basis to all nodes."""
@@ -235,7 +223,9 @@ class MeasureXPipe(_MeasurePipeBase):
                     if node_id is not None:
                         node_group.add(node_id)
                 if node_group:
-                    self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(node_group)
+                    self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), {})[z + z_offset + 1] = (
+                        node_group  # To group with neighboring X ancilla
+                    )
 
 
 class MeasureZPipe(_MeasurePipeBase):
@@ -264,4 +254,4 @@ class MeasureZPipe(_MeasurePipeBase):
                     if node_id is not None:
                         node_group.add(node_id)
                 if node_group:
-                    self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(node_group)
+                    self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), {})[z + z_offset] = node_group

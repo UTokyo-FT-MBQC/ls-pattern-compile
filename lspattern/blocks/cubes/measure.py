@@ -1,21 +1,26 @@
 from __future__ import annotations
 
+import operator
 from typing import TYPE_CHECKING, ClassVar, Literal, cast
 
 from graphix_zx.common import Axis, AxisMeasBasis, MeasBasis, Sign
 from graphix_zx.graphstate import GraphState
 
+from lspattern.blocks.base import compute_logical_op_direction
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
-from lspattern.mytype import PatchCoordGlobal3D, PhysCoordGlobal3D, PhysCoordLocal2D, QubitIndexLocal
+from lspattern.mytype import (
+    NodeIdLocal,
+    PatchCoordGlobal3D,
+    PhysCoordGlobal3D,
+    PhysCoordLocal2D,
+    QubitIndexLocal,
+)
 from lspattern.tiling.template import ScalableTemplate
 
 if TYPE_CHECKING:
     from collections.abc import MutableMapping, Sequence
 
     from lspattern.canvas import RHGCanvas
-    from lspattern.mytype import (
-        NodeIdLocal,
-    )
 
 ANCILLA_TARGET_DIRECTION2D = {(1, 1), (1, -1), (-1, 1), (-1, -1)}
 
@@ -41,7 +46,7 @@ class _MeasureBase(RHGCube):
         template = cast("ScalableTemplate", kwargs.pop("template", ScalableTemplate(d=3, edgespec={})))
         in_ports = cast("set[QubitIndexLocal]", kwargs.pop("in_ports", set()))
         out_ports = cast("set[QubitIndexLocal]", kwargs.pop("out_ports", set()))
-        cout_ports = cast("list[set[QubitIndexLocal]]", kwargs.pop("cout_ports", []))
+        cout_ports = cast("list[set[NodeIdLocal]]", kwargs.pop("cout_ports", []))
 
         # Initialize parent with explicit arguments
         super().__init__(
@@ -159,11 +164,39 @@ class MeasureX(_MeasureBase):
         self.in_ports = set(idx_map.values())
 
     def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        idx_map = self.template.get_data_indices(patch_coord)
-        self.out_ports = set(idx_map.values())
+        # no out_ports for measurement blocks
+        super().set_out_ports(patch_coord)
 
-    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        pass
+    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
+        z_pos = self.source[2] * (2 * self.d)
+
+        if self.edgespec is None:
+            msg = f"edgespec must be defined to determine logical operator direction at {self.source}"
+            raise ValueError(msg)
+        direction = compute_logical_op_direction(self.edgespec, "X")
+
+        # Get actual data coordinates from template (after any shifts)
+        data_coords = sorted(self.template.data_coords) if self.template.data_coords else []
+
+        if direction == "H":
+            # For horizontal direction, select coords with y=min_y at regular x intervals
+            min_y = min(y for _, y in data_coords) if data_coords else 0
+            target_coords = [(x, y) for x, y in data_coords if y == min_y]
+            target_coords = sorted(target_coords)[: self.d]  # Take first d coordinates
+        else:  # direction == "V"
+            # For vertical direction, select coords with x=min_x at regular y intervals
+            min_x = min(x for x, _ in data_coords) if data_coords else 0
+            target_coords = [(x, y) for x, y in data_coords if x == min_x]
+            target_coords = sorted(target_coords, key=operator.itemgetter(1))[: self.d]  # Sort by y, take first d
+
+        cout_coords = [(x, y, z_pos) for x, y in target_coords]
+        cout_group = {
+            self.coord2node[PhysCoordGlobal3D(coord)]
+            for coord in cout_coords
+            if PhysCoordGlobal3D(coord) in self.coord2node
+        }
+
+        self.cout_ports = [cout_group]
 
     def _construct_detectors(self) -> None:
         z2d = self.template.z_coords
@@ -177,7 +210,7 @@ class MeasureX(_MeasureBase):
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z0)))
                 if node_id is not None:
                     node_group.add(node_id)
-            self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(node_group)
+            self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), {})[z0] = node_group
 
 
 class MeasureZ(_MeasureBase):
@@ -191,11 +224,39 @@ class MeasureZ(_MeasureBase):
         self.in_ports = set(idx_map.values())
 
     def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        idx_map = self.template.get_data_indices(patch_coord)
-        self.out_ports = set(idx_map.values())
+        # no out_ports for measurement blocks
+        super().set_out_ports(patch_coord)
 
-    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        pass
+    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
+        z_pos = self.source[2] * (2 * self.d)
+
+        if self.edgespec is None:
+            msg = f"edgespec must be defined to determine logical operator direction at {self.source}"
+            raise ValueError(msg)
+        direction = compute_logical_op_direction(self.edgespec, "Z")
+
+        # Get actual data coordinates from template (after any shifts)
+        data_coords = sorted(self.template.data_coords) if self.template.data_coords else []
+
+        if direction == "H":
+            # For horizontal direction, select coords with y=min_y at regular x intervals
+            min_y = min(y for _, y in data_coords) if data_coords else 0
+            target_coords = [(x, y) for x, y in data_coords if y == min_y]
+            target_coords = sorted(target_coords)[: self.d]  # Take first d coordinates
+        else:  # direction == "V"
+            # For vertical direction, select coords with x=min_x at regular y intervals
+            min_x = min(x for x, _ in data_coords) if data_coords else 0
+            target_coords = [(x, y) for x, y in data_coords if x == min_x]
+            target_coords = sorted(target_coords, key=operator.itemgetter(1))[: self.d]  # Sort by y, take first d
+
+        cout_coords = [(x, y, z_pos) for x, y in target_coords]
+        cout_group = {
+            self.coord2node[PhysCoordGlobal3D(coord)]
+            for coord in cout_coords
+            if PhysCoordGlobal3D(coord) in self.coord2node
+        }
+
+        self.cout_ports = [cout_group]
 
     def _construct_detectors(self) -> None:
         x2d = self.template.x_coords
@@ -209,7 +270,7 @@ class MeasureZ(_MeasureBase):
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z0)))
                 if node_id is not None:
                     node_group.add(node_id)
-            self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), []).append(node_group)
+            self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), {})[z0] = node_group
 
 
 class MeasureXSkeleton(RHGCubeSkeleton):

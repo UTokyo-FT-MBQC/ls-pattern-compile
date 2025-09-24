@@ -11,7 +11,6 @@ from typing import Literal
 
 import pymatching
 import stim
-from graphix_zx.common import Axis
 from graphix_zx.pattern import Pattern, print_pattern
 from graphix_zx.scheduler import Scheduler
 from graphix_zx.stim_compiler import stim_compile
@@ -52,13 +51,6 @@ compiled_canvas = extended_canvas.compile()
 print(f"Compiled canvas has {len(compiled_canvas.layers)} temporal layers")
 print(f"Global graph has {getattr(compiled_canvas.global_graph, 'num_qubits', 'unknown')} qubits")
 
-# Debug: Print node coordinates to check z-values
-if hasattr(compiled_canvas, 'layers') and compiled_canvas.layers:
-    first_layer = compiled_canvas.layers[0]
-    if hasattr(first_layer, 'node2coord'):
-        print(f"Node coordinates (first few):")
-        for node_id, coord in list(first_layer.node2coord.items())[:10]:
-            print(f"  Node {node_id}: {coord}")
 schedule = compiled_canvas.schedule.compact()
 print(f"Schedule has {len(schedule.schedule)} time slots")
 for t, nodes in schedule.schedule.items():
@@ -78,8 +70,9 @@ xflow = {}
 for src, dsts in compiled_canvas.flow.flow.items():
     xflow[int(src)] = {int(dst) for dst in dsts}
 x_parity = []
-for group_list in compiled_canvas.parity.checks.values():
-    x_parity.extend(group_list)
+for group_dict in compiled_canvas.parity.checks.values():
+    for group in group_dict.values():
+        x_parity.append({int(node) for node in group})
 print(f"X flow: {xflow}")
 print("X parity")
 for coord, group_list in compiled_canvas.parity.checks.items():  # type: ignore[assignment]
@@ -132,11 +125,11 @@ pattern = compile_canvas(
 print("Pattern compilation successful")
 print_pattern(pattern)
 
-logical = {}
-for i in range(d):
-    logical[i*d] = Axis.Z
-print(f"Logical Z: {logical}")
-logical_observables = {0: logical}
+# set logical observables
+cout_portmap = compiled_canvas.cout_portset
+coord2logical_group = {0: PatchCoordGlobal3D((0, 0, 2))}
+logical_observables = {i: cout_portmap[coord] for i, coord in coord2logical_group.items()}
+print(f"Using logical observables: {logical_observables}")
 
 
 # %%

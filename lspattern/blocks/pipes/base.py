@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
 from lspattern.mytype import (
+    NodeIdLocal,
     PatchCoordGlobal3D,
     PatchCoordLocal2D,
     QubitIndexLocal,
@@ -53,7 +54,7 @@ class RHGPipe(RHGBlock):
 
     in_ports: set[QubitIndexLocal] = field(default_factory=set)
     out_ports: set[QubitIndexLocal] = field(default_factory=set)
-    cout_ports: list[set[QubitIndexLocal]] = field(default_factory=list)
+    cout_ports: list[set[NodeIdLocal]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         # get direction

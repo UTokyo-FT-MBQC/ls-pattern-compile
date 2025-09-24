@@ -11,7 +11,7 @@ from lspattern.blocks.pipes.memory import MemoryPipeSkeleton
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
-from lspattern.mytype import PatchCoordGlobal3D
+from lspattern.mytype import PatchCoordGlobal3D, PhysCoordGlobal3D
 
 
 def _build_compiled_canvas_mockup() -> CompiledRHGCanvas:
@@ -175,3 +175,28 @@ def test_merge_split_mockup_snapshot(update: bool) -> None:
         expected = got
 
     assert got == expected, "CompiledRHGCanvas snapshot mismatch for merge_split_mockup"
+
+
+def test_cout_group_resolution_interface() -> None:
+    compiled = _build_compiled_canvas_mockup()
+    # Initially no cout groups are registered
+    sample_coord, sample_node = next(iter(compiled.coord2node.items()))
+    assert compiled.get_cout_group_by_coord(sample_coord) is None
+
+    # Inject a cout group and ensure lookup works
+    first_layer = compiled.layers[0]
+    patch = first_layer.patches[0]
+    compiled.cout_port_groups = {patch: [[sample_node]]}
+    compiled._rebuild_cout_group_cache()
+
+    fetched = compiled.get_cout_group_by_coord(sample_coord)
+    assert fetched is not None
+    fetched_patch, nodes = fetched
+    assert fetched_patch == patch
+    assert nodes == [sample_node]
+
+    resolved = compiled.resolve_cout_groups({"logical": [sample_coord]})
+    assert resolved == {"logical": [sample_node]}
+
+    with pytest.raises(KeyError):
+        compiled.resolve_cout_groups({"missing": [PhysCoordGlobal3D((999, 999, 999))]})

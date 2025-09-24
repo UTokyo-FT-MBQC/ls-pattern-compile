@@ -71,7 +71,7 @@ def visualize_parity_mpl(  # noqa: C901
             ax.scatter(xs, ys, zs, s=20, c=color, edgecolors="black", label=label, alpha=0.9)  # type: ignore[misc]
 
     if kind in {"both", "x"}:
-        checks = [grp for group_list in par.checks.values() for grp in group_list]
+        checks = [grp for coord_dict in par.checks.values() for grp in coord_dict.values()]
         draw_groups(checks, COLOR_X, "Parity X")
 
     if annotate:
@@ -284,7 +284,7 @@ def visualize_parity_plotly(
             )
 
     if kind in {"both", "x"}:
-        checks = [grp for group_list in par.checks.values() for grp in group_list]
+        checks = [grp for coord_dict in par.checks.values() for grp in coord_dict.values()]
         add_group(checks, COLOR_X, "Parity X")
 
     fig.update_layout(
