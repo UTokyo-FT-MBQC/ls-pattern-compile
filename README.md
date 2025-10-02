@@ -1,7 +1,6 @@
 # ls-pattern-compile
 
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 **ls-pattern-compile** is an experimental MBQC (Measurement-Based Quantum Computing) compiler that converts lattice surgery commands to quantum patterns using the RHG (Raussendorf-Harrington-Goyal) lattice blocks-and-pipes architecture. This library implements fault-tolerant quantum computing compilation through spatial and temporal composition of modular quantum building blocks.
 
@@ -288,12 +287,11 @@ UTokyo FT-MBQC Team. (2025). ls-pattern-compile: MBQC Lattice Surgery Compiler (
 ## Related Projects
 
 - [graphix-zx](https://github.com/TeamGraphix/graphix-zx) - ZX-calculus based MBQC framework
-- [lattice-surgery-compiler](https://github.com/lattice-surgery-compiler/lattice-surgery-compiler) - Circuit to lattice surgery compiler
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+WIP
 
 ## Acknowledgments
 
-This work is part of the fault-tolerant measurement-based quantum computing (FT-MBQC) research project at the University of Tokyo.
+WIP
