@@ -270,7 +270,7 @@ class TemporalLayer:
         g_new, node_map1, node_map2 = compose(g, g2)
         return g_new, node_map1, node_map2
 
-    def _process_cube_coordinates(self, blk: RHGCube, pos: tuple[int, int, int], node_map2: Mapping[int, int]) -> None:  # noqa: ARG002
+    def _process_cube_coordinates(self, blk: RHGCube, node_map2: Mapping[int, int]) -> None:
         """Process cube coordinates and roles."""
         # All blocks now use absolute coordinates - no z_shift needed
         # Ingest coords/roles
@@ -339,7 +339,7 @@ class TemporalLayer:
             pos, blk = next(iter(self.cubes_.items()))
             g = blk.local_graph
             # Process coordinates and ports without composition
-            self._process_cube_coordinates_direct(blk, pos)
+            self._process_cube_coordinates_direct(blk)
             self._process_cube_ports_direct(pos, blk)
             return g
 
@@ -348,18 +348,18 @@ class TemporalLayer:
 
         # Compose cube graphs
         for pos, blk in self.cubes_.items():
-            g_state, node_map1, node_map2 = self._compose_single_cube(pos, blk, g_state)
+            g_state, node_map1, node_map2 = self._compose_single_cube(pos, blk, g_state)  # pyright: ignore[reportAssignmentType]
             # Store node mapping for later use in accumulator merging
             blk.node_map_global = {NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map2.items()}
             self._remap_node_mappings(node_map1)
             self._remap_portsets(node_map1)
-            self._process_cube_coordinates(blk, pos, node_map2)
+            self._process_cube_coordinates(blk, node_map2)
             self._process_cube_ports(pos, blk, node_map2)
 
         # Compose pipe graphs (spatial pipes in this layer)
         return self._compose_pipe_graphs(g_state)
 
-    def _process_cube_coordinates_direct(self, blk: RHGCube, pos: tuple[int, int, int]) -> None:  # noqa: ARG002
+    def _process_cube_coordinates_direct(self, blk: RHGCube) -> None:
         """Process cube coordinates directly without node mapping."""
         # All blocks now use absolute coordinates - no z_shift needed
         # Directly use node coordinates
@@ -1536,7 +1536,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         return _create_first_layer_canvas(next_layer)
 
     # Compose graphs and remap
-    new_graph, node_map1, node_map2 = compose(cgraph.global_graph, next_layer.local_graph)
+    new_graph, node_map1, node_map2 = compose(cgraph.global_graph, next_layer.local_graph)  # pyright: ignore[reportArgumentType]
 
     # Only remap if node mapping actually changes node IDs
     if any(k != v for k, v in node_map1.items()):

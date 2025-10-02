@@ -31,7 +31,7 @@ def memory(d: int, r: int) -> Pattern:  # noqa: PLR0914
             f[node1] = {node2}
 
     # scheduler
-    scheduler = Scheduler(lattice_state)
+    scheduler = Scheduler(lattice_state)  # pyright: ignore[reportCallIssue]
 
     prep_time = dict.fromkeys(
         lattice_state.physical_nodes - set(lattice_state.input_node_indices),
@@ -45,7 +45,7 @@ def memory(d: int, r: int) -> Pattern:  # noqa: PLR0914
         time_index += 1
 
     # schedule based on grouping
-    scheduler.from_manual_design(
+    scheduler.from_manual_design(  # pyright: ignore[reportAttributeAccessIssue]
         prepare_time=prep_time,
         measure_time=meas_time,
     )
