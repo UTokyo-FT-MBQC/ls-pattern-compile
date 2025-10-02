@@ -674,10 +674,6 @@ class RHGBlockSkeleton:
         self.template.trim_spatial_boundary(direction)
 
 
-class ThinLayerMixin:
-    """Mixin class to identify blocks that use absolute coordinates."""
-
-
 def compute_logical_op_direction(edgespec: SpatialEdgeSpec, obs: str) -> str:
     """Compute the logical operation direction from edge specification and observable.
 

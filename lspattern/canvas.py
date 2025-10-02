@@ -18,7 +18,6 @@ from graphix_zx.graphstate import (
 )
 
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
-from lspattern.blocks.base import ThinLayerMixin
 from lspattern.blocks.cubes.base import RHGCube
 from lspattern.blocks.pipes.base import RHGPipe
 from lspattern.blocks.pipes.measure import _MeasurePipeBase
@@ -271,30 +270,15 @@ class TemporalLayer:
         g_new, node_map1, node_map2 = compose(g, g2)
         return g_new, node_map1, node_map2
 
-    def _process_cube_coordinates(self, blk: RHGCube, pos: tuple[int, int, int], node_map2: Mapping[int, int]) -> None:
+    def _process_cube_coordinates(self, blk: RHGCube, pos: tuple[int, int, int], node_map2: Mapping[int, int]) -> None:  # noqa: ARG002
         """Process cube coordinates and roles."""
-        d_val = int(blk.d)
-        z_base = int(pos[2]) * (2 * d_val)
-
-        # TODO: In the future, all blocks will use absolute coordinates and z_shift will be deprecated
-        # For now, ThinLayer blocks already use absolute coordinates, so skip z_shift for them
-        if isinstance(blk, ThinLayerMixin):
-            # ThinLayer blocks already use absolute coordinates - no z_shift needed
-            z_shift = 0
-        else:
-            # Compute z-shift for blocks using relative coordinates
-            try:
-                bmin_z = min(c[2] for c in blk.node2coord.values())
-            except ValueError:
-                bmin_z = z_base
-            z_shift = int(z_base - bmin_z)
-
+        # All blocks now use absolute coordinates - no z_shift needed
         # Ingest coords/roles
         for old_n, coord in blk.node2coord.items():
             new_n = node_map2.get(old_n)
             if new_n is None:
                 continue
-            x, y, z = int(coord[0]), int(coord[1]), int(coord[2]) + z_shift
+            x, y, z = int(coord[0]), int(coord[1]), int(coord[2])
             c_new = PhysCoordGlobal3D((x, y, z))
             self.node2coord[NodeIdLocal(new_n)] = c_new
             self.coord2node[c_new] = NodeIdLocal(new_n)
@@ -375,27 +359,12 @@ class TemporalLayer:
         # Compose pipe graphs (spatial pipes in this layer)
         return self._compose_pipe_graphs(g_state)
 
-    def _process_cube_coordinates_direct(self, blk: RHGCube, pos: tuple[int, int, int]) -> None:
+    def _process_cube_coordinates_direct(self, blk: RHGCube, pos: tuple[int, int, int]) -> None:  # noqa: ARG002
         """Process cube coordinates directly without node mapping."""
-        d_val = int(blk.d)
-        z_base = int(pos[2]) * (2 * d_val)
-
-        # TODO: In the future, all blocks will use absolute coordinates and z_shift will be deprecated
-        # For now, ThinLayer blocks already use absolute coordinates, so skip z_shift for them
-        if isinstance(blk, ThinLayerMixin):
-            # ThinLayer blocks already use absolute coordinates - no z_shift needed
-            z_shift = 0
-        else:
-            # Compute z-shift for blocks using relative coordinates
-            try:
-                bmin_z = min(c[2] for c in blk.node2coord.values())
-            except ValueError:
-                bmin_z = z_base
-            z_shift = int(z_base - bmin_z)
-
-        # Directly use node coordinates with z-shift
+        # All blocks now use absolute coordinates - no z_shift needed
+        # Directly use node coordinates
         for node, coord in blk.node2coord.items():
-            x, y, z = int(coord[0]), int(coord[1]), int(coord[2]) + z_shift
+            x, y, z = int(coord[0]), int(coord[1]), int(coord[2])
             c_new = PhysCoordGlobal3D((x, y, z))
             self.node2coord[node] = c_new
             self.coord2node[c_new] = node
@@ -424,10 +393,6 @@ class TemporalLayer:
     def _compose_pipe_graphs(self, g: BaseGraphState) -> BaseGraphState:
         """Compose pipe graphs into the main graph state."""
         for pipe_coord, pipe in self.pipes_.items():
-            source, _sink = pipe_coord
-            d_val = int(pipe.d)
-            z_base = int(source[2]) * (2 * d_val)
-
             # Use materialized pipe if local_graph is None
             pipe_block = pipe
             g2 = pipe.local_graph
@@ -439,22 +404,13 @@ class TemporalLayer:
             self._remap_portsets(node_map1)
             g = g_new
 
-            try:
-                bmin_z = min(c[2] for c in pipe_block.node2coord.values())
-            except ValueError:
-                bmin_z = z_base
-            z_shift = int(z_base - bmin_z)
-
+            # All blocks now use absolute coordinates - no z_shift needed
             for old_n, coord in pipe_block.node2coord.items():
                 new_n = node_map2.get(old_n)
                 if new_n is None:
                     continue
-                # XY はテンプレートで既に絶対座標化済み(to_temporal_layer で shift 済み)
-                x, y, z = (
-                    int(coord[0]),
-                    int(coord[1]),
-                    int(coord[2]) + z_shift,
-                )
+                # XY and Z are already in absolute coordinates (shifted in to_temporal_layer)
+                x, y, z = int(coord[0]), int(coord[1]), int(coord[2])
                 c_new = PhysCoordGlobal3D((x, y, z))
                 self.node2coord[NodeIdLocal(new_n)] = c_new
                 self.coord2node[c_new] = NodeIdLocal(new_n)

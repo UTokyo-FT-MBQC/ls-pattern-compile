@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, overload
 
 from graphix_zx.graphstate import GraphState
 
-from lspattern.blocks.base import ThinLayerMixin
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
 from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D, PhysCoordLocal2D, SpatialEdgeSpec
 from lspattern.tiling.template import RotatedPlanarPipetemplate
@@ -172,7 +171,7 @@ class InitPlusPipeThinLayerSkeleton(RHGPipeSkeleton):
         return block
 
 
-class InitPlusThinLayerPipe(RHGPipe, ThinLayerMixin):
+class InitPlusThinLayerPipe(RHGPipe):
     """Thin-layer Plus State initialization pipe (height=3) for compose-based initialization."""
 
     def __init__(
@@ -316,7 +315,7 @@ class InitZeroPipeThinLayerSkeleton(RHGPipeSkeleton):
         return block
 
 
-class InitZeroThinLayerPipe(RHGPipe, ThinLayerMixin):
+class InitZeroThinLayerPipe(RHGPipe):
     """Thin-layer Zero State initialization pipe (height=2) for compose-based initialization."""
 
     def __init__(
