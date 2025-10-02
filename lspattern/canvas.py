@@ -375,12 +375,12 @@ class TemporalLayer:
     def _process_cube_ports_direct(self, pos: PatchCoordGlobal3D, blk: RHGCube) -> None:
         """Process cube ports directly without node mapping."""
         # Process input ports
-        input_port_nodes = [node for node, _ in blk.local_graph.input_node_indices.items()]
+        input_port_nodes = [NodeIdLocal(node) for node, _ in blk.local_graph.input_node_indices.items()]
         self.in_portset.setdefault(pos, []).extend(input_port_nodes)
         self.in_ports.extend(input_port_nodes)
 
         # Process output ports
-        output_port_nodes = [node for node, _ in blk.local_graph.output_node_indices.items()]
+        output_port_nodes = [NodeIdLocal(node) for node, _ in blk.local_graph.output_node_indices.items()]
         self.out_portset.setdefault(pos, []).extend(output_port_nodes)
         self.out_ports.extend(output_port_nodes)
 
@@ -1559,7 +1559,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
     # Update accumulators
     last_nodes = set(next_layer.in_ports)
     # remap to global node IDs
-    last_nodes_remapped = {node_map2[int(n)] for n in last_nodes}
+    last_nodes_remapped = {NodeIdGlobal(node_map2[int(n)]) for n in last_nodes}
     cgraph_filtered_schedule = cgraph.schedule.exclude_nodes(last_nodes_remapped)
     new_schedule = cgraph_filtered_schedule.compose_sequential(next_layer.schedule, exclude_nodes=None)
     # TODO: Fix flow merge to handle connected q_indices properly
