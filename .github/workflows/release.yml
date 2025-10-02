@@ -1,0 +1,50 @@
+name: Build and Upload Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # tag starting with 'v' and followed by version number
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout the repository
+      uses: actions/checkout@v5
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build
+
+    - name: Build the package
+      run: |
+        python -m build
+
+    - name: Extract release notes from CHANGELOG.md
+      id: extract_changelog
+      run: |
+        RELEASE_NOTES=$(sed -n '/## Version/,/---/{p; /---/q}' CHANGELOG.md | sed '$d')
+        echo "${RELEASE_NOTES}" >> ./.github/workflows/release_template.md
+
+    - name: Display Release Notes
+      run: cat ./.github/workflows/release_template.md
+
+    - name: Create Release and Upload Assets
+      uses: ncipollo/release-action@v1
+      with:
+        artifacts: "dist/*"  # upload all files in the dist folder
+        tag: ${{ github.ref }}
+        name: ${{ github.ref }}
+        bodyFile: ./.github/workflows/release_template.md
+        draft: false
+        prerelease: false
