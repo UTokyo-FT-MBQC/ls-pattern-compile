@@ -12,7 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pull request template
 - CHANGELOG.md file
 
-## [0.0.1] - 2025-10-02
+---
+
+## Version 0.1.0 - 2025-10-02
 
 ### Added
 - Fault-tolerant merge and split functionality for MBQC error simulation (#18)
@@ -30,6 +32,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Coordinate system fixes for proper temporal layer composition
 - Z-coordinate calculations in measurement blocks for proper layer composition
-
-[Unreleased]: https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/compare/v0.0.1...HEAD
-[0.0.1]: https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/releases/tag/v0.0.1
