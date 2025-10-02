@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Issue templates (bug report, feature request, enhancement)
 - Pull request template
 - CHANGELOG.md file
+- Comprehensive README.md with installation guide, usage examples, project status, and citation format
 
 ### Changed
 - Unified into absolute coordinate ([#24](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/24))
