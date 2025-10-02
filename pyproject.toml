@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lspattern"
-version = "0.0.1"
+version = "0.1.0"
 description = "MBQC lattice-surgery compiler experiments (RHG blocks/pipes)"
 readme = "README.md"
 requires-python = ">=3.10"
