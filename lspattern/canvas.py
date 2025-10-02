@@ -18,7 +18,6 @@ from graphix_zx.graphstate import (
 )
 
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
-from lspattern.blocks.base import ThinLayerMixin
 from lspattern.blocks.cubes.base import RHGCube
 from lspattern.blocks.pipes.base import RHGPipe
 from lspattern.blocks.pipes.measure import _MeasurePipeBase
@@ -271,30 +270,15 @@ class TemporalLayer:
         g_new, node_map1, node_map2 = compose(g, g2)
         return g_new, node_map1, node_map2
 
-    def _process_cube_coordinates(self, blk: RHGCube, pos: tuple[int, int, int], node_map2: Mapping[int, int]) -> None:
+    def _process_cube_coordinates(self, blk: RHGCube, node_map2: Mapping[int, int]) -> None:
         """Process cube coordinates and roles."""
-        d_val = int(blk.d)
-        z_base = int(pos[2]) * (2 * d_val)
-
-        # TODO: In the future, all blocks will use absolute coordinates and z_shift will be deprecated
-        # For now, ThinLayer blocks already use absolute coordinates, so skip z_shift for them
-        if isinstance(blk, ThinLayerMixin):
-            # ThinLayer blocks already use absolute coordinates - no z_shift needed
-            z_shift = 0
-        else:
-            # Compute z-shift for blocks using relative coordinates
-            try:
-                bmin_z = min(c[2] for c in blk.node2coord.values())
-            except ValueError:
-                bmin_z = z_base
-            z_shift = int(z_base - bmin_z)
-
+        # All blocks now use absolute coordinates - no z_shift needed
         # Ingest coords/roles
         for old_n, coord in blk.node2coord.items():
             new_n = node_map2.get(old_n)
             if new_n is None:
                 continue
-            x, y, z = int(coord[0]), int(coord[1]), int(coord[2]) + z_shift
+            x, y, z = int(coord[0]), int(coord[1]), int(coord[2])
             c_new = PhysCoordGlobal3D((x, y, z))
             self.node2coord[NodeIdLocal(new_n)] = c_new
             self.coord2node[c_new] = NodeIdLocal(new_n)
@@ -355,7 +339,7 @@ class TemporalLayer:
             pos, blk = next(iter(self.cubes_.items()))
             g = blk.local_graph
             # Process coordinates and ports without composition
-            self._process_cube_coordinates_direct(blk, pos)
+            self._process_cube_coordinates_direct(blk)
             self._process_cube_ports_direct(pos, blk)
             return g
 
@@ -364,38 +348,23 @@ class TemporalLayer:
 
         # Compose cube graphs
         for pos, blk in self.cubes_.items():
-            g_state, node_map1, node_map2 = self._compose_single_cube(pos, blk, g_state)
+            g_state, node_map1, node_map2 = self._compose_single_cube(pos, blk, g_state)  # pyright: ignore[reportAssignmentType]
             # Store node mapping for later use in accumulator merging
             blk.node_map_global = {NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map2.items()}
             self._remap_node_mappings(node_map1)
             self._remap_portsets(node_map1)
-            self._process_cube_coordinates(blk, pos, node_map2)
+            self._process_cube_coordinates(blk, node_map2)
             self._process_cube_ports(pos, blk, node_map2)
 
         # Compose pipe graphs (spatial pipes in this layer)
         return self._compose_pipe_graphs(g_state)
 
-    def _process_cube_coordinates_direct(self, blk: RHGCube, pos: tuple[int, int, int]) -> None:
+    def _process_cube_coordinates_direct(self, blk: RHGCube) -> None:
         """Process cube coordinates directly without node mapping."""
-        d_val = int(blk.d)
-        z_base = int(pos[2]) * (2 * d_val)
-
-        # TODO: In the future, all blocks will use absolute coordinates and z_shift will be deprecated
-        # For now, ThinLayer blocks already use absolute coordinates, so skip z_shift for them
-        if isinstance(blk, ThinLayerMixin):
-            # ThinLayer blocks already use absolute coordinates - no z_shift needed
-            z_shift = 0
-        else:
-            # Compute z-shift for blocks using relative coordinates
-            try:
-                bmin_z = min(c[2] for c in blk.node2coord.values())
-            except ValueError:
-                bmin_z = z_base
-            z_shift = int(z_base - bmin_z)
-
-        # Directly use node coordinates with z-shift
+        # All blocks now use absolute coordinates - no z_shift needed
+        # Directly use node coordinates
         for node, coord in blk.node2coord.items():
-            x, y, z = int(coord[0]), int(coord[1]), int(coord[2]) + z_shift
+            x, y, z = int(coord[0]), int(coord[1]), int(coord[2])
             c_new = PhysCoordGlobal3D((x, y, z))
             self.node2coord[node] = c_new
             self.coord2node[c_new] = node
@@ -406,12 +375,12 @@ class TemporalLayer:
     def _process_cube_ports_direct(self, pos: PatchCoordGlobal3D, blk: RHGCube) -> None:
         """Process cube ports directly without node mapping."""
         # Process input ports
-        input_port_nodes = [node for node, _ in blk.local_graph.input_node_indices.items()]
+        input_port_nodes = [NodeIdLocal(node) for node, _ in blk.local_graph.input_node_indices.items()]
         self.in_portset.setdefault(pos, []).extend(input_port_nodes)
         self.in_ports.extend(input_port_nodes)
 
         # Process output ports
-        output_port_nodes = [node for node, _ in blk.local_graph.output_node_indices.items()]
+        output_port_nodes = [NodeIdLocal(node) for node, _ in blk.local_graph.output_node_indices.items()]
         self.out_portset.setdefault(pos, []).extend(output_port_nodes)
         self.out_ports.extend(output_port_nodes)
 
@@ -424,10 +393,6 @@ class TemporalLayer:
     def _compose_pipe_graphs(self, g: BaseGraphState) -> BaseGraphState:
         """Compose pipe graphs into the main graph state."""
         for pipe_coord, pipe in self.pipes_.items():
-            source, _sink = pipe_coord
-            d_val = int(pipe.d)
-            z_base = int(source[2]) * (2 * d_val)
-
             # Use materialized pipe if local_graph is None
             pipe_block = pipe
             g2 = pipe.local_graph
@@ -439,22 +404,13 @@ class TemporalLayer:
             self._remap_portsets(node_map1)
             g = g_new
 
-            try:
-                bmin_z = min(c[2] for c in pipe_block.node2coord.values())
-            except ValueError:
-                bmin_z = z_base
-            z_shift = int(z_base - bmin_z)
-
+            # All blocks now use absolute coordinates - no z_shift needed
             for old_n, coord in pipe_block.node2coord.items():
                 new_n = node_map2.get(old_n)
                 if new_n is None:
                     continue
-                # XY はテンプレートで既に絶対座標化済み(to_temporal_layer で shift 済み)
-                x, y, z = (
-                    int(coord[0]),
-                    int(coord[1]),
-                    int(coord[2]) + z_shift,
-                )
+                # XY and Z are already in absolute coordinates (shifted in to_temporal_layer)
+                x, y, z = int(coord[0]), int(coord[1]), int(coord[2])
                 c_new = PhysCoordGlobal3D((x, y, z))
                 self.node2coord[NodeIdLocal(new_n)] = c_new
                 self.coord2node[c_new] = NodeIdLocal(new_n)
@@ -1580,7 +1536,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         return _create_first_layer_canvas(next_layer)
 
     # Compose graphs and remap
-    new_graph, node_map1, node_map2 = compose(cgraph.global_graph, next_layer.local_graph)
+    new_graph, node_map1, node_map2 = compose(cgraph.global_graph, next_layer.local_graph)  # pyright: ignore[reportArgumentType]
 
     # Only remap if node mapping actually changes node IDs
     if any(k != v for k, v in node_map1.items()):
@@ -1603,7 +1559,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
     # Update accumulators
     last_nodes = set(next_layer.in_ports)
     # remap to global node IDs
-    last_nodes_remapped = {node_map2[int(n)] for n in last_nodes}
+    last_nodes_remapped = {NodeIdGlobal(node_map2[int(n)]) for n in last_nodes}
     cgraph_filtered_schedule = cgraph.schedule.exclude_nodes(last_nodes_remapped)
     new_schedule = cgraph_filtered_schedule.compose_sequential(next_layer.schedule, exclude_nodes=None)
     # TODO: Fix flow merge to handle connected q_indices properly
