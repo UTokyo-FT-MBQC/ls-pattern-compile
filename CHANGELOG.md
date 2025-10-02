@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pull request template
 - CHANGELOG.md file
 
+### Changed
+- Unified into absolute coordinate ([#24](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/24))
+
 ---
 
 ## Version [0.1.0] - 2025-10-02
