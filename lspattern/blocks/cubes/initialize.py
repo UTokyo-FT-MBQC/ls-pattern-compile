@@ -6,7 +6,6 @@ from typing import ClassVar
 
 from graphix_zx.graphstate import GraphState
 
-from lspattern.blocks.base import ThinLayerMixin
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
 from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D, PhysCoordLocal2D
 
@@ -127,7 +126,7 @@ class InitPlusCubeThinLayerSkeleton(RHGCubeSkeleton):
         return block
 
 
-class InitPlusThinLayer(RHGCube, ThinLayerMixin):
+class InitPlusThinLayer(RHGCube):
     """Thin-layer Plus State initialization cube (height=3) for compose-based initialization."""
 
     name: ClassVar[str] = "InitPlusThinLayer"
@@ -243,7 +242,7 @@ class InitZeroCubeThinLayerSkeleton(RHGCubeSkeleton):
         return block
 
 
-class InitZeroThinLayer(RHGCube, ThinLayerMixin):
+class InitZeroThinLayer(RHGCube):
     """Thin-layer Zero State initialization cube (height=2) for compose-based initialization."""
 
     name: ClassVar[str] = "InitZeroThinLayer"
