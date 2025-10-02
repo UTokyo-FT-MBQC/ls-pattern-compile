@@ -9,7 +9,7 @@
 
 ## Related Issues
 <!-- Link to related issues using #issue_number -->
-Closes #
+Closes #ISSUE_NUMBER
 
 ## Test Plan
 <!-- Describe how you tested these changes -->

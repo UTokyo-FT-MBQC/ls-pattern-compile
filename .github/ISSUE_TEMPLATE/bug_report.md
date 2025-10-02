@@ -21,8 +21,8 @@ A clear and concise description of what you expected to happen.
 A clear and concise description of what actually happened.
 
 ## Environment
-- Python version: [e.g., 3.13]
-- ls-pattern-compile version: [e.g., 0.1.0]
+- Python version: [e.g., 3.10, 3.11, 3.12]
+- lspattern version: [e.g., 0.0.1]
 - OS: [e.g., Ubuntu 22.04, macOS 14]
 
 ## Additional Context
