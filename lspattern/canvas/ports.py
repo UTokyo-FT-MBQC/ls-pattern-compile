@@ -200,7 +200,7 @@ class PortManager:
             return None
         return patch_pos, list(groups[group_idx])
 
-    def merge(
+    def merge(  # noqa: C901
         self,
         other: PortManager,
         self_node_map: Mapping[int, int],
