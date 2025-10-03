@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 
 
 class PortManager:
@@ -57,7 +57,7 @@ class PortManager:
     def register_cout_group(
         self,
         patch_pos: PatchCoordGlobal3D,
-        nodes: list[NodeIdLocal],
+        nodes: Sequence[NodeIdLocal],
     ) -> None:
         """Record a cout group for the given patch and keep caches in sync.
 
@@ -144,7 +144,7 @@ class PortManager:
         self.in_ports = [NodeIdLocal(node_map.get(n, n)) for n in self.in_ports]
         self.out_ports = [NodeIdLocal(node_map.get(n, n)) for n in self.out_ports]
 
-    def add_in_ports(self, patch_pos: PatchCoordGlobal3D, nodes: list[NodeIdLocal]) -> None:
+    def add_in_ports(self, patch_pos: PatchCoordGlobal3D, nodes: Sequence[NodeIdLocal]) -> None:
         """Add input ports for a patch.
 
         Parameters
@@ -161,7 +161,7 @@ class PortManager:
         self.in_portset.setdefault(patch_pos, []).extend(valid_nodes)
         self.in_ports.extend(valid_nodes)
 
-    def add_out_ports(self, patch_pos: PatchCoordGlobal3D, nodes: list[NodeIdLocal]) -> None:
+    def add_out_ports(self, patch_pos: PatchCoordGlobal3D, nodes: Sequence[NodeIdLocal]) -> None:
         """Add output ports for a patch.
 
         Parameters
