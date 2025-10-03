@@ -324,3 +324,154 @@ class TestPortManagerEdgeCases:
         # This is allowed (though may be unusual in practice)
         assert node in manager.in_ports
         assert node in manager.out_ports
+
+    def test_add_empty_in_ports(self) -> None:
+        """Test adding empty in_ports list."""
+        manager = PortManager()
+        patch_pos = PatchCoordGlobal3D((0, 0, 0))
+
+        manager.add_in_ports(patch_pos, [])
+
+        # Empty list should not create an entry
+        assert patch_pos not in manager.in_portset
+        assert manager.in_ports == []
+
+    def test_add_empty_out_ports(self) -> None:
+        """Test adding empty out_ports list."""
+        manager = PortManager()
+        patch_pos = PatchCoordGlobal3D((0, 0, 0))
+
+        manager.add_out_ports(patch_pos, [])
+
+        # Empty list should not create an entry
+        assert patch_pos not in manager.out_portset
+        assert manager.out_ports == []
+
+    def test_add_in_ports_with_none_values(self) -> None:
+        """Test that None values are filtered from in_ports."""
+        manager = PortManager()
+        patch_pos = PatchCoordGlobal3D((0, 0, 0))
+        nodes_with_none = [NodeIdLocal(1), None, NodeIdLocal(2)]  # type: ignore[list-item]
+
+        manager.add_in_ports(patch_pos, nodes_with_none)  # type: ignore[arg-type]
+
+        expected = [NodeIdLocal(1), NodeIdLocal(2)]
+        assert manager.in_portset[patch_pos] == expected
+        assert manager.in_ports == expected
+
+    def test_add_out_ports_with_none_values(self) -> None:
+        """Test that None values are filtered from out_ports."""
+        manager = PortManager()
+        patch_pos = PatchCoordGlobal3D((0, 0, 0))
+        nodes_with_none = [NodeIdLocal(1), None, NodeIdLocal(2)]  # type: ignore[list-item]
+
+        manager.add_out_ports(patch_pos, nodes_with_none)  # type: ignore[arg-type]
+
+        expected = [NodeIdLocal(1), NodeIdLocal(2)]
+        assert manager.out_portset[patch_pos] == expected
+        assert manager.out_ports == expected
+
+
+class TestPortManagerMerge:
+    """Test PortManager merge functionality."""
+
+    def test_merge_basic(self) -> None:
+        """Test basic merge operation."""
+        pm1 = PortManager()
+        pm2 = PortManager()
+
+        patch1 = PatchCoordGlobal3D((0, 0, 0))
+        patch2 = PatchCoordGlobal3D((1, 0, 0))
+
+        pm1.add_in_ports(patch1, [NodeIdLocal(1)])
+        pm1.add_out_ports(patch1, [NodeIdLocal(2)])
+
+        pm2.add_in_ports(patch2, [NodeIdLocal(10)])
+        pm2.add_out_ports(patch2, [NodeIdLocal(20)])
+
+        # Identity mapping (no remapping)
+        node_map = {}
+        merged = pm1.merge(pm2, node_map, node_map)
+
+        # in_ports should come from pm2 (other) by default
+        assert merged.in_portset == {patch2: [NodeIdLocal(10)]}
+        # out_ports should be merged from both
+        assert patch1 in merged.out_portset
+        assert patch2 in merged.out_portset
+
+    def test_merge_with_remapping(self) -> None:
+        """Test merge with node remapping."""
+        pm1 = PortManager()
+        pm2 = PortManager()
+
+        patch = PatchCoordGlobal3D((0, 0, 0))
+
+        pm1.add_out_ports(patch, [NodeIdLocal(1)])
+        pm2.add_out_ports(patch, [NodeIdLocal(10)])
+
+        # Remap pm1's nodes to 100+, pm2's to 200+
+        map1 = {1: 101}
+        map2 = {10: 210}
+
+        merged = pm1.merge(pm2, map1, map2)
+
+        # Both out_ports should be remapped and merged
+        assert NodeIdLocal(101) in merged.out_ports
+        assert NodeIdLocal(210) in merged.out_ports
+
+    def test_merge_in_ports_from_self(self) -> None:
+        """Test merge with in_ports from self."""
+        pm1 = PortManager()
+        pm2 = PortManager()
+
+        patch1 = PatchCoordGlobal3D((0, 0, 0))
+        patch2 = PatchCoordGlobal3D((1, 0, 0))
+
+        pm1.add_in_ports(patch1, [NodeIdLocal(1)])
+        pm2.add_in_ports(patch2, [NodeIdLocal(10)])
+
+        merged = pm1.merge(pm2, {}, {}, in_ports_from="self")
+
+        # in_ports should come from pm1 (self)
+        assert merged.in_portset == {patch1: [NodeIdLocal(1)]}
+
+    def test_merge_in_ports_from_both(self) -> None:
+        """Test merge with in_ports from both sources."""
+        pm1 = PortManager()
+        pm2 = PortManager()
+
+        patch1 = PatchCoordGlobal3D((0, 0, 0))
+        patch2 = PatchCoordGlobal3D((1, 0, 0))
+
+        pm1.add_in_ports(patch1, [NodeIdLocal(1)])
+        pm2.add_in_ports(patch2, [NodeIdLocal(10)])
+
+        merged = pm1.merge(pm2, {}, {}, in_ports_from="both")
+
+        # in_ports should come from both
+        assert patch1 in merged.in_portset
+        assert patch2 in merged.in_portset
+
+    def test_merge_invalid_in_ports_from(self) -> None:
+        """Test merge with invalid in_ports_from raises ValueError."""
+        pm1 = PortManager()
+        pm2 = PortManager()
+
+        with pytest.raises(ValueError, match="Invalid in_ports_from"):
+            pm1.merge(pm2, {}, {}, in_ports_from="invalid")  # type: ignore[arg-type]
+
+    def test_merge_cout_groups(self) -> None:
+        """Test merge with cout_port_groups."""
+        pm1 = PortManager()
+        pm2 = PortManager()
+
+        patch = PatchCoordGlobal3D((0, 0, 0))
+
+        pm1.register_cout_group(patch, [NodeIdLocal(1), NodeIdLocal(2)])
+        pm2.register_cout_group(patch, [NodeIdLocal(10), NodeIdLocal(11)])
+
+        merged = pm1.merge(pm2, {}, {})
+
+        # Both groups should be present
+        assert patch in merged.cout_port_groups
+        assert len(merged.cout_port_groups[patch]) == 2

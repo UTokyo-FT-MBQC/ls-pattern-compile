@@ -957,15 +957,6 @@ class CompiledRHGCanvas:
         remapped_layer.port_manager = layer.port_manager.copy()
         remapped_layer.port_manager.remap_ports({int(k): int(v) for k, v in node_map.items()})
 
-    @staticmethod
-    def _remap_layer_cout_ports(
-        layer: TemporalLayer,
-        remapped_layer: TemporalLayer,
-        node_map: Mapping[NodeIdLocal, NodeIdLocal],
-    ) -> None:
-        """Remap cout ports for a layer."""
-        # Port remapping is now handled by _remap_layer_portsets, so this is a no-op
-
     # TODO: this could be made more efficient by avoiding deep copies
     def remap_nodes(self, node_map: Mapping[NodeIdLocal, NodeIdLocal]) -> CompiledRHGCanvas:
         """Remap nodes according to the given node mapping."""
@@ -1321,41 +1312,6 @@ def _build_merged_coord2node(cgraph: CompiledRHGCanvas, next_layer: TemporalLaye
     }
 
 
-def _merge_port_managers(
-    cgraph_pm: PortManager, next_layer_pm: PortManager, node_map1: dict[int, int], node_map2: dict[int, int]
-) -> PortManager:
-    """Merge two PortManagers for temporal composition."""
-    merged = PortManager()
-
-    # Remap and merge cgraph ports
-    cgraph_remapped = cgraph_pm.copy()
-    cgraph_remapped.remap_ports(node_map1)
-
-    # Remap next_layer ports
-    next_layer_remapped = next_layer_pm.copy()
-    next_layer_remapped.remap_ports(node_map2)
-
-    # Merge in_ports (only from next_layer)
-    for pos, nodes in next_layer_remapped.in_portset.items():
-        merged.add_in_ports(pos, nodes)
-
-    # Merge out_ports (from both, next_layer takes precedence)
-    for pos, nodes in cgraph_remapped.out_portset.items():
-        merged.add_out_ports(pos, nodes)
-    for pos, nodes in next_layer_remapped.out_portset.items():
-        merged.add_out_ports(pos, nodes)
-
-    # Merge cout_port_groups (from both)
-    for pos, groups in cgraph_remapped.cout_port_groups.items():
-        for group in groups:
-            merged.register_cout_group(pos, group)
-    for pos, groups in next_layer_remapped.cout_port_groups.items():
-        for group in groups:
-            merged.register_cout_group(pos, group)
-
-    return merged
-
-
 def _build_coordinate_gid_mapping(
     cgraph: CompiledRHGCanvas, next_layer: TemporalLayer
 ) -> dict[PhysCoordGlobal3D, QubitGroupIdGlobal]:
@@ -1425,7 +1381,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
 
     # Build merged mappings
     new_coord2node = _build_merged_coord2node(cgraph, next_layer)
-    merged_port_manager = _merge_port_managers(cgraph.port_manager, next_layer.port_manager, node_map1, node_map2)
+    merged_port_manager = cgraph.port_manager.merge(next_layer.port_manager, node_map1, node_map2)
     new_coord2gid = _build_coordinate_gid_mapping(cgraph, next_layer)
 
     # Setup temporal connections

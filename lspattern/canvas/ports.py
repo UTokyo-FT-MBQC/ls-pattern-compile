@@ -113,8 +113,15 @@ class PortManager:
 
         Notes
         -----
-        This method remaps in_portset, out_portset, cout_portset/cout_port_groups,
-        in_ports, out_ports, and cout_ports using the provided node mapping.
+        This method remaps in_portset, out_portset, in_ports, out_ports,
+        and cout-related structures using the provided node mapping.
+
+        For cout ports, the behavior depends on whether cout_port_groups is populated:
+        - If cout_port_groups exists: Uses grouped structure and rebuilds flat caches
+        - Otherwise: Remaps cout_portset and cout_ports directly
+
+        This dual behavior ensures compatibility with both grouped and non-grouped
+        cout port management patterns.
         """
         for p, nodes in self.in_portset.items():
             self.in_portset[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
@@ -147,8 +154,12 @@ class PortManager:
         nodes : list[NodeIdLocal]
             List of node IDs to add as input ports
         """
-        self.in_portset.setdefault(patch_pos, []).extend(nodes)
-        self.in_ports.extend(nodes)
+        # Filter out None values for consistency with register_cout_group
+        valid_nodes = [NodeIdLocal(int(n)) for n in nodes if n is not None]
+        if not valid_nodes:
+            return
+        self.in_portset.setdefault(patch_pos, []).extend(valid_nodes)
+        self.in_ports.extend(valid_nodes)
 
     def add_out_ports(self, patch_pos: PatchCoordGlobal3D, nodes: list[NodeIdLocal]) -> None:
         """Add output ports for a patch.
@@ -160,8 +171,12 @@ class PortManager:
         nodes : list[NodeIdLocal]
             List of node IDs to add as output ports
         """
-        self.out_portset.setdefault(patch_pos, []).extend(nodes)
-        self.out_ports.extend(nodes)
+        # Filter out None values for consistency with register_cout_group
+        valid_nodes = [NodeIdLocal(int(n)) for n in nodes if n is not None]
+        if not valid_nodes:
+            return
+        self.out_portset.setdefault(patch_pos, []).extend(valid_nodes)
+        self.out_ports.extend(valid_nodes)
 
     def get_cout_group_by_node(self, node: NodeIdLocal) -> tuple[PatchCoordGlobal3D, list[NodeIdLocal]] | None:
         """Get the cout group containing the given node.
@@ -185,6 +200,81 @@ class PortManager:
             return None
         return patch_pos, list(groups[group_idx])
 
+    def merge(
+        self,
+        other: PortManager,
+        self_node_map: Mapping[int, int],
+        other_node_map: Mapping[int, int],
+        *,
+        in_ports_from: str = "other",
+    ) -> PortManager:
+        """Merge this PortManager with another for temporal composition.
+
+        Parameters
+        ----------
+        other : PortManager
+            The other PortManager to merge with
+        self_node_map : Mapping[int, int]
+            Node mapping to apply to self's ports
+        other_node_map : Mapping[int, int]
+            Node mapping to apply to other's ports
+        in_ports_from : str, optional
+            Which source to take in_ports from ("self", "other", or "both").
+            Default is "other" (temporal composition pattern).
+
+        Returns
+        -------
+        PortManager
+            A new merged PortManager
+
+        Notes
+        -----
+        This method is designed for temporal layer composition where:
+        - in_ports typically come from the next layer (other)
+        - out_ports are merged from both layers
+        - cout_port_groups are merged from both layers
+        """
+        merged = PortManager()
+
+        # Remap self and other
+        self_remapped = self.copy()
+        self_remapped.remap_ports(self_node_map)
+
+        other_remapped = other.copy()
+        other_remapped.remap_ports(other_node_map)
+
+        # Merge in_ports based on strategy
+        if in_ports_from == "other":
+            for pos, nodes in other_remapped.in_portset.items():
+                merged.add_in_ports(pos, nodes)
+        elif in_ports_from == "self":
+            for pos, nodes in self_remapped.in_portset.items():
+                merged.add_in_ports(pos, nodes)
+        elif in_ports_from == "both":
+            for pos, nodes in self_remapped.in_portset.items():
+                merged.add_in_ports(pos, nodes)
+            for pos, nodes in other_remapped.in_portset.items():
+                merged.add_in_ports(pos, nodes)
+        else:
+            msg = f"Invalid in_ports_from: {in_ports_from}. Must be 'self', 'other', or 'both'."
+            raise ValueError(msg)
+
+        # Merge out_ports from both
+        for pos, nodes in self_remapped.out_portset.items():
+            merged.add_out_ports(pos, nodes)
+        for pos, nodes in other_remapped.out_portset.items():
+            merged.add_out_ports(pos, nodes)
+
+        # Merge cout_port_groups from both
+        for pos, groups in self_remapped.cout_port_groups.items():
+            for group in groups:
+                merged.register_cout_group(pos, group)
+        for pos, groups in other_remapped.cout_port_groups.items():
+            for group in groups:
+                merged.register_cout_group(pos, group)
+
+        return merged
+
     def copy(self) -> PortManager:
         """Create a deep copy of this PortManager.
 
@@ -192,8 +282,14 @@ class PortManager:
         -------
         PortManager
             A new PortManager with copied data
+
+        Notes
+        -----
+        When adding new fields to PortManager, remember to update this method
+        to ensure they are properly copied.
         """
         new_manager = PortManager()
+        # Copy all port-related data structures
         new_manager.in_portset = {k: list(v) for k, v in self.in_portset.items()}
         new_manager.out_portset = {k: list(v) for k, v in self.out_portset.items()}
         new_manager.cout_portset = {k: list(v) for k, v in self.cout_portset.items()}
