@@ -7,9 +7,9 @@ from typing import Any, Literal
 
 import pytest
 
-from lspattern.blocks.pipes.memory import MemoryPipeSkeleton
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
+from lspattern.blocks.pipes.memory import MemoryPipeSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.mytype import PatchCoordGlobal3D, PhysCoordGlobal3D
 
@@ -82,7 +82,7 @@ def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:
     g = getattr(cg, "global_graph", None)
 
     # Nodes as sorted coordinate triples
-    coords_sorted = sorted([(int(x), int(y), int(z)) for (x, y, z) in coord2node.keys()])
+    coords_sorted = sorted([(int(x), int(y), int(z)) for (x, y, z) in coord2node])
 
     # Edges mapped to coordinates, sorted deterministically
     edges_coords: list[list[int]] = []
@@ -102,12 +102,12 @@ def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:
     inputs = {}
     outputs = {}
     if g is not None:
-        if hasattr(g, "input_node_indices") and getattr(g, "input_node_indices"):
+        if hasattr(g, "input_node_indices") and g.input_node_indices:
             for nid, lidx in g.input_node_indices.items():
                 c = node2coord.get(int(nid))
                 if c is not None:
                     inputs[_coord_key(c)] = int(lidx)
-        if hasattr(g, "output_node_indices") and getattr(g, "output_node_indices"):
+        if hasattr(g, "output_node_indices") and g.output_node_indices:
             for nid, lidx in g.output_node_indices.items():
                 c = node2coord.get(int(nid))
                 if c is not None:
@@ -186,8 +186,8 @@ def test_cout_group_resolution_interface() -> None:
     # Inject a cout group and ensure lookup works
     first_layer = compiled.layers[0]
     patch = first_layer.patches[0]
-    compiled.cout_port_groups = {patch: [[sample_node]]}
-    compiled._rebuild_cout_group_cache()
+    compiled.port_manager.cout_port_groups = {patch: [[sample_node]]}
+    compiled.port_manager.rebuild_cout_group_cache()
 
     fetched = compiled.get_cout_group_by_coord(sample_coord)
     assert fetched is not None
