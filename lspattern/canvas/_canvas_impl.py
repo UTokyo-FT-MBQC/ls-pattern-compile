@@ -1235,7 +1235,7 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
 def _create_first_layer_canvas(next_layer: TemporalLayer) -> CompiledRHGCanvas:
     """Create compiled canvas for the first temporal layer."""
 
-    compiled = CompiledRHGCanvas(
+    return CompiledRHGCanvas(
         layers=[next_layer],
         global_graph=next_layer.local_graph,
         coord2node={k: NodeIdLocal(v) for k, v in next_layer.coord2node.items()},
@@ -1248,7 +1248,6 @@ def _create_first_layer_canvas(next_layer: TemporalLayer) -> CompiledRHGCanvas:
         cubes_=next_layer.cubes_,
         pipes_=next_layer.pipes_,
     )
-    return compiled
 
 
 def to_temporal_layer(
@@ -1453,7 +1452,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
 
     # TODO: should add boundary checks?
 
-    compiled = CompiledRHGCanvas(
+    return CompiledRHGCanvas(
         layers=new_layers,
         global_graph=new_graph,
         coord2node={k: NodeIdLocal(v) for k, v in new_coord2node.items()},
@@ -1463,4 +1462,3 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         parity=new_parity,
         zlist=[*list(cgraph.zlist), next_layer.z],
     )
-    return compiled
