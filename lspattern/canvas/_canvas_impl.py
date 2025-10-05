@@ -253,7 +253,7 @@ class TemporalLayer:
         """Recompute flat cout caches from grouped data."""
         self.port_manager.rebuild_cout_group_cache()
 
-    def _build_graph_from_blocks(self) -> BaseGraphState:
+    def _build_graph_from_blocks(self) -> GraphState:
         """Build the quantum graph state from cubes and pipes."""
         return self.graph_composer.build_graph_from_blocks(self.cubes_, self.pipes_)
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from graphix_zx.graphstate import BaseGraphState, GraphState, compose
+from graphix_zx.graphstate import GraphState, compose
 
 from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D, PipeCoordGlobal3D
 
@@ -50,8 +50,8 @@ class GraphComposer:
     def compose_single_cube(
         pos: PatchCoordGlobal3D,  # noqa: ARG004
         blk: RHGCube,
-        g: BaseGraphState,
-    ) -> tuple[BaseGraphState, Mapping[int, int], Mapping[int, int]]:
+        g: GraphState,
+    ) -> tuple[GraphState, Mapping[int, int], Mapping[int, int]]:
         """Compose a single cube into the graph.
 
         Parameters
@@ -62,12 +62,12 @@ class GraphComposer:
             be used in future extensions for position-dependent composition logic.
         blk : RHGCube
             The cube block to compose.
-        g : BaseGraphState
+        g : GraphState
             The current graph state.
 
         Returns
         -------
-        tuple[BaseGraphState, Mapping[int, int], Mapping[int, int]]
+        tuple[GraphState, Mapping[int, int], Mapping[int, int]]
             New graph state and node mappings (node_map1, node_map2).
         """
         g2 = blk.local_graph
@@ -201,21 +201,21 @@ class GraphComposer:
 
     def compose_pipe_graphs(
         self,
-        g: BaseGraphState,
+        g: GraphState,
         pipes: dict[PipeCoordGlobal3D, RHGPipe],
-    ) -> BaseGraphState:
+    ) -> GraphState:
         """Compose pipe graphs into the main graph state.
 
         Parameters
         ----------
-        g : BaseGraphState
+        g : GraphState
             The current graph state.
         pipes : dict[PipeCoordGlobal3D, RHGPipe]
             Dictionary of pipe coordinates to pipe blocks.
 
         Returns
         -------
-        BaseGraphState
+        GraphState
             The updated graph state with pipes composed.
 
         Notes
@@ -253,7 +253,7 @@ class GraphComposer:
         self,
         cubes: dict[PatchCoordGlobal3D, RHGCube],
         pipes: dict[PipeCoordGlobal3D, RHGPipe],
-    ) -> BaseGraphState:
+    ) -> GraphState:
         """Build the quantum graph state from cubes and pipes.
 
         Parameters
@@ -265,7 +265,7 @@ class GraphComposer:
 
         Returns
         -------
-        BaseGraphState
+        GraphState
             The composed graph state.
 
         Notes
@@ -288,7 +288,7 @@ class GraphComposer:
 
         # Compose cube graphs
         for pos, blk in cubes.items():
-            g_state, node_map1, node_map2 = self.compose_single_cube(pos, blk, g_state)  # pyright: ignore[reportAssignmentType]
+            g_state, node_map1, node_map2 = self.compose_single_cube(pos, blk, g_state)
             # Store node mapping for later use in accumulator merging
             blk.node_map_global = {NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map2.items()}
             self.coord_mapper.remap_nodes(node_map1)
