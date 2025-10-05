@@ -9,7 +9,7 @@ from __future__ import annotations
 from contextlib import suppress
 from dataclasses import dataclass, field
 from operator import itemgetter
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from graphix_zx.graphstate import (
     BaseGraphState,
@@ -385,7 +385,9 @@ class TemporalLayer:
                 g.add_physical_edge(u, v)
                 existing.add(edge)
 
-    def _add_seam_edges(self, g: GraphState, coord_gid_2d: Mapping[tuple[int, int], QubitGroupIdGlobal]) -> GraphState:
+    def _add_seam_edges(
+        self, g: BaseGraphState, coord_gid_2d: Mapping[tuple[int, int], QubitGroupIdGlobal]
+    ) -> GraphState:
         """Add CZ edges across cube-pipe seams within the same temporal layer."""
         # Build XY regions
         cube_xy_all = self._build_xy_regions(dict(coord_gid_2d))
@@ -399,7 +401,7 @@ class TemporalLayer:
 
             self._process_neighbor_connections(u, coord_u, gid_u, cube_xy_all, coord_gid_2d, g, existing)
 
-        return g
+        return cast("GraphState", g)
 
     def compile(self) -> None:
         """Compile the temporal layer into a quantum pattern.
@@ -1142,7 +1144,7 @@ def _setup_temporal_connections(
     pipes: list[RHGPipe],
     cgraph: CompiledRHGCanvas,
     next_layer: TemporalLayer,
-    new_graph: GraphState,
+    new_graph: BaseGraphState,
     new_coord2node: dict[PhysCoordGlobal3D, int],
     new_coord2gid: dict[PhysCoordGlobal3D, QubitGroupIdGlobal],
 ) -> None:

@@ -6,9 +6,9 @@ including node mapping, coordinate processing, and port management during graph 
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
-from graphix_zx.graphstate import GraphState, compose
+from graphix_zx.graphstate import BaseGraphState, GraphState, compose
 
 from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D, PipeCoordGlobal3D
 
@@ -50,7 +50,7 @@ class GraphComposer:
     def compose_single_cube(
         pos: PatchCoordGlobal3D,  # noqa: ARG004
         blk: RHGCube,
-        g: GraphState,
+        g: BaseGraphState,
     ) -> tuple[GraphState, Mapping[int, int], Mapping[int, int]]:
         """Compose a single cube into the graph.
 
@@ -62,7 +62,7 @@ class GraphComposer:
             be used in future extensions for position-dependent composition logic.
         blk : RHGCube
             The cube block to compose.
-        g : GraphState
+        g : BaseGraphState
             The current graph state.
 
         Returns
@@ -201,14 +201,14 @@ class GraphComposer:
 
     def compose_pipe_graphs(
         self,
-        g: GraphState,
+        g: BaseGraphState,
         pipes: dict[PipeCoordGlobal3D, RHGPipe],
     ) -> GraphState:
         """Compose pipe graphs into the main graph state.
 
         Parameters
         ----------
-        g : GraphState
+        g : BaseGraphState
             The current graph state.
         pipes : dict[PipeCoordGlobal3D, RHGPipe]
             Dictionary of pipe coordinates to pipe blocks.
@@ -247,7 +247,7 @@ class GraphComposer:
             # Process pipe ports with node mapping
             self.process_pipe_ports(pipe_coord, pipe, node_map2)
 
-        return g
+        return cast("GraphState", g)
 
     def build_graph_from_blocks(
         self,
