@@ -73,7 +73,7 @@ class TemporalLayer:
     flow: FlowAccumulator
     parity: ParityAccumulator
 
-    local_graph: BaseGraphState | None
+    local_graph: GraphState | None
 
     cubes_: dict[PatchCoordGlobal3D, RHGCube]
     pipes_: dict[PipeCoordGlobal3D, RHGPipe]
@@ -386,8 +386,8 @@ class TemporalLayer:
                 existing.add(edge)
 
     def _add_seam_edges(
-        self, g: BaseGraphState, coord_gid_2d: Mapping[tuple[int, int], QubitGroupIdGlobal]
-    ) -> BaseGraphState:
+        self, g: GraphState, coord_gid_2d: Mapping[tuple[int, int], QubitGroupIdGlobal]
+    ) -> GraphState:
         """Add CZ edges across cube-pipe seams within the same temporal layer."""
         # Build XY regions
         cube_xy_all = self._build_xy_regions(dict(coord_gid_2d))
@@ -558,7 +558,7 @@ class CompiledRHGCanvas:
     ----------
     layers : list[TemporalLayer]
         The temporal layers of the canvas.
-    global_graph : BaseGraphState | None
+    global_graph : GraphState | None
         The global graph state after compilation.
     coord2node : dict[PhysCoordGlobal3D, int]
         Mapping from physical coordinates to node IDs.
@@ -580,7 +580,7 @@ class CompiledRHGCanvas:
     layers: list[TemporalLayer]
 
     # Optional/defaulted fields follow
-    global_graph: BaseGraphState | None = None
+    global_graph: GraphState | None = None
     coord2node: dict[PhysCoordGlobal3D, NodeIdLocal] = field(default_factory=dict)
     node2role: dict[NodeIdLocal, str] = field(default_factory=dict)
 
@@ -724,7 +724,7 @@ class CompiledRHGCanvas:
     @staticmethod
     def _create_remapped_graphstate(
         gsrc: BaseGraphState | None, nmap: dict[NodeIdLocal, NodeIdLocal]
-    ) -> BaseGraphState | None:
+    ) -> GraphState | None:
         """Create a remapped GraphState."""
         if gsrc is None:
             return None
@@ -1144,7 +1144,7 @@ def _setup_temporal_connections(
     pipes: list[RHGPipe],
     cgraph: CompiledRHGCanvas,
     next_layer: TemporalLayer,
-    new_graph: BaseGraphState,
+    new_graph: GraphState,
     new_coord2node: dict[PhysCoordGlobal3D, int],
     new_coord2gid: dict[PhysCoordGlobal3D, QubitGroupIdGlobal],
 ) -> None:
