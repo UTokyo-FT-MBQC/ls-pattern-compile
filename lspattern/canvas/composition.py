@@ -75,6 +75,25 @@ class GraphComposer:
         g_new, node_map1, node_map2 = compose(g, g2)
         return g_new, node_map1, node_map2
 
+    def _process_block_coordinates(self, block: RHGCube | RHGPipe, node_map2: Mapping[int, int]) -> None:
+        """Process block coordinates with node mapping.
+
+        Parameters
+        ----------
+        block : RHGCube | RHGPipe
+            The block whose coordinates to process.
+        node_map2 : Mapping[int, int]
+            Node mapping from local to global node IDs.
+        """
+        for old_n, coord in block.node2coord.items():
+            new_n = node_map2.get(old_n)
+            if new_n is None:
+                continue
+            x, y, z = int(coord[0]), int(coord[1]), int(coord[2])
+            c_new = PhysCoordGlobal3D((x, y, z))
+            role = block.node2role.get(old_n)
+            self.coord_mapper.add_node(NodeIdLocal(new_n), c_new, role)
+
     def process_cube_coordinates(self, blk: RHGCube, node_map2: Mapping[int, int]) -> None:
         """Process cube coordinates and roles with node mapping.
 
@@ -86,15 +105,7 @@ class GraphComposer:
             Node mapping from local to global node IDs.
         """
         # All blocks now use absolute coordinates - no z_shift needed
-        # Ingest coords/roles
-        for old_n, coord in blk.node2coord.items():
-            new_n = node_map2.get(old_n)
-            if new_n is None:
-                continue
-            x, y, z = int(coord[0]), int(coord[1]), int(coord[2])
-            c_new = PhysCoordGlobal3D((x, y, z))
-            role = blk.node2role.get(old_n)
-            self.coord_mapper.add_node(NodeIdLocal(new_n), c_new, role)
+        self._process_block_coordinates(blk, node_map2)
 
     def process_cube_coordinates_direct(self, blk: RHGCube) -> None:
         """Process cube coordinates directly without node mapping.
@@ -202,7 +213,7 @@ class GraphComposer:
     def compose_pipe_graphs(
         self,
         g: BaseGraphState,
-        pipes: dict[PipeCoordGlobal3D, RHGPipe],
+        pipes: Mapping[PipeCoordGlobal3D, RHGPipe],
     ) -> GraphState:
         """Compose pipe graphs into the main graph state.
 
@@ -210,8 +221,8 @@ class GraphComposer:
         ----------
         g : BaseGraphState
             The current graph state.
-        pipes : dict[PipeCoordGlobal3D, RHGPipe]
-            Dictionary of pipe coordinates to pipe blocks.
+        pipes : Mapping[PipeCoordGlobal3D, RHGPipe]
+            Mapping of pipe coordinates to pipe blocks.
 
         Returns
         -------
@@ -234,15 +245,7 @@ class GraphComposer:
             g = g_new
 
             # All blocks now use absolute coordinates - no z_shift needed
-            for old_n, coord in pipe.node2coord.items():
-                new_n = node_map2.get(old_n)
-                if new_n is None:
-                    continue
-                # XY and Z are already in absolute coordinates (shifted in to_temporal_layer)
-                x, y, z = int(coord[0]), int(coord[1]), int(coord[2])
-                c_new = PhysCoordGlobal3D((x, y, z))
-                role = pipe.node2role.get(old_n)
-                self.coord_mapper.add_node(NodeIdLocal(new_n), c_new, role)
+            self._process_block_coordinates(pipe, node_map2)
 
             # Process pipe ports with node mapping
             self.process_pipe_ports(pipe_coord, pipe, node_map2)
@@ -251,17 +254,17 @@ class GraphComposer:
 
     def build_graph_from_blocks(
         self,
-        cubes: dict[PatchCoordGlobal3D, RHGCube],
-        pipes: dict[PipeCoordGlobal3D, RHGPipe],
+        cubes: Mapping[PatchCoordGlobal3D, RHGCube],
+        pipes: Mapping[PipeCoordGlobal3D, RHGPipe],
     ) -> GraphState:
         """Build the quantum graph state from cubes and pipes.
 
         Parameters
         ----------
-        cubes : dict[PatchCoordGlobal3D, RHGCube]
-            Dictionary of cube coordinates to cube blocks.
-        pipes : dict[PipeCoordGlobal3D, RHGPipe]
-            Dictionary of pipe coordinates to pipe blocks.
+        cubes : Mapping[PatchCoordGlobal3D, RHGCube]
+            Mapping of cube coordinates to cube blocks.
+        pipes : Mapping[PipeCoordGlobal3D, RHGPipe]
+            Mapping of pipe coordinates to pipe blocks.
 
         Returns
         -------
