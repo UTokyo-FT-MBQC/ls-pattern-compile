@@ -12,15 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pull request template
 - CHANGELOG.md file
 - Comprehensive README.md with installation guide, usage examples, project status, and citation format
-- `PortManager` class for managing input/output/cout ports ([#33](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/33))
+- `PortManager` class for managing input/output/cout ports ([#33](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/33) Phase 1.1)
+- `CoordinateMapper` class for managing node-coordinate bidirectional mappings ([#33](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/33) Phase 1.2)
 - Unit tests for port management functionality (`tests/canvas/test_ports.py`)
+- Unit tests for coordinate mapping functionality (`tests/canvas/test_coordinates.py`)
 
 ### Changed
 - Unified into absolute coordinate ([#24](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/24))
 - Refactored `lspattern/canvas.py` into modular structure ([#33](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/33))
   - Created `lspattern/canvas/` package with separate modules
   - Moved `MixedCodeDistanceError` to `lspattern/canvas/exceptions.py`
-  - Extracted port management logic into `lspattern/canvas/ports.py`
+  - Extracted port management logic into `lspattern/canvas/ports.py` (Phase 1.1)
+  - Extracted coordinate mapping logic into `lspattern/canvas/coordinates.py` (Phase 1.2)
   - Moved main canvas implementation to `lspattern/canvas/_canvas_impl.py`
   - Maintained backward compatibility through `lspattern/canvas/__init__.py`
 
