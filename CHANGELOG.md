@@ -14,8 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive README.md with installation guide, usage examples, project status, and citation format
 - `PortManager` class for managing input/output/cout ports ([#33](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/33) Phase 1.1)
 - `CoordinateMapper` class for managing node-coordinate bidirectional mappings ([#33](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/33) Phase 1.2)
+- `GraphComposer` class for handling graph composition logic ([#33](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/33) Phase 1.3)
 - Unit tests for port management functionality (`tests/canvas/test_ports.py`)
 - Unit tests for coordinate mapping functionality (`tests/canvas/test_coordinates.py`)
+- Unit tests for graph composition functionality (`tests/canvas/test_composition.py`)
 
 ### Changed
 - Unified into absolute coordinate ([#24](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/24))
@@ -24,8 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Moved `MixedCodeDistanceError` to `lspattern/canvas/exceptions.py`
   - Extracted port management logic into `lspattern/canvas/ports.py` (Phase 1.1)
   - Extracted coordinate mapping logic into `lspattern/canvas/coordinates.py` (Phase 1.2)
+  - Extracted graph composition logic into `lspattern/canvas/composition.py` (Phase 1.3)
   - Moved main canvas implementation to `lspattern/canvas/_canvas_impl.py`
   - Maintained backward compatibility through `lspattern/canvas/__init__.py`
+- Refactored `TemporalLayer` to use `GraphComposer` for graph building operations ([#33](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/33) Phase 1.3)
 
 ### Removed
 - Deprecated modules `rhg.py` and `ops.py` ([#21](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/21))
