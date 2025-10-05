@@ -57,7 +57,9 @@ class GraphComposer:
         Parameters
         ----------
         pos : PatchCoordGlobal3D
-            Position of the cube (unused but kept for API consistency).
+            Position of the cube. This parameter is currently unused but retained
+            for API consistency with the overall graph composition interface. It may
+            be used in future extensions for position-dependent composition logic.
         blk : RHGCube
             The cube block to compose.
         g : BaseGraphState
@@ -125,15 +127,12 @@ class GraphComposer:
             Node mapping from local to global node IDs.
         """
         if blk.in_ports:
-            patch_pos = PatchCoordGlobal3D(pos)
             mapped_nodes = [NodeIdLocal(node_map2[n]) for n in blk.in_ports if n in node_map2]
-            self.port_manager.add_in_ports(patch_pos, mapped_nodes)
+            self.port_manager.add_in_ports(pos, mapped_nodes)
         if blk.out_ports:
-            patch_pos = PatchCoordGlobal3D(pos)
             mapped_nodes = [NodeIdLocal(node_map2[n]) for n in blk.out_ports if n in node_map2]
-            self.port_manager.add_out_ports(patch_pos, mapped_nodes)
+            self.port_manager.add_out_ports(pos, mapped_nodes)
         if blk.cout_ports:
-            patch_pos = PatchCoordGlobal3D(pos)
             for group in blk.cout_ports:
                 mapped_group: list[NodeIdLocal] = []
                 for node in group:
@@ -141,7 +140,7 @@ class GraphComposer:
                     if new_id is None:
                         continue
                     mapped_group.append(NodeIdLocal(new_id))
-                self.port_manager.register_cout_group(patch_pos, mapped_group)
+                self.port_manager.register_cout_group(pos, mapped_group)
 
     def process_cube_ports_direct(self, pos: PatchCoordGlobal3D, blk: RHGCube) -> None:
         """Process cube ports directly without node mapping.
@@ -164,10 +163,9 @@ class GraphComposer:
         self.port_manager.add_out_ports(pos, output_port_nodes)
 
         if blk.cout_ports:
-            patch_pos = PatchCoordGlobal3D(pos)
             for group in blk.cout_ports:
                 mapped_group = [NodeIdLocal(int(node)) for node in group]
-                self.port_manager.register_cout_group(patch_pos, mapped_group)
+                self.port_manager.register_cout_group(pos, mapped_group)
 
     def process_pipe_ports(self, pipe_coord: PipeCoordGlobal3D, pipe: RHGPipe, node_map2: Mapping[int, int]) -> None:
         """Process pipe ports with node mapping.
@@ -219,10 +217,13 @@ class GraphComposer:
         -------
         BaseGraphState
             The updated graph state with pipes composed.
+
+        Notes
+        -----
+        This method has side effects on the input pipe objects:
+        - Sets the `node_map_global` attribute on each pipe for accumulator merging.
         """
         for pipe_coord, pipe in pipes.items():
-            # Use materialized pipe if local_graph is None
-            pipe_block = pipe
             g2 = pipe.local_graph
 
             g_new, node_map1, node_map2 = compose(g, g2)
@@ -233,18 +234,18 @@ class GraphComposer:
             g = g_new
 
             # All blocks now use absolute coordinates - no z_shift needed
-            for old_n, coord in pipe_block.node2coord.items():
+            for old_n, coord in pipe.node2coord.items():
                 new_n = node_map2.get(old_n)
                 if new_n is None:
                     continue
                 # XY and Z are already in absolute coordinates (shifted in to_temporal_layer)
                 x, y, z = int(coord[0]), int(coord[1]), int(coord[2])
                 c_new = PhysCoordGlobal3D((x, y, z))
-                role = pipe_block.node2role.get(old_n)
+                role = pipe.node2role.get(old_n)
                 self.coord_mapper.add_node(NodeIdLocal(new_n), c_new, role)
 
             # Process pipe ports with node mapping
-            self.process_pipe_ports(pipe_coord, pipe_block, node_map2)
+            self.process_pipe_ports(pipe_coord, pipe, node_map2)
 
         return g
 
@@ -266,6 +267,12 @@ class GraphComposer:
         -------
         BaseGraphState
             The composed graph state.
+
+        Notes
+        -----
+        This method has side effects on the input cube and pipe objects:
+        - Sets the `node_map_global` attribute on each cube and pipe for
+          accumulator merging during temporal layer compilation.
         """
         # Special case: single block - use its GraphState directly to preserve q_indices
         if len(cubes) == 1 and len(pipes) == 0:
