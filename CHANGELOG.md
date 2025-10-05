@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Apache License 2.0 (LICENSE file)
+- License information in pyproject.toml
+- License badge in README.md
+- Acknowledgment of tqec design inspiration in README.md
 - Issue templates (bug report, feature request, enhancement)
 - Pull request template
 - CHANGELOG.md file
