@@ -9,7 +9,7 @@ from __future__ import annotations
 from contextlib import suppress
 from dataclasses import dataclass, field
 from operator import itemgetter
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from graphix_zx.graphstate import (
     BaseGraphState,
@@ -20,11 +20,10 @@ from graphix_zx.graphstate import (
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
 from lspattern.blocks.cubes.base import RHGCube
 from lspattern.blocks.pipes.base import RHGPipe
-from lspattern.blocks.pipes.measure import _MeasurePipeBase
 from lspattern.canvas.composition import GraphComposer
 from lspattern.canvas.coordinates import CoordinateMapper
 from lspattern.canvas.ports import PortManager
-from lspattern.consts.consts import DIRECTIONS3D
+from lspattern.canvas.seams import SeamGenerator
 from lspattern.mytype import (
     NodeIdGlobal,
     NodeIdLocal,
@@ -257,152 +256,6 @@ class TemporalLayer:
         """Build the quantum graph state from cubes and pipes."""
         return self.graph_composer.build_graph_from_blocks(self.cubes_, self.pipes_)
 
-    def _build_xy_regions(self, coord_gid_2d: dict[tuple[int, int], QubitGroupIdGlobal]) -> set[tuple[int, int]]:
-        """Build XY coordinate sets for cubes and pipes."""
-        cube_xy_all: set[tuple[int, int]] = set()
-
-        for blk in self.cubes_.values():
-            t = blk.template
-            for coord_list in (t.data_coords, t.x_coords, t.z_coords):
-                for x, y in coord_list or []:
-                    xy = (int(x), int(y))
-                    cube_xy_all.add(xy)
-                    coord_gid_2d[xy] = QubitGroupIdGlobal(blk.get_tiling_id())
-
-        for pipe in self.pipes_.values():
-            t = pipe.template
-            for coord_list in (t.data_coords, t.x_coords, t.z_coords):
-                for x, y in coord_list or []:
-                    xy = (int(x), int(y))
-                    coord_gid_2d[xy] = QubitGroupIdGlobal(pipe.get_tiling_id())
-
-        return cube_xy_all
-
-    @staticmethod
-    def _get_existing_edges(g: BaseGraphState) -> set[tuple[int, int]]:
-        """Get existing edges from graph to avoid duplicates."""
-        edges = g.physical_edges
-        result: set[tuple[int, int]] = set()
-        for u, v in edges:
-            edge = tuple(sorted((int(u), int(v))))
-            if len(edge) == EDGE_TUPLE_SIZE:
-                result.add((edge[0], edge[1]))
-        return result
-
-    def _is_measure_pipe_node(
-        self,
-        xy: tuple[int, int],
-        cube_xy_all: set[tuple[int, int]],
-    ) -> bool:
-        """Check if a node belongs to a measure pipe."""
-        # If the node is in cube region, it's not a pipe node
-        if xy in cube_xy_all:
-            return False
-
-        # Check if this XY coordinate belongs to any measure pipe
-        for pipe in self.pipes_.values():
-            if isinstance(pipe, _MeasurePipeBase):
-                # Check if this xy coordinate is in the pipe's template
-                for coord in pipe.template.data_coords or []:
-                    if (int(coord[0]), int(coord[1])) == xy:
-                        return True
-        return False
-
-    def _should_connect_nodes(
-        self,
-        xy_u: tuple[int, int],
-        xy_v: tuple[int, int],
-        cube_xy_all: set[tuple[int, int]],
-        gid_u: QubitGroupIdGlobal,
-        gid_v: QubitGroupIdGlobal,
-    ) -> bool:
-        """Check if two nodes should be connected based on XY regions and group IDs."""
-        u_in_cube = xy_u in cube_xy_all
-        v_in_cube = xy_v in cube_xy_all
-
-        # Skip connection if either node belongs to a measure pipe
-        if self._is_measure_pipe_node(xy_u, cube_xy_all) or self._is_measure_pipe_node(xy_v, cube_xy_all):
-            return False
-
-        # Connect iff one is in cube region, other in pipe region, and allowed pair
-        return u_in_cube != v_in_cube and is_allowed_pair(
-            TilingId(int(gid_u)),
-            TilingId(int(gid_v)),
-            {(TilingId(int(a)), TilingId(int(b))) for a, b in self.allowed_gid_pairs},
-        )
-
-    def _process_neighbor_connections(
-        self,
-        u: NodeIdLocal,
-        coord_u: PhysCoordGlobal3D,
-        gid_u: QubitGroupIdGlobal,
-        cube_xy_all: set[tuple[int, int]],
-        coord_gid_2d: Mapping[tuple[int, int], QubitGroupIdGlobal],
-        g: BaseGraphState,
-        existing: set[tuple[int, int]],
-    ) -> None:
-        """Process connections to neighboring nodes."""
-        xu, yu, zu = int(coord_u[0]), int(coord_u[1]), int(coord_u[2])
-        xy_u = (xu, yu)
-
-        for dx, dy, dz in DIRECTIONS3D:
-            if dz != 0:
-                continue  # we only connect within the same z plane
-
-            xv, yv, zv = xu + int(dx), yu + int(dy), zu
-            coord_v = PhysCoordGlobal3D((xv, yv, zv))
-            v = self.coord2node.get(coord_v)
-            if v is None or v == u:
-                continue
-
-            xy_v = (xv, yv)
-            gid_v = coord_gid_2d.get(xy_v)
-            if gid_v is None:
-                continue
-
-            if not self._should_connect_nodes(xy_u, xy_v, cube_xy_all, gid_u, gid_v):
-                continue
-
-            TemporalLayer._add_edge_if_valid(u, v, g, existing)
-
-    @staticmethod
-    def _add_edge_if_valid(
-        u: NodeIdLocal,
-        v: NodeIdLocal,
-        g: BaseGraphState,
-        existing: set[tuple[int, int]],
-    ) -> None:
-        """Add edge if valid and not duplicate."""
-        # Check if either node is an output node - if so, don't add edge
-        if int(u) in g.output_node_indices or int(v) in g.output_node_indices:
-            return
-
-        # Avoid duplicates by canonical edge ordering
-        sorted_edge = tuple(sorted((int(u), int(v))))
-        if len(sorted_edge) == EDGE_TUPLE_SIZE:
-            edge = (sorted_edge[0], sorted_edge[1])
-            if edge not in existing:
-                g.add_physical_edge(u, v)
-                existing.add(edge)
-
-    def _add_seam_edges(
-        self, g: BaseGraphState, coord_gid_2d: Mapping[tuple[int, int], QubitGroupIdGlobal]
-    ) -> GraphState:
-        """Add CZ edges across cube-pipe seams within the same temporal layer."""
-        # Build XY regions
-        cube_xy_all = self._build_xy_regions(dict(coord_gid_2d))
-        existing = self._get_existing_edges(g)
-
-        for u, coord_u in list(self.node2coord.items()):
-            xy_u = (int(coord_u[0]), int(coord_u[1]))
-            gid_u = coord_gid_2d.get(xy_u)
-            if gid_u is None:
-                continue
-
-            self._process_neighbor_connections(u, coord_u, gid_u, cube_xy_all, coord_gid_2d, g, existing)
-
-        return cast("GraphState", g)
-
     def compile(self) -> None:
         """Compile the temporal layer into a quantum pattern.
 
@@ -431,7 +284,14 @@ class TemporalLayer:
 
         # Add CZ edges across cube-pipe seams within the same temporal layer
         coord_gid_2d = {(x, y): gid for (x, y, _), gid in coord2gid.items()}
-        g = self._add_seam_edges(g, coord_gid_2d)
+        seam_generator = SeamGenerator(
+            cubes=self.cubes_,
+            pipes=self.pipes_,
+            node2coord=self.node2coord,
+            coord2node=self.coord2node,
+            allowed_gid_pairs=allowed_gid_pairs,
+        )
+        g = seam_generator.add_seam_edges(g, coord_gid_2d)
 
         # Finalize
         self.local_graph = g
