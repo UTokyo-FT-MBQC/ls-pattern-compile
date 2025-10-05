@@ -9,7 +9,7 @@ from __future__ import annotations
 from contextlib import suppress
 from dataclasses import dataclass, field
 from operator import itemgetter
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from graphix_zx.graphstate import (
     BaseGraphState,
@@ -21,6 +21,7 @@ from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAc
 from lspattern.blocks.cubes.base import RHGCube
 from lspattern.blocks.pipes.base import RHGPipe
 from lspattern.blocks.pipes.measure import _MeasurePipeBase
+from lspattern.canvas.composition import GraphComposer
 from lspattern.canvas.coordinates import CoordinateMapper
 from lspattern.canvas.ports import PortManager
 from lspattern.consts.consts import DIRECTIONS3D
@@ -65,11 +66,14 @@ class TemporalLayer:
     # Coordinate mapping delegated to CoordinateMapper
     coord_mapper: CoordinateMapper
 
+    # Graph composition delegated to GraphComposer
+    graph_composer: GraphComposer
+
     schedule: ScheduleAccumulator
     flow: FlowAccumulator
     parity: ParityAccumulator
 
-    local_graph: BaseGraphState | None
+    local_graph: GraphState | None
 
     cubes_: dict[PatchCoordGlobal3D, RHGCube]
     pipes_: dict[PipeCoordGlobal3D, RHGPipe]
@@ -85,6 +89,7 @@ class TemporalLayer:
         self.lines = []
         self.port_manager = PortManager()
         self.coord_mapper = CoordinateMapper()
+        self.graph_composer = GraphComposer(self.coord_mapper, self.port_manager)
         self.local_graph = None
         # accumulators
         self.schedule = ScheduleAccumulator()
@@ -248,156 +253,9 @@ class TemporalLayer:
         """Recompute flat cout caches from grouped data."""
         self.port_manager.rebuild_cout_group_cache()
 
-    @staticmethod
-    def _compose_single_cube(
-        pos: PatchCoordGlobal3D,  # noqa: ARG004
-        blk: RHGCube,
-        g: BaseGraphState,
-    ) -> tuple[BaseGraphState, Mapping[int, int], Mapping[int, int]]:
-        """Compose a single cube into the graph."""
-        g2 = blk.local_graph
-
-        g_new, node_map1, node_map2 = compose(g, g2)
-        return g_new, node_map1, node_map2
-
-    def _process_cube_coordinates(self, blk: RHGCube, node_map2: Mapping[int, int]) -> None:
-        """Process cube coordinates and roles."""
-        # All blocks now use absolute coordinates - no z_shift needed
-        # Ingest coords/roles
-        for old_n, coord in blk.node2coord.items():
-            new_n = node_map2.get(old_n)
-            if new_n is None:
-                continue
-            x, y, z = int(coord[0]), int(coord[1]), int(coord[2])
-            c_new = PhysCoordGlobal3D((x, y, z))
-            role = blk.node2role.get(old_n)
-            self.coord_mapper.add_node(NodeIdLocal(new_n), c_new, role)
-
-    def _process_pipe_ports(self, pipe_coord: PipeCoordGlobal3D, pipe: RHGPipe, node_map2: Mapping[int, int]) -> None:
-        """Process pipe ports with node mapping."""
-        source, sink = pipe_coord
-        if pipe.in_ports:
-            patch_pos = PatchCoordGlobal3D(source)
-            mapped_nodes = [NodeIdLocal(node_map2[n]) for n in pipe.in_ports if n in node_map2]
-            self.port_manager.add_in_ports(patch_pos, mapped_nodes)
-        if pipe.out_ports:
-            patch_pos = PatchCoordGlobal3D(sink)
-            mapped_nodes = [NodeIdLocal(node_map2[n]) for n in pipe.out_ports if n in node_map2]
-            self.port_manager.add_out_ports(patch_pos, mapped_nodes)
-        if pipe.cout_ports:
-            patch_pos = PatchCoordGlobal3D(sink)
-            for group in pipe.cout_ports:
-                mapped_group: list[NodeIdLocal] = []
-                for node in group:
-                    new_id = node_map2.get(int(node))
-                    if new_id is None:
-                        continue
-                    mapped_group.append(NodeIdLocal(new_id))
-                self.port_manager.register_cout_group(patch_pos, mapped_group)
-
-    def _process_cube_ports(self, pos: tuple[int, int, int], blk: RHGCube, node_map2: Mapping[int, int]) -> None:
-        """Process cube ports."""
-        if blk.in_ports:
-            patch_pos = PatchCoordGlobal3D(pos)
-            mapped_nodes = [NodeIdLocal(node_map2[n]) for n in blk.in_ports if n in node_map2]
-            self.port_manager.add_in_ports(patch_pos, mapped_nodes)
-        if blk.out_ports:
-            patch_pos = PatchCoordGlobal3D(pos)
-            mapped_nodes = [NodeIdLocal(node_map2[n]) for n in blk.out_ports if n in node_map2]
-            self.port_manager.add_out_ports(patch_pos, mapped_nodes)
-        if blk.cout_ports:
-            patch_pos = PatchCoordGlobal3D(pos)
-            for group in blk.cout_ports:
-                mapped_group: list[NodeIdLocal] = []
-                for node in group:
-                    new_id = node_map2.get(int(node))
-                    if new_id is None:
-                        continue
-                    mapped_group.append(NodeIdLocal(new_id))
-                self.port_manager.register_cout_group(patch_pos, mapped_group)
-
-    def _build_graph_from_blocks(self) -> BaseGraphState:
+    def _build_graph_from_blocks(self) -> GraphState:
         """Build the quantum graph state from cubes and pipes."""
-        # Special case: single block - use its GraphState directly to preserve q_indices
-        if len(self.cubes_) == 1 and len(self.pipes_) == 0:
-            pos, blk = next(iter(self.cubes_.items()))
-            g = blk.local_graph
-            # Process coordinates and ports without composition
-            self._process_cube_coordinates_direct(blk)
-            self._process_cube_ports_direct(pos, blk)
-            return g
-
-        # Multiple blocks case - compose as before
-        g_state: GraphState = GraphState()
-
-        # Compose cube graphs
-        for pos, blk in self.cubes_.items():
-            g_state, node_map1, node_map2 = self._compose_single_cube(pos, blk, g_state)  # pyright: ignore[reportAssignmentType]
-            # Store node mapping for later use in accumulator merging
-            blk.node_map_global = {NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map2.items()}
-            self._remap_node_mappings(node_map1)
-            self._remap_portsets(node_map1)
-            self._process_cube_coordinates(blk, node_map2)
-            self._process_cube_ports(pos, blk, node_map2)
-
-        # Compose pipe graphs (spatial pipes in this layer)
-        return self._compose_pipe_graphs(g_state)
-
-    def _process_cube_coordinates_direct(self, blk: RHGCube) -> None:
-        """Process cube coordinates directly without node mapping."""
-        # All blocks now use absolute coordinates - no z_shift needed
-        # Directly use node coordinates
-        for node, coord in blk.node2coord.items():
-            x, y, z = int(coord[0]), int(coord[1]), int(coord[2])
-            c_new = PhysCoordGlobal3D((x, y, z))
-            role = blk.node2role.get(node)
-            self.coord_mapper.add_node(node, c_new, role)
-
-    def _process_cube_ports_direct(self, pos: PatchCoordGlobal3D, blk: RHGCube) -> None:
-        """Process cube ports directly without node mapping."""
-        # Process input ports
-        input_port_nodes = [NodeIdLocal(node) for node, _ in blk.local_graph.input_node_indices.items()]
-        self.port_manager.add_in_ports(pos, input_port_nodes)
-
-        # Process output ports
-        output_port_nodes = [NodeIdLocal(node) for node, _ in blk.local_graph.output_node_indices.items()]
-        self.port_manager.add_out_ports(pos, output_port_nodes)
-
-        if blk.cout_ports:
-            patch_pos = PatchCoordGlobal3D(pos)
-            for group in blk.cout_ports:
-                mapped_group = [NodeIdLocal(int(node)) for node in group]
-                self.port_manager.register_cout_group(patch_pos, mapped_group)
-
-    def _compose_pipe_graphs(self, g: BaseGraphState) -> BaseGraphState:
-        """Compose pipe graphs into the main graph state."""
-        for pipe_coord, pipe in self.pipes_.items():
-            # Use materialized pipe if local_graph is None
-            pipe_block = pipe
-            g2 = pipe.local_graph
-
-            g_new, node_map1, node_map2 = compose(g, g2)
-            # Store node mapping for later use in accumulator merging
-            pipe.node_map_global = {NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map2.items()}
-            self._remap_node_mappings(node_map1)
-            self._remap_portsets(node_map1)
-            g = g_new
-
-            # All blocks now use absolute coordinates - no z_shift needed
-            for old_n, coord in pipe_block.node2coord.items():
-                new_n = node_map2.get(old_n)
-                if new_n is None:
-                    continue
-                # XY and Z are already in absolute coordinates (shifted in to_temporal_layer)
-                x, y, z = int(coord[0]), int(coord[1]), int(coord[2])
-                c_new = PhysCoordGlobal3D((x, y, z))
-                role = pipe_block.node2role.get(old_n)
-                self.coord_mapper.add_node(NodeIdLocal(new_n), c_new, role)
-
-            # Process pipe ports with node mapping
-            self._process_pipe_ports(pipe_coord, pipe_block, node_map2)
-
-        return g
+        return self.graph_composer.build_graph_from_blocks(self.cubes_, self.pipes_)
 
     def _build_xy_regions(self, coord_gid_2d: dict[tuple[int, int], QubitGroupIdGlobal]) -> set[tuple[int, int]]:
         """Build XY coordinate sets for cubes and pipes."""
@@ -529,7 +387,7 @@ class TemporalLayer:
 
     def _add_seam_edges(
         self, g: BaseGraphState, coord_gid_2d: Mapping[tuple[int, int], QubitGroupIdGlobal]
-    ) -> BaseGraphState:
+    ) -> GraphState:
         """Add CZ edges across cube-pipe seams within the same temporal layer."""
         # Build XY regions
         cube_xy_all = self._build_xy_regions(dict(coord_gid_2d))
@@ -543,7 +401,7 @@ class TemporalLayer:
 
             self._process_neighbor_connections(u, coord_u, gid_u, cube_xy_all, coord_gid_2d, g, existing)
 
-        return g
+        return cast("GraphState", g)
 
     def compile(self) -> None:
         """Compile the temporal layer into a quantum pattern.
@@ -700,7 +558,7 @@ class CompiledRHGCanvas:
     ----------
     layers : list[TemporalLayer]
         The temporal layers of the canvas.
-    global_graph : BaseGraphState | None
+    global_graph : GraphState | None
         The global graph state after compilation.
     coord2node : dict[PhysCoordGlobal3D, int]
         Mapping from physical coordinates to node IDs.
@@ -722,7 +580,7 @@ class CompiledRHGCanvas:
     layers: list[TemporalLayer]
 
     # Optional/defaulted fields follow
-    global_graph: BaseGraphState | None = None
+    global_graph: GraphState | None = None
     coord2node: dict[PhysCoordGlobal3D, NodeIdLocal] = field(default_factory=dict)
     node2role: dict[NodeIdLocal, str] = field(default_factory=dict)
 
@@ -866,7 +724,7 @@ class CompiledRHGCanvas:
     @staticmethod
     def _create_remapped_graphstate(
         gsrc: BaseGraphState | None, nmap: dict[NodeIdLocal, NodeIdLocal]
-    ) -> BaseGraphState | None:
+    ) -> GraphState | None:
         """Create a remapped GraphState."""
         if gsrc is None:
             return None

@@ -16,6 +16,9 @@ from lspattern.canvas._canvas_impl import (
     to_temporal_layer,
 )
 
+# Import graph composition
+from lspattern.canvas.composition import GraphComposer
+
 # Import coordinate mapping
 from lspattern.canvas.coordinates import CoordinateMapper
 
@@ -28,6 +31,7 @@ from lspattern.canvas.ports import PortManager
 __all__ = [
     "CompiledRHGCanvas",
     "CoordinateMapper",
+    "GraphComposer",
     "MixedCodeDistanceError",
     "PortManager",
     "RHGCanvas",
