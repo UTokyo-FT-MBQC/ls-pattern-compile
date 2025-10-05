@@ -385,9 +385,7 @@ class TemporalLayer:
                 g.add_physical_edge(u, v)
                 existing.add(edge)
 
-    def _add_seam_edges(
-        self, g: GraphState, coord_gid_2d: Mapping[tuple[int, int], QubitGroupIdGlobal]
-    ) -> GraphState:
+    def _add_seam_edges(self, g: GraphState, coord_gid_2d: Mapping[tuple[int, int], QubitGroupIdGlobal]) -> GraphState:
         """Add CZ edges across cube-pipe seams within the same temporal layer."""
         # Build XY regions
         cube_xy_all = self._build_xy_regions(dict(coord_gid_2d))
