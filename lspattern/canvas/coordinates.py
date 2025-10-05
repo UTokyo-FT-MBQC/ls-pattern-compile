@@ -49,6 +49,10 @@ class CoordinateMapper:
     def add_node(self, node_id: NodeIdLocal, coord: PhysCoordGlobal3D, role: str | None = None) -> None:
         """Add a node with its coordinate and optional role.
 
+        If the node_id already exists, its coordinate is updated and the old coordinate
+        mapping is removed. If the coord already maps to a different node_id, that
+        mapping is overwritten (last-wins behavior).
+
         Parameters
         ----------
         node_id : NodeIdLocal
@@ -57,6 +61,12 @@ class CoordinateMapper:
             The physical coordinate in 3D space.
         role : str or None, optional
             The role of the node ('data', 'ancilla_x', 'ancilla_z'), by default None.
+
+        Notes
+        -----
+        This method uses a last-wins strategy for coordinate collisions. If the same
+        coordinate is added with different node IDs, the most recent node_id will be
+        associated with that coordinate in the coord2node mapping.
         """
         # Remove old coordinate mapping if node already exists
         if node_id in self.node2coord:
@@ -259,6 +269,11 @@ class CoordinateMapper:
         -------
         CoordinateMapper
             A new merged CoordinateMapper.
+
+        Raises
+        ------
+        ValueError
+            If a coordinate collision is detected (same coordinate maps to different nodes).
         """
         merged = CoordinateMapper()
 
@@ -273,6 +288,13 @@ class CoordinateMapper:
         # Remap and add from other
         for node_id, coord in other.node2coord.items():
             new_id = NodeIdLocal(other_node_map.get(int(node_id), int(node_id)))
+            # Check for coordinate collision
+            if coord in merged.coord2node and merged.coord2node[coord] != new_id:
+                msg = (
+                    f"Coordinate collision detected at {coord}: "
+                    f"existing node {merged.coord2node[coord]}, new node {new_id}"
+                )
+                raise ValueError(msg)
             merged.node2coord[new_id] = coord
             merged.coord2node[coord] = new_id
             if node_id in other.node2role:

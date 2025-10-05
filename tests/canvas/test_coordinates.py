@@ -468,3 +468,67 @@ class TestCoordinateMapperEdgeCases:
         mapper.add_node(node_id, zero_coord)
 
         assert mapper.get_coordinate(node_id) == zero_coord
+
+
+class TestCoordinateCollisions:
+    """Test coordinate collision scenarios."""
+
+    def test_add_same_coordinate_different_nodes(self) -> None:
+        """Test adding the same coordinate with different node IDs (last-wins)."""
+        mapper = CoordinateMapper()
+        coord = PhysCoordGlobal3D((0, 0, 0))
+        node1 = NodeIdLocal(1)
+        node2 = NodeIdLocal(2)
+
+        # Add first node
+        mapper.add_node(node1, coord, "data")
+        assert mapper.coord2node[coord] == node1
+
+        # Add second node with same coordinate (should overwrite in coord2node)
+        mapper.add_node(node2, coord, "ancilla_x")
+        assert mapper.coord2node[coord] == node2  # Last wins
+        assert mapper.node2coord[node1] == coord  # First node still maps to coord
+        assert mapper.node2coord[node2] == coord  # Second node also maps to coord
+
+    def test_merge_with_coordinate_collision(self) -> None:
+        """Test merge raises ValueError on coordinate collision."""
+        mapper1 = CoordinateMapper()
+        mapper2 = CoordinateMapper()
+
+        coord = PhysCoordGlobal3D((5, 5, 5))
+        mapper1.add_node(NodeIdLocal(1), coord)
+        mapper2.add_node(NodeIdLocal(2), coord)
+
+        # Merge should raise ValueError due to coordinate collision
+        with pytest.raises(ValueError, match="Coordinate collision detected"):
+            mapper1.merge(mapper2, {}, {})
+
+    def test_merge_with_same_node_same_coordinate(self) -> None:
+        """Test merge succeeds when same node maps to same coordinate."""
+        mapper1 = CoordinateMapper()
+        mapper2 = CoordinateMapper()
+
+        coord = PhysCoordGlobal3D((5, 5, 5))
+        node_id = NodeIdLocal(1)
+        mapper1.add_node(node_id, coord, "data")
+        mapper2.add_node(node_id, coord, "data")
+
+        # Should succeed because same node ID maps to same coordinate
+        merged = mapper1.merge(mapper2, {}, {})
+        assert merged.get_coordinate(node_id) == coord
+
+    def test_merge_with_remapped_collision(self) -> None:
+        """Test merge with coordinate collision after node remapping."""
+        mapper1 = CoordinateMapper()
+        mapper2 = CoordinateMapper()
+
+        coord = PhysCoordGlobal3D((10, 10, 10))
+        mapper1.add_node(NodeIdLocal(1), coord)
+        mapper2.add_node(NodeIdLocal(2), coord)
+
+        # Both nodes will be remapped to different IDs, but coordinate collision remains
+        node_map1 = {1: 100}
+        node_map2 = {2: 200}
+
+        with pytest.raises(ValueError, match="Coordinate collision detected"):
+            mapper1.merge(mapper2, node_map1, node_map2)
