@@ -16,6 +16,9 @@ from lspattern.canvas._canvas_impl import (
     to_temporal_layer,
 )
 
+# Import coordinate mapping
+from lspattern.canvas.coordinates import CoordinateMapper
+
 # Import exceptions
 from lspattern.canvas.exceptions import MixedCodeDistanceError
 
@@ -24,6 +27,7 @@ from lspattern.canvas.ports import PortManager
 
 __all__ = [
     "CompiledRHGCanvas",
+    "CoordinateMapper",
     "MixedCodeDistanceError",
     "PortManager",
     "RHGCanvas",

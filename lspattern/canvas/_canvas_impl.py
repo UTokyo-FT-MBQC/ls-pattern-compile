@@ -21,6 +21,7 @@ from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAc
 from lspattern.blocks.cubes.base import RHGCube
 from lspattern.blocks.pipes.base import RHGPipe
 from lspattern.blocks.pipes.measure import _MeasurePipeBase
+from lspattern.canvas.coordinates import CoordinateMapper
 from lspattern.canvas.ports import PortManager
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import (
@@ -61,14 +62,14 @@ class TemporalLayer:
     # Port management delegated to PortManager
     port_manager: PortManager
 
+    # Coordinate mapping delegated to CoordinateMapper
+    coord_mapper: CoordinateMapper
+
     schedule: ScheduleAccumulator
     flow: FlowAccumulator
     parity: ParityAccumulator
 
     local_graph: BaseGraphState | None
-    node2coord: dict[NodeIdLocal, PhysCoordGlobal3D]
-    coord2node: dict[PhysCoordGlobal3D, NodeIdLocal]
-    node2role: dict[NodeIdLocal, str]
 
     cubes_: dict[PatchCoordGlobal3D, RHGCube]
     pipes_: dict[PipeCoordGlobal3D, RHGPipe]
@@ -83,10 +84,8 @@ class TemporalLayer:
         self.patches = []
         self.lines = []
         self.port_manager = PortManager()
+        self.coord_mapper = CoordinateMapper()
         self.local_graph = None
-        self.node2coord = {}
-        self.coord2node = {}
-        self.node2role = {}
         # accumulators
         self.schedule = ScheduleAccumulator()
         self.flow = FlowAccumulator()
@@ -102,7 +101,7 @@ class TemporalLayer:
     def __post_init__(self) -> None:
         """Post-initialization hook."""
 
-    # Backward compatibility properties
+    # Backward compatibility properties for port management
     @property
     def in_portset(self) -> dict[PatchCoordGlobal3D, list[NodeIdLocal]]:
         """Get in_portset from port_manager."""
@@ -142,6 +141,22 @@ class TemporalLayer:
     def cout_ports(self) -> list[NodeIdLocal]:
         """Get cout_ports from port_manager."""
         return self.port_manager.cout_ports
+
+    # Backward compatibility properties for coordinate mapping
+    @property
+    def node2coord(self) -> dict[NodeIdLocal, PhysCoordGlobal3D]:
+        """Get node2coord from coord_mapper."""
+        return self.coord_mapper.node2coord
+
+    @property
+    def coord2node(self) -> dict[PhysCoordGlobal3D, NodeIdLocal]:
+        """Get coord2node from coord_mapper."""
+        return self.coord_mapper.coord2node
+
+    @property
+    def node2role(self) -> dict[NodeIdLocal, str]:
+        """Get node2role from coord_mapper."""
+        return self.coord_mapper.node2role
 
     def add_cubes(self, cubes: Mapping[PatchCoordGlobal3D, RHGCube]) -> None:
         """Add multiple cubes to this temporal layer."""
@@ -215,9 +230,7 @@ class TemporalLayer:
         """Remap node mappings with given node map."""
         if not node_map:
             return
-        self.node2coord = {NodeIdLocal(node_map.get(n, n)): c for n, c in self.node2coord.items()}
-        self.coord2node = {c: NodeIdLocal(node_map.get(n, n)) for c, n in self.coord2node.items()}
-        self.node2role = {NodeIdLocal(node_map.get(n, n)): r for n, r in self.node2role.items()}
+        self.coord_mapper.remap_nodes(node_map)
 
     def _remap_portsets(self, node_map: Mapping[int, int]) -> None:
         """Remap portsets with given node map."""
@@ -257,13 +270,8 @@ class TemporalLayer:
                 continue
             x, y, z = int(coord[0]), int(coord[1]), int(coord[2])
             c_new = PhysCoordGlobal3D((x, y, z))
-            self.node2coord[NodeIdLocal(new_n)] = c_new
-            self.coord2node[c_new] = NodeIdLocal(new_n)
-
-        for old_n, role in blk.node2role.items():
-            new_n = node_map2.get(old_n)
-            if new_n is not None:
-                self.node2role[NodeIdLocal(new_n)] = role
+            role = blk.node2role.get(old_n)
+            self.coord_mapper.add_node(NodeIdLocal(new_n), c_new, role)
 
     def _process_pipe_ports(self, pipe_coord: PipeCoordGlobal3D, pipe: RHGPipe, node_map2: Mapping[int, int]) -> None:
         """Process pipe ports with node mapping."""
@@ -342,11 +350,8 @@ class TemporalLayer:
         for node, coord in blk.node2coord.items():
             x, y, z = int(coord[0]), int(coord[1]), int(coord[2])
             c_new = PhysCoordGlobal3D((x, y, z))
-            self.node2coord[node] = c_new
-            self.coord2node[c_new] = node
-
-        for node, role in blk.node2role.items():
-            self.node2role[node] = role
+            role = blk.node2role.get(node)
+            self.coord_mapper.add_node(node, c_new, role)
 
     def _process_cube_ports_direct(self, pos: PatchCoordGlobal3D, blk: RHGCube) -> None:
         """Process cube ports directly without node mapping."""
@@ -386,12 +391,8 @@ class TemporalLayer:
                 # XY and Z are already in absolute coordinates (shifted in to_temporal_layer)
                 x, y, z = int(coord[0]), int(coord[1]), int(coord[2])
                 c_new = PhysCoordGlobal3D((x, y, z))
-                self.node2coord[NodeIdLocal(new_n)] = c_new
-                self.coord2node[c_new] = NodeIdLocal(new_n)
-            for old_n, role in pipe_block.node2role.items():
-                new_n = node_map2.get(old_n)
-                if new_n is not None:
-                    self.node2role[NodeIdLocal(new_n)] = role
+                role = pipe_block.node2role.get(old_n)
+                self.coord_mapper.add_node(NodeIdLocal(new_n), c_new, role)
 
             # Process pipe ports with node mapping
             self._process_pipe_ports(pipe_coord, pipe_block, node_map2)
@@ -567,9 +568,7 @@ class TemporalLayer:
         self.allowed_gid_pairs = allowed_gid_pairs
 
         # Build GraphState by composing pre-materialized block graphs
-        self.node2coord = {}
-        self.coord2node = {}
-        self.node2role = {}
+        self.coord_mapper.clear()
         g = self._build_graph_from_blocks()
 
         # Add CZ edges across cube-pipe seams within the same temporal layer
@@ -641,58 +640,20 @@ class TemporalLayer:
 
     def _get_coordinate_bounds(self) -> tuple[int, int, int, int, int, int]:
         """Get min/max bounds for all coordinates."""
-        coords = list(self.node2coord.values())
-        xs = [c[0] for c in coords]
-        ys = [c[1] for c in coords]
-        zs = [c[2] for c in coords]
-        return min(xs), max(xs), min(ys), max(ys), min(zs), max(zs)
+        return self.coord_mapper.get_coordinate_bounds()
 
     @staticmethod
     def _create_face_checker(
         face: str, bounds: tuple[int, int, int, int, int, int], depths: Sequence[int]
     ) -> Callable[[tuple[int, int, int]], bool]:
         """Create function to check if coordinate is on requested face."""
-        xmin, xmax, ymin, ymax, zmin, zmax = bounds
-        f = face.strip().lower()
-
-        def on_face(c: tuple[int, int, int]) -> bool:
-            x, y, z = c
-            if f == "x+":
-                return x in {xmax - d for d in depths}
-            if f == "x-":
-                return x in {xmin + d for d in depths}
-            if f == "y+":
-                return y in {ymax - d for d in depths}
-            if f == "y-":
-                return y in {ymin + d for d in depths}
-            if f == "z+":
-                return z in {zmax - d for d in depths}
-            # f == 'z-'
-            return z in {zmin + d for d in depths}
-
-        return on_face
+        return CoordinateMapper.create_face_checker(face, bounds, list(depths))
 
     def _classify_nodes_by_role(
         self, on_face_checker: Callable[[tuple[int, int, int]], bool]
     ) -> dict[str, list[PhysCoordGlobal3D]]:
         """Classify nodes by their role (data, xcheck, zcheck)."""
-        roles = self.node2role or {}
-        data: list[PhysCoordGlobal3D] = []
-        xcheck: list[PhysCoordGlobal3D] = []
-        zcheck: list[PhysCoordGlobal3D] = []
-
-        for nid, c in self.node2coord.items():
-            if not on_face_checker(c):
-                continue
-            role = (roles.get(nid) or "").lower()
-            if role == "ancilla_x":
-                xcheck.append(c)
-            elif role == "ancilla_z":
-                zcheck.append(c)
-            else:
-                data.append(c)
-
-        return {"data": data, "xcheck": xcheck, "zcheck": zcheck}
+        return self.coord_mapper.classify_nodes_by_role(on_face_checker)
 
     def get_boundary_nodes(
         self,
@@ -923,10 +884,9 @@ class CompiledRHGCanvas:
         remapped_layer.patches = layer.patches.copy()
         remapped_layer.lines = layer.lines.copy()
 
-        # Remap layer's node mappings
-        remapped_layer.coord2node = {c: node_map.get(n, n) for c, n in layer.coord2node.items()}
-        remapped_layer.node2coord = {node_map.get(n, n): c for n, c in layer.node2coord.items()}
-        remapped_layer.node2role = {node_map.get(n, n): r for n, r in layer.node2role.items()}
+        # Remap layer's coordinate mapper
+        remapped_layer.coord_mapper = layer.coord_mapper.copy()
+        remapped_layer.coord_mapper.remap_nodes({int(k): int(v) for k, v in node_map.items()})
 
         # Remap portsets (including in_ports, out_ports, cout_ports via PortManager)
         CompiledRHGCanvas._remap_layer_portsets(layer, remapped_layer, node_map)
@@ -1291,9 +1251,7 @@ def to_temporal_layer(
 
 def _remap_layer_mappings(next_layer: TemporalLayer, node_map2: Mapping[int, int]) -> None:
     """Remap next layer mappings."""
-    next_layer.coord2node = {c: NodeIdLocal(node_map2.get(int(n), int(n))) for c, n in next_layer.coord2node.items()}
-    next_layer.node2coord = {NodeIdLocal(node_map2.get(int(n), int(n))): c for n, c in next_layer.node2coord.items()}
-    next_layer.node2role = {NodeIdLocal(node_map2.get(int(n), int(n))): r for n, r in next_layer.node2role.items()}
+    next_layer.coord_mapper.remap_nodes(node_map2)
 
     # Also remap accumulators
     local_node_map = {NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map2.items()}
