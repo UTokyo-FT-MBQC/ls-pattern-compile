@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from lspattern.blocks.pipes.measure import _MeasurePipeBase
-from lspattern.consts.consts import DIRECTIONS3D
+from lspattern.consts.consts import DIRECTIONS2D
 from lspattern.mytype import (
     NodeIdLocal,
     PhysCoordGlobal3D,
@@ -103,7 +103,7 @@ class SeamGenerator:
             The updated graph state with seam edges added.
         """
         # Build XY regions for cubes and pipes (populates coord_gid_2d)
-        cube_xy_all, measure_pipe_xy = self._build_xy_regions(coord_gid_2d)
+        cube_xy_all, measure_pipe_xy = self._collect_block_xy_coordinates(coord_gid_2d)
         existing = self._get_existing_edges(g)
 
         for u, coord_u in list(self.node2coord.items()):
@@ -118,10 +118,10 @@ class SeamGenerator:
 
         return g
 
-    def _build_xy_regions(
+    def _collect_block_xy_coordinates(
         self, coord_gid_2d: MutableMapping[tuple[int, int], QubitGroupIdGlobal]
     ) -> tuple[set[tuple[int, int]], set[tuple[int, int]]]:
-        """Build XY coordinate sets for cubes and measure pipes.
+        """Collect XY coordinate sets for cubes and measure pipes.
 
         Populates coord_gid_2d with tiling group IDs for all cube and pipe coordinates,
         and returns sets of XY coordinates belonging to cubes and measure pipes.
@@ -305,12 +305,9 @@ class SeamGenerator:
         xu, yu, zu = int(coord_u[0]), int(coord_u[1]), int(coord_u[2])
         xy_u = (xu, yu)
 
-        for dx, dy, dz in DIRECTIONS3D:
-            if dz != 0:
-                continue  # we only connect within the same z plane
-
-            xv, yv, zv = xu + int(dx), yu + int(dy), zu
-            coord_v = PhysCoordGlobal3D((xv, yv, zv))
+        for dx, dy in DIRECTIONS2D:
+            xv, yv = xu + int(dx), yu + int(dy)
+            coord_v = PhysCoordGlobal3D((xv, yv, zu))
             v = self.coord2node.get(coord_v)
             if v is None or v == u:
                 continue
