@@ -48,9 +48,10 @@ class TestSeamGeneratorBuildXYRegions:
         )
 
         coord_gid_2d: dict[tuple[int, int], QubitGroupIdGlobal] = {}
-        cube_xy = generator._build_xy_regions(coord_gid_2d)
+        cube_xy, measure_pipe_xy = generator._build_xy_regions(coord_gid_2d)
 
         assert cube_xy == set()
+        assert measure_pipe_xy == set()
         assert coord_gid_2d == {}
 
 
@@ -59,34 +60,20 @@ class TestSeamGeneratorIsMeasurePipeNode:
 
     def test_is_measure_pipe_node_in_cube(self) -> None:
         """Test that nodes in cube region are not measure pipe nodes."""
-        generator = SeamGenerator(
-            cubes={},
-            pipes={},
-            node2coord={},
-            coord2node={},
-            allowed_gid_pairs=set(),
-        )
-
         cube_xy_all = {(0, 0), (1, 0), (0, 1)}
+        measure_pipe_xy = {(5, 5)}
         xy = (0, 0)
 
-        result = generator._is_measure_pipe_node(xy, cube_xy_all)
+        result = SeamGenerator._is_measure_pipe_node(xy, cube_xy_all, measure_pipe_xy)
         assert result is False
 
     def test_is_measure_pipe_node_not_in_any_pipe(self) -> None:
         """Test that nodes not in any pipe are not measure pipe nodes."""
-        generator = SeamGenerator(
-            cubes={},
-            pipes={},
-            node2coord={},
-            coord2node={},
-            allowed_gid_pairs=set(),
-        )
-
         cube_xy_all = {(0, 0)}
+        measure_pipe_xy = {(5, 5)}
         xy = (10, 10)  # Not in cube, not in any pipe
 
-        result = generator._is_measure_pipe_node(xy, cube_xy_all)
+        result = SeamGenerator._is_measure_pipe_node(xy, cube_xy_all, measure_pipe_xy)
         assert result is False
 
 
@@ -104,12 +91,13 @@ class TestSeamGeneratorShouldConnectNodes:
         )
 
         cube_xy_all = {(0, 0), (1, 0)}
+        measure_pipe_xy = set()
         xy_u = (0, 0)
         xy_v = (1, 0)
         gid_u = QubitGroupIdGlobal(0)
         gid_v = QubitGroupIdGlobal(1)
 
-        result = generator._should_connect_nodes(xy_u, xy_v, cube_xy_all, gid_u, gid_v)
+        result = generator._should_connect_nodes(xy_u, xy_v, cube_xy_all, measure_pipe_xy, gid_u, gid_v)
         assert result is False
 
     def test_should_not_connect_both_in_pipe(self) -> None:
@@ -123,12 +111,13 @@ class TestSeamGeneratorShouldConnectNodes:
         )
 
         cube_xy_all = {(0, 0)}
+        measure_pipe_xy = set()
         xy_u = (2, 0)  # Not in cube
         xy_v = (3, 0)  # Not in cube
         gid_u = QubitGroupIdGlobal(0)
         gid_v = QubitGroupIdGlobal(1)
 
-        result = generator._should_connect_nodes(xy_u, xy_v, cube_xy_all, gid_u, gid_v)
+        result = generator._should_connect_nodes(xy_u, xy_v, cube_xy_all, measure_pipe_xy, gid_u, gid_v)
         # Both in pipe region, should not connect
         assert result is False
 
@@ -144,12 +133,13 @@ class TestSeamGeneratorShouldConnectNodes:
         )
 
         cube_xy_all = {(0, 0)}
+        measure_pipe_xy = set()
         xy_u = (0, 0)  # In cube
         xy_v = (1, 0)  # Not in cube (pipe)
         gid_u = QubitGroupIdGlobal(0)
         gid_v = QubitGroupIdGlobal(1)
 
-        result = generator._should_connect_nodes(xy_u, xy_v, cube_xy_all, gid_u, gid_v)
+        result = generator._should_connect_nodes(xy_u, xy_v, cube_xy_all, measure_pipe_xy, gid_u, gid_v)
         assert result is True
 
     def test_should_not_connect_disallowed_pair(self) -> None:
@@ -164,10 +154,11 @@ class TestSeamGeneratorShouldConnectNodes:
         )
 
         cube_xy_all = {(0, 0)}
+        measure_pipe_xy = set()
         xy_u = (0, 0)  # In cube
         xy_v = (1, 0)  # Not in cube (pipe)
         gid_u = QubitGroupIdGlobal(0)
         gid_v = QubitGroupIdGlobal(2)  # Disallowed pair
 
-        result = generator._should_connect_nodes(xy_u, xy_v, cube_xy_all, gid_u, gid_v)
+        result = generator._should_connect_nodes(xy_u, xy_v, cube_xy_all, measure_pipe_xy, gid_u, gid_v)
         assert result is False

@@ -7,7 +7,7 @@ and pipes, ensuring proper entanglement in the quantum graph state.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from lspattern.blocks.pipes.measure import _MeasurePipeBase
 from lspattern.consts.consts import DIRECTIONS3D
@@ -19,13 +19,10 @@ from lspattern.mytype import (
 )
 from lspattern.utils import is_allowed_pair
 
-# Constants
-EDGE_TUPLE_SIZE = 2
-
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, MutableMapping
 
-    from graphix_zx.graphstate import BaseGraphState, GraphState
+    from graphix_zx.graphstate import GraphState
 
     from lspattern.blocks.cubes.base import RHGCube
     from lspattern.blocks.pipes.base import RHGPipe
@@ -84,7 +81,7 @@ class SeamGenerator:
         self.allowed_gid_pairs = allowed_gid_pairs
 
     def add_seam_edges(
-        self, g: BaseGraphState, coord_gid_2d: Mapping[tuple[int, int], QubitGroupIdGlobal]
+        self, g: GraphState, coord_gid_2d: MutableMapping[tuple[int, int], QubitGroupIdGlobal]
     ) -> GraphState:
         """Add CZ edges across cube-pipe seams within the same temporal layer.
 
@@ -94,18 +91,19 @@ class SeamGenerator:
 
         Parameters
         ----------
-        g : BaseGraphState
+        g : GraphState
             The quantum graph state to add seam edges to.
-        coord_gid_2d : Mapping[tuple[int, int], QubitGroupIdGlobal]
-            2D coordinate to tiling group ID mapping.
+        coord_gid_2d : MutableMapping[tuple[int, int], QubitGroupIdGlobal]
+            2D coordinate to tiling group ID mapping (will be populated with
+            cube and pipe coordinates during execution).
 
         Returns
         -------
         GraphState
             The updated graph state with seam edges added.
         """
-        # Build XY regions for cubes
-        cube_xy_all = self._build_xy_regions(dict(coord_gid_2d))
+        # Build XY regions for cubes and pipes (populates coord_gid_2d)
+        cube_xy_all, measure_pipe_xy = self._build_xy_regions(coord_gid_2d)
         existing = self._get_existing_edges(g)
 
         for u, coord_u in list(self.node2coord.items()):
@@ -114,27 +112,34 @@ class SeamGenerator:
             if gid_u is None:
                 continue
 
-            self._process_neighbor_connections(u, coord_u, gid_u, cube_xy_all, coord_gid_2d, g, existing)
+            self._process_neighbor_connections(
+                u, coord_u, gid_u, cube_xy_all, measure_pipe_xy, coord_gid_2d, g, existing
+            )
 
-        return cast("GraphState", g)  # TODO: use graphstate constructor once available
+        return g
 
-    def _build_xy_regions(self, coord_gid_2d: dict[tuple[int, int], QubitGroupIdGlobal]) -> set[tuple[int, int]]:
-        """Build XY coordinate sets for cubes and update group ID mapping.
+    def _build_xy_regions(
+        self, coord_gid_2d: MutableMapping[tuple[int, int], QubitGroupIdGlobal]
+    ) -> tuple[set[tuple[int, int]], set[tuple[int, int]]]:
+        """Build XY coordinate sets for cubes and measure pipes.
 
         Populates coord_gid_2d with tiling group IDs for all cube and pipe coordinates,
-        and returns the set of XY coordinates belonging to cubes.
+        and returns sets of XY coordinates belonging to cubes and measure pipes.
 
         Parameters
         ----------
-        coord_gid_2d : dict[tuple[int, int], QubitGroupIdGlobal]
-            Dictionary to populate with XY coordinate to group ID mappings.
+        coord_gid_2d : MutableMapping[tuple[int, int], QubitGroupIdGlobal]
+            Mutable mapping to populate with XY coordinate to group ID mappings.
 
         Returns
         -------
-        set[tuple[int, int]]
-            Set of XY coordinates belonging to cube regions.
+        tuple[set[tuple[int, int]], set[tuple[int, int]]]
+            A tuple containing:
+            - Set of XY coordinates belonging to cube regions
+            - Set of XY coordinates belonging to measure pipes
         """
         cube_xy_all: set[tuple[int, int]] = set()
+        measure_pipe_xy: set[tuple[int, int]] = set()
 
         # Build cube XY regions
         for blk in self.cubes_.values():
@@ -145,23 +150,26 @@ class SeamGenerator:
                     cube_xy_all.add(xy)
                     coord_gid_2d[xy] = QubitGroupIdGlobal(blk.get_tiling_id())
 
-        # Build pipe XY regions
+        # Build pipe XY regions and cache measure pipe coordinates
         for pipe in self.pipes_.values():
             t = pipe.template
+            is_measure_pipe = isinstance(pipe, _MeasurePipeBase)
             for coord_list in (t.data_coords, t.x_coords, t.z_coords):
                 for x, y in coord_list or []:
                     xy = (int(x), int(y))
                     coord_gid_2d[xy] = QubitGroupIdGlobal(pipe.get_tiling_id())
+                    if is_measure_pipe:
+                        measure_pipe_xy.add(xy)
 
-        return cube_xy_all
+        return cube_xy_all, measure_pipe_xy
 
     @staticmethod
-    def _get_existing_edges(g: BaseGraphState) -> set[tuple[int, int]]:
+    def _get_existing_edges(g: GraphState) -> set[tuple[int, int]]:
         """Get existing edges from graph to avoid duplicates.
 
         Parameters
         ----------
-        g : BaseGraphState
+        g : GraphState
             The graph state to extract edges from.
 
         Returns
@@ -176,10 +184,11 @@ class SeamGenerator:
             result.add((edge[0], edge[1]))
         return result
 
+    @staticmethod
     def _is_measure_pipe_node(
-        self,
         xy: tuple[int, int],
         cube_xy_all: set[tuple[int, int]],
+        measure_pipe_xy: set[tuple[int, int]],
     ) -> bool:
         """Check if a node belongs to a measure pipe.
 
@@ -191,6 +200,8 @@ class SeamGenerator:
             The XY coordinate to check.
         cube_xy_all : set[tuple[int, int]]
             Set of all XY coordinates belonging to cubes.
+        measure_pipe_xy : set[tuple[int, int]]
+            Set of all XY coordinates belonging to measure pipes.
 
         Returns
         -------
@@ -201,20 +212,15 @@ class SeamGenerator:
         if xy in cube_xy_all:
             return False
 
-        # Check if this XY coordinate belongs to any measure pipe
-        for pipe in self.pipes_.values():
-            if isinstance(pipe, _MeasurePipeBase):
-                # Check if this xy coordinate is in the pipe's template
-                for coord in pipe.template.data_coords or []:
-                    if (int(coord[0]), int(coord[1])) == xy:
-                        return True
-        return False
+        # Check if this XY coordinate belongs to any measure pipe (O(1) lookup)
+        return xy in measure_pipe_xy
 
     def _should_connect_nodes(
         self,
         xy_u: tuple[int, int],
         xy_v: tuple[int, int],
         cube_xy_all: set[tuple[int, int]],
+        measure_pipe_xy: set[tuple[int, int]],
         gid_u: QubitGroupIdGlobal,
         gid_v: QubitGroupIdGlobal,
     ) -> bool:
@@ -233,6 +239,8 @@ class SeamGenerator:
             XY coordinate of second node.
         cube_xy_all : set[tuple[int, int]]
             Set of all XY coordinates belonging to cubes.
+        measure_pipe_xy : set[tuple[int, int]]
+            Set of all XY coordinates belonging to measure pipes.
         gid_u : QubitGroupIdGlobal
             Tiling group ID of first node.
         gid_v : QubitGroupIdGlobal
@@ -247,7 +255,9 @@ class SeamGenerator:
         v_in_cube = xy_v in cube_xy_all
 
         # Skip connection if either node belongs to a measure pipe
-        if self._is_measure_pipe_node(xy_u, cube_xy_all) or self._is_measure_pipe_node(xy_v, cube_xy_all):
+        if self._is_measure_pipe_node(xy_u, cube_xy_all, measure_pipe_xy) or self._is_measure_pipe_node(
+            xy_v, cube_xy_all, measure_pipe_xy
+        ):
             return False
 
         # Connect iff one is in cube region, other in pipe region, and allowed pair
@@ -263,8 +273,9 @@ class SeamGenerator:
         coord_u: PhysCoordGlobal3D,
         gid_u: QubitGroupIdGlobal,
         cube_xy_all: set[tuple[int, int]],
+        measure_pipe_xy: set[tuple[int, int]],
         coord_gid_2d: Mapping[tuple[int, int], QubitGroupIdGlobal],
-        g: BaseGraphState,
+        g: GraphState,
         existing: set[tuple[int, int]],
     ) -> None:
         """Process connections to neighboring nodes.
@@ -282,9 +293,11 @@ class SeamGenerator:
             Tiling group ID of the source node.
         cube_xy_all : set[tuple[int, int]]
             Set of all XY coordinates belonging to cubes.
+        measure_pipe_xy : set[tuple[int, int]]
+            Set of all XY coordinates belonging to measure pipes.
         coord_gid_2d : Mapping[tuple[int, int], QubitGroupIdGlobal]
             2D coordinate to group ID mapping.
-        g : BaseGraphState
+        g : GraphState
             The graph state to add edges to.
         existing : set[tuple[int, int]]
             Set of existing edges to avoid duplicates.
@@ -307,7 +320,7 @@ class SeamGenerator:
             if gid_v is None:
                 continue
 
-            if not self._should_connect_nodes(xy_u, xy_v, cube_xy_all, gid_u, gid_v):
+            if not self._should_connect_nodes(xy_u, xy_v, cube_xy_all, measure_pipe_xy, gid_u, gid_v):
                 continue
 
             self._add_edge_if_valid(u, v, g, existing)
@@ -316,7 +329,7 @@ class SeamGenerator:
     def _add_edge_if_valid(
         u: NodeIdLocal,
         v: NodeIdLocal,
-        g: BaseGraphState,
+        g: GraphState,
         existing: set[tuple[int, int]],
     ) -> None:
         """Add edge if valid and not duplicate.
@@ -329,7 +342,7 @@ class SeamGenerator:
             First node ID.
         v : NodeIdLocal
             Second node ID.
-        g : BaseGraphState
+        g : GraphState
             The graph state to add edge to.
         existing : set[tuple[int, int]]
             Set of existing edges to check for duplicates.
@@ -339,9 +352,8 @@ class SeamGenerator:
             return
 
         # Avoid duplicates by canonical edge ordering
-        sorted_edge = tuple(sorted((int(u), int(v))))
-        if len(sorted_edge) == EDGE_TUPLE_SIZE:
-            edge = (sorted_edge[0], sorted_edge[1])
-            if edge not in existing:
-                g.add_physical_edge(u, v)
-                existing.add(edge)
+        sorted_uv = sorted((int(u), int(v)))
+        edge = (sorted_uv[0], sorted_uv[1])
+        if edge not in existing:
+            g.add_physical_edge(u, v)
+            existing.add(edge)
