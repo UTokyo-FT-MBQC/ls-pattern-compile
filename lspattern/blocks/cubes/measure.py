@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import operator
-from typing import TYPE_CHECKING, ClassVar, Literal, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 from graphix_zx.common import Axis, AxisMeasBasis, MeasBasis, Sign
 from graphix_zx.graphstate import GraphState
@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from collections.abc import MutableMapping, Sequence
 
     from lspattern.canvas import RHGCanvas
+    from lspattern.consts import EdgeSpecValue
 
 ANCILLA_TARGET_DIRECTION2D = {(1, 1), (1, -1), (-1, 1), (-1, -1)}
 
@@ -40,7 +41,7 @@ class _MeasureBase(RHGCube):
     def __init__(self, logical: int, basis: Axis, **kwargs: object) -> None:
         # Extract specific arguments for the parent dataclass
         d = cast("int", kwargs.pop("d", 3))
-        edge_spec = cast('dict[str, Literal["X", "Z", "O"]] | None', kwargs.pop("edge_spec", None))
+        edge_spec = cast("dict[str, EdgeSpecValue] | None", kwargs.pop("edge_spec", None))
         source = cast("PatchCoordGlobal3D", kwargs.pop("source", PatchCoordGlobal3D((0, 0, 0))))
         sink = cast("PatchCoordGlobal3D | None", kwargs.pop("sink", None))
         template = cast("ScalableTemplate", kwargs.pop("template", ScalableTemplate(d=3, edgespec={})))

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Literal, overload
 
 import matplotlib.pyplot as plt
 
+from lspattern.consts import CoordinateSystem, EdgeSpecValue, PatchType
 from lspattern.consts.consts import PIPEDIRECTION
 from lspattern.mytype import (
     QubitIndexLocal,
@@ -24,7 +25,7 @@ def calculate_qindex_base(
     patch_coord: tuple[int, int],
     d: int,
     *,
-    patch_type: Literal["pipe"],
+    patch_type: PatchType,
     sink_patch: tuple[int, int],
 ) -> int: ...
 
@@ -33,7 +34,7 @@ def calculate_qindex_base(
     patch_coord: tuple[int, int],
     d: int,
     *,
-    patch_type: Literal["cube", "pipe"] = "cube",
+    patch_type: PatchType = PatchType.CUBE,
     sink_patch: tuple[int, int] | None = None,
 ) -> int:
     """Calculate the starting q_index for data qubits in a patch.
@@ -76,9 +77,9 @@ def calculate_qindex_base(
     patch_index = py * 1000 + px  # 1000 should be enough for reasonable grid sizes
     base_index = patch_index * max_qubits_per_grid_position
 
-    if patch_type == "cube":
+    if patch_type == PatchType.CUBE:
         return base_index
-    if patch_type == "pipe":
+    if patch_type == PatchType.PIPE:
         # Pipes require sink_patch for boundary-based qindex calculation
         if sink_patch is None:
             msg = "sink_patch is required when patch_type='pipe'"
@@ -177,7 +178,7 @@ class ScalableTemplate(Tiling):
             if v is None:
                 v = self.edgespec.get(side.lower())
         if v is None:
-            v = "O"
+            v = EdgeSpecValue.O
         return str(v).upper()
 
     @overload
@@ -191,7 +192,7 @@ class ScalableTemplate(Tiling):
         self,
         patch_coord: tuple[int, int] | None = None,
         *,
-        patch_type: Literal["cube"],
+        patch_type: Literal[PatchType.CUBE],
         sink_patch: tuple[int, int] | None = None,
     ) -> dict[TilingCoord2D, QubitIndexLocal]: ...
 
@@ -200,7 +201,7 @@ class ScalableTemplate(Tiling):
         self,
         patch_coord: tuple[int, int] | None = None,
         *,
-        patch_type: Literal["pipe"],
+        patch_type: Literal[PatchType.PIPE],
         sink_patch: tuple[int, int],
     ) -> dict[TilingCoord2D, QubitIndexLocal]: ...
 
@@ -208,7 +209,7 @@ class ScalableTemplate(Tiling):
         self,
         patch_coord: tuple[int, int] | None = None,
         *,
-        patch_type: Literal["cube", "pipe"] = "cube",
+        patch_type: PatchType = PatchType.CUBE,
         sink_patch: tuple[int, int] | None = None,
     ) -> dict[TilingCoord2D, QubitIndexLocal]:
         coord_set = {(coord[0], coord[1]) for coord in self.data_coords}
@@ -220,12 +221,14 @@ class ScalableTemplate(Tiling):
 
         # If patch coordinate is provided, use it to calculate consistent q_indices
         if patch_coord is not None:
-            if patch_type == "pipe":
+            if patch_type == PatchType.PIPE:
                 # For pipes, sink_patch is required (validated by overload)
                 if sink_patch is None:
                     msg = "sink_patch is required for pipes"
                     raise ValueError(msg)
-                base_qindex = calculate_qindex_base(patch_coord, self.d, patch_type="pipe", sink_patch=sink_patch)
+                base_qindex = calculate_qindex_base(
+                    patch_coord, self.d, patch_type=PatchType.PIPE, sink_patch=sink_patch
+                )
             else:
                 base_qindex = calculate_qindex_base(patch_coord, self.d)
             return {TilingCoord2D(coor): QubitIndexLocal(base_qindex + i) for i, coor in enumerate(sorted_coords)}
@@ -246,7 +249,7 @@ class ScalableTemplate(Tiling):
         self,
         by: tuple[int, int] | tuple[int, int, int],
         *,
-        coordinate: Literal["tiling2d", "phys3d", "patch3d"] = "tiling2d",
+        coordinate: CoordinateSystem = CoordinateSystem.TILING_2D,
         inplace: bool = True,
     ) -> ScalableTemplate:
         """Shift template 2D coords based on the given coordinate system.
@@ -262,13 +265,13 @@ class ScalableTemplate(Tiling):
 
         dx: int
         dy: int
-        if coordinate == "tiling2d":
+        if coordinate == CoordinateSystem.TILING_2D:
             bx, by_ = by  # type: ignore[misc]
             dx, dy = int(bx), int(by_)
-        elif coordinate == "phys3d":
+        elif coordinate == CoordinateSystem.PHYS_3D:
             bx, by_, _ = by  # type: ignore[misc]
             dx, dy = int(bx), int(by_)
-        elif coordinate == "patch3d":
+        elif coordinate == CoordinateSystem.PATCH_3D:
             # Default block-style behavior (INNER offset)
             px, py, pz = by  # type: ignore[misc]
             dx, dy = cube_offset_xy(self.d, (int(px), int(py), int(pz)))
@@ -425,30 +428,30 @@ class RotatedPlanarCubeTemplate(ScalableTemplate):
 
         # Boundaries
         match self._spec("LEFT"):
-            case "X":
+            case EdgeSpecValue.X:
                 x_coords.update((-1, y) for y in range(1, 2 * d - 1, 4))
-            case "Z":
+            case EdgeSpecValue.Z:
                 z_coords.update((-1, y) for y in range(2 * d - 3, -1, -4))
             case _:
                 pass
         match self._spec("RIGHT"):
-            case "X":
+            case EdgeSpecValue.X:
                 x_coords.update((2 * d - 1, y) for y in range(2 * d - 3, -1, -4))
-            case "Z":
+            case EdgeSpecValue.Z:
                 z_coords.update((2 * d - 1, y) for y in range(1, 2 * d - 1, 4))
             case _:
                 pass
         match self._spec("BOTTOM"):
-            case "X":
+            case EdgeSpecValue.X:
                 x_coords.update((x, -1) for x in range(1, 2 * d - 1, 4))
-            case "Z":
+            case EdgeSpecValue.Z:
                 z_coords.update((x, -1) for x in range(2 * d - 3, -1, -4))
             case _:
                 pass
         match self._spec("TOP"):
-            case "X":
+            case EdgeSpecValue.X:
                 x_coords.update((x, 2 * d - 1) for x in range(2 * d - 3, -1, -4))
-            case "Z":
+            case EdgeSpecValue.Z:
                 z_coords.update((x, 2 * d - 1) for x in range(1, 2 * d - 1, 4))
             case _:
                 pass
@@ -601,16 +604,16 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                 z_coords.add((-((-1) ** n), y))
 
             match self._spec("TOP"):
-                case "X":
+                case EdgeSpecValue.X:
                     x_coords.add((1, 2 * d - 1))
-                case "Z":
+                case EdgeSpecValue.Z:
                     z_coords.add((-1, 2 * d - 1))
                 case _:
                     pass
             match self._spec("BOTTOM"):
-                case "X":
+                case EdgeSpecValue.X:
                     x_coords.add((-1, -1))
-                case "Z":
+                case EdgeSpecValue.Z:
                     z_coords.add((1, -1))
                 case _:
                     pass
@@ -624,21 +627,21 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                 z_coords.add((x, -((-1) ** n)))
 
             match self._spec("LEFT"):
-                case "X":
+                case EdgeSpecValue.X:
                     x_coords.add((-1, -1))
-                case "Z":
+                case EdgeSpecValue.Z:
                     z_coords.add((-1, 1))
                 case _:
                     pass
             match self._spec("RIGHT"):
-                case "X":
+                case EdgeSpecValue.X:
                     x_coords.add((2 * d - 1, 1))
-                case "Z":
+                case EdgeSpecValue.Z:
                     z_coords.add((2 * d - 1, -1))
                 case _:
                     pass
 
-        elif self._spec("UP") == "O" or self._spec("DOWN") == "O":
+        elif self._spec("UP") == EdgeSpecValue.O or self._spec("DOWN") == EdgeSpecValue.O:
             msg = "Temporal pipe not supported yet"
             raise NotImplementedError(msg)
         else:
@@ -665,7 +668,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         self,
         by: tuple[int, int] | tuple[int, int, int],
         *,
-        coordinate: Literal["tiling2d", "phys3d", "patch3d"] = "tiling2d",
+        coordinate: CoordinateSystem = CoordinateSystem.TILING_2D,
         direction: PIPEDIRECTION | None = None,
         inplace: bool = True,
     ) -> RotatedPlanarPipetemplate:
@@ -674,13 +677,13 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
 
         dx: int
         dy: int
-        if coordinate == "tiling2d":
+        if coordinate == CoordinateSystem.TILING_2D:
             bx, by_ = by  # type: ignore[misc]
             dx, dy = int(bx), int(by_)
-        elif coordinate == "phys3d":
+        elif coordinate == CoordinateSystem.PHYS_3D:
             bx, by_, _ = by  # type: ignore[misc]
             dx, dy = int(bx), int(by_)
-        elif coordinate == "patch3d":
+        elif coordinate == CoordinateSystem.PATCH_3D:
             if direction is None:
                 msg = "direction is required for patch3d pipe shift"
                 raise ValueError(msg)

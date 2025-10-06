@@ -24,6 +24,7 @@ from lspattern.blocks.pipes.measure import _MeasurePipeBase
 from lspattern.canvas.composition import GraphComposer
 from lspattern.canvas.coordinates import CoordinateMapper
 from lspattern.canvas.ports import PortManager
+from lspattern.consts import CoordinateSystem
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import (
     NodeIdGlobal,
@@ -1071,7 +1072,7 @@ def to_temporal_layer(
     for pos, c in cubes.items():
         dx, dy = cube_offset_xy(c.d, pos)
         # directory move the template (inplace=True)
-        c.template.shift_coords((dx, dy), coordinate="tiling2d", inplace=True)
+        c.template.shift_coords((dx, dy), coordinate=CoordinateSystem.TILING_2D, inplace=True)
     for pipe_coord, p in pipes.items():
         coord_tuple = tuple(pipe_coord)
         if len(coord_tuple) != EDGE_TUPLE_SIZE:
@@ -1080,7 +1081,7 @@ def to_temporal_layer(
         direction = get_direction(source, sink)
         dx, dy = pipe_offset_xy(p.d, source, sink, direction)
         # directory move the template (inplace=True)
-        p.template.shift_coords((dx, dy), coordinate="tiling2d", inplace=True)
+        p.template.shift_coords((dx, dy), coordinate=CoordinateSystem.TILING_2D, inplace=True)
 
     # materialize blocks before adding
     cubes_mat = {}

@@ -16,6 +16,7 @@ from lspattern.accumulator import (
     ParityAccumulator,
     ScheduleAccumulator,
 )
+from lspattern.consts import NodeRole, PatchType
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.tiling.template import (
     RotatedPlanarCubeTemplate,
@@ -275,7 +276,7 @@ class RHGBlock:
                     n = g.add_physical_node()
                     node2coord[n] = (int(x), int(y), int(t))
                     coord2node[int(x), int(y), int(t)] = n
-                    node2role[n] = "data"
+                    node2role[n] = NodeRole.DATA
                     cur[int(x), int(y)] = n
             else:
                 # Data nodes every slice except the final sentinel layer
@@ -283,7 +284,7 @@ class RHGBlock:
                     n = g.add_physical_node()
                     node2coord[n] = (int(x), int(y), int(t))
                     coord2node[int(x), int(y), int(t)] = n
-                    node2role[n] = "data"
+                    node2role[n] = NodeRole.DATA
                     cur[int(x), int(y)] = n
                 # Interleave ancillas X/Z by time parity
                 if (t % 2) == 0:
@@ -291,14 +292,14 @@ class RHGBlock:
                         n = g.add_physical_node()
                         node2coord[n] = (int(x), int(y), int(t))
                         coord2node[int(x), int(y), int(t)] = n
-                        node2role[n] = "ancilla_x"
+                        node2role[n] = NodeRole.ANCILLA_X
                         cur[int(x), int(y)] = n
                 else:
                     for x, y in z2d:
                         n = g.add_physical_node()
                         node2coord[n] = (int(x), int(y), int(t))
                         coord2node[int(x), int(y), int(t)] = n
-                        node2role[n] = "ancilla_z"
+                        node2role[n] = NodeRole.ANCILLA_Z
                         cur[int(x), int(y)] = n
             nodes_by_z[t] = cur
         return nodes_by_z
@@ -340,7 +341,7 @@ class RHGBlock:
         """Register input/output nodes for visualization."""
         try:
             # Determine z- (min) and z+ (max) among DATA nodes only
-            data_coords_all = [c for n, c in node2coord.items() if node2role.get(n) == "data"]
+            data_coords_all = [c for n, c in node2coord.items() if node2role.get(n) == NodeRole.DATA]
             if not data_coords_all:
                 print("Warning: no data nodes found in RHGBlock; skipping I/O registration")
                 return
@@ -428,7 +429,7 @@ class RHGBlock:
         if hasattr(self, "sink") and self.sink is not None:
             # This is a pipe - use pipe-specific parameters
             sink_2d = (self.sink[0], self.sink[1])
-            xy_to_q = self.template.get_data_indices(patch_coord, patch_type="pipe", sink_patch=sink_2d)
+            xy_to_q = self.template.get_data_indices(patch_coord, patch_type=PatchType.PIPE, sink_patch=sink_2d)
         else:
             # This is a cube - use standard parameters
             xy_to_q = self.template.get_data_indices(patch_coord)
@@ -460,7 +461,7 @@ class RHGBlock:
         if hasattr(self, "sink") and self.sink is not None:
             # This is a pipe - use pipe-specific parameters
             sink_2d = (self.sink[0], self.sink[1])
-            xy_to_q = self.template.get_data_indices(patch_coord, patch_type="pipe", sink_patch=sink_2d)
+            xy_to_q = self.template.get_data_indices(patch_coord, patch_type=PatchType.PIPE, sink_patch=sink_2d)
         else:
             # This is a cube - use standard parameters
             xy_to_q = self.template.get_data_indices(patch_coord)

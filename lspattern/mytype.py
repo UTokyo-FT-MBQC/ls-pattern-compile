@@ -15,7 +15,10 @@ changing runtime representations.
 from __future__ import annotations
 
 # ruff: noqa: RUF022
-from typing import Literal, NewType
+from typing import NewType
+
+from lspattern.consts import BoundarySide as BoundarySideEnum
+from lspattern.consts import EdgeSpecValue as EdgeSpecValueEnum
 
 # ---------------------------------------------------------------------
 # Core scalar ids (NewType for static distinction)
@@ -67,11 +70,9 @@ ParityCapsLocal = list[tuple[NodeIdGlobal, list[NodeIdLocal]]]
 # ---------------------------------------------------------------------
 # Edge/boundary specs for scalable tilings
 # ---------------------------------------------------------------------
-# Allowed edge spec values for faces: X / Z / O(Open or Trimmed)
-EdgeSpecValue = Literal["X", "Z", "O"]
-
-# Boundary side literals (case-insensitive handling lives in callers)
-BoundarySide = Literal["TOP", "BOTTOM", "LEFT", "RIGHT", "UP", "DOWN"]
+# Type aliases for backward compatibility with enum-based definitions
+EdgeSpecValue = EdgeSpecValueEnum
+BoundarySide = BoundarySideEnum
 
 # Dict-based spatial edge spec preferred across the codebase
 SpatialEdgeSpec = dict[str, EdgeSpecValue]
@@ -79,12 +80,12 @@ SpatialEdgeSpec = dict[str, EdgeSpecValue]
 # Module-level convenience default used by examples/tests.
 # All sides start as open ("O"). Callers may update it locally.
 EdgeSpec: SpatialEdgeSpec = {
-    "TOP": "O",
-    "BOTTOM": "O",
-    "LEFT": "O",
-    "RIGHT": "O",
-    "UP": "O",
-    "DOWN": "O",
+    "TOP": EdgeSpecValue.O,
+    "BOTTOM": EdgeSpecValue.O,
+    "LEFT": EdgeSpecValue.O,
+    "RIGHT": EdgeSpecValue.O,
+    "UP": EdgeSpecValue.O,
+    "DOWN": EdgeSpecValue.O,
 }
 
 __all__ = [

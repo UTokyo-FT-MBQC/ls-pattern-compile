@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, overload
 
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
+from lspattern.consts import PatchType
 from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D, PhysCoordLocal2D, SpatialEdgeSpec
 from lspattern.tiling.template import RotatedPlanarPipetemplate
 from lspattern.utils import get_direction
@@ -64,7 +65,7 @@ class MemoryPipe(RHGPipe):
         if patch_coord is not None and self.source is not None and self.sink is not None:
             source_2d = (self.source[0], self.source[1])
             sink_2d = (self.sink[0], self.sink[1])
-            idx_map = self.template.get_data_indices(source_2d, patch_type="pipe", sink_patch=sink_2d)
+            idx_map = self.template.get_data_indices(source_2d, patch_type=PatchType.PIPE, sink_patch=sink_2d)
         else:
             # Fallback for backward compatibility (no patch coordinate or source/sink info)
             idx_map = self.template.get_data_indices()
@@ -79,7 +80,7 @@ class MemoryPipe(RHGPipe):
         if patch_coord is not None and self.source is not None and self.sink is not None:
             source_2d = (self.source[0], self.source[1])
             sink_2d = (self.sink[0], self.sink[1])
-            idx_map = self.template.get_data_indices(source_2d, patch_type="pipe", sink_patch=sink_2d)
+            idx_map = self.template.get_data_indices(source_2d, patch_type=PatchType.PIPE, sink_patch=sink_2d)
         else:
             # Fallback for backward compatibility (no patch coordinate or source/sink info)
             idx_map = self.template.get_data_indices()

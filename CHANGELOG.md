@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit tests for port management functionality (`tests/canvas/test_ports.py`)
 - Unit tests for coordinate mapping functionality (`tests/canvas/test_coordinates.py`)
 - Unit tests for graph composition functionality (`tests/canvas/test_composition.py`)
+- Enum classes in `lspattern/consts/consts.py` for type-safe constants ([#36](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/36))
+  - `EdgeSpecValue`: Edge specification values (X, Z, O)
+  - `BoundarySide`: Spatial boundary sides (TOP, BOTTOM, LEFT, RIGHT, UP, DOWN)
+  - `NodeRole`: Node roles (DATA, ANCILLA_X, ANCILLA_Z)
+  - `PatchType`: Patch types (CUBE, PIPE)
+  - `CoordinateSystem`: Coordinate system identifiers (TILING_2D, PHYS_3D, PATCH_3D)
+  - `VisualizationKind`: Visualization kind options (BOTH, X, Z)
+  - `VisualizationMode`: Visualization mode options (HIST, SLICES)
 
 ### Changed
 - Unified into absolute coordinate ([#24](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/24))
@@ -30,6 +38,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Moved main canvas implementation to `lspattern/canvas/_canvas_impl.py`
   - Maintained backward compatibility through `lspattern/canvas/__init__.py`
 - Refactored `TemporalLayer` to use `GraphComposer` for graph building operations ([#33](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/33) Phase 1.3)
+- Replaced string literals with type-safe enums for improved type safety ([#36](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/36))
+  - Updated `lspattern/mytype.py` to use enum-based type aliases
+  - Refactored all library code to use enum values instead of string literals
+  - Updated function signatures to accept enum types
+  - Using `str` mixin (`class X(str, Enum)`) for backward compatibility
 
 ### Removed
 - Deprecated modules `rhg.py` and `ops.py` ([#21](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/21))
