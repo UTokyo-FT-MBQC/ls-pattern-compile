@@ -142,22 +142,22 @@ class SeamGenerator:
         measure_pipe_xy: set[tuple[int, int]] = set()
 
         # Build cube XY regions
-        for blk in self.cubes_.values():
-            t = blk.template
+        for c in self.cubes_.values():
+            t = c.template
             for coord_list in (t.data_coords, t.x_coords, t.z_coords):
                 for x, y in coord_list or []:
                     xy = (int(x), int(y))
                     cube_xy_all.add(xy)
-                    coord_gid_2d[xy] = QubitGroupIdGlobal(blk.get_tiling_id())
+                    coord_gid_2d[xy] = QubitGroupIdGlobal(c.get_tiling_id())
 
         # Build pipe XY regions and cache measure pipe coordinates
-        for pipe in self.pipes_.values():
-            t = pipe.template
-            is_measure_pipe = isinstance(pipe, _MeasurePipeBase)
+        for p in self.pipes_.values():
+            t = p.template
+            is_measure_pipe = isinstance(p, _MeasurePipeBase)
             for coord_list in (t.data_coords, t.x_coords, t.z_coords):
                 for x, y in coord_list or []:
                     xy = (int(x), int(y))
-                    coord_gid_2d[xy] = QubitGroupIdGlobal(pipe.get_tiling_id())
+                    coord_gid_2d[xy] = QubitGroupIdGlobal(p.get_tiling_id())
                     if is_measure_pipe:
                         measure_pipe_xy.add(xy)
 
