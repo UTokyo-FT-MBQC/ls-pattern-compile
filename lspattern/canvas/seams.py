@@ -309,7 +309,7 @@ class SeamGenerator:
             xv, yv = xu + int(dx), yu + int(dy)
             coord_v = PhysCoordGlobal3D((xv, yv, zu))
             v = self.coord2node.get(coord_v)
-            if v is None or v == u:
+            if v is None:
                 continue
 
             xy_v = (xv, yv)
