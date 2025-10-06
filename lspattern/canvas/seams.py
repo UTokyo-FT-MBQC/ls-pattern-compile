@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from graphix_zx.graphstate import BaseGraphState, GraphState
-
 from lspattern.blocks.pipes.measure import _MeasurePipeBase
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import (
@@ -26,6 +24,8 @@ EDGE_TUPLE_SIZE = 2
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+    from graphix_zx.graphstate import BaseGraphState, GraphState
 
     from lspattern.blocks.cubes.base import RHGCube
     from lspattern.blocks.pipes.base import RHGPipe
@@ -116,7 +116,7 @@ class SeamGenerator:
 
             self._process_neighbor_connections(u, coord_u, gid_u, cube_xy_all, coord_gid_2d, g, existing)
 
-        return cast("GraphState", g)
+        return cast("GraphState", g)  # TODO: use graphstate constructor once available
 
     def _build_xy_regions(self, coord_gid_2d: dict[tuple[int, int], QubitGroupIdGlobal]) -> set[tuple[int, int]]:
         """Build XY coordinate sets for cubes and update group ID mapping.
@@ -173,8 +173,7 @@ class SeamGenerator:
         result: set[tuple[int, int]] = set()
         for u, v in edges:
             edge = tuple(sorted((int(u), int(v))))
-            if len(edge) == EDGE_TUPLE_SIZE:
-                result.add((edge[0], edge[1]))
+            result.add((edge[0], edge[1]))
         return result
 
     def _is_measure_pipe_node(
