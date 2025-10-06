@@ -34,11 +34,11 @@ class TestSeamGeneratorBasic:
         assert generator.allowed_gid_pairs == allowed_pairs
 
 
-class TestSeamGeneratorBuildXYRegions:
-    """Test _build_xy_regions method."""
+class TestSeamGeneratorCollectBlockXYCoordinates:
+    """Test _collect_block_xy_coordinates method."""
 
-    def test_build_xy_regions_empty(self) -> None:
-        """Test _build_xy_regions with no cubes or pipes."""
+    def test_collect_block_xy_coordinates_empty(self) -> None:
+        """Test _collect_block_xy_coordinates with no cubes or pipes."""
         generator = SeamGenerator(
             cubes={},
             pipes={},
@@ -48,7 +48,7 @@ class TestSeamGeneratorBuildXYRegions:
         )
 
         coord_gid_2d: dict[tuple[int, int], QubitGroupIdGlobal] = {}
-        cube_xy, measure_pipe_xy = generator._build_xy_regions(coord_gid_2d)
+        cube_xy, measure_pipe_xy = generator._collect_block_xy_coordinates(coord_gid_2d)
 
         assert cube_xy == set()
         assert measure_pipe_xy == set()
