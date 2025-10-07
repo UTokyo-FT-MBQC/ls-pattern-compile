@@ -16,7 +16,7 @@ from lspattern.accumulator import (
     ParityAccumulator,
     ScheduleAccumulator,
 )
-from lspattern.consts import NodeRole
+from lspattern.consts import BoundarySide, NodeRole
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.tiling.template import (
     RotatedPlanarCubeTemplate,
@@ -133,8 +133,8 @@ class RHGBlock:
 
         # Trim spatial boundaries for explicitly open sides and precompute tiling
         es = edgespec or {}
-        for side in ("LEFT", "RIGHT", "TOP", "BOTTOM"):
-            if str(es.get(side, "")).upper() == "O":
+        for side in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
+            if str(es.get(side.value, "")).upper() == "O":
                 self.template.trim_spatial_boundary(side)
 
         self.template.to_tiling()
@@ -678,8 +678,14 @@ class RHGBlockSkeleton:
         msg = "to_block() must be implemented in subclasses."
         raise NotImplementedError(msg)
 
-    def trim_spatial_boundary(self, direction: str) -> None:
-        """Trim the spatial boundaries of the tiling."""
+    def trim_spatial_boundary(self, direction: BoundarySide) -> None:
+        """Trim the spatial boundaries of the tiling.
+
+        Parameters
+        ----------
+        direction : BoundarySide
+            Boundary side to trim.
+        """
         self.template.trim_spatial_boundary(direction)
 
 

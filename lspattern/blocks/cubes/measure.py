@@ -8,6 +8,7 @@ from graphix_zx.graphstate import GraphState
 
 from lspattern.blocks.base import compute_logical_op_direction
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
+from lspattern.consts import BoundarySide
 from lspattern.mytype import (
     NodeIdLocal,
     PatchCoordGlobal3D,
@@ -282,8 +283,8 @@ class MeasureXSkeleton(RHGCubeSkeleton):
     def to_block(self) -> MeasureX:
         """Materialize to a MeasureX (template evaluated, no local graph yet)."""
         # Apply spatial open-boundary trimming if specified
-        for direction in ["LEFT", "RIGHT", "TOP", "BOTTOM"]:
-            if str(self.edgespec.get(direction, "O")).upper() == "O":
+        for direction in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
+            if str(self.edgespec.get(direction.value, "O")).upper() == "O":
                 self.trim_spatial_boundary(direction)
         # Evaluate template coordinates
         self.template.to_tiling()
@@ -306,8 +307,8 @@ class MeasureZSkeleton(RHGCubeSkeleton):
     def to_block(self) -> MeasureZ:
         """Materialize to a MeasureZ (template evaluated, no local graph yet)."""
         # Apply spatial open-boundary trimming if specified
-        for direction in ["LEFT", "RIGHT", "TOP", "BOTTOM"]:
-            if str(self.edgespec.get(direction, "O")).upper() == "O":
+        for direction in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
+            if str(self.edgespec.get(direction.value, "O")).upper() == "O":
                 self.trim_spatial_boundary(direction)
         # Evaluate template coordinates
         self.template.to_tiling()

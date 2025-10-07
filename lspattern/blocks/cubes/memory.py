@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import ClassVar
 
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
+from lspattern.consts import BoundarySide
 from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D, PhysCoordLocal2D
 
 
@@ -14,8 +15,8 @@ class MemoryCubeSkeleton(RHGCubeSkeleton):
     def to_block(self) -> MemoryCube:
         """Materialize to a MemoryCube (template evaluated, no local graph yet)."""
         # Apply spatial open-boundary trimming if specified
-        for direction in ["LEFT", "RIGHT", "TOP", "BOTTOM"]:
-            if str(self.edgespec.get(direction, "O")).upper() == "O":
+        for direction in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
+            if str(self.edgespec.get(direction.value, "O")).upper() == "O":
                 self.trim_spatial_boundary(direction)
         # Evaluate template coordinates
         self.template.to_tiling()

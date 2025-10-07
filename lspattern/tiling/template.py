@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 
-from lspattern.consts import CoordinateSystem, EdgeSpecValue
+from lspattern.consts import BoundarySide, CoordinateSystem, EdgeSpecValue
 from lspattern.consts.consts import PIPEDIRECTION
 from lspattern.mytype import (
     QubitIndexLocal,
@@ -281,11 +281,16 @@ class ScalableTemplate(Tiling):
         new.z_coords = t.z_coords
         return new
 
-    def trim_spatial_boundary(self, direction: str) -> None:
+    def trim_spatial_boundary(self, direction: BoundarySide) -> None:
         """Remove ancilla/two-body checks on a given boundary in 2D tiling.
 
         Only X/Z ancilla on the target boundary line are removed. Data qubits
-        remain intact. Supported directions: LEFT/RIGHT/TOP/BOTTOM or X±/Y±.
+        remain intact.
+
+        Parameters
+        ----------
+        direction : BoundarySide
+            Boundary side to trim (LEFT, RIGHT, TOP, or BOTTOM).
         """
         if not (self.data_coords or self.x_coords or self.z_coords):
             self.to_tiling()
@@ -293,21 +298,21 @@ class ScalableTemplate(Tiling):
         axis: int
         target: int
 
-        match direction.upper():
-            case "TOP" | "Y+":
+        match direction:
+            case BoundarySide.TOP:
                 axis = 1
                 target = 2 * self.d - 1
-            case "BOTTOM" | "Y-":
+            case BoundarySide.BOTTOM:
                 axis = 1
                 target = -1
-            case "LEFT" | "X-":
+            case BoundarySide.LEFT:
                 axis = 0
                 target = -1
-            case "RIGHT" | "X+":
+            case BoundarySide.RIGHT:
                 axis = 0
                 target = 2 * self.d - 1
             case _:
-                msg = "Invalid direction for trim_spatial_boundary"
+                msg = f"Invalid direction for spatial boundary: {direction}"
                 raise ValueError(msg)
 
         self.x_coords = [p for p in (self.x_coords or []) if p[axis] != target]
@@ -533,20 +538,20 @@ def merge_pair_spatial(
 
     # 1) Trim the seam boundaries
     if diru == "X+":
-        a.trim_spatial_boundary("RIGHT")
-        b.trim_spatial_boundary("LEFT")
+        a.trim_spatial_boundary(BoundarySide.RIGHT)
+        b.trim_spatial_boundary(BoundarySide.LEFT)
         off_b = (2 * d_a, 0)
     elif diru == "X-":
-        a.trim_spatial_boundary("LEFT")
-        b.trim_spatial_boundary("RIGHT")
+        a.trim_spatial_boundary(BoundarySide.LEFT)
+        b.trim_spatial_boundary(BoundarySide.RIGHT)
         off_b = (-2 * d_b, 0)
     elif diru == "Y+":
-        a.trim_spatial_boundary("TOP")
-        b.trim_spatial_boundary("BOTTOM")
+        a.trim_spatial_boundary(BoundarySide.TOP)
+        b.trim_spatial_boundary(BoundarySide.BOTTOM)
         off_b = (0, 2 * d_a)
     else:  # "Y-"
-        a.trim_spatial_boundary("BOTTOM")
-        b.trim_spatial_boundary("TOP")
+        a.trim_spatial_boundary(BoundarySide.BOTTOM)
+        b.trim_spatial_boundary(BoundarySide.TOP)
         off_b = (0, -2 * d_b)
 
     # 2) Build offset copies and merge

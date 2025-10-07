@@ -7,6 +7,7 @@ from typing import ClassVar
 from graphix_zx.graphstate import GraphState
 
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
+from lspattern.consts import BoundarySide
 from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D, PhysCoordLocal2D
 
 # Type alias for the return type of _build_3d_graph method
@@ -26,8 +27,8 @@ class InitPlusCubeSkeleton(RHGCubeSkeleton):
         -------
             RHGBlock: A block containing the template with no local graph state.
         """
-        for direction in ["LEFT", "RIGHT", "TOP", "BOTTOM"]:
-            if self.edgespec[direction] == "O":
+        for direction in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
+            if self.edgespec[direction.value] == "O":
                 self.trim_spatial_boundary(direction)
         self.template.to_tiling()
 
@@ -110,8 +111,8 @@ class InitPlusCubeThinLayerSkeleton(RHGCubeSkeleton):
         RHGBlock
             A block containing the template with no local graph state.
         """
-        for direction in ["LEFT", "RIGHT", "TOP", "BOTTOM"]:
-            if self.edgespec[direction] == "O":
+        for direction in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
+            if self.edgespec[direction.value] == "O":
                 self.trim_spatial_boundary(direction)
         self.template.to_tiling()
 
@@ -226,8 +227,8 @@ class InitZeroCubeThinLayerSkeleton(RHGCubeSkeleton):
         RHGBlock
             A block containing the template with no local graph state.
         """
-        for direction in ["LEFT", "RIGHT", "TOP", "BOTTOM"]:
-            if self.edgespec[direction] == "O":
+        for direction in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
+            if self.edgespec[direction.value] == "O":
                 self.trim_spatial_boundary(direction)
         self.template.to_tiling()
 

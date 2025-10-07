@@ -24,7 +24,7 @@ from lspattern.blocks.pipes.measure import _MeasurePipeBase
 from lspattern.canvas.composition import GraphComposer
 from lspattern.canvas.coordinates import CoordinateMapper
 from lspattern.canvas.ports import PortManager
-from lspattern.consts import CoordinateSystem
+from lspattern.consts import BoundarySide, CoordinateSystem
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.mytype import (
     NodeIdGlobal,
@@ -879,19 +879,21 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
         self.pipes_[pipe_coord] = pipe
 
     @staticmethod
-    def _get_spatial_direction(dx: int, dy: int) -> tuple[str, str] | None:
+    def _get_spatial_direction(dx: int, dy: int) -> tuple[BoundarySide, BoundarySide] | None:
         """Get trim directions for spatial pipe."""
         if dx == 1 and dy == 0:
-            return "RIGHT", "LEFT"  # X+ direction
+            return BoundarySide.RIGHT, BoundarySide.LEFT  # X+ direction
         if dx == -1 and dy == 0:
-            return "LEFT", "RIGHT"  # X- direction
+            return BoundarySide.LEFT, BoundarySide.RIGHT  # X- direction
         if dy == 1 and dx == 0:
-            return "TOP", "BOTTOM"  # Y+ direction
+            return BoundarySide.TOP, BoundarySide.BOTTOM  # Y+ direction
         if dy == -1 and dx == 0:
-            return "BOTTOM", "TOP"  # Y- direction
+            return BoundarySide.BOTTOM, BoundarySide.TOP  # Y- direction
         return None
 
-    def _trim_adjacent_cubes(self, u: PatchCoordGlobal3D, v: PatchCoordGlobal3D, left_dir: str, right_dir: str) -> None:
+    def _trim_adjacent_cubes(
+        self, u: PatchCoordGlobal3D, v: PatchCoordGlobal3D, left_dir: BoundarySide, right_dir: BoundarySide
+    ) -> None:
         """Trim boundaries of adjacent cubes."""
         left = self.cubes_.get(u)
         right = self.cubes_.get(v)
