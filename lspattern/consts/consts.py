@@ -128,3 +128,14 @@ class InitializationState(str, enum.Enum):  # noqa: UP042
 
     PLUS = "plus"
     ZERO = "zero"
+
+
+class Observable(str, enum.Enum):  # noqa: UP042
+    """Observable type for quantum measurements.
+
+    X: X-type Pauli observable
+    Z: Z-type Pauli observable
+    """
+
+    X = "X"
+    Z = "Z"

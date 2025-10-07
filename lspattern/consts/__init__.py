@@ -14,6 +14,7 @@ from lspattern.consts.consts import (
     EdgeSpecValue,
     InitializationState,
     NodeRole,
+    Observable,
     VisualizationKind,
     VisualizationMode,
 )
@@ -27,6 +28,7 @@ __all__ = [
     "EdgeSpecValue",
     "InitializationState",
     "NodeRole",
+    "Observable",
     "VisualizationKind",
     "VisualizationMode",
 ]

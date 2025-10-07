@@ -16,7 +16,7 @@ from lspattern.accumulator import (
     ParityAccumulator,
     ScheduleAccumulator,
 )
-from lspattern.consts import BoundarySide, EdgeSpecValue, NodeRole
+from lspattern.consts import BoundarySide, EdgeSpecValue, NodeRole, Observable
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.tiling.template import (
     RotatedPlanarCubeTemplate,
@@ -134,7 +134,7 @@ class RHGBlock:
         # Trim spatial boundaries for explicitly open sides and precompute tiling
         es = edgespec or {}
         for side in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
-            if str(es.get(side, "")).upper() == EdgeSpecValue.O:
+            if es.get(side) == EdgeSpecValue.O:
                 self.template.trim_spatial_boundary(side)
 
         self.template.to_tiling()
@@ -689,15 +689,15 @@ class RHGBlockSkeleton:
         self.template.trim_spatial_boundary(direction)
 
 
-def compute_logical_op_direction(edgespec: SpatialEdgeSpec, obs: str) -> str:  # noqa: C901
+def compute_logical_op_direction(edgespec: SpatialEdgeSpec, obs: Observable) -> str:
     """Compute the logical operation direction from edge specification and observable.
 
     Parameters
     ----------
     edgespec : SpatialEdgeSpec
         Spatial edge specification with keys LEFT, RIGHT, TOP, BOTTOM.
-    obs : {'X','Z'}
-        Logical observable type.
+    obs : Observable
+        Logical observable type (Observable.X or Observable.Z).
 
     Returns
     -------
@@ -709,45 +709,26 @@ def compute_logical_op_direction(edgespec: SpatialEdgeSpec, obs: str) -> str:  #
     ValueError
         If the edgespec is invalid or does not support the specified observable.
     """
-    # Convert keys and values to enums if they are strings
-    es = {}
-    for k, v in edgespec.items():
-        # Normalize key to BoundarySide enum
-        if isinstance(k, str):
-            try:
-                k_enum = BoundarySide(k.upper())
-            except ValueError:
-                continue
-        else:
-            k_enum = k
-
-        if k_enum in {BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM}:
-            # Normalize value to EdgeSpecValue enum
-            if isinstance(v, str):
-                es[k_enum] = EdgeSpecValue(v.upper())
-            else:
-                es[k_enum] = v
-
-    if len(es) != NUM_EDGE_SPEC_BOUDARY:
+    if len(edgespec) != NUM_EDGE_SPEC_BOUDARY:
         msg = "edgespec must contain exactly the keys: LEFT, RIGHT, TOP, BOTTOM"
         raise ValueError(msg)
 
-    if obs.upper() == EdgeSpecValue.X:  # TODO: should be Z?
+    if obs == Observable.X:
         # X logical operator runs between Z boundaries
-        if es[BoundarySide.LEFT] == EdgeSpecValue.Z and es[BoundarySide.RIGHT] == EdgeSpecValue.Z:
+        if edgespec[BoundarySide.LEFT] == EdgeSpecValue.Z and edgespec[BoundarySide.RIGHT] == EdgeSpecValue.Z:
             return "H"
-        if es[BoundarySide.TOP] == EdgeSpecValue.Z and es[BoundarySide.BOTTOM] == EdgeSpecValue.Z:
+        if edgespec[BoundarySide.TOP] == EdgeSpecValue.Z and edgespec[BoundarySide.BOTTOM] == EdgeSpecValue.Z:
             return "V"
 
         msg = "edgespec does not support X logical operator"
         raise ValueError(msg)
-    if obs.upper() == EdgeSpecValue.Z:
+    if obs == Observable.Z:
         # Z logical operator runs between X boundaries
-        if es[BoundarySide.LEFT] == EdgeSpecValue.X and es[BoundarySide.RIGHT] == EdgeSpecValue.X:
+        if edgespec[BoundarySide.LEFT] == EdgeSpecValue.X and edgespec[BoundarySide.RIGHT] == EdgeSpecValue.X:
             return "H"
-        if es[BoundarySide.TOP] == EdgeSpecValue.X and es[BoundarySide.BOTTOM] == EdgeSpecValue.X:
+        if edgespec[BoundarySide.TOP] == EdgeSpecValue.X and edgespec[BoundarySide.BOTTOM] == EdgeSpecValue.X:
             return "V"
         msg = "edgespec does not support Z logical operator"
         raise ValueError(msg)
-    msg = "obs must be one of: X, Z"
+    msg = f"obs must be Observable.X or Observable.Z, got {obs}"
     raise ValueError(msg)
