@@ -47,8 +47,7 @@ class TestSeamGeneratorPopulateCoordGid2d:
             allowed_gid_pairs=set(),
         )
 
-        coord_gid_2d: dict[tuple[int, int], QubitGroupIdGlobal] = {}
-        generator._populate_coord_gid_2d(coord_gid_2d)
+        coord_gid_2d = generator._populate_coord_gid_2d()
 
         assert coord_gid_2d == {}
 

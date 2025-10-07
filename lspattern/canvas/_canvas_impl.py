@@ -283,7 +283,6 @@ class TemporalLayer:
         g = self._build_graph_from_blocks()
 
         # Add CZ edges across cube-pipe seams within the same temporal layer
-        coord_gid_2d = {(x, y): gid for (x, y, _), gid in coord2gid.items()}
         seam_generator = SeamGenerator(
             cubes=self.cubes_,
             pipes=self.pipes_,
@@ -291,7 +290,7 @@ class TemporalLayer:
             coord2node=self.coord2node,
             allowed_gid_pairs=allowed_gid_pairs,
         )
-        g = seam_generator.add_seam_edges(g, coord_gid_2d)
+        g = seam_generator.add_seam_edges(g)
 
         # Finalize
         self.local_graph = g

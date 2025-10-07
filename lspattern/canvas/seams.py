@@ -20,7 +20,7 @@ from lspattern.mytype import (
 from lspattern.utils import is_allowed_pair
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, MutableMapping
+    from collections.abc import Mapping
 
     from graphix_zx.graphstate import GraphState
 
@@ -80,9 +80,7 @@ class SeamGenerator:
         self.coord2node = coord2node
         self.allowed_gid_pairs = allowed_gid_pairs
 
-    def add_seam_edges(
-        self, g: GraphState, coord_gid_2d: MutableMapping[tuple[int, int], QubitGroupIdGlobal]
-    ) -> GraphState:
+    def add_seam_edges(self, g: GraphState) -> GraphState:
         """Add CZ edges across cube-pipe seams within the same temporal layer.
 
         Iterates through all nodes in the graph and creates edges between nodes
@@ -93,16 +91,14 @@ class SeamGenerator:
         ----------
         g : GraphState
             The quantum graph state to add seam edges to.
-        coord_gid_2d : MutableMapping[tuple[int, int], QubitGroupIdGlobal]
-            2D coordinate to tiling group ID mapping (will be populated during execution).
 
         Returns
         -------
         GraphState
             The updated graph state with seam edges added.
         """
-        # Populate coordinate to group ID mapping
-        self._populate_coord_gid_2d(coord_gid_2d)
+        # Build coordinate to group ID mapping from block templates
+        coord_gid_2d = self._populate_coord_gid_2d()
         # Collect XY regions for cubes and measure pipes
         cube_xy_all, measure_pipe_xy = self._collect_block_xy_regions()
         existing = self._get_existing_edges(g)
@@ -116,17 +112,19 @@ class SeamGenerator:
 
         return g
 
-    def _populate_coord_gid_2d(self, coord_gid_2d: MutableMapping[tuple[int, int], QubitGroupIdGlobal]) -> None:
-        """Populate coord_gid_2d with tiling group IDs for all block coordinates.
+    def _populate_coord_gid_2d(self) -> dict[tuple[int, int], QubitGroupIdGlobal]:
+        """Build XY coordinate to tiling group ID mapping for all block coordinates.
 
-        Updates the provided mapping with XY coordinate to tiling group ID mappings
-        for all coordinates in cube and pipe blocks.
+        Creates a mapping from 2D XY coordinates to tiling group IDs by extracting
+        coordinates from all cube and pipe block templates.
 
-        Parameters
-        ----------
-        coord_gid_2d : MutableMapping[tuple[int, int], QubitGroupIdGlobal]
-            Mutable mapping to populate with XY coordinate to group ID mappings.
+        Returns
+        -------
+        dict[tuple[int, int], QubitGroupIdGlobal]
+            Mapping of XY coordinates to tiling group IDs.
         """
+        coord_gid_2d: dict[tuple[int, int], QubitGroupIdGlobal] = {}
+
         # Populate cube coordinates
         for c in self.cubes_.values():
             t = c.template
@@ -144,6 +142,8 @@ class SeamGenerator:
                 for x, y in coord_list or []:
                     xy = (int(x), int(y))
                     coord_gid_2d[xy] = gid
+
+        return coord_gid_2d
 
     def _collect_block_xy_regions(self) -> tuple[set[tuple[int, int]], set[tuple[int, int]]]:
         """Collect XY coordinate sets for cube and measure pipe regions.
