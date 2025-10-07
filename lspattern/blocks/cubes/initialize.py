@@ -52,7 +52,7 @@ class InitPlus(RHGCube):
 
     def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         # Init: 最終スライス(z+)の data を出力ポート(テンプレートの data 全インデックス)とみなす
-        idx_map = self.template.get_data_indices(patch_coord)
+        idx_map = self.template.get_data_indices_cube(patch_coord)
         self.out_ports = set(idx_map.values())
 
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
@@ -166,7 +166,7 @@ class InitPlusThinLayer(RHGCube):
 
     def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         # Init: 最終スライス(z+)の data を出力ポート(テンプレートの data 全インデックス)とみなす
-        idx_map = self.template.get_data_indices(patch_coord)
+        idx_map = self.template.get_data_indices_cube(patch_coord)
         self.out_ports = set(idx_map.values())
 
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
@@ -282,7 +282,7 @@ class InitZeroThinLayer(RHGCube):
 
     def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         # set output ports to all data indices in the template
-        idx_map = self.template.get_data_indices(patch_coord)
+        idx_map = self.template.get_data_indices_cube(patch_coord)
         self.out_ports = set(idx_map.values())
 
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:

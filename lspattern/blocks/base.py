@@ -398,7 +398,7 @@ class RHGBlock:
     ) -> tuple[dict[tuple[int, int], int], dict[tuple[int, int], int]]:
         """Build XY to input/output node mappings."""
         # XY -> local qubit index based on evaluated template
-        xy_to_q = self.template.get_data_indices()
+        xy_to_q = self.template.get_data_indices_cube()
 
         # Optional: map XY to node ids at z- / z+
         xy_to_innode: dict[tuple[int, int], int] = {}
@@ -429,10 +429,10 @@ class RHGBlock:
         if hasattr(self, "sink") and self.sink is not None:
             # This is a pipe - use pipe-specific parameters
             sink_2d = (self.sink[0], self.sink[1])
-            xy_to_q = self.template.get_data_indices(patch_coord, patch_type=PatchType.PIPE, sink_patch=sink_2d)
+            xy_to_q = self.template.get_data_indices_pipe(patch_coord, sink_2d)
         else:
             # This is a cube - use standard parameters
-            xy_to_q = self.template.get_data_indices(patch_coord)
+            xy_to_q = self.template.get_data_indices_cube(patch_coord)
         inv_q_to_xy = {q: xy for xy, q in xy_to_q.items()}
 
         for qidx in self.in_ports:
@@ -461,10 +461,10 @@ class RHGBlock:
         if hasattr(self, "sink") and self.sink is not None:
             # This is a pipe - use pipe-specific parameters
             sink_2d = (self.sink[0], self.sink[1])
-            xy_to_q = self.template.get_data_indices(patch_coord, patch_type=PatchType.PIPE, sink_patch=sink_2d)
+            xy_to_q = self.template.get_data_indices_pipe(patch_coord, sink_2d)
         else:
             # This is a cube - use standard parameters
-            xy_to_q = self.template.get_data_indices(patch_coord)
+            xy_to_q = self.template.get_data_indices_cube(patch_coord)
         inv_q_to_xy = {q: xy for xy, q in xy_to_q.items()}
 
         for qidx in self.out_ports:

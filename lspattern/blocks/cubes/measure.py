@@ -147,7 +147,7 @@ class _MeasureBase(RHGCube):
             g.assign_meas_basis(node, meas_basis)
 
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        idx_map = self.template.get_data_indices(patch_coord)
+        idx_map = self.template.get_data_indices_cube(patch_coord)
         self.in_ports = set(idx_map.values())
 
     def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
@@ -161,7 +161,7 @@ class MeasureX(_MeasureBase):
         super().__init__(logical, Axis.X, **kwargs)
 
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        idx_map = self.template.get_data_indices(patch_coord)
+        idx_map = self.template.get_data_indices_cube(patch_coord)
         self.in_ports = set(idx_map.values())
 
     def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
@@ -221,7 +221,7 @@ class MeasureZ(_MeasureBase):
         super().__init__(logical, Axis.Z, **kwargs)
 
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        idx_map = self.template.get_data_indices(patch_coord)
+        idx_map = self.template.get_data_indices_cube(patch_coord)
         self.in_ports = set(idx_map.values())
 
     def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:

@@ -45,9 +45,9 @@ class _MeasurePipeBase(RHGPipe):
         if patch_coord is not None and self.source is not None and self.sink is not None:
             source_2d = (self.source[0], self.source[1])
             sink_2d = (self.sink[0], self.sink[1])
-            idx_map = self.template.get_data_indices(source_2d, patch_type=PatchType.PIPE, sink_patch=sink_2d)
+            idx_map = self.template.get_data_indices_pipe(source_2d, sink_2d)
         else:
-            idx_map = self.template.get_data_indices()
+            idx_map = self.template.get_data_indices_cube()
         self.in_ports = set(idx_map.values())
 
     def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:

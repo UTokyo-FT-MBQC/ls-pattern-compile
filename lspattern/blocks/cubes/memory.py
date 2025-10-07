@@ -36,7 +36,7 @@ class MemoryCube(RHGCube):
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         """Memory: 全 data(z- 側相当)を入力ポートに割当てる。"""
         # テンプレートの data インデックスを取得
-        idx_map = self.template.get_data_indices(patch_coord)
+        idx_map = self.template.get_data_indices_cube(patch_coord)
         indices = set(idx_map.values())
         if len(indices) == 0:
             msg = "Memory: in_ports should not be empty."
@@ -48,7 +48,7 @@ class MemoryCube(RHGCube):
 
         位置は in_ports と同一集合(時間延長で同一 (x,y) を受け渡す想定)。
         """
-        idx_map = self.template.get_data_indices(patch_coord)
+        idx_map = self.template.get_data_indices_cube(patch_coord)
         self.out_ports = set(idx_map.values())
 
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
