@@ -16,7 +16,7 @@ from lspattern.accumulator import (
     ParityAccumulator,
     ScheduleAccumulator,
 )
-from lspattern.consts import BoundarySide, NodeRole
+from lspattern.consts import BoundarySide, EdgeSpecValue, NodeRole
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.tiling.template import (
     RotatedPlanarCubeTemplate,
@@ -689,7 +689,7 @@ class RHGBlockSkeleton:
         self.template.trim_spatial_boundary(direction)
 
 
-def compute_logical_op_direction(edgespec: SpatialEdgeSpec, obs: str) -> str:
+def compute_logical_op_direction(edgespec: SpatialEdgeSpec, obs: str) -> str:  # noqa: C901
     """Compute the logical operation direction from edge specification and observable.
 
     Parameters
@@ -709,29 +709,43 @@ def compute_logical_op_direction(edgespec: SpatialEdgeSpec, obs: str) -> str:
     ValueError
         If the edgespec is invalid or does not support the specified observable.
     """
-    es = {
-        k: str(v).upper()
-        for k, v in edgespec.items()
-        if k in {BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM}
-    }
+    # Convert keys and values to enums if they are strings
+    es = {}
+    for k, v in edgespec.items():
+        # Normalize key to BoundarySide enum
+        if isinstance(k, str):
+            try:
+                k_enum = BoundarySide(k.upper())
+            except ValueError:
+                continue
+        else:
+            k_enum = k
+
+        if k_enum in {BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM}:
+            # Normalize value to EdgeSpecValue enum
+            if isinstance(v, str):
+                es[k_enum] = EdgeSpecValue(v.upper())
+            else:
+                es[k_enum] = v
+
     if len(es) != NUM_EDGE_SPEC_BOUDARY:
         msg = "edgespec must contain exactly the keys: LEFT, RIGHT, TOP, BOTTOM"
         raise ValueError(msg)
 
     if obs.upper() == "X":  # TODO: should be Z?
         # X logical operator runs between Z boundaries
-        if es[BoundarySide.LEFT] == "Z" and es[BoundarySide.RIGHT] == "Z":
+        if es[BoundarySide.LEFT] == EdgeSpecValue.Z and es[BoundarySide.RIGHT] == EdgeSpecValue.Z:
             return "H"
-        if es[BoundarySide.TOP] == "Z" and es[BoundarySide.BOTTOM] == "Z":
+        if es[BoundarySide.TOP] == EdgeSpecValue.Z and es[BoundarySide.BOTTOM] == EdgeSpecValue.Z:
             return "V"
 
         msg = "edgespec does not support X logical operator"
         raise ValueError(msg)
     if obs.upper() == "Z":
         # Z logical operator runs between X boundaries
-        if es[BoundarySide.LEFT] == "X" and es[BoundarySide.RIGHT] == "X":
+        if es[BoundarySide.LEFT] == EdgeSpecValue.X and es[BoundarySide.RIGHT] == EdgeSpecValue.X:
             return "H"
-        if es[BoundarySide.TOP] == "X" and es[BoundarySide.BOTTOM] == "X":
+        if es[BoundarySide.TOP] == EdgeSpecValue.X and es[BoundarySide.BOTTOM] == EdgeSpecValue.X:
             return "V"
         msg = "edgespec does not support Z logical operator"
         raise ValueError(msg)

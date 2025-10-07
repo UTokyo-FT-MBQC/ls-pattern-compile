@@ -150,17 +150,24 @@ class ScalableTemplate(Tiling):
     def to_tiling(self) -> dict[str, list[tuple[int, int]]]:
         raise NotImplementedError
 
-    def _spec(self, side: BoundarySide) -> str:
-        """Return standardized spec value ("X"/"Z"/"O").
+    def _spec(self, side: BoundarySide) -> EdgeSpecValue:
+        """Return standardized spec value (EdgeSpecValue enum).
 
-        Accepts BoundarySide enum. Defaults to "O".
+        Accepts BoundarySide enum. Defaults to EdgeSpecValue.O.
         """
         v = None
         if isinstance(self.edgespec, dict):
+            # Try enum key first
             v = self.edgespec.get(side)
+            # Fall back to string key for backward compatibility
+            if v is None:
+                v = self.edgespec.get(side.value)  # type: ignore[call-overload]
         if v is None:
             v = EdgeSpecValue.O
-        return str(v).upper()
+        # Convert string to enum if needed
+        elif isinstance(v, str):
+            v = EdgeSpecValue(v.upper())
+        return v
 
     def get_data_indices_cube(
         self,
@@ -585,8 +592,12 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         x_coords: set[tuple[int, int]] = set()
         z_coords: set[tuple[int, int]] = set()
 
-        is_x_dir = self._spec(BoundarySide.LEFT) == "O" and self._spec(BoundarySide.RIGHT) == "O"
-        is_y_dir = self._spec(BoundarySide.TOP) == "O" and self._spec(BoundarySide.BOTTOM) == "O"
+        is_x_dir = (
+            self._spec(BoundarySide.LEFT) == EdgeSpecValue.O and self._spec(BoundarySide.RIGHT) == EdgeSpecValue.O
+        )
+        is_y_dir = (
+            self._spec(BoundarySide.TOP) == EdgeSpecValue.O and self._spec(BoundarySide.BOTTOM) == EdgeSpecValue.O
+        )
 
         if is_x_dir:
             # Pipe along Y (vertical), x fixed at 0
