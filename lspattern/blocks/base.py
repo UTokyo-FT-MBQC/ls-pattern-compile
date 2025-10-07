@@ -16,7 +16,7 @@ from lspattern.accumulator import (
     ParityAccumulator,
     ScheduleAccumulator,
 )
-from lspattern.consts import NodeRole, PatchType
+from lspattern.consts import NodeRole
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.tiling.template import (
     RotatedPlanarCubeTemplate,
@@ -428,6 +428,10 @@ class RHGBlock:
         # TODO: this branch should be refactored without hasattr
         if hasattr(self, "sink") and self.sink is not None:
             # This is a pipe - use pipe-specific parameters
+            # Pipes must have both source and sink coordinates
+            if patch_coord is None:
+                msg = "Pipe blocks must have source coordinates set"
+                raise ValueError(msg)
             sink_2d = (self.sink[0], self.sink[1])
             xy_to_q = self.template.get_data_indices_pipe(patch_coord, sink_2d)
         else:
@@ -460,6 +464,10 @@ class RHGBlock:
         # For pipes, need to use the same parameters as in set_out_ports
         if hasattr(self, "sink") and self.sink is not None:
             # This is a pipe - use pipe-specific parameters
+            # Pipes must have both source and sink coordinates
+            if patch_coord is None:
+                msg = "Pipe blocks must have source coordinates set"
+                raise ValueError(msg)
             sink_2d = (self.sink[0], self.sink[1])
             xy_to_q = self.template.get_data_indices_pipe(patch_coord, sink_2d)
         else:

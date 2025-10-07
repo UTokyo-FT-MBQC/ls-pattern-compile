@@ -22,7 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `EdgeSpecValue`: Edge specification values (X, Z, O)
   - `BoundarySide`: Spatial boundary sides (TOP, BOTTOM, LEFT, RIGHT, UP, DOWN)
   - `NodeRole`: Node roles (DATA, ANCILLA_X, ANCILLA_Z)
-  - `PatchType`: Patch types (CUBE, PIPE)
   - `CoordinateSystem`: Coordinate system identifiers (TILING_2D, PHYS_3D, PATCH_3D)
   - `VisualizationKind`: Visualization kind options (BOTH, X, Z)
   - `VisualizationMode`: Visualization mode options (HIST, SLICES)

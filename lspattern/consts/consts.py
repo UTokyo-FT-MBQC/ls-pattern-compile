@@ -82,17 +82,6 @@ class NodeRole(str, enum.Enum):  # noqa: UP042
     ANCILLA_Z = "ancilla_z"
 
 
-class PatchType(str, enum.Enum):  # noqa: UP042
-    """Type of RHG patch in the lattice.
-
-    CUBE: Cube-shaped stationary patch
-    PIPE: Connector patch (spatial or temporal)
-    """
-
-    CUBE = "cube"
-    PIPE = "pipe"
-
-
 class CoordinateSystem(str, enum.Enum):  # noqa: UP042
     """Coordinate system identifiers for spatial transformations.
 

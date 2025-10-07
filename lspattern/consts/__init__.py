@@ -13,7 +13,6 @@ from lspattern.consts.consts import (
     CoordinateSystem,
     EdgeSpecValue,
     NodeRole,
-    PatchType,
     VisualizationKind,
     VisualizationMode,
 )
@@ -26,7 +25,6 @@ __all__ = [
     "CoordinateSystem",
     "EdgeSpecValue",
     "NodeRole",
-    "PatchType",
     "VisualizationKind",
     "VisualizationMode",
 ]
