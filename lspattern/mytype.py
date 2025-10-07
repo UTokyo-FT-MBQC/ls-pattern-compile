@@ -75,17 +75,17 @@ EdgeSpecValue = EdgeSpecValueEnum
 BoundarySide = BoundarySideEnum
 
 # Dict-based spatial edge spec preferred across the codebase
-SpatialEdgeSpec = dict[str, EdgeSpecValue]
+SpatialEdgeSpec = dict[BoundarySide, EdgeSpecValue]
 
 # Module-level convenience default used by examples/tests.
 # All sides start as open ("O"). Callers may update it locally.
 EdgeSpec: SpatialEdgeSpec = {
-    "TOP": EdgeSpecValue.O,
-    "BOTTOM": EdgeSpecValue.O,
-    "LEFT": EdgeSpecValue.O,
-    "RIGHT": EdgeSpecValue.O,
-    "UP": EdgeSpecValue.O,
-    "DOWN": EdgeSpecValue.O,
+    BoundarySide.TOP: EdgeSpecValue.O,
+    BoundarySide.BOTTOM: EdgeSpecValue.O,
+    BoundarySide.LEFT: EdgeSpecValue.O,
+    BoundarySide.RIGHT: EdgeSpecValue.O,
+    BoundarySide.UP: EdgeSpecValue.O,
+    BoundarySide.DOWN: EdgeSpecValue.O,
 }
 
 __all__ = [

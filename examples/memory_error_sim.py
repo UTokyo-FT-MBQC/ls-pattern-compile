@@ -1,7 +1,7 @@
 """RHG memory simulation with noise probability sweep."""
 
 import os
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import sinter
@@ -13,23 +13,24 @@ if TYPE_CHECKING:
     from lspattern.canvas import CompiledRHGCanvas
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeThinLayerSkeleton, InitZeroCubeThinLayerSkeleton
-from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.cubes.measure import MeasureXSkeleton, MeasureZSkeleton
+from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
+from lspattern.consts import BoundarySide, EdgeSpecValue, InitializationState
 from lspattern.mytype import PatchCoordGlobal3D
 
 
-def _create_skeleton(d: int, init_type: Literal["plus", "zero"]) -> RHGCanvasSkeleton:
+def _create_skeleton(d: int, init_type: InitializationState) -> RHGCanvasSkeleton:
     """Create RHG canvas skeleton with specified parameters."""
-    skeleton = RHGCanvasSkeleton(name=f"RHG Memory Circuit d={d}, init={init_type}")
-    edgespec: dict[str, Literal["X", "Z", "O"]] = {"TOP": "X", "BOTTOM": "X", "LEFT": "Z", "RIGHT": "Z"}
+    skeleton = RHGCanvasSkeleton(name=f"RHG Memory Circuit d={d}, init={init_type.value}")
+    edgespec: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.TOP: EdgeSpecValue.X, BoundarySide.BOTTOM: EdgeSpecValue.X, BoundarySide.LEFT: EdgeSpecValue.Z, BoundarySide.RIGHT: EdgeSpecValue.Z}
 
     # Add initialization cube at the beginning based on init_type
-    if init_type == "plus":
+    if init_type == InitializationState.PLUS:
         init_skeleton = InitPlusCubeThinLayerSkeleton(d=d, edgespec=edgespec)
         measure_skeleton = MeasureXSkeleton(d=d, edgespec=edgespec)
-    elif init_type == "zero":
+    elif init_type == InitializationState.ZERO:
         init_skeleton = InitZeroCubeThinLayerSkeleton(d=d, edgespec=edgespec)
         measure_skeleton = MeasureZSkeleton(d=d, edgespec=edgespec)
     else:
@@ -81,7 +82,7 @@ def _setup_scheduler(compiled_canvas: "CompiledRHGCanvas") -> tuple[Scheduler, d
     return scheduler, xflow
 
 
-def create_circuit(d: int, noise: float, init_type: Literal["plus", "zero"]) -> stim.Circuit:
+def create_circuit(d: int, noise: float, init_type: InitializationState) -> stim.Circuit:
     """Create RHG memory circuit with specified parameters.
 
     Parameters
@@ -90,7 +91,7 @@ def create_circuit(d: int, noise: float, init_type: Literal["plus", "zero"]) -> 
         Distance parameter
     noise : float
         Noise probability
-    init_type : Literal["plus", "zero"]
+    init_type : InitializationState
         Initialization type
 
     Returns
@@ -137,9 +138,9 @@ if __name__ == "__main__":
     init_mode = "both"  # Change this to "zero" or "both" for different evaluations
 
     if init_mode == "both":
-        init_types: list[Literal["plus", "zero"]] = ["plus", "zero"]
+        init_types: list[InitializationState] = [InitializationState.PLUS, InitializationState.ZERO]
     else:
-        init_types = [init_mode]  # type: ignore[list-item]
+        init_types = [InitializationState.PLUS if init_mode == "plus" else InitializationState.ZERO]
 
     # Create tasks for different distances and noise levels
     rhg_code_tasks = [

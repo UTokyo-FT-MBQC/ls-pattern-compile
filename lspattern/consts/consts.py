@@ -117,3 +117,14 @@ class VisualizationMode(str, enum.Enum):  # noqa: UP042
 
     HIST = "hist"
     SLICES = "slices"
+
+
+class InitializationState(str, enum.Enum):  # noqa: UP042
+    """Initialization state for quantum state preparation.
+
+    PLUS: |+⟩ state initialization
+    ZERO: |0⟩ state initialization
+    """
+
+    PLUS = "plus"
+    ZERO = "zero"

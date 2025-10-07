@@ -8,7 +8,7 @@ from graphix_zx.graphstate import GraphState
 
 from lspattern.blocks.base import compute_logical_op_direction
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
-from lspattern.consts import BoundarySide
+from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import (
     NodeIdLocal,
     PatchCoordGlobal3D,
@@ -22,7 +22,6 @@ if TYPE_CHECKING:
     from collections.abc import MutableMapping, Sequence
 
     from lspattern.canvas import RHGCanvas
-    from lspattern.consts import EdgeSpecValue
 
 ANCILLA_TARGET_DIRECTION2D = {(1, 1), (1, -1), (-1, 1), (-1, -1)}
 
@@ -42,7 +41,7 @@ class _MeasureBase(RHGCube):
     def __init__(self, logical: int, basis: Axis, **kwargs: object) -> None:
         # Extract specific arguments for the parent dataclass
         d = cast("int", kwargs.pop("d", 3))
-        edge_spec = cast("dict[str, EdgeSpecValue] | None", kwargs.pop("edge_spec", None))
+        edge_spec = cast("dict[BoundarySide, EdgeSpecValue] | None", kwargs.pop("edge_spec", None))
         source = cast("PatchCoordGlobal3D", kwargs.pop("source", PatchCoordGlobal3D((0, 0, 0))))
         sink = cast("PatchCoordGlobal3D | None", kwargs.pop("sink", None))
         template = cast("ScalableTemplate", kwargs.pop("template", ScalableTemplate(d=3, edgespec={})))
@@ -284,7 +283,7 @@ class MeasureXSkeleton(RHGCubeSkeleton):
         """Materialize to a MeasureX (template evaluated, no local graph yet)."""
         # Apply spatial open-boundary trimming if specified
         for direction in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
-            if str(self.edgespec.get(direction.value, "O")).upper() == "O":
+            if self.edgespec.get(direction, EdgeSpecValue.O) == EdgeSpecValue.O:
                 self.trim_spatial_boundary(direction)
         # Evaluate template coordinates
         self.template.to_tiling()
@@ -308,7 +307,7 @@ class MeasureZSkeleton(RHGCubeSkeleton):
         """Materialize to a MeasureZ (template evaluated, no local graph yet)."""
         # Apply spatial open-boundary trimming if specified
         for direction in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
-            if str(self.edgespec.get(direction.value, "O")).upper() == "O":
+            if self.edgespec.get(direction, EdgeSpecValue.O) == EdgeSpecValue.O:
                 self.trim_spatial_boundary(direction)
         # Evaluate template coordinates
         self.template.to_tiling()

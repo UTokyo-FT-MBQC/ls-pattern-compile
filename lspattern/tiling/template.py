@@ -150,16 +150,14 @@ class ScalableTemplate(Tiling):
     def to_tiling(self) -> dict[str, list[tuple[int, int]]]:
         raise NotImplementedError
 
-    def _spec(self, side: str) -> str:
+    def _spec(self, side: BoundarySide) -> str:
         """Return standardized spec value ("X"/"Z"/"O").
 
-        Accepts side in any case (e.g., "left"/"LEFT"). Defaults to "O".
+        Accepts BoundarySide enum. Defaults to "O".
         """
         v = None
         if isinstance(self.edgespec, dict):
-            v = self.edgespec.get(side.upper())
-            if v is None:
-                v = self.edgespec.get(side.lower())
+            v = self.edgespec.get(side)
         if v is None:
             v = EdgeSpecValue.O
         return str(v).upper()
@@ -422,28 +420,28 @@ class RotatedPlanarCubeTemplate(ScalableTemplate):
                 z_coords.update((x, y) for y in range(y0, 2 * d - 1, 4))
 
         # Boundaries
-        match self._spec("LEFT"):
+        match self._spec(BoundarySide.LEFT):
             case EdgeSpecValue.X:
                 x_coords.update((-1, y) for y in range(1, 2 * d - 1, 4))
             case EdgeSpecValue.Z:
                 z_coords.update((-1, y) for y in range(2 * d - 3, -1, -4))
             case _:
                 pass
-        match self._spec("RIGHT"):
+        match self._spec(BoundarySide.RIGHT):
             case EdgeSpecValue.X:
                 x_coords.update((2 * d - 1, y) for y in range(2 * d - 3, -1, -4))
             case EdgeSpecValue.Z:
                 z_coords.update((2 * d - 1, y) for y in range(1, 2 * d - 1, 4))
             case _:
                 pass
-        match self._spec("BOTTOM"):
+        match self._spec(BoundarySide.BOTTOM):
             case EdgeSpecValue.X:
                 x_coords.update((x, -1) for x in range(1, 2 * d - 1, 4))
             case EdgeSpecValue.Z:
                 z_coords.update((x, -1) for x in range(2 * d - 3, -1, -4))
             case _:
                 pass
-        match self._spec("TOP"):
+        match self._spec(BoundarySide.TOP):
             case EdgeSpecValue.X:
                 x_coords.update((x, 2 * d - 1) for x in range(2 * d - 3, -1, -4))
             case EdgeSpecValue.Z:
@@ -587,8 +585,8 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         x_coords: set[tuple[int, int]] = set()
         z_coords: set[tuple[int, int]] = set()
 
-        is_x_dir = self._spec("LEFT") == "O" and self._spec("RIGHT") == "O"
-        is_y_dir = self._spec("TOP") == "O" and self._spec("BOTTOM") == "O"
+        is_x_dir = self._spec(BoundarySide.LEFT) == "O" and self._spec(BoundarySide.RIGHT) == "O"
+        is_y_dir = self._spec(BoundarySide.TOP) == "O" and self._spec(BoundarySide.BOTTOM) == "O"
 
         if is_x_dir:
             # Pipe along Y (vertical), x fixed at 0
@@ -598,14 +596,14 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                 x_coords.add((((-1) ** n), y))
                 z_coords.add((-((-1) ** n), y))
 
-            match self._spec("TOP"):
+            match self._spec(BoundarySide.TOP):
                 case EdgeSpecValue.X:
                     x_coords.add((1, 2 * d - 1))
                 case EdgeSpecValue.Z:
                     z_coords.add((-1, 2 * d - 1))
                 case _:
                     pass
-            match self._spec("BOTTOM"):
+            match self._spec(BoundarySide.BOTTOM):
                 case EdgeSpecValue.X:
                     x_coords.add((-1, -1))
                 case EdgeSpecValue.Z:
@@ -621,14 +619,14 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                 x_coords.add((x, (-1) ** n))
                 z_coords.add((x, -((-1) ** n)))
 
-            match self._spec("LEFT"):
+            match self._spec(BoundarySide.LEFT):
                 case EdgeSpecValue.X:
                     x_coords.add((-1, -1))
                 case EdgeSpecValue.Z:
                     z_coords.add((-1, 1))
                 case _:
                     pass
-            match self._spec("RIGHT"):
+            match self._spec(BoundarySide.RIGHT):
                 case EdgeSpecValue.X:
                     x_coords.add((2 * d - 1, 1))
                 case EdgeSpecValue.Z:
@@ -636,7 +634,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                 case _:
                     pass
 
-        elif self._spec("UP") == EdgeSpecValue.O or self._spec("DOWN") == EdgeSpecValue.O:
+        elif self._spec(BoundarySide.UP) == EdgeSpecValue.O or self._spec(BoundarySide.DOWN) == EdgeSpecValue.O:
             msg = "Temporal pipe not supported yet"
             raise NotImplementedError(msg)
         else:

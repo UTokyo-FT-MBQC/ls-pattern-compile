@@ -134,7 +134,7 @@ class RHGBlock:
         # Trim spatial boundaries for explicitly open sides and precompute tiling
         es = edgespec or {}
         for side in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
-            if str(es.get(side.value, "")).upper() == "O":
+            if str(es.get(side, "")).upper() == "O":
                 self.template.trim_spatial_boundary(side)
 
         self.template.to_tiling()
@@ -695,7 +695,7 @@ def compute_logical_op_direction(edgespec: SpatialEdgeSpec, obs: str) -> str:
     Parameters
     ----------
     edgespec : SpatialEdgeSpec
-        Spatial edge specification with keys 'LEFT', 'RIGHT', 'TOP', 'BOTTOM'.
+        Spatial edge specification with keys LEFT, RIGHT, TOP, BOTTOM.
     obs : {'X','Z'}
         Logical observable type.
 
@@ -709,25 +709,29 @@ def compute_logical_op_direction(edgespec: SpatialEdgeSpec, obs: str) -> str:
     ValueError
         If the edgespec is invalid or does not support the specified observable.
     """
-    es = {k: str(v).upper() for k, v in edgespec.items() if k in {"LEFT", "RIGHT", "TOP", "BOTTOM"}}
+    es = {
+        k: str(v).upper()
+        for k, v in edgespec.items()
+        if k in {BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM}
+    }
     if len(es) != NUM_EDGE_SPEC_BOUDARY:
         msg = "edgespec must contain exactly the keys: LEFT, RIGHT, TOP, BOTTOM"
         raise ValueError(msg)
 
     if obs.upper() == "X":  # TODO: should be Z?
         # X logical operator runs between Z boundaries
-        if es["LEFT"] == "Z" and es["RIGHT"] == "Z":
+        if es[BoundarySide.LEFT] == "Z" and es[BoundarySide.RIGHT] == "Z":
             return "H"
-        if es["TOP"] == "Z" and es["BOTTOM"] == "Z":
+        if es[BoundarySide.TOP] == "Z" and es[BoundarySide.BOTTOM] == "Z":
             return "V"
 
         msg = "edgespec does not support X logical operator"
         raise ValueError(msg)
     if obs.upper() == "Z":
         # Z logical operator runs between X boundaries
-        if es["LEFT"] == "X" and es["RIGHT"] == "X":
+        if es[BoundarySide.LEFT] == "X" and es[BoundarySide.RIGHT] == "X":
             return "H"
-        if es["TOP"] == "X" and es["BOTTOM"] == "X":
+        if es[BoundarySide.TOP] == "X" and es[BoundarySide.BOTTOM] == "X":
             return "V"
         msg = "edgespec does not support Z logical operator"
         raise ValueError(msg)
