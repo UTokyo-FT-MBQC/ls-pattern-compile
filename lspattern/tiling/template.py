@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal, overload
+from typing import TYPE_CHECKING, overload
 
 import matplotlib.pyplot as plt
 
@@ -181,37 +181,23 @@ class ScalableTemplate(Tiling):
             v = EdgeSpecValue.O
         return str(v).upper()
 
-    @overload
-    def get_data_indices(
+    def get_data_indices_cube(
         self,
         patch_coord: tuple[int, int] | None = None,
-    ) -> dict[TilingCoord2D, QubitIndexLocal]: ...
-
-    @overload
-    def get_data_indices(
-        self,
-        patch_coord: tuple[int, int] | None = None,
-        *,
-        patch_type: Literal[PatchType.CUBE],
-        sink_patch: tuple[int, int] | None = None,
-    ) -> dict[TilingCoord2D, QubitIndexLocal]: ...
-
-    @overload
-    def get_data_indices(
-        self,
-        patch_coord: tuple[int, int] | None = None,
-        *,
-        patch_type: Literal[PatchType.PIPE],
-        sink_patch: tuple[int, int],
-    ) -> dict[TilingCoord2D, QubitIndexLocal]: ...
-
-    def get_data_indices(
-        self,
-        patch_coord: tuple[int, int] | None = None,
-        *,
-        patch_type: PatchType = PatchType.CUBE,
-        sink_patch: tuple[int, int] | None = None,
     ) -> dict[TilingCoord2D, QubitIndexLocal]:
+        """Get data qubit indices for a cube patch.
+
+        Parameters
+        ----------
+        patch_coord : tuple[int, int] | None, default None
+            The (px, py) coordinate of the patch in the global tiling.
+            If None, generates default indices starting from 0.
+
+        Returns
+        -------
+        dict[TilingCoord2D, QubitIndexLocal]
+            Mapping from 2D tiling coordinates to local qubit indices
+        """
         coord_set = {(coord[0], coord[1]) for coord in self.data_coords}
         sorted_coords = sort_xy(coord_set)
 
@@ -221,20 +207,43 @@ class ScalableTemplate(Tiling):
 
         # If patch coordinate is provided, use it to calculate consistent q_indices
         if patch_coord is not None:
-            if patch_type == PatchType.PIPE:
-                # For pipes, sink_patch is required (validated by overload)
-                if sink_patch is None:
-                    msg = "sink_patch is required for pipes"
-                    raise ValueError(msg)
-                base_qindex = calculate_qindex_base(
-                    patch_coord, self.d, patch_type=PatchType.PIPE, sink_patch=sink_patch
-                )
-            else:
-                base_qindex = calculate_qindex_base(patch_coord, self.d)
+            base_qindex = calculate_qindex_base(patch_coord, self.d)
             return {TilingCoord2D(coor): QubitIndexLocal(base_qindex + i) for i, coor in enumerate(sorted_coords)}
 
         # Otherwise, generate default indices starting from 0 (fallback for backward compatibility)
         return {TilingCoord2D(coor): QubitIndexLocal(i) for i, coor in enumerate(sorted_coords)}
+
+    def get_data_indices_pipe(
+        self,
+        patch_coord: tuple[int, int],
+        sink_patch: tuple[int, int],
+    ) -> dict[TilingCoord2D, QubitIndexLocal]:
+        """Get data qubit indices for a pipe patch.
+
+        Parameters
+        ----------
+        patch_coord : tuple[int, int]
+            The (px, py) coordinate of the source patch in the global tiling
+        sink_patch : tuple[int, int]
+            The (px, py) coordinate of the sink patch (required for pipes)
+
+        Returns
+        -------
+        dict[TilingCoord2D, QubitIndexLocal]
+            Mapping from 2D tiling coordinates to local qubit indices
+        """
+        coord_set = {(coord[0], coord[1]) for coord in self.data_coords}
+        sorted_coords = sort_xy(coord_set)
+
+        # If data_indices have been explicitly set, use them (legacy compatibility)
+        if self.data_indices and len(self.data_indices) == len(sorted_coords):
+            return {TilingCoord2D(coor): self.data_indices[i] for i, coor in enumerate(sorted_coords)}
+
+        # Calculate base qindex for pipes using boundary-based indexing
+        base_qindex = calculate_qindex_base(
+            patch_coord, self.d, patch_type=PatchType.PIPE, sink_patch=sink_patch
+        )
+        return {TilingCoord2D(coor): QubitIndexLocal(base_qindex + i) for i, coor in enumerate(sorted_coords)}
 
     # ---- Coordinate and index shifting APIs ---------------------------------
     def _shift_lists_inplace(self, dx: int, dy: int) -> None:
