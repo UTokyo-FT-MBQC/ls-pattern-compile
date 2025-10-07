@@ -134,7 +134,7 @@ def visualize_flow_mpl(  # noqa: C901
                     if max_edges is not None and count >= max_edges:
                         return
 
-    if kind in {"both", "x"} and flow.flow:
+    if kind in {VisualizationKind.BOTH, VisualizationKind.X} and flow.flow:
         draw_edges(flow.flow, COLOR_X, "X-flow")
 
     # Draw nodes lightly for context
@@ -337,7 +337,7 @@ def visualize_flow_plotly(
                 )
             )
 
-    if kind in {"both", "x"} and flow.flow:
+    if kind in {VisualizationKind.BOTH, VisualizationKind.X} and flow.flow:
         add_edges(flow.flow, COLOR_X, "X-flow")
 
     fig.update_layout(

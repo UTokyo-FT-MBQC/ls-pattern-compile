@@ -27,7 +27,7 @@ class MemoryCubeSkeleton(RHGCubeSkeleton):
             template=self.template,
         )
         # Memory 系も最終層は開放(O): 次段へ受け渡し
-        block.final_layer = "O"
+        block.final_layer = EdgeSpecValue.O
         return block
 
 

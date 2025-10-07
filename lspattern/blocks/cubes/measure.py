@@ -8,7 +8,7 @@ from graphix_zx.graphstate import GraphState
 
 from lspattern.blocks.base import compute_logical_op_direction
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
-from lspattern.consts import BoundarySide, EdgeSpecValue
+from lspattern.consts import BoundarySide, EdgeSpecValue, NodeRole
 from lspattern.mytype import (
     NodeIdLocal,
     PatchCoordGlobal3D,
@@ -134,7 +134,7 @@ class _MeasureBase(RHGCube):
                 n = g.add_physical_node()
                 node2coord[n] = (int(x), int(y), int(t))
                 coord2node[int(x), int(y), int(t)] = n
-                node2role[n] = "data"
+                node2role[n] = NodeRole.DATA
                 cur[int(x), int(y)] = n
 
             nodes_by_z[t] = cur
@@ -174,7 +174,7 @@ class MeasureX(_MeasureBase):
         if self.edgespec is None:
             msg = f"edgespec must be defined to determine logical operator direction at {self.source}"
             raise ValueError(msg)
-        direction = compute_logical_op_direction(self.edgespec, "X")
+        direction = compute_logical_op_direction(self.edgespec, EdgeSpecValue.X)
 
         # Get actual data coordinates from template (after any shifts)
         data_coords = sorted(self.template.data_coords) if self.template.data_coords else []
@@ -234,7 +234,7 @@ class MeasureZ(_MeasureBase):
         if self.edgespec is None:
             msg = f"edgespec must be defined to determine logical operator direction at {self.source}"
             raise ValueError(msg)
-        direction = compute_logical_op_direction(self.edgespec, "Z")
+        direction = compute_logical_op_direction(self.edgespec, EdgeSpecValue.Z)
 
         # Get actual data coordinates from template (after any shifts)
         data_coords = sorted(self.template.data_coords) if self.template.data_coords else []

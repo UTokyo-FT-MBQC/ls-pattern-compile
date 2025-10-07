@@ -7,6 +7,7 @@ from graphix_zx.common import Axis, AxisMeasBasis, Sign
 from graphix_zx.graphstate import GraphState
 
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
+from lspattern.consts import NodeRole
 from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D, PhysCoordLocal2D, SpatialEdgeSpec
 from lspattern.tiling.template import RotatedPlanarPipetemplate
 from lspattern.utils import get_direction
@@ -127,7 +128,7 @@ class _MeasurePipeBase(RHGPipe):
                 n = g.add_physical_node()
                 node2coord[n] = (int(x), int(y), int(t))
                 coord2node[int(x), int(y), int(t)] = n
-                node2role[n] = "data"
+                node2role[n] = NodeRole.DATA
                 cur[int(x), int(y)] = n
 
             nodes_by_z[t] = cur

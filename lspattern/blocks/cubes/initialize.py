@@ -39,7 +39,7 @@ class InitPlusCubeSkeleton(RHGCubeSkeleton):
         )
 
         # Init 系は最終層は測定せず開放(O)
-        block.final_layer = "O"
+        block.final_layer = EdgeSpecValue.O
 
         return block
 
@@ -122,7 +122,7 @@ class InitPlusCubeThinLayerSkeleton(RHGCubeSkeleton):
             template=self.template,
         )
 
-        block.final_layer = "O"
+        block.final_layer = EdgeSpecValue.O
 
         return block
 
@@ -238,7 +238,7 @@ class InitZeroCubeThinLayerSkeleton(RHGCubeSkeleton):
             template=self.template,
         )
 
-        block.final_layer = "O"
+        block.final_layer = EdgeSpecValue.O
 
         return block
 

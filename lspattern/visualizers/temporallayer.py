@@ -100,7 +100,7 @@ def visualize_temporal_layer(  # noqa: C901
         g["y"].append(y)
         g["z"].append(z)
 
-    def scat(gkey: str, color: str, label: str | None) -> None:
+    def scat(gkey: NodeRole, color: str, label: str | None) -> None:
         pts = groups[gkey]
         if pts["x"]:
             ax.scatter(
@@ -114,10 +114,10 @@ def visualize_temporal_layer(  # noqa: C901
                 label=label,
             )
 
-    scat("data", "white", "data")
+    scat(NodeRole.DATA, "white", "data")
     # unify palette with Plotly temporallayer: X=green, Z=blue
-    scat("ancilla_x", "#2ecc71", "ancilla X")
-    scat("ancilla_z", "#3498db", "ancilla Z")
+    scat(NodeRole.ANCILLA_X, "#2ecc71", "ancilla X")
+    scat(NodeRole.ANCILLA_Z, "#3498db", "ancilla Z")
 
     # Draw edges if we have a local graph
     local_graph = layer.local_graph

@@ -134,7 +134,7 @@ class RHGBlock:
         # Trim spatial boundaries for explicitly open sides and precompute tiling
         es = edgespec or {}
         for side in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
-            if str(es.get(side, "")).upper() == "O":
+            if str(es.get(side, "")).upper() == EdgeSpecValue.O:
                 self.template.trim_spatial_boundary(side)
 
         self.template.to_tiling()
@@ -270,7 +270,7 @@ class RHGBlock:
             if self.final_layer is None:
                 msg = "final_layer must be set"
                 raise AssertionError(msg)
-            if t_local == max_t and self.final_layer == "O":
+            if t_local == max_t and self.final_layer == EdgeSpecValue.O:
                 # add data node
                 for x, y in data2d:
                     n = g.add_physical_node()
@@ -378,7 +378,7 @@ class RHGBlock:
 
             for node_id in nodes.values():
                 role = node2role.get(NodeIdLocal(node_id), "")
-                if role in {"ancilla_x", "ancilla_z"}:
+                if role in {NodeRole.ANCILLA_X, NodeRole.ANCILLA_Z}:
                     ancilla_nodes.append(node_id)
                 else:  # data or other roles
                     data_nodes.append(node_id)
@@ -585,9 +585,9 @@ class RHGBlock:
                 if coord[axis] not in targets:
                     continue
                 role = (roles.get(coord2node[coord]) or "").lower()
-                if role == "ancilla_x":
+                if role == NodeRole.ANCILLA_X:
                     xcheck.append(coord)
-                elif role == "ancilla_z":
+                elif role == NodeRole.ANCILLA_Z:
                     zcheck.append(coord)
                 else:
                     data.append(coord)
@@ -732,7 +732,7 @@ def compute_logical_op_direction(edgespec: SpatialEdgeSpec, obs: str) -> str:  #
         msg = "edgespec must contain exactly the keys: LEFT, RIGHT, TOP, BOTTOM"
         raise ValueError(msg)
 
-    if obs.upper() == "X":  # TODO: should be Z?
+    if obs.upper() == EdgeSpecValue.X:  # TODO: should be Z?
         # X logical operator runs between Z boundaries
         if es[BoundarySide.LEFT] == EdgeSpecValue.Z and es[BoundarySide.RIGHT] == EdgeSpecValue.Z:
             return "H"
@@ -741,7 +741,7 @@ def compute_logical_op_direction(edgespec: SpatialEdgeSpec, obs: str) -> str:  #
 
         msg = "edgespec does not support X logical operator"
         raise ValueError(msg)
-    if obs.upper() == "Z":
+    if obs.upper() == EdgeSpecValue.Z:
         # Z logical operator runs between X boundaries
         if es[BoundarySide.LEFT] == EdgeSpecValue.X and es[BoundarySide.RIGHT] == EdgeSpecValue.X:
             return "H"
