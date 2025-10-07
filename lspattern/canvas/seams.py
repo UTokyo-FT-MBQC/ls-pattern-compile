@@ -94,16 +94,17 @@ class SeamGenerator:
         g : GraphState
             The quantum graph state to add seam edges to.
         coord_gid_2d : MutableMapping[tuple[int, int], QubitGroupIdGlobal]
-            2D coordinate to tiling group ID mapping (will be populated with
-            cube and pipe coordinates during execution).
+            2D coordinate to tiling group ID mapping (will be populated during execution).
 
         Returns
         -------
         GraphState
             The updated graph state with seam edges added.
         """
-        # Build XY regions for cubes and pipes (populates coord_gid_2d)
-        cube_xy_all, measure_pipe_xy = self._collect_block_xy_coordinates(coord_gid_2d)
+        # Populate coordinate to group ID mapping
+        self._populate_coord_gid_2d(coord_gid_2d)
+        # Collect XY regions for cubes and measure pipes
+        cube_xy_all, measure_pipe_xy = self._collect_block_xy_regions()
         existing = self._get_existing_edges(g)
 
         for u, coord_u in list(self.node2coord.items()):
@@ -118,18 +119,42 @@ class SeamGenerator:
 
         return g
 
-    def _collect_block_xy_coordinates(
+    def _populate_coord_gid_2d(
         self, coord_gid_2d: MutableMapping[tuple[int, int], QubitGroupIdGlobal]
-    ) -> tuple[set[tuple[int, int]], set[tuple[int, int]]]:
-        """Collect XY coordinate sets for cubes and measure pipes.
+    ) -> None:
+        """Populate coord_gid_2d with tiling group IDs for all block coordinates.
 
-        Populates coord_gid_2d with tiling group IDs for all cube and pipe coordinates,
-        and returns sets of XY coordinates belonging to cubes and measure pipes.
+        Updates the provided mapping with XY coordinate to tiling group ID mappings
+        for all coordinates in cube and pipe blocks.
 
         Parameters
         ----------
         coord_gid_2d : MutableMapping[tuple[int, int], QubitGroupIdGlobal]
             Mutable mapping to populate with XY coordinate to group ID mappings.
+        """
+        # Populate cube coordinates
+        for c in self.cubes_.values():
+            t = c.template
+            gid = QubitGroupIdGlobal(c.get_tiling_id())
+            for coord_list in (t.data_coords, t.x_coords, t.z_coords):
+                for x, y in coord_list or []:
+                    xy = (int(x), int(y))
+                    coord_gid_2d[xy] = gid
+
+        # Populate pipe coordinates
+        for p in self.pipes_.values():
+            t = p.template
+            gid = QubitGroupIdGlobal(p.get_tiling_id())
+            for coord_list in (t.data_coords, t.x_coords, t.z_coords):
+                for x, y in coord_list or []:
+                    xy = (int(x), int(y))
+                    coord_gid_2d[xy] = gid
+
+    def _collect_block_xy_regions(self) -> tuple[set[tuple[int, int]], set[tuple[int, int]]]:
+        """Collect XY coordinate sets for cube and measure pipe regions.
+
+        Builds sets of XY coordinates belonging to cube blocks and measure pipe blocks,
+        which are used to determine seam edge connectivity rules.
 
         Returns
         -------
@@ -141,24 +166,21 @@ class SeamGenerator:
         cube_xy_all: set[tuple[int, int]] = set()
         measure_pipe_xy: set[tuple[int, int]] = set()
 
-        # Build cube XY regions
+        # Collect cube XY regions
         for c in self.cubes_.values():
             t = c.template
             for coord_list in (t.data_coords, t.x_coords, t.z_coords):
                 for x, y in coord_list or []:
                     xy = (int(x), int(y))
                     cube_xy_all.add(xy)
-                    coord_gid_2d[xy] = QubitGroupIdGlobal(c.get_tiling_id())
 
-        # Build pipe XY regions and cache measure pipe coordinates
+        # Collect measure pipe XY regions
         for p in self.pipes_.values():
-            t = p.template
-            is_measure_pipe = isinstance(p, _MeasurePipeBase)
-            for coord_list in (t.data_coords, t.x_coords, t.z_coords):
-                for x, y in coord_list or []:
-                    xy = (int(x), int(y))
-                    coord_gid_2d[xy] = QubitGroupIdGlobal(p.get_tiling_id())
-                    if is_measure_pipe:
+            if isinstance(p, _MeasurePipeBase):
+                t = p.template
+                for coord_list in (t.data_coords, t.x_coords, t.z_coords):
+                    for x, y in coord_list or []:
+                        xy = (int(x), int(y))
                         measure_pipe_xy.add(xy)
 
         return cube_xy_all, measure_pipe_xy
