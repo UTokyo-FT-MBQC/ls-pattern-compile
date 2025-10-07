@@ -109,19 +109,14 @@ class SeamGenerator:
 
         for u, coord_u in list(self.node2coord.items()):
             xy_u = (int(coord_u[0]), int(coord_u[1]))
-            gid_u = coord_gid_2d.get(xy_u)
-            if gid_u is None:
-                continue
-
-            self._process_neighbor_connections(
-                u, coord_u, gid_u, cube_xy_all, measure_pipe_xy, coord_gid_2d, g, existing
-            )
+            if gid_u := coord_gid_2d.get(xy_u):
+                self._process_neighbor_connections(
+                    u, coord_u, gid_u, cube_xy_all, measure_pipe_xy, coord_gid_2d, g, existing
+                )
 
         return g
 
-    def _populate_coord_gid_2d(
-        self, coord_gid_2d: MutableMapping[tuple[int, int], QubitGroupIdGlobal]
-    ) -> None:
+    def _populate_coord_gid_2d(self, coord_gid_2d: MutableMapping[tuple[int, int], QubitGroupIdGlobal]) -> None:
         """Populate coord_gid_2d with tiling group IDs for all block coordinates.
 
         Updates the provided mapping with XY coordinate to tiling group ID mappings
