@@ -1,11 +1,12 @@
 """RHG memory simulation with noise probability sweep."""
 
 import os
-from typing import TYPE_CHECKING, assert_never
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import sinter
 import stim
+from typing import assert_never
 from graphix_zx.scheduler import Scheduler
 from graphix_zx.stim_compiler import stim_compile
 
