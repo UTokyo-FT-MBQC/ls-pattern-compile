@@ -16,7 +16,7 @@ from lspattern.blocks.cubes.initialize import InitZeroCubeThinLayerSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.cubes.measure import MeasureZSkeleton
 from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
-from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton
+from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton, MeasureZPipeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
 from lspattern.mytype import PatchCoordGlobal3D
@@ -27,28 +27,28 @@ def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
     canvass = RHGCanvasSkeleton("Merge and Split")
 
     edgespec: dict[str, Literal["X", "Z", "O"]] = {
-        "LEFT": "Z",
-        "RIGHT": "Z",
-        "TOP": "X",
-        "BOTTOM": "X",
+        "LEFT": "X",
+        "RIGHT": "X",
+        "TOP": "Z",
+        "BOTTOM": "Z",
     }
     edgespec1: dict[str, Literal["X", "Z", "O"]] = {
-        "LEFT": "Z",
+        "LEFT": "X",
         "RIGHT": "O",
-        "TOP": "X",
-        "BOTTOM": "X",
+        "TOP": "Z",
+        "BOTTOM": "Z",
     }
     edgespec2: dict[str, Literal["X", "Z", "O"]] = {
         "LEFT": "O",
-        "RIGHT": "Z",
-        "TOP": "X",
-        "BOTTOM": "X",
+        "RIGHT": "X",
+        "TOP": "Z",
+        "BOTTOM": "Z",
     }
     edgespec_trimmed: dict[str, Literal["X", "Z", "O"]] = {
         "LEFT": "O",
         "RIGHT": "O",
-        "TOP": "X",
-        "BOTTOM": "X",
+        "TOP": "Z",
+        "BOTTOM": "Z",
     }
     edgespec_measure_trimmed: dict[str, Literal["X", "Z", "O"]] = {
         "LEFT": "O",
@@ -224,7 +224,7 @@ if __name__ == "__main__":
             json_metadata={"d": d, "r": 1, "p": noise, "circuit_type": "merge_split"},
         )
         for d in [3, 5, 7]
-        for noise in [1e-2, 5e-2, 2e-2, 1e-1]
+        for noise in [1e-4, 1e-3, 5e-3, 7e-3, 1e-2, 5e-2, 2e-2, 1e-1]
     ]
 
     # Collect statistics

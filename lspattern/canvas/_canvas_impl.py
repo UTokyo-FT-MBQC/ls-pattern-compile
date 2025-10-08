@@ -854,8 +854,8 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
                         pipes[pipe_coord] = p
 
             layer = to_temporal_layer(z, cubes, pipes)
-            print("Created temporal layer z =", z, "with", layer.qubit_count, "qubits")
-            print("parity", layer.parity)
+            # print("Created temporal layer z =", z, "with", layer.qubit_count, "qubits")
+            # print("parity", layer.parity)
             temporal_layers[z] = layer
 
         with suppress(AttributeError):

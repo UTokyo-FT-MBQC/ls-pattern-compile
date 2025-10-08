@@ -7,7 +7,13 @@ from graphix_zx.common import Axis, AxisMeasBasis, Sign
 from graphix_zx.graphstate import GraphState
 
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
-from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D, PhysCoordLocal2D, SpatialEdgeSpec
+from lspattern.mytype import (
+    NodeIdLocal,
+    PatchCoordGlobal3D,
+    PhysCoordGlobal3D,
+    PhysCoordLocal2D,
+    SpatialEdgeSpec,
+)
 from lspattern.tiling.template import RotatedPlanarPipetemplate
 from lspattern.utils import get_direction
 
@@ -41,10 +47,16 @@ class _MeasurePipeBase(RHGPipe):
 
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         """Set input ports from template data indices."""
-        if patch_coord is not None and self.source is not None and self.sink is not None:
+        if (
+            patch_coord is not None
+            and self.source is not None
+            and self.sink is not None
+        ):
             source_2d = (self.source[0], self.source[1])
             sink_2d = (self.sink[0], self.sink[1])
-            idx_map = self.template.get_data_indices(source_2d, patch_type="pipe", sink_patch=sink_2d)
+            idx_map = self.template.get_data_indices(
+                source_2d, patch_type="pipe", sink_patch=sink_2d
+            )
         else:
             idx_map = self.template.get_data_indices()
         self.in_ports = set(idx_map.values())
@@ -57,14 +69,21 @@ class _MeasurePipeBase(RHGPipe):
         """Measurement pipes do not have classical output ports."""
         return super().set_cout_ports(patch_coord)
 
-    def _assign_meas_bases(self, g: GraphState, meas_basis: object) -> None:  # noqa: ARG002
+    def _assign_meas_bases(
+        self, g: GraphState, meas_basis: object
+    ) -> None:  # noqa: ARG002
         """Assign measurement basis to all nodes."""
         for node in g.physical_nodes:
             g.assign_meas_basis(node, self.meas_basis)
 
     def _build_3d_graph(
         self,
-    ) -> tuple[GraphState, dict[int, tuple[int, int, int]], dict[tuple[int, int, int], int], dict[int, str]]:
+    ) -> tuple[
+        GraphState,
+        dict[int, tuple[int, int, int]],
+        dict[tuple[int, int, int], int],
+        dict[int, str],
+    ]:
         """Build 3D RHG graph structure optimized for measurement pipes.
 
         Measurement pipes only need a single layer (thickness=1) with data qubits only.
@@ -85,7 +104,9 @@ class _MeasurePipeBase(RHGPipe):
         node2role: dict[int, str] = {}
 
         # Assign nodes for single time slice only
-        nodes_by_z = self._assign_nodes_by_timeslice(g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role)
+        nodes_by_z = self._assign_nodes_by_timeslice(
+            g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role
+        )
 
         self._assign_meas_bases(g, self.meas_basis)
 
@@ -143,10 +164,14 @@ class MeasureXPipeSkeleton(RHGPipeSkeleton):
     def to_block(self) -> MeasureXPipe: ...
 
     @overload
-    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> MeasureXPipe: ...
+    def to_block(
+        self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D
+    ) -> MeasureXPipe: ...
 
     def to_block(
-        self, source: PatchCoordGlobal3D | None = None, sink: PatchCoordGlobal3D | None = None
+        self,
+        source: PatchCoordGlobal3D | None = None,
+        sink: PatchCoordGlobal3D | None = None,
     ) -> MeasureXPipe:
         if source is None:
             source = PatchCoordGlobal3D((0, 0, 0))
@@ -174,10 +199,14 @@ class MeasureZPipeSkeleton(RHGPipeSkeleton):
     def to_block(self) -> MeasureZPipe: ...
 
     @overload
-    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> MeasureZPipe: ...
+    def to_block(
+        self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D
+    ) -> MeasureZPipe: ...
 
     def to_block(
-        self, source: PatchCoordGlobal3D | None = None, sink: PatchCoordGlobal3D | None = None
+        self,
+        source: PatchCoordGlobal3D | None = None,
+        sink: PatchCoordGlobal3D | None = None,
     ) -> MeasureZPipe:
         if source is None:
             source = PatchCoordGlobal3D((0, 0, 0))
@@ -219,13 +248,15 @@ class MeasureXPipe(_MeasurePipeBase):
             for x, y in x2d:
                 node_group: set[NodeIdLocal] = set()
                 for dx, dy in ANCILLA_TARGET_DIRECTION2D:
-                    node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z + z_offset)))
+                    node_id = self.coord2node.get(
+                        PhysCoordGlobal3D((x + dx, y + dy, z + z_offset))
+                    )
                     if node_id is not None:
                         node_group.add(node_id)
                 if node_group:
-                    self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), {})[z + z_offset + 1] = (
-                        node_group  # To group with neighboring X ancilla
-                    )
+                    self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), {})[
+                        z + z_offset + 1
+                    ] = node_group  # To group with neighboring X ancilla
 
 
 class MeasureZPipe(_MeasurePipeBase):
@@ -250,8 +281,12 @@ class MeasureZPipe(_MeasurePipeBase):
             for x, y in z2d:
                 node_group: set[NodeIdLocal] = set()
                 for dx, dy in ANCILLA_TARGET_DIRECTION2D:
-                    node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z + z_offset)))
+                    node_id = self.coord2node.get(
+                        PhysCoordGlobal3D((x + dx, y + dy, z + z_offset))
+                    )
                     if node_id is not None:
                         node_group.add(node_id)
                 if node_group:
-                    self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), {})[z + z_offset] = node_group
+                    self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), {})[
+                        z + z_offset
+                    ] = node_group
