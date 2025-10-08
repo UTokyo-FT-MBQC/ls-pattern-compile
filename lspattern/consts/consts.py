@@ -27,13 +27,18 @@ DIRECTIONS3D: list[tuple[int, int, int]] = [
 ]
 
 
-class PIPEDIRECTION(enum.Enum):
-    LEFT = 0
-    TOP = 1
-    RIGHT = 2
-    BOTTOM = 3
-    UP = 4
-    DOWN = 5
+class PIPEDIRECTION(str, enum.Enum):  # noqa: UP042
+    """Pipe direction for connecting patches in RHG lattice.
+
+    Specifies the direction of connectivity between patches.
+    """
+
+    LEFT = "LEFT"
+    TOP = "TOP"
+    RIGHT = "RIGHT"
+    BOTTOM = "BOTTOM"
+    UP = "UP"
+    DOWN = "DOWN"
 
 
 # ---------------------------------------------------------------------

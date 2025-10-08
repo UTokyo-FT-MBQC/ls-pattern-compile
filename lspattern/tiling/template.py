@@ -296,6 +296,7 @@ class ScalableTemplate(Tiling):
         ----------
         direction : BoundarySide
             Boundary side to trim (LEFT, RIGHT, TOP, or BOTTOM).
+            UP and DOWN are temporal boundaries and not supported for spatial trimming.
         """
         if not (self.data_coords or self.x_coords or self.z_coords):
             self.to_tiling()
@@ -317,7 +318,10 @@ class ScalableTemplate(Tiling):
                 axis = 0
                 target = 2 * self.d - 1
             case _:
-                msg = f"Invalid direction for spatial boundary: {direction}"
+                msg = (
+                    f"Invalid direction for spatial boundary: {direction}. "
+                    "Only TOP, BOTTOM, LEFT, RIGHT are supported (UP/DOWN are temporal boundaries)."
+                )
                 raise ValueError(msg)
 
         self.x_coords = [p for p in (self.x_coords or []) if p[axis] != target]

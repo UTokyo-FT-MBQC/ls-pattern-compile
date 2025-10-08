@@ -1,7 +1,7 @@
 """RHG memory simulation with noise probability sweep."""
 
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, assert_never
 
 import matplotlib.pyplot as plt
 import sinter
@@ -12,6 +12,7 @@ from graphix_zx.stim_compiler import stim_compile
 if TYPE_CHECKING:
     from lspattern.canvas import CompiledRHGCanvas
 
+from lspattern.blocks.cubes.base import RHGCubeSkeleton
 from lspattern.blocks.cubes.initialize import InitPlusCubeThinLayerSkeleton, InitZeroCubeThinLayerSkeleton
 from lspattern.blocks.cubes.measure import MeasureXSkeleton, MeasureZSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
@@ -27,6 +28,8 @@ def _create_skeleton(d: int, init_type: InitializationState) -> RHGCanvasSkeleto
     edgespec: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.TOP: EdgeSpecValue.X, BoundarySide.BOTTOM: EdgeSpecValue.X, BoundarySide.LEFT: EdgeSpecValue.Z, BoundarySide.RIGHT: EdgeSpecValue.Z}
 
     # Add initialization cube at the beginning based on init_type
+    init_skeleton: RHGCubeSkeleton
+    measure_skeleton: RHGCubeSkeleton
     if init_type == InitializationState.PLUS:
         init_skeleton = InitPlusCubeThinLayerSkeleton(d=d, edgespec=edgespec)
         measure_skeleton = MeasureXSkeleton(d=d, edgespec=edgespec)
@@ -34,7 +37,8 @@ def _create_skeleton(d: int, init_type: InitializationState) -> RHGCanvasSkeleto
         init_skeleton = InitZeroCubeThinLayerSkeleton(d=d, edgespec=edgespec)
         measure_skeleton = MeasureZSkeleton(d=d, edgespec=edgespec)
     else:
-        raise ValueError(f"Unknown init_type: {init_type}")
+        # Ensures exhaustive handling of InitializationState enum
+        assert_never(init_type)
 
     skeleton.add_cube(PatchCoordGlobal3D((0, 0, 0)), init_skeleton)
 
