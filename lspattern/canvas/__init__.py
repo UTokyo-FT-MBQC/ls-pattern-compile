@@ -28,6 +28,9 @@ from lspattern.canvas.exceptions import MixedCodeDistanceError
 # Import PortManager
 from lspattern.canvas.ports import PortManager
 
+# Import SeamGenerator
+from lspattern.canvas.seams import SeamGenerator
+
 __all__ = [
     "CompiledRHGCanvas",
     "CoordinateMapper",
@@ -36,6 +39,7 @@ __all__ = [
     "PortManager",
     "RHGCanvas",
     "RHGCanvasSkeleton",
+    "SeamGenerator",
     "TemporalLayer",
     "add_temporal_layer",
     "to_temporal_layer",

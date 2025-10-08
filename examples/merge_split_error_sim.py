@@ -44,11 +44,11 @@ def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
         ),
         (
             PatchCoordGlobal3D((0, 0, 1)),
-            MemoryCubeSkeleton(d=d, edgespec=edgespec1),
+            MemoryCubeSkeleton(d=d, edgespec=edgespec),
         ),
         (
             PatchCoordGlobal3D((1, 0, 1)),
-            MemoryCubeSkeleton(d=d, edgespec=edgespec1),
+            MemoryCubeSkeleton(d=d, edgespec=edgespec),
         ),
         (
             PatchCoordGlobal3D((0, 0, 2)),
@@ -73,7 +73,7 @@ def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
         (
             PatchCoordGlobal3D((1, 0, 4)),
             MeasureZSkeleton(d=d, edgespec=edgespec),
-        )
+        ),
     ]
     pipes = [
         (
@@ -96,7 +96,9 @@ def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
     return canvass
 
 
-def _setup_scheduler(compiled_canvas: "CompiledRHGCanvas") -> tuple[Scheduler, dict[int, set[int]]]:
+def _setup_scheduler(
+    compiled_canvas: "CompiledRHGCanvas",
+) -> tuple[Scheduler, dict[int, set[int]]]:
     """Set up scheduler with timing information."""
     if compiled_canvas.global_graph is None:
         raise ValueError("Global graph is None")

@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "MBQC lattice-surgery compiler experiments (RHG blocks/pipes)"
 readme = "README.md"
 requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
 authors = [
   { name = "Internal", email = "devnull@example.com" }
 ]
