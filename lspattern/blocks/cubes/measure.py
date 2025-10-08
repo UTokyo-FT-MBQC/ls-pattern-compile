@@ -40,10 +40,17 @@ class _MeasureBase(RHGCube):
     def __init__(self, logical: int, basis: Axis, **kwargs: object) -> None:
         # Extract specific arguments for the parent dataclass
         d = cast("int", kwargs.pop("d", 3))
-        edge_spec = cast('dict[str, Literal["X", "Z", "O"]] | None', kwargs.pop("edge_spec", None))
-        source = cast("PatchCoordGlobal3D", kwargs.pop("source", PatchCoordGlobal3D((0, 0, 0))))
+        edge_spec = cast(
+            'dict[str, Literal["X", "Z", "O"]] | None', kwargs.pop("edge_spec", None)
+        )
+        source = cast(
+            "PatchCoordGlobal3D", kwargs.pop("source", PatchCoordGlobal3D((0, 0, 0)))
+        )
         sink = cast("PatchCoordGlobal3D | None", kwargs.pop("sink", None))
-        template = cast("ScalableTemplate", kwargs.pop("template", ScalableTemplate(d=3, edgespec={})))
+        template = cast(
+            "ScalableTemplate",
+            kwargs.pop("template", ScalableTemplate(d=3, edgespec={})),
+        )
         in_ports = cast("set[QubitIndexLocal]", kwargs.pop("in_ports", set()))
         out_ports = cast("set[QubitIndexLocal]", kwargs.pop("out_ports", set()))
         cout_ports = cast("list[set[NodeIdLocal]]", kwargs.pop("cout_ports", []))
@@ -60,7 +67,9 @@ class _MeasureBase(RHGCube):
             cout_ports=cout_ports,
         )
         self.logical = logical
-        self.meas_basis = AxisMeasBasis(basis, Sign.PLUS)  # is it actually override the base class's meas_basis?
+        self.meas_basis = AxisMeasBasis(
+            basis, Sign.PLUS
+        )  # is it actually override the base class's meas_basis?
 
     def emit(self, canvas: RHGCanvas) -> None:
         # This detailed implementation is out of scope for this milestone.
@@ -70,7 +79,12 @@ class _MeasureBase(RHGCube):
 
     def _build_3d_graph(
         self,
-    ) -> tuple[GraphState, dict[int, tuple[int, int, int]], dict[tuple[int, int, int], int], dict[int, str]]:
+    ) -> tuple[
+        GraphState,
+        dict[int, tuple[int, int, int]],
+        dict[tuple[int, int, int], int],
+        dict[int, str],
+    ]:
         """Build 3D RHG graph structure optimized for measurement blocks.
 
         Measurement blocks only need a single layer (thickness=1) with data qubits only.
@@ -91,7 +105,9 @@ class _MeasureBase(RHGCube):
         node2role: dict[int, str] = {}
 
         # Assign nodes for single time slice only
-        nodes_by_z = self._assign_nodes_by_timeslice(g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role)
+        nodes_by_z = self._assign_nodes_by_timeslice(
+            g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role
+        )
 
         self._assign_meas_bases(g, self.meas_basis)
 
@@ -140,7 +156,9 @@ class _MeasureBase(RHGCube):
 
         return nodes_by_z
 
-    def _assign_meas_bases(self, g: GraphState, meas_basis: MeasBasis) -> None:  # noqa: PLR6301
+    def _assign_meas_bases(
+        self, g: GraphState, meas_basis: MeasBasis
+    ) -> None:  # noqa: PLR6301
         """Assign measurement basis for non-output nodes."""
         for node in g.physical_nodes:
             g.assign_meas_basis(node, meas_basis)
@@ -167,7 +185,9 @@ class MeasureX(_MeasureBase):
         # no out_ports for measurement blocks
         super().set_out_ports(patch_coord)
 
-    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
+    def set_cout_ports(
+        self, patch_coord: tuple[int, int] | None = None
+    ) -> None:  # noqa: ARG002
         z_pos = self.source[2] * (2 * self.d)
 
         if self.edgespec is None:
@@ -176,18 +196,22 @@ class MeasureX(_MeasureBase):
         direction = compute_logical_op_direction(self.edgespec, "X")
 
         # Get actual data coordinates from template (after any shifts)
-        data_coords = sorted(self.template.data_coords) if self.template.data_coords else []
+        data_coords = (
+            sorted(self.template.data_coords) if self.template.data_coords else []
+        )
 
-        if direction == "H":
-            # For horizontal direction, select coords with y=min_y at regular x intervals
+        if direction == "V":
+            # For vertical direction, select coords with y=min_y at regular x intervals
             min_y = min(y for _, y in data_coords) if data_coords else 0
             target_coords = [(x, y) for x, y in data_coords if y == min_y]
             target_coords = sorted(target_coords)[: self.d]  # Take first d coordinates
-        else:  # direction == "V"
-            # For vertical direction, select coords with x=min_x at regular y intervals
+        else:  # direction == "H"
+            # For horizontal direction, select coords with x=min_x at regular y intervals
             min_x = min(x for x, _ in data_coords) if data_coords else 0
             target_coords = [(x, y) for x, y in data_coords if x == min_x]
-            target_coords = sorted(target_coords, key=operator.itemgetter(1))[: self.d]  # Sort by y, take first d
+            target_coords = sorted(target_coords, key=operator.itemgetter(1))[
+                : self.d
+            ]  # Sort by y, take first d
 
         cout_coords = [(x, y, z_pos) for x, y in target_coords]
         cout_group = {
@@ -199,12 +223,12 @@ class MeasureX(_MeasureBase):
         self.cout_ports = [cout_group]
 
     def _construct_detectors(self) -> None:
-        z2d = self.template.z_coords
+        x2d = self.template.x_coords
 
         # Use the actual z-coordinate where nodes are placed
         z0 = int(self.source[2]) * (2 * self.d)
 
-        for x, y in z2d:
+        for x, y in x2d:
             node_group: set[NodeIdLocal] = set()
             for dx, dy in ANCILLA_TARGET_DIRECTION2D:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z0)))
@@ -227,7 +251,9 @@ class MeasureZ(_MeasureBase):
         # no out_ports for measurement blocks
         super().set_out_ports(patch_coord)
 
-    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
+    def set_cout_ports(
+        self, patch_coord: tuple[int, int] | None = None
+    ) -> None:  # noqa: ARG002
         z_pos = self.source[2] * (2 * self.d)
 
         if self.edgespec is None:
@@ -236,18 +262,22 @@ class MeasureZ(_MeasureBase):
         direction = compute_logical_op_direction(self.edgespec, "Z")
 
         # Get actual data coordinates from template (after any shifts)
-        data_coords = sorted(self.template.data_coords) if self.template.data_coords else []
+        data_coords = (
+            sorted(self.template.data_coords) if self.template.data_coords else []
+        )
 
-        if direction == "H":
-            # For horizontal direction, select coords with y=min_y at regular x intervals
+        if direction == "V":
+            # For vertical direction, select coords with y=min_y at regular x intervals
             min_y = min(y for _, y in data_coords) if data_coords else 0
             target_coords = [(x, y) for x, y in data_coords if y == min_y]
             target_coords = sorted(target_coords)[: self.d]  # Take first d coordinates
-        else:  # direction == "V"
-            # For vertical direction, select coords with x=min_x at regular y intervals
+        else:  # direction == "H"
+            # For horizontal direction, select coords with x=min_x at regular y intervals
             min_x = min(x for x, _ in data_coords) if data_coords else 0
             target_coords = [(x, y) for x, y in data_coords if x == min_x]
-            target_coords = sorted(target_coords, key=operator.itemgetter(1))[: self.d]  # Sort by y, take first d
+            target_coords = sorted(target_coords, key=operator.itemgetter(1))[
+                : self.d
+            ]  # Sort by y, take first d
 
         cout_coords = [(x, y, z_pos) for x, y in target_coords]
         cout_group = {
@@ -259,12 +289,12 @@ class MeasureZ(_MeasureBase):
         self.cout_ports = [cout_group]
 
     def _construct_detectors(self) -> None:
-        x2d = self.template.x_coords
+        z2d = self.template.z_coords
 
         # Use the actual z-coordinate where nodes are placed
         z0 = int(self.source[2]) * (2 * self.d)
 
-        for x, y in x2d:
+        for x, y in z2d:
             node_group: set[NodeIdLocal] = set()
             for dx, dy in ANCILLA_TARGET_DIRECTION2D:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z0)))

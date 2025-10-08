@@ -210,13 +210,13 @@ class MeasureXPipe(_MeasurePipeBase):
 
     def _construct_detectors(self) -> None:
         """Construct Z-stabilizer detectors for X measurement."""
-        z2d = self.template.z_coords
+        x2d = self.template.x_coords
 
         z_offset = self.source[2] * (2 * self.d)
         height = max({coord[2] for coord in self.coord2node}, default=0) - z_offset + 1
 
         for z in range(height):
-            for x, y in z2d:
+            for x, y in x2d:
                 node_group: set[NodeIdLocal] = set()
                 for dx, dy in ANCILLA_TARGET_DIRECTION2D:
                     node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z + z_offset)))
@@ -241,13 +241,13 @@ class MeasureZPipe(_MeasurePipeBase):
 
     def _construct_detectors(self) -> None:
         """Construct X-stabilizer detectors for Z measurement."""
-        x2d = self.template.x_coords
+        z2d = self.template.z_coords
 
         z_offset = self.source[2] * (2 * self.d)
         height = max({coord[2] for coord in self.coord2node}, default=0) - z_offset + 1
 
         for z in range(height):
-            for x, y in x2d:
+            for x, y in z2d:
                 node_group: set[NodeIdLocal] = set()
                 for dx, dy in ANCILLA_TARGET_DIRECTION2D:
                     node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z + z_offset)))

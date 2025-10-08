@@ -91,10 +91,14 @@ class RHGBlock:
     d: int = 3
     edge_spec: SpatialEdgeSpec | None = field(default_factory=dict)
     # source
-    source: PatchCoordGlobal3D = field(default_factory=lambda: PatchCoordGlobal3D((0, 0, 0)))
+    source: PatchCoordGlobal3D = field(
+        default_factory=lambda: PatchCoordGlobal3D((0, 0, 0))
+    )
     sink: PatchCoordGlobal3D | None = None
     # When it is Pipe, we have sink and direction (Not implemented here)
-    template: ScalableTemplate = field(default_factory=lambda: ScalableTemplate(d=3, edgespec={}))  # evaluated
+    template: ScalableTemplate = field(
+        default_factory=lambda: ScalableTemplate(d=3, edgespec={})
+    )  # evaluated
 
     # Ports for this block's current logical patch boundary (qubit index sets)
     # classical output ports. One group represents one logical result (to be XORed)
@@ -102,26 +106,40 @@ class RHGBlock:
     out_ports: set[QubitIndexLocal] = field(default_factory=set)
     cout_ports: list[set[NodeIdLocal]] = field(default_factory=list)
 
-    schedule: ScheduleAccumulator = field(init=False, default_factory=ScheduleAccumulator)
+    schedule: ScheduleAccumulator = field(
+        init=False, default_factory=ScheduleAccumulator
+    )
     flow: FlowAccumulator = field(init=False, default_factory=FlowAccumulator)
     parity: ParityAccumulator = field(init=False, default_factory=ParityAccumulator)
 
     local_graph: GraphState = field(init=False, default_factory=GraphState)
-    meas_basis: MeasBasis = field(init=False, default_factory=lambda: AxisMeasBasis(Axis.X, Sign.PLUS))
-    node2coord: dict[NodeIdLocal, PhysCoordGlobal3D] = field(init=False, default_factory=dict)
-    coord2node: dict[PhysCoordGlobal3D, NodeIdLocal] = field(init=False, default_factory=dict)
+    meas_basis: MeasBasis = field(
+        init=False, default_factory=lambda: AxisMeasBasis(Axis.X, Sign.PLUS)
+    )
+    node2coord: dict[NodeIdLocal, PhysCoordGlobal3D] = field(
+        init=False, default_factory=dict
+    )
+    coord2node: dict[PhysCoordGlobal3D, NodeIdLocal] = field(
+        init=False, default_factory=dict
+    )
     node2role: dict[NodeIdLocal, str] = field(init=False, default_factory=dict)
 
     # Node mapping from local to global space (set during graph composition)
-    node_map_global: dict[NodeIdLocal, NodeIdLocal] = field(init=False, default_factory=dict)
+    node_map_global: dict[NodeIdLocal, NodeIdLocal] = field(
+        init=False, default_factory=dict
+    )
 
-    final_layer: str | None = None  # "M", "MX", "MZ", "MY" or "O" (open, no measurement)
+    final_layer: str | None = (
+        None  # "M", "MX", "MZ", "MY" or "O" (open, no measurement)
+    )
 
     def __post_init__(self) -> None:
         # Sync template parameters (d, edgespec)
         edgespec = self.edge_spec
         if self.template is None:
-            self.template = RotatedPlanarCubeTemplate(d=int(self.d), edgespec=edgespec or {})
+            self.template = RotatedPlanarCubeTemplate(
+                d=int(self.d), edgespec=edgespec or {}
+            )
         else:
             # Ensure d matches
             self.template.d = int(self.d)
@@ -165,11 +183,7 @@ class RHGBlock:
         """Sync template parameters with block settings."""
         self.template.d = int(self.d)
         if self.edge_spec is not None:
-            # Align template's edgespec with the block-side alias
-            try:
-                self.template.edgespec = dict(self.edge_spec)
-            except (TypeError, ValueError):
-                self.template.edgespec = self.edge_spec
+            self.template.edgespec = dict(self.edge_spec)
 
         # Evaluate tiling coordinates (data/X/Z) only when not yet populated.
         # This preserves any absolute XY shifts applied upstream (e.g.,
@@ -207,8 +221,12 @@ class RHGBlock:
 
         self.local_graph = g
         # Convert to proper NewType dictionaries
-        self.node2coord = {NodeIdLocal(k): PhysCoordGlobal3D(v) for k, v in node2coord.items()}
-        self.coord2node = {PhysCoordGlobal3D(k): NodeIdLocal(v) for k, v in coord2node.items()}
+        self.node2coord = {
+            NodeIdLocal(k): PhysCoordGlobal3D(v) for k, v in node2coord.items()
+        }
+        self.coord2node = {
+            PhysCoordGlobal3D(k): NodeIdLocal(v) for k, v in coord2node.items()
+        }
         self.node2role = {NodeIdLocal(k): v for k, v in node2role.items()}
 
         # Populate classical output groups once node ids are known
@@ -220,7 +238,12 @@ class RHGBlock:
 
     def _build_3d_graph(
         self,
-    ) -> tuple[GraphState, dict[int, tuple[int, int, int]], dict[tuple[int, int, int], int], dict[int, str]]:
+    ) -> tuple[
+        GraphState,
+        dict[int, tuple[int, int, int]],
+        dict[tuple[int, int, int], int],
+        dict[int, str],
+    ]:
         """Build 3D RHG graph structure."""
         # Collect 2D coordinates from the evaluated template
         data2d = list(self.template.data_coords or [])
@@ -228,9 +251,8 @@ class RHGBlock:
         z2d = list(self.template.z_coords or [])
 
         # Construct a 3D RHG slab of height ~2*d
-        d_val = int(self.d)
-        max_t = 2 * d_val
-        z0 = int(self.source[2]) * (2 * d_val)  # base z-offset per block
+        max_t = 2 * self.d
+        z0 = int(self.source[2]) * (2 * self.d)  # base z-offset per block
 
         g = GraphState()
         node2coord: dict[int, tuple[int, int, int]] = {}
@@ -238,7 +260,9 @@ class RHGBlock:
         node2role: dict[int, str] = {}
 
         # Assign nodes for each time slice
-        nodes_by_z = self._assign_nodes_by_timeslice(g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role)
+        nodes_by_z = self._assign_nodes_by_timeslice(
+            g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role
+        )
 
         self._construct_schedule(nodes_by_z, node2role)
 
@@ -273,38 +297,40 @@ class RHGBlock:
                 # add data node
                 for x, y in data2d:
                     n = g.add_physical_node()
-                    node2coord[n] = (int(x), int(y), int(t))
-                    coord2node[int(x), int(y), int(t)] = n
+                    node2coord[n] = (x, y, t)
+                    coord2node[x, y, t] = n
                     node2role[n] = "data"
-                    cur[int(x), int(y)] = n
+                    cur[x, y] = n
             else:
                 # Data nodes every slice except the final sentinel layer
                 for x, y in data2d:
                     n = g.add_physical_node()
-                    node2coord[n] = (int(x), int(y), int(t))
-                    coord2node[int(x), int(y), int(t)] = n
+                    node2coord[n] = (x, y, t)
+                    coord2node[x, y, t] = n
                     node2role[n] = "data"
-                    cur[int(x), int(y)] = n
+                    cur[x, y] = n
                 # Interleave ancillas X/Z by time parity
                 if (t % 2) == 0:
-                    for x, y in x2d:
-                        n = g.add_physical_node()
-                        node2coord[n] = (int(x), int(y), int(t))
-                        coord2node[int(x), int(y), int(t)] = n
-                        node2role[n] = "ancilla_x"
-                        cur[int(x), int(y)] = n
-                else:
                     for x, y in z2d:
                         n = g.add_physical_node()
-                        node2coord[n] = (int(x), int(y), int(t))
-                        coord2node[int(x), int(y), int(t)] = n
+                        node2coord[n] = (x, y, t)
+                        coord2node[x, y, t] = n
                         node2role[n] = "ancilla_z"
-                        cur[int(x), int(y)] = n
+                        cur[x, y] = n
+                else:
+                    for x, y in x2d:
+                        n = g.add_physical_node()
+                        node2coord[n] = (x, y, t)
+                        coord2node[x, y, t] = n
+                        node2role[n] = "ancilla_x"
+                        cur[x, y] = n
             nodes_by_z[t] = cur
         return nodes_by_z
 
     @staticmethod
-    def _add_spatial_edges(g: GraphState, nodes_by_z: Mapping[int, Mapping[tuple[int, int], int]]) -> None:
+    def _add_spatial_edges(
+        g: GraphState, nodes_by_z: Mapping[int, Mapping[tuple[int, int], int]]
+    ) -> None:
         """Add intra-slice spatial edges."""
         for cur in nodes_by_z.values():
             for (x, y), u in cur.items():
@@ -317,7 +343,9 @@ class RHGBlock:
                         with suppress(Exception):
                             g.add_physical_edge(u, v)
 
-    def _add_temporal_edges(self, g: GraphState, nodes_by_z: Mapping[int, Mapping[tuple[int, int], int]]) -> None:
+    def _add_temporal_edges(
+        self, g: GraphState, nodes_by_z: Mapping[int, Mapping[tuple[int, int], int]]
+    ) -> None:
         """Add inter-slice temporal edges."""
         t_keys = sorted(nodes_by_z.keys())
         for i in range(1, len(t_keys)):
@@ -340,16 +368,22 @@ class RHGBlock:
         """Register input/output nodes for visualization."""
         try:
             # Determine z- (min) and z+ (max) among DATA nodes only
-            data_coords_all = [c for n, c in node2coord.items() if node2role.get(n) == "data"]
+            data_coords_all = [
+                c for n, c in node2coord.items() if node2role.get(n) == "data"
+            ]
             if not data_coords_all:
-                print("Warning: no data nodes found in RHGBlock; skipping I/O registration")
+                print(
+                    "Warning: no data nodes found in RHGBlock; skipping I/O registration"
+                )
                 return
 
             zmin = min(c[2] for c in data_coords_all)
             zmax = max(c[2] for c in data_coords_all)
 
             # Build coordinate mappings
-            xy_to_innode, xy_to_outnode = self._build_coordinate_mappings(coord2node, zmin, zmax)
+            xy_to_innode, xy_to_outnode = self._build_coordinate_mappings(
+                coord2node, zmin, zmax
+            )
 
             # Register input and output ports
             xy_to_lidx = self._register_input_ports(g, xy_to_innode)
@@ -359,7 +393,9 @@ class RHGBlock:
             # Visualization aid only; avoid breaking materialization pipelines
             print(f"Warning: failed to register I/O nodes on RHGBlock: {e}")
 
-    def _assign_meas_bases(self, g: GraphState, meas_basis: MeasBasis) -> None:  # noqa: PLR6301
+    def _assign_meas_bases(
+        self, g: GraphState, meas_basis: MeasBasis
+    ) -> None:  # noqa: PLR6301
         """Assign measurement basis for non-output nodes."""
         for node in g.physical_nodes - g.output_node_indices.keys():
             g.assign_meas_basis(node, meas_basis)
@@ -368,7 +404,9 @@ class RHGBlock:
         raise NotImplementedError
 
     def _construct_schedule(
-        self, nodes_by_z: Mapping[int, Mapping[tuple[int, int], int]], node2role: Mapping[int, str]
+        self,
+        nodes_by_z: Mapping[int, Mapping[tuple[int, int], int]],
+        node2role: Mapping[int, str],
     ) -> None:
         for t, nodes in nodes_by_z.items():
             # Separate nodes by role: ancillas first, then data
@@ -385,7 +423,9 @@ class RHGBlock:
             # Schedule ancillas and data at different time slots
             # ancillas at 2*t, data at 2*t+1 to ensure temporal separation
             if ancilla_nodes:
-                ancilla_global_nodes = {NodeIdGlobal(node_id) for node_id in ancilla_nodes}
+                ancilla_global_nodes = {
+                    NodeIdGlobal(node_id) for node_id in ancilla_nodes
+                }
                 self.schedule.schedule[2 * t] = ancilla_global_nodes
 
             if data_nodes:
@@ -428,7 +468,9 @@ class RHGBlock:
         if hasattr(self, "sink") and self.sink is not None:
             # This is a pipe - use pipe-specific parameters
             sink_2d = (self.sink[0], self.sink[1])
-            xy_to_q = self.template.get_data_indices(patch_coord, patch_type="pipe", sink_patch=sink_2d)
+            xy_to_q = self.template.get_data_indices(
+                patch_coord, patch_type="pipe", sink_patch=sink_2d
+            )
         else:
             # This is a cube - use standard parameters
             xy_to_q = self.template.get_data_indices(patch_coord)
@@ -448,7 +490,10 @@ class RHGBlock:
         return xy_to_lidx
 
     def _register_output_ports(
-        self, g: GraphState, xy_to_outnode: Mapping[tuple[int, int], int], xy_to_lidx: Mapping[tuple[int, int], int]
+        self,
+        g: GraphState,
+        xy_to_outnode: Mapping[tuple[int, int], int],
+        xy_to_lidx: Mapping[tuple[int, int], int],
     ) -> None:
         """Register output ports."""
         if not self.out_ports:
@@ -460,7 +505,9 @@ class RHGBlock:
         if hasattr(self, "sink") and self.sink is not None:
             # This is a pipe - use pipe-specific parameters
             sink_2d = (self.sink[0], self.sink[1])
-            xy_to_q = self.template.get_data_indices(patch_coord, patch_type="pipe", sink_patch=sink_2d)
+            xy_to_q = self.template.get_data_indices(
+                patch_coord, patch_type="pipe", sink_patch=sink_2d
+            )
         else:
             # This is a cube - use standard parameters
             xy_to_q = self.template.get_data_indices(patch_coord)
@@ -523,7 +570,9 @@ class RHGBlock:
         self.coord2gid = dict.fromkeys(self.coord2gid, new_id)  # type: ignore[arg-type]
 
     @staticmethod
-    def _validate_boundary_inputs(face: str, depth: Sequence[int] | None) -> tuple[str, list[int]]:
+    def _validate_boundary_inputs(
+        face: str, depth: Sequence[int] | None
+    ) -> tuple[str, list[int]]:
         """Validate and normalize boundary query inputs."""
         f = face.strip().lower()
         if f not in {"x+", "x-", "y+", "y-", "z+", "z-"}:
@@ -546,13 +595,25 @@ class RHGBlock:
 
         if face[0] == "x":
             axis = 0
-            targets = {xmax - d for d in depths} if face[1] == "+" else {xmin + d for d in depths}
+            targets = (
+                {xmax - d for d in depths}
+                if face[1] == "+"
+                else {xmin + d for d in depths}
+            )
         elif face[0] == "y":
             axis = 1
-            targets = {ymax - d for d in depths} if face[1] == "+" else {ymin + d for d in depths}
+            targets = (
+                {ymax - d for d in depths}
+                if face[1] == "+"
+                else {ymin + d for d in depths}
+            )
         else:  # face[0] == 'z'
             axis = 2
-            targets = {zmax - d for d in depths} if face[1] == "+" else {zmin + d for d in depths}
+            targets = (
+                {zmax - d for d in depths}
+                if face[1] == "+"
+                else {zmin + d for d in depths}
+            )
 
         return axis, targets
 
@@ -631,7 +692,9 @@ class RHGBlock:
         axis, targets = RHGBlock._compute_boundary_targets(coords, f, depths)
 
         # Classify nodes by role
-        return RHGBlock._classify_nodes_by_role(coords, coord2node, node2role, axis, targets)
+        return RHGBlock._classify_nodes_by_role(
+            coords, coord2node, node2role, axis, targets
+        )
 
     def get_boundary_nodes(
         self,
@@ -645,11 +708,15 @@ class RHGBlock:
         TemporalLayer.get_boundary_nodes.
         """
         # Convert types for compatibility with static method signature
-        coord2node_compat: dict[PhysCoordGlobal3D, int] = {k: int(v) for k, v in self.coord2node.items()}
+        coord2node_compat: dict[PhysCoordGlobal3D, int] = {
+            k: int(v) for k, v in self.coord2node.items()
+        }
         node2role_compat: dict[int, str] | None = (
             {int(k): v for k, v in self.node2role.items()} if self.node2role else None
         )
-        return self._boundary_nodes_from_coordmap(coord2node_compat, node2role_compat, face=face, depth=depth)
+        return self._boundary_nodes_from_coordmap(
+            coord2node_compat, node2role_compat, face=face, depth=depth
+        )
 
 
 @dataclass
@@ -694,7 +761,11 @@ def compute_logical_op_direction(edgespec: SpatialEdgeSpec, obs: str) -> str:
     ValueError
         If the edgespec is invalid or does not support the specified observable.
     """
-    es = {k: str(v).upper() for k, v in edgespec.items() if k in {"LEFT", "RIGHT", "TOP", "BOTTOM"}}
+    es = {
+        k: str(v).upper()
+        for k, v in edgespec.items()
+        if k in {"LEFT", "RIGHT", "TOP", "BOTTOM"}
+    }
     if len(es) != NUM_EDGE_SPEC_BOUDARY:
         msg = "edgespec must contain exactly the keys: LEFT, RIGHT, TOP, BOTTOM"
         raise ValueError(msg)
