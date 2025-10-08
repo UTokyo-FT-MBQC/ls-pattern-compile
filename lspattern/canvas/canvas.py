@@ -18,15 +18,12 @@ from lspattern.blocks.pipes.base import RHGPipe
 from lspattern.canvas.compiled import CompiledRHGCanvas, add_temporal_layer
 from lspattern.canvas.layer import TemporalLayer, to_temporal_layer
 from lspattern.canvas.ports import PortManager
-from lspattern.consts import BoundarySide
+from lspattern.consts import EDGE_TUPLE_SIZE, BoundarySide
 from lspattern.mytype import (
     PatchCoordGlobal3D,
     PipeCoordGlobal3D,
 )
 from lspattern.utils import get_direction
-
-# Constants
-EDGE_TUPLE_SIZE = 2
 
 if TYPE_CHECKING:
     from lspattern.blocks.cubes.base import RHGCubeSkeleton

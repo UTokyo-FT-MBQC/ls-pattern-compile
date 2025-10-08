@@ -15,7 +15,7 @@ from lspattern.canvas.composition import GraphComposer
 from lspattern.canvas.coordinates import CoordinateMapper
 from lspattern.canvas.ports import PortManager
 from lspattern.canvas.seams import SeamGenerator
-from lspattern.consts import CoordinateSystem
+from lspattern.consts import EDGE_TUPLE_SIZE, CoordinateSystem
 from lspattern.mytype import (
     NodeIdGlobal,
     NodeIdLocal,
@@ -26,9 +26,6 @@ from lspattern.mytype import (
 )
 from lspattern.tiling.template import cube_offset_xy, pipe_offset_xy
 from lspattern.utils import UnionFind, get_direction
-
-# Constants
-EDGE_TUPLE_SIZE = 2
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
@@ -91,9 +88,6 @@ class TemporalLayer:
 
         self.coord2gid = {}
         self.allowed_gid_pairs = set()
-
-    def __post_init__(self) -> None:
-        """Post-initialization hook."""
 
     # Backward compatibility properties for port management
     @property

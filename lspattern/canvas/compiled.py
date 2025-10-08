@@ -409,14 +409,23 @@ def _setup_temporal_connections(
     """Setup temporal connections between layers."""
     allowed_gid_pairs: set[tuple[QubitGroupIdGlobal, QubitGroupIdGlobal]] = set()
 
-    allowed_gid_pairs.update(
-        (
-            QubitGroupIdGlobal(cgraph.cubes_[p.source].get_tiling_id()),
-            QubitGroupIdGlobal(next_layer.cubes_[p.sink].get_tiling_id()),
+    for p in pipes:
+        if p.sink is None:
+            continue
+        source_cube = cgraph.cubes_.get(p.source)
+        sink_cube = next_layer.cubes_.get(p.sink)
+        if source_cube is None:
+            msg = f"Source cube not found at position {p.source} for temporal pipe"
+            raise KeyError(msg)
+        if sink_cube is None:
+            msg = f"Sink cube not found at position {p.sink} for temporal pipe"
+            raise KeyError(msg)
+        allowed_gid_pairs.add(
+            (
+                QubitGroupIdGlobal(source_cube.get_tiling_id()),
+                QubitGroupIdGlobal(sink_cube.get_tiling_id()),
+            )
         )
-        for p in pipes
-        if p.sink is not None
-    )
 
     for source in next_layer.get_boundary_nodes(face="z-", depth=[-1])["data"]:
         sink_coord = PhysCoordGlobal3D((source[0], source[1], source[2] - 1))
@@ -484,15 +493,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
     last_nodes_remapped = {NodeIdGlobal(node_map2[int(n)]) for n in last_nodes}
     cgraph_filtered_schedule = cgraph.schedule.exclude_nodes(last_nodes_remapped)
     new_schedule = cgraph_filtered_schedule.compose_sequential(next_layer.schedule, exclude_nodes=None)
-    # TODO: Fix flow merge to handle connected q_indices properly
-    try:
-        merged_flow = cgraph.flow.merge_with(next_layer.flow)
-    except ValueError as e:
-        if "Flow merge conflict" in str(e):
-            # Temporary workaround: use the first layer's flow
-            merged_flow = cgraph.flow
-        else:
-            raise
+    merged_flow = cgraph.flow.merge_with(next_layer.flow)
     new_parity = cgraph.parity.merge_with(next_layer.parity)
 
     # TODO: should add boundary checks?
