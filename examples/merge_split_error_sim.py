@@ -26,11 +26,36 @@ def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
     """Create RHG canvas skeleton for merge and split operation."""
     canvass = RHGCanvasSkeleton("Merge and Split")
 
-    edgespec: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "Z", "RIGHT": "Z", "TOP": "X", "BOTTOM": "X"}
-    edgespec1: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "Z", "RIGHT": "O", "TOP": "X", "BOTTOM": "X"}
-    edgespec2: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "Z", "TOP": "X", "BOTTOM": "X"}
-    edgespec_trimmed: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "O", "TOP": "X", "BOTTOM": "X"}
-    edgespec_measure_trimmed: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "O", "TOP": "O", "BOTTOM": "O"}
+    edgespec: dict[str, Literal["X", "Z", "O"]] = {
+        "LEFT": "Z",
+        "RIGHT": "Z",
+        "TOP": "X",
+        "BOTTOM": "X",
+    }
+    edgespec1: dict[str, Literal["X", "Z", "O"]] = {
+        "LEFT": "Z",
+        "RIGHT": "O",
+        "TOP": "X",
+        "BOTTOM": "X",
+    }
+    edgespec2: dict[str, Literal["X", "Z", "O"]] = {
+        "LEFT": "O",
+        "RIGHT": "Z",
+        "TOP": "X",
+        "BOTTOM": "X",
+    }
+    edgespec_trimmed: dict[str, Literal["X", "Z", "O"]] = {
+        "LEFT": "O",
+        "RIGHT": "O",
+        "TOP": "X",
+        "BOTTOM": "X",
+    }
+    edgespec_measure_trimmed: dict[str, Literal["X", "Z", "O"]] = {
+        "LEFT": "O",
+        "RIGHT": "O",
+        "TOP": "O",
+        "BOTTOM": "O",
+    }
 
     blocks = [
         (
@@ -43,11 +68,11 @@ def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
         ),
         (
             PatchCoordGlobal3D((0, 0, 1)),
-            MemoryCubeSkeleton(d=d, edgespec=edgespec1),
+            MemoryCubeSkeleton(d=d, edgespec=edgespec),
         ),
         (
             PatchCoordGlobal3D((1, 0, 1)),
-            MemoryCubeSkeleton(d=d, edgespec=edgespec1),
+            MemoryCubeSkeleton(d=d, edgespec=edgespec),
         ),
         (
             PatchCoordGlobal3D((0, 0, 2)),
@@ -72,7 +97,7 @@ def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
         (
             PatchCoordGlobal3D((1, 0, 4)),
             MeasureZSkeleton(d=d, edgespec=edgespec),
-        )
+        ),
     ]
     pipes = [
         (
@@ -95,7 +120,9 @@ def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
     return canvass
 
 
-def _setup_scheduler(compiled_canvas: "CompiledRHGCanvas") -> tuple[Scheduler, dict[int, set[int]]]:
+def _setup_scheduler(
+    compiled_canvas: "CompiledRHGCanvas",
+) -> tuple[Scheduler, dict[int, set[int]]]:
     """Set up scheduler with timing information."""
     if compiled_canvas.global_graph is None:
         raise ValueError("Global graph is None")
