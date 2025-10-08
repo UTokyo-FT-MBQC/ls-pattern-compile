@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import ClassVar
 
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
+from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D, PhysCoordLocal2D
 
 
@@ -14,8 +15,8 @@ class MemoryCubeSkeleton(RHGCubeSkeleton):
     def to_block(self) -> MemoryCube:
         """Materialize to a MemoryCube (template evaluated, no local graph yet)."""
         # Apply spatial open-boundary trimming if specified
-        for direction in ["LEFT", "RIGHT", "TOP", "BOTTOM"]:
-            if str(self.edgespec.get(direction, "O")).upper() == "O":
+        for direction in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
+            if self.edgespec.get(direction, EdgeSpecValue.O) == EdgeSpecValue.O:
                 self.trim_spatial_boundary(direction)
         # Evaluate template coordinates
         self.template.to_tiling()
@@ -26,7 +27,7 @@ class MemoryCubeSkeleton(RHGCubeSkeleton):
             template=self.template,
         )
         # Memory 系も最終層は開放(O): 次段へ受け渡し
-        block.final_layer = "O"
+        block.final_layer = EdgeSpecValue.O
         return block
 
 
@@ -36,7 +37,7 @@ class MemoryCube(RHGCube):
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         """Memory: 全 data(z- 側相当)を入力ポートに割当てる。"""
         # テンプレートの data インデックスを取得
-        idx_map = self.template.get_data_indices(patch_coord)
+        idx_map = self.template.get_data_indices_cube(patch_coord)
         indices = set(idx_map.values())
         if len(indices) == 0:
             msg = "Memory: in_ports should not be empty."
@@ -48,7 +49,7 @@ class MemoryCube(RHGCube):
 
         位置は in_ports と同一集合(時間延長で同一 (x,y) を受け渡す想定)。
         """
-        idx_map = self.template.get_data_indices(patch_coord)
+        idx_map = self.template.get_data_indices_cube(patch_coord)
         self.out_ports = set(idx_map.values())
 
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:

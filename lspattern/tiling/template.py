@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal, overload
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 
+from lspattern.consts import BoundarySide, CoordinateSystem, EdgeSpecValue
 from lspattern.consts.consts import PIPEDIRECTION
 from lspattern.mytype import (
     QubitIndexLocal,
@@ -15,37 +16,12 @@ from lspattern.tiling.base import Tiling
 from lspattern.utils import sort_xy
 
 
-@overload
-def calculate_qindex_base(patch_coord: tuple[int, int], d: int) -> int: ...
-
-
-@overload
-def calculate_qindex_base(
-    patch_coord: tuple[int, int],
-    d: int,
-    *,
-    patch_type: Literal["pipe"],
-    sink_patch: tuple[int, int],
-) -> int: ...
-
-
-def calculate_qindex_base(
-    patch_coord: tuple[int, int],
-    d: int,
-    *,
-    patch_type: Literal["cube", "pipe"] = "cube",
-    sink_patch: tuple[int, int] | None = None,
-) -> int:
-    """Calculate the starting q_index for data qubits in a patch.
+def calculate_qindex_base_cube(patch_coord: tuple[int, int], d: int) -> int:
+    """Calculate the starting q_index for data qubits in a cube patch.
 
     Each patch at coordinate (px, py) gets a unique range of q_indices.
     This ensures that patches at the same coordinate always get the same q_indices,
     enabling consistent mapping across different temporal layers.
-
-    For cubes and pipes, we allocate separate index ranges to avoid conflicts:
-    - Cube: d*d data qubits at base offset
-    - Horizontal pipes: d data qubits at base + d*d
-    - Vertical pipes: d data qubits at base + d*d + d
 
     Parameters
     ----------
@@ -53,10 +29,6 @@ def calculate_qindex_base(
         The (px, py) coordinate of the patch in the global tiling
     d : int
         The distance parameter, determines number of data qubits per patch
-    patch_type : Literal["cube", "pipe"], default "cube"
-        Type of the patch (cube or pipe)
-    sink_patch : tuple[int, int] | None, default None
-        Sink patch coordinate (required for pipes)
 
     Returns
     -------
@@ -74,18 +46,30 @@ def calculate_qindex_base(
     # Create a unique base index for this grid coordinate
     # Use a grid layout with sufficient spacing
     patch_index = py * 1000 + px  # 1000 should be enough for reasonable grid sizes
-    base_index = patch_index * max_qubits_per_grid_position
+    return patch_index * max_qubits_per_grid_position
 
-    if patch_type == "cube":
-        return base_index
-    if patch_type == "pipe":
-        # Pipes require sink_patch for boundary-based qindex calculation
-        if sink_patch is None:
-            msg = "sink_patch is required when patch_type='pipe'"
-            raise ValueError(msg)
-        return _calculate_pipe_boundary_qindex(patch_coord, sink_patch, d)
-    msg = f"Invalid patch_type: {patch_type}"
-    raise ValueError(msg)
+
+def calculate_qindex_base_pipe(patch_coord: tuple[int, int], sink_patch: tuple[int, int], d: int) -> int:
+    """Calculate the starting q_index for data qubits in a pipe patch.
+
+    Pipes use boundary-based indexing to ensure that pipes sharing the same
+    physical data qubits get the same qindex.
+
+    Parameters
+    ----------
+    patch_coord : tuple[int, int]
+        The (px, py) coordinate of the source patch in the global tiling
+    sink_patch : tuple[int, int]
+        The (px, py) coordinate of the sink patch (required for pipes)
+    d : int
+        The distance parameter, determines number of data qubits per patch
+
+    Returns
+    -------
+    int
+        The starting q_index for this pipe's data qubits
+    """
+    return _calculate_pipe_boundary_qindex(patch_coord, sink_patch, d)
 
 
 def _calculate_pipe_boundary_qindex(source_patch: tuple[int, int], sink_patch: tuple[int, int], d: int) -> int:
@@ -166,51 +150,42 @@ class ScalableTemplate(Tiling):
     def to_tiling(self) -> dict[str, list[tuple[int, int]]]:
         raise NotImplementedError
 
-    def _spec(self, side: str) -> str:
-        """Return standardized spec value ("X"/"Z"/"O").
+    def _spec(self, side: BoundarySide) -> EdgeSpecValue:
+        """Return standardized spec value (EdgeSpecValue enum).
 
-        Accepts side in any case (e.g., "left"/"LEFT"). Defaults to "O".
+        Accepts BoundarySide enum. Defaults to EdgeSpecValue.O.
         """
         v = None
         if isinstance(self.edgespec, dict):
-            v = self.edgespec.get(side.upper())
+            # Try enum key first
+            v = self.edgespec.get(side)
+            # Fall back to string key for backward compatibility
             if v is None:
-                v = self.edgespec.get(side.lower())
+                v = self.edgespec.get(side.value)  # type: ignore[call-overload]
         if v is None:
-            v = "O"
-        return str(v).upper()
+            v = EdgeSpecValue.O
+        # Convert string to enum if needed
+        elif isinstance(v, str):
+            v = EdgeSpecValue(v.upper())
+        return v
 
-    @overload
-    def get_data_indices(
+    def get_data_indices_cube(
         self,
         patch_coord: tuple[int, int] | None = None,
-    ) -> dict[TilingCoord2D, QubitIndexLocal]: ...
-
-    @overload
-    def get_data_indices(
-        self,
-        patch_coord: tuple[int, int] | None = None,
-        *,
-        patch_type: Literal["cube"],
-        sink_patch: tuple[int, int] | None = None,
-    ) -> dict[TilingCoord2D, QubitIndexLocal]: ...
-
-    @overload
-    def get_data_indices(
-        self,
-        patch_coord: tuple[int, int] | None = None,
-        *,
-        patch_type: Literal["pipe"],
-        sink_patch: tuple[int, int],
-    ) -> dict[TilingCoord2D, QubitIndexLocal]: ...
-
-    def get_data_indices(
-        self,
-        patch_coord: tuple[int, int] | None = None,
-        *,
-        patch_type: Literal["cube", "pipe"] = "cube",
-        sink_patch: tuple[int, int] | None = None,
     ) -> dict[TilingCoord2D, QubitIndexLocal]:
+        """Get data qubit indices for a cube patch.
+
+        Parameters
+        ----------
+        patch_coord : tuple[int, int] | None, default None
+            The (px, py) coordinate of the patch in the global tiling.
+            If None, generates default indices starting from 0.
+
+        Returns
+        -------
+        dict[TilingCoord2D, QubitIndexLocal]
+            Mapping from 2D tiling coordinates to local qubit indices
+        """
         coord_set = {(coord[0], coord[1]) for coord in self.data_coords}
         sorted_coords = sort_xy(coord_set)
 
@@ -220,18 +195,41 @@ class ScalableTemplate(Tiling):
 
         # If patch coordinate is provided, use it to calculate consistent q_indices
         if patch_coord is not None:
-            if patch_type == "pipe":
-                # For pipes, sink_patch is required (validated by overload)
-                if sink_patch is None:
-                    msg = "sink_patch is required for pipes"
-                    raise ValueError(msg)
-                base_qindex = calculate_qindex_base(patch_coord, self.d, patch_type="pipe", sink_patch=sink_patch)
-            else:
-                base_qindex = calculate_qindex_base(patch_coord, self.d)
+            base_qindex = calculate_qindex_base_cube(patch_coord, self.d)
             return {TilingCoord2D(coor): QubitIndexLocal(base_qindex + i) for i, coor in enumerate(sorted_coords)}
 
         # Otherwise, generate default indices starting from 0 (fallback for backward compatibility)
         return {TilingCoord2D(coor): QubitIndexLocal(i) for i, coor in enumerate(sorted_coords)}
+
+    def get_data_indices_pipe(
+        self,
+        patch_coord: tuple[int, int],
+        sink_patch: tuple[int, int],
+    ) -> dict[TilingCoord2D, QubitIndexLocal]:
+        """Get data qubit indices for a pipe patch.
+
+        Parameters
+        ----------
+        patch_coord : tuple[int, int]
+            The (px, py) coordinate of the source patch in the global tiling
+        sink_patch : tuple[int, int]
+            The (px, py) coordinate of the sink patch (required for pipes)
+
+        Returns
+        -------
+        dict[TilingCoord2D, QubitIndexLocal]
+            Mapping from 2D tiling coordinates to local qubit indices
+        """
+        coord_set = {(coord[0], coord[1]) for coord in self.data_coords}
+        sorted_coords = sort_xy(coord_set)
+
+        # If data_indices have been explicitly set, use them (legacy compatibility)
+        if self.data_indices and len(self.data_indices) == len(sorted_coords):
+            return {TilingCoord2D(coor): self.data_indices[i] for i, coor in enumerate(sorted_coords)}
+
+        # Calculate base qindex for pipes using boundary-based indexing
+        base_qindex = calculate_qindex_base_pipe(patch_coord, sink_patch, self.d)
+        return {TilingCoord2D(coor): QubitIndexLocal(base_qindex + i) for i, coor in enumerate(sorted_coords)}
 
     # ---- Coordinate and index shifting APIs ---------------------------------
     def _shift_lists_inplace(self, dx: int, dy: int) -> None:
@@ -246,7 +244,7 @@ class ScalableTemplate(Tiling):
         self,
         by: tuple[int, int] | tuple[int, int, int],
         *,
-        coordinate: Literal["tiling2d", "phys3d", "patch3d"] = "tiling2d",
+        coordinate: CoordinateSystem = CoordinateSystem.TILING_2D,
         inplace: bool = True,
     ) -> ScalableTemplate:
         """Shift template 2D coords based on the given coordinate system.
@@ -262,13 +260,13 @@ class ScalableTemplate(Tiling):
 
         dx: int
         dy: int
-        if coordinate == "tiling2d":
+        if coordinate == CoordinateSystem.TILING_2D:
             bx, by_ = by  # type: ignore[misc]
             dx, dy = int(bx), int(by_)
-        elif coordinate == "phys3d":
+        elif coordinate == CoordinateSystem.PHYS_3D:
             bx, by_, _ = by  # type: ignore[misc]
             dx, dy = int(bx), int(by_)
-        elif coordinate == "patch3d":
+        elif coordinate == CoordinateSystem.PATCH_3D:
             # Default block-style behavior (INNER offset)
             px, py, pz = by  # type: ignore[misc]
             dx, dy = cube_offset_xy(self.d, (int(px), int(py), int(pz)))
@@ -288,11 +286,17 @@ class ScalableTemplate(Tiling):
         new.z_coords = t.z_coords
         return new
 
-    def trim_spatial_boundary(self, direction: str) -> None:
+    def trim_spatial_boundary(self, direction: BoundarySide) -> None:
         """Remove ancilla/two-body checks on a given boundary in 2D tiling.
 
         Only X/Z ancilla on the target boundary line are removed. Data qubits
-        remain intact. Supported directions: LEFT/RIGHT/TOP/BOTTOM or X±/Y±.
+        remain intact.
+
+        Parameters
+        ----------
+        direction : BoundarySide
+            Boundary side to trim (LEFT, RIGHT, TOP, or BOTTOM).
+            UP and DOWN are temporal boundaries and not supported for spatial trimming.
         """
         if not (self.data_coords or self.x_coords or self.z_coords):
             self.to_tiling()
@@ -300,21 +304,24 @@ class ScalableTemplate(Tiling):
         axis: int
         target: int
 
-        match direction.upper():
-            case "TOP" | "Y+":
+        match direction:
+            case BoundarySide.TOP:
                 axis = 1
                 target = 2 * self.d - 1
-            case "BOTTOM" | "Y-":
+            case BoundarySide.BOTTOM:
                 axis = 1
                 target = -1
-            case "LEFT" | "X-":
+            case BoundarySide.LEFT:
                 axis = 0
                 target = -1
-            case "RIGHT" | "X+":
+            case BoundarySide.RIGHT:
                 axis = 0
                 target = 2 * self.d - 1
             case _:
-                msg = "Invalid direction for trim_spatial_boundary"
+                msg = (
+                    f"Invalid direction for spatial boundary: {direction}. "
+                    "Only TOP, BOTTOM, LEFT, RIGHT are supported (UP/DOWN are temporal boundaries)."
+                )
                 raise ValueError(msg)
 
         self.x_coords = [p for p in (self.x_coords or []) if p[axis] != target]
@@ -424,31 +431,31 @@ class RotatedPlanarCubeTemplate(ScalableTemplate):
                 z_coords.update((x, y) for y in range(y0, 2 * d - 1, 4))
 
         # Boundaries
-        match self._spec("LEFT"):
-            case "X":
+        match self._spec(BoundarySide.LEFT):
+            case EdgeSpecValue.X:
                 x_coords.update((-1, y) for y in range(1, 2 * d - 1, 4))
-            case "Z":
+            case EdgeSpecValue.Z:
                 z_coords.update((-1, y) for y in range(2 * d - 3, -1, -4))
             case _:
                 pass
-        match self._spec("RIGHT"):
-            case "X":
+        match self._spec(BoundarySide.RIGHT):
+            case EdgeSpecValue.X:
                 x_coords.update((2 * d - 1, y) for y in range(2 * d - 3, -1, -4))
-            case "Z":
+            case EdgeSpecValue.Z:
                 z_coords.update((2 * d - 1, y) for y in range(1, 2 * d - 1, 4))
             case _:
                 pass
-        match self._spec("BOTTOM"):
-            case "X":
+        match self._spec(BoundarySide.BOTTOM):
+            case EdgeSpecValue.X:
                 x_coords.update((x, -1) for x in range(1, 2 * d - 1, 4))
-            case "Z":
+            case EdgeSpecValue.Z:
                 z_coords.update((x, -1) for x in range(2 * d - 3, -1, -4))
             case _:
                 pass
-        match self._spec("TOP"):
-            case "X":
+        match self._spec(BoundarySide.TOP):
+            case EdgeSpecValue.X:
                 x_coords.update((x, 2 * d - 1) for x in range(2 * d - 3, -1, -4))
-            case "Z":
+            case EdgeSpecValue.Z:
                 z_coords.update((x, 2 * d - 1) for x in range(1, 2 * d - 1, 4))
             case _:
                 pass
@@ -540,20 +547,20 @@ def merge_pair_spatial(
 
     # 1) Trim the seam boundaries
     if diru == "X+":
-        a.trim_spatial_boundary("RIGHT")
-        b.trim_spatial_boundary("LEFT")
+        a.trim_spatial_boundary(BoundarySide.RIGHT)
+        b.trim_spatial_boundary(BoundarySide.LEFT)
         off_b = (2 * d_a, 0)
     elif diru == "X-":
-        a.trim_spatial_boundary("LEFT")
-        b.trim_spatial_boundary("RIGHT")
+        a.trim_spatial_boundary(BoundarySide.LEFT)
+        b.trim_spatial_boundary(BoundarySide.RIGHT)
         off_b = (-2 * d_b, 0)
     elif diru == "Y+":
-        a.trim_spatial_boundary("TOP")
-        b.trim_spatial_boundary("BOTTOM")
+        a.trim_spatial_boundary(BoundarySide.TOP)
+        b.trim_spatial_boundary(BoundarySide.BOTTOM)
         off_b = (0, 2 * d_a)
     else:  # "Y-"
-        a.trim_spatial_boundary("BOTTOM")
-        b.trim_spatial_boundary("TOP")
+        a.trim_spatial_boundary(BoundarySide.BOTTOM)
+        b.trim_spatial_boundary(BoundarySide.TOP)
         off_b = (0, -2 * d_b)
 
     # 2) Build offset copies and merge
@@ -589,8 +596,12 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         x_coords: set[tuple[int, int]] = set()
         z_coords: set[tuple[int, int]] = set()
 
-        is_x_dir = self._spec("LEFT") == "O" and self._spec("RIGHT") == "O"
-        is_y_dir = self._spec("TOP") == "O" and self._spec("BOTTOM") == "O"
+        is_x_dir = (
+            self._spec(BoundarySide.LEFT) == EdgeSpecValue.O and self._spec(BoundarySide.RIGHT) == EdgeSpecValue.O
+        )
+        is_y_dir = (
+            self._spec(BoundarySide.TOP) == EdgeSpecValue.O and self._spec(BoundarySide.BOTTOM) == EdgeSpecValue.O
+        )
 
         if is_x_dir:
             # Pipe along Y (vertical), x fixed at 0
@@ -600,17 +611,17 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                 x_coords.add((((-1) ** n), y))
                 z_coords.add((-((-1) ** n), y))
 
-            match self._spec("TOP"):
-                case "X":
+            match self._spec(BoundarySide.TOP):
+                case EdgeSpecValue.X:
                     x_coords.add((1, 2 * d - 1))
-                case "Z":
+                case EdgeSpecValue.Z:
                     z_coords.add((-1, 2 * d - 1))
                 case _:
                     pass
-            match self._spec("BOTTOM"):
-                case "X":
+            match self._spec(BoundarySide.BOTTOM):
+                case EdgeSpecValue.X:
                     x_coords.add((-1, -1))
-                case "Z":
+                case EdgeSpecValue.Z:
                     z_coords.add((1, -1))
                 case _:
                     pass
@@ -623,22 +634,22 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                 x_coords.add((x, (-1) ** n))
                 z_coords.add((x, -((-1) ** n)))
 
-            match self._spec("LEFT"):
-                case "X":
+            match self._spec(BoundarySide.LEFT):
+                case EdgeSpecValue.X:
                     x_coords.add((-1, -1))
-                case "Z":
+                case EdgeSpecValue.Z:
                     z_coords.add((-1, 1))
                 case _:
                     pass
-            match self._spec("RIGHT"):
-                case "X":
+            match self._spec(BoundarySide.RIGHT):
+                case EdgeSpecValue.X:
                     x_coords.add((2 * d - 1, 1))
-                case "Z":
+                case EdgeSpecValue.Z:
                     z_coords.add((2 * d - 1, -1))
                 case _:
                     pass
 
-        elif self._spec("UP") == "O" or self._spec("DOWN") == "O":
+        elif self._spec(BoundarySide.UP) == EdgeSpecValue.O or self._spec(BoundarySide.DOWN) == EdgeSpecValue.O:
             msg = "Temporal pipe not supported yet"
             raise NotImplementedError(msg)
         else:
@@ -665,7 +676,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         self,
         by: tuple[int, int] | tuple[int, int, int],
         *,
-        coordinate: Literal["tiling2d", "phys3d", "patch3d"] = "tiling2d",
+        coordinate: CoordinateSystem = CoordinateSystem.TILING_2D,
         direction: PIPEDIRECTION | None = None,
         inplace: bool = True,
     ) -> RotatedPlanarPipetemplate:
@@ -674,13 +685,13 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
 
         dx: int
         dy: int
-        if coordinate == "tiling2d":
+        if coordinate == CoordinateSystem.TILING_2D:
             bx, by_ = by  # type: ignore[misc]
             dx, dy = int(bx), int(by_)
-        elif coordinate == "phys3d":
+        elif coordinate == CoordinateSystem.PHYS_3D:
             bx, by_, _ = by  # type: ignore[misc]
             dx, dy = int(bx), int(by_)
-        elif coordinate == "patch3d":
+        elif coordinate == CoordinateSystem.PATCH_3D:
             if direction is None:
                 msg = "direction is required for patch3d pipe shift"
                 raise ValueError(msg)

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from lspattern.consts import NodeRole
 from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D
 
 if TYPE_CHECKING:
@@ -227,9 +228,9 @@ class CoordinateMapper:
             if not on_face_checker(c):
                 continue
             role = (self.node2role.get(nid) or "").lower()
-            if role == "ancilla_x":
+            if role == NodeRole.ANCILLA_X:
                 xcheck.append(c)
-            elif role == "ancilla_z":
+            elif role == NodeRole.ANCILLA_Z:
                 zcheck.append(c)
             else:
                 # Default to data if role is missing or 'data'

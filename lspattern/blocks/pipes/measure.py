@@ -7,6 +7,7 @@ from graphix_zx.common import Axis, AxisMeasBasis, Sign
 from graphix_zx.graphstate import GraphState
 
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
+from lspattern.consts import NodeRole
 from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D, PhysCoordLocal2D, SpatialEdgeSpec
 from lspattern.tiling.template import RotatedPlanarPipetemplate
 from lspattern.utils import get_direction
@@ -44,9 +45,9 @@ class _MeasurePipeBase(RHGPipe):
         if patch_coord is not None and self.source is not None and self.sink is not None:
             source_2d = (self.source[0], self.source[1])
             sink_2d = (self.sink[0], self.sink[1])
-            idx_map = self.template.get_data_indices(source_2d, patch_type="pipe", sink_patch=sink_2d)
+            idx_map = self.template.get_data_indices_pipe(source_2d, sink_2d)
         else:
-            idx_map = self.template.get_data_indices()
+            idx_map = self.template.get_data_indices_cube()
         self.in_ports = set(idx_map.values())
 
     def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
@@ -127,7 +128,7 @@ class _MeasurePipeBase(RHGPipe):
                 n = g.add_physical_node()
                 node2coord[n] = (int(x), int(y), int(t))
                 coord2node[int(x), int(y), int(t)] = n
-                node2role[n] = "data"
+                node2role[n] = NodeRole.DATA
                 cur[int(x), int(y)] = n
 
             nodes_by_z[t] = cur

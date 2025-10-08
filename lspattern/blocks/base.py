@@ -16,6 +16,7 @@ from lspattern.accumulator import (
     ParityAccumulator,
     ScheduleAccumulator,
 )
+from lspattern.consts import BoundarySide, EdgeSpecValue, NodeRole, Observable
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.tiling.template import (
     RotatedPlanarCubeTemplate,
@@ -132,8 +133,8 @@ class RHGBlock:
 
         # Trim spatial boundaries for explicitly open sides and precompute tiling
         es = edgespec or {}
-        for side in ("LEFT", "RIGHT", "TOP", "BOTTOM"):
-            if str(es.get(side, "")).upper() == "O":
+        for side in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
+            if es.get(side) == EdgeSpecValue.O:
                 self.template.trim_spatial_boundary(side)
 
         self.template.to_tiling()
@@ -269,13 +270,13 @@ class RHGBlock:
             if self.final_layer is None:
                 msg = "final_layer must be set"
                 raise AssertionError(msg)
-            if t_local == max_t and self.final_layer == "O":
+            if t_local == max_t and self.final_layer == EdgeSpecValue.O:
                 # add data node
                 for x, y in data2d:
                     n = g.add_physical_node()
                     node2coord[n] = (int(x), int(y), int(t))
                     coord2node[int(x), int(y), int(t)] = n
-                    node2role[n] = "data"
+                    node2role[n] = NodeRole.DATA
                     cur[int(x), int(y)] = n
             else:
                 # Data nodes every slice except the final sentinel layer
@@ -283,7 +284,7 @@ class RHGBlock:
                     n = g.add_physical_node()
                     node2coord[n] = (int(x), int(y), int(t))
                     coord2node[int(x), int(y), int(t)] = n
-                    node2role[n] = "data"
+                    node2role[n] = NodeRole.DATA
                     cur[int(x), int(y)] = n
                 # Interleave ancillas X/Z by time parity
                 if (t % 2) == 0:
@@ -291,14 +292,14 @@ class RHGBlock:
                         n = g.add_physical_node()
                         node2coord[n] = (int(x), int(y), int(t))
                         coord2node[int(x), int(y), int(t)] = n
-                        node2role[n] = "ancilla_x"
+                        node2role[n] = NodeRole.ANCILLA_X
                         cur[int(x), int(y)] = n
                 else:
                     for x, y in z2d:
                         n = g.add_physical_node()
                         node2coord[n] = (int(x), int(y), int(t))
                         coord2node[int(x), int(y), int(t)] = n
-                        node2role[n] = "ancilla_z"
+                        node2role[n] = NodeRole.ANCILLA_Z
                         cur[int(x), int(y)] = n
             nodes_by_z[t] = cur
         return nodes_by_z
@@ -340,7 +341,7 @@ class RHGBlock:
         """Register input/output nodes for visualization."""
         try:
             # Determine z- (min) and z+ (max) among DATA nodes only
-            data_coords_all = [c for n, c in node2coord.items() if node2role.get(n) == "data"]
+            data_coords_all = [c for n, c in node2coord.items() if node2role.get(n) == NodeRole.DATA]
             if not data_coords_all:
                 print("Warning: no data nodes found in RHGBlock; skipping I/O registration")
                 return
@@ -377,7 +378,7 @@ class RHGBlock:
 
             for node_id in nodes.values():
                 role = node2role.get(NodeIdLocal(node_id), "")
-                if role in {"ancilla_x", "ancilla_z"}:
+                if role in {NodeRole.ANCILLA_X, NodeRole.ANCILLA_Z}:
                     ancilla_nodes.append(node_id)
                 else:  # data or other roles
                     data_nodes.append(node_id)
@@ -397,7 +398,7 @@ class RHGBlock:
     ) -> tuple[dict[tuple[int, int], int], dict[tuple[int, int], int]]:
         """Build XY to input/output node mappings."""
         # XY -> local qubit index based on evaluated template
-        xy_to_q = self.template.get_data_indices()
+        xy_to_q = self.template.get_data_indices_cube()
 
         # Optional: map XY to node ids at z- / z+
         xy_to_innode: dict[tuple[int, int], int] = {}
@@ -427,11 +428,15 @@ class RHGBlock:
         # TODO: this branch should be refactored without hasattr
         if hasattr(self, "sink") and self.sink is not None:
             # This is a pipe - use pipe-specific parameters
+            # Pipes must have both source and sink coordinates
+            if patch_coord is None:
+                msg = "Pipe blocks must have source coordinates set"
+                raise ValueError(msg)
             sink_2d = (self.sink[0], self.sink[1])
-            xy_to_q = self.template.get_data_indices(patch_coord, patch_type="pipe", sink_patch=sink_2d)
+            xy_to_q = self.template.get_data_indices_pipe(patch_coord, sink_2d)
         else:
             # This is a cube - use standard parameters
-            xy_to_q = self.template.get_data_indices(patch_coord)
+            xy_to_q = self.template.get_data_indices_cube(patch_coord)
         inv_q_to_xy = {q: xy for xy, q in xy_to_q.items()}
 
         for qidx in self.in_ports:
@@ -459,11 +464,15 @@ class RHGBlock:
         # For pipes, need to use the same parameters as in set_out_ports
         if hasattr(self, "sink") and self.sink is not None:
             # This is a pipe - use pipe-specific parameters
+            # Pipes must have both source and sink coordinates
+            if patch_coord is None:
+                msg = "Pipe blocks must have source coordinates set"
+                raise ValueError(msg)
             sink_2d = (self.sink[0], self.sink[1])
-            xy_to_q = self.template.get_data_indices(patch_coord, patch_type="pipe", sink_patch=sink_2d)
+            xy_to_q = self.template.get_data_indices_pipe(patch_coord, sink_2d)
         else:
             # This is a cube - use standard parameters
-            xy_to_q = self.template.get_data_indices(patch_coord)
+            xy_to_q = self.template.get_data_indices_cube(patch_coord)
         inv_q_to_xy = {q: xy for xy, q in xy_to_q.items()}
 
         for qidx in self.out_ports:
@@ -576,9 +585,9 @@ class RHGBlock:
                 if coord[axis] not in targets:
                     continue
                 role = (roles.get(coord2node[coord]) or "").lower()
-                if role == "ancilla_x":
+                if role == NodeRole.ANCILLA_X:
                     xcheck.append(coord)
-                elif role == "ancilla_z":
+                elif role == NodeRole.ANCILLA_Z:
                     zcheck.append(coord)
                 else:
                     data.append(coord)
@@ -669,20 +678,26 @@ class RHGBlockSkeleton:
         msg = "to_block() must be implemented in subclasses."
         raise NotImplementedError(msg)
 
-    def trim_spatial_boundary(self, direction: str) -> None:
-        """Trim the spatial boundaries of the tiling."""
+    def trim_spatial_boundary(self, direction: BoundarySide) -> None:
+        """Trim the spatial boundaries of the tiling.
+
+        Parameters
+        ----------
+        direction : BoundarySide
+            Boundary side to trim.
+        """
         self.template.trim_spatial_boundary(direction)
 
 
-def compute_logical_op_direction(edgespec: SpatialEdgeSpec, obs: str) -> str:
+def compute_logical_op_direction(edgespec: SpatialEdgeSpec, obs: Observable) -> str:
     """Compute the logical operation direction from edge specification and observable.
 
     Parameters
     ----------
     edgespec : SpatialEdgeSpec
-        Spatial edge specification with keys 'LEFT', 'RIGHT', 'TOP', 'BOTTOM'.
-    obs : {'X','Z'}
-        Logical observable type.
+        Spatial edge specification with keys LEFT, RIGHT, TOP, BOTTOM.
+    obs : Observable
+        Logical observable type (Observable.X or Observable.Z).
 
     Returns
     -------
@@ -694,27 +709,26 @@ def compute_logical_op_direction(edgespec: SpatialEdgeSpec, obs: str) -> str:
     ValueError
         If the edgespec is invalid or does not support the specified observable.
     """
-    es = {k: str(v).upper() for k, v in edgespec.items() if k in {"LEFT", "RIGHT", "TOP", "BOTTOM"}}
-    if len(es) != NUM_EDGE_SPEC_BOUDARY:
+    if len(edgespec) != NUM_EDGE_SPEC_BOUDARY:
         msg = "edgespec must contain exactly the keys: LEFT, RIGHT, TOP, BOTTOM"
         raise ValueError(msg)
 
-    if obs.upper() == "X":  # TODO: should be Z?
+    if obs == Observable.X:
         # X logical operator runs between Z boundaries
-        if es["LEFT"] == "Z" and es["RIGHT"] == "Z":
+        if edgespec[BoundarySide.LEFT] == EdgeSpecValue.Z and edgespec[BoundarySide.RIGHT] == EdgeSpecValue.Z:
             return "H"
-        if es["TOP"] == "Z" and es["BOTTOM"] == "Z":
+        if edgespec[BoundarySide.TOP] == EdgeSpecValue.Z and edgespec[BoundarySide.BOTTOM] == EdgeSpecValue.Z:
             return "V"
 
         msg = "edgespec does not support X logical operator"
         raise ValueError(msg)
-    if obs.upper() == "Z":
+    if obs == Observable.Z:
         # Z logical operator runs between X boundaries
-        if es["LEFT"] == "X" and es["RIGHT"] == "X":
+        if edgespec[BoundarySide.LEFT] == EdgeSpecValue.X and edgespec[BoundarySide.RIGHT] == EdgeSpecValue.X:
             return "H"
-        if es["TOP"] == "X" and es["BOTTOM"] == "X":
+        if edgespec[BoundarySide.TOP] == EdgeSpecValue.X and edgespec[BoundarySide.BOTTOM] == EdgeSpecValue.X:
             return "V"
         msg = "edgespec does not support Z logical operator"
         raise ValueError(msg)
-    msg = "obs must be one of: X, Z"
+    msg = f"obs must be Observable.X or Observable.Z, got {obs}"
     raise ValueError(msg)

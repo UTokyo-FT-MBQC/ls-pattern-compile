@@ -24,6 +24,7 @@ from lspattern.canvas.composition import GraphComposer
 from lspattern.canvas.coordinates import CoordinateMapper
 from lspattern.canvas.ports import PortManager
 from lspattern.canvas.seams import SeamGenerator
+from lspattern.consts import BoundarySide, CoordinateSystem
 from lspattern.mytype import (
     NodeIdGlobal,
     NodeIdLocal,
@@ -737,19 +738,21 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
         self.pipes_[pipe_coord] = pipe
 
     @staticmethod
-    def _get_spatial_direction(dx: int, dy: int) -> tuple[str, str] | None:
+    def _get_spatial_direction(dx: int, dy: int) -> tuple[BoundarySide, BoundarySide] | None:
         """Get trim directions for spatial pipe."""
         if dx == 1 and dy == 0:
-            return "RIGHT", "LEFT"  # X+ direction
+            return BoundarySide.RIGHT, BoundarySide.LEFT  # X+ direction
         if dx == -1 and dy == 0:
-            return "LEFT", "RIGHT"  # X- direction
+            return BoundarySide.LEFT, BoundarySide.RIGHT  # X- direction
         if dy == 1 and dx == 0:
-            return "TOP", "BOTTOM"  # Y+ direction
+            return BoundarySide.TOP, BoundarySide.BOTTOM  # Y+ direction
         if dy == -1 and dx == 0:
-            return "BOTTOM", "TOP"  # Y- direction
+            return BoundarySide.BOTTOM, BoundarySide.TOP  # Y- direction
         return None
 
-    def _trim_adjacent_cubes(self, u: PatchCoordGlobal3D, v: PatchCoordGlobal3D, left_dir: str, right_dir: str) -> None:
+    def _trim_adjacent_cubes(
+        self, u: PatchCoordGlobal3D, v: PatchCoordGlobal3D, left_dir: BoundarySide, right_dir: BoundarySide
+    ) -> None:
         """Trim boundaries of adjacent cubes."""
         left = self.cubes_.get(u)
         right = self.cubes_.get(v)
@@ -930,7 +933,7 @@ def to_temporal_layer(
     for pos, c in cubes.items():
         dx, dy = cube_offset_xy(c.d, pos)
         # directory move the template (inplace=True)
-        c.template.shift_coords((dx, dy), coordinate="tiling2d", inplace=True)
+        c.template.shift_coords((dx, dy), coordinate=CoordinateSystem.TILING_2D, inplace=True)
     for pipe_coord, p in pipes.items():
         coord_tuple = tuple(pipe_coord)
         if len(coord_tuple) != EDGE_TUPLE_SIZE:
@@ -939,7 +942,7 @@ def to_temporal_layer(
         direction = get_direction(source, sink)
         dx, dy = pipe_offset_xy(p.d, source, sink, direction)
         # directory move the template (inplace=True)
-        p.template.shift_coords((dx, dy), coordinate="tiling2d", inplace=True)
+        p.template.shift_coords((dx, dy), coordinate=CoordinateSystem.TILING_2D, inplace=True)
 
     # materialize blocks before adding
     cubes_mat = {}
