@@ -13,8 +13,6 @@ from typing import TYPE_CHECKING
 from graphix_zx.graphstate import BaseGraphState, GraphState, compose
 
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
-from lspattern.blocks.cubes.base import RHGCube
-from lspattern.blocks.pipes.base import RHGPipe
 from lspattern.canvas.layer import TemporalLayer
 from lspattern.canvas.ports import PortManager
 from lspattern.mytype import (
@@ -30,6 +28,9 @@ from lspattern.utils import is_allowed_pair
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
+
+    from lspattern.blocks.cubes.base import RHGCube
+    from lspattern.blocks.pipes.base import RHGPipe
 
 
 @dataclass

@@ -8,8 +8,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from graphix_zx.graphstate import GraphState
-
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
 from lspattern.blocks.cubes.base import RHGCube
 from lspattern.blocks.pipes.base import RHGPipe
@@ -34,6 +32,8 @@ EDGE_TUPLE_SIZE = 2
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
+
+    from graphix_zx.graphstate import GraphState
 
 
 class TemporalLayer:

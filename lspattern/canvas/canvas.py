@@ -23,7 +23,6 @@ from lspattern.mytype import (
     PatchCoordGlobal3D,
     PipeCoordGlobal3D,
 )
-from lspattern.tiling.template import ScalableTemplate
 from lspattern.utils import get_direction
 
 # Constants
@@ -32,6 +31,7 @@ EDGE_TUPLE_SIZE = 2
 if TYPE_CHECKING:
     from lspattern.blocks.cubes.base import RHGCubeSkeleton
     from lspattern.blocks.pipes.base import RHGPipeSkeleton
+    from lspattern.tiling.template import ScalableTemplate
 
 
 @dataclass
