@@ -69,7 +69,9 @@ class _MeasurePipeBase(RHGPipe):
         """Measurement pipes do not have classical output ports."""
         return super().set_cout_ports(patch_coord)
 
-    def _assign_meas_bases(self, g: GraphState) -> None:
+    def _assign_meas_bases(
+        self, g: GraphState, meas_basis: object
+    ) -> None:  # noqa: ARG002
         """Assign measurement basis to all nodes."""
         for node in g.physical_nodes:
             g.assign_meas_basis(node, self.meas_basis)
@@ -106,7 +108,7 @@ class _MeasurePipeBase(RHGPipe):
             g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role
         )
 
-        self._assign_meas_bases(g)
+        self._assign_meas_bases(g, self.meas_basis)
 
         self._construct_schedule(nodes_by_z, node2role)
 

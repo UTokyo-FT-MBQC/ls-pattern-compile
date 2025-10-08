@@ -217,7 +217,7 @@ class RHGBlock:
         # Register GraphState input/output nodes for visualization
         self._register_io_nodes(g, node2coord, coord2node, node2role)
         # Assign measurement basis for non-output nodes
-        self._assign_meas_bases(g)
+        self._assign_meas_bases(g, self.meas_basis)
 
         self.local_graph = g
         # Convert to proper NewType dictionaries
@@ -393,10 +393,12 @@ class RHGBlock:
             # Visualization aid only; avoid breaking materialization pipelines
             print(f"Warning: failed to register I/O nodes on RHGBlock: {e}")
 
-    def _assign_meas_bases(self, g: GraphState) -> None:
+    def _assign_meas_bases(
+        self, g: GraphState, meas_basis: MeasBasis
+    ) -> None:  # noqa: PLR6301
         """Assign measurement basis for non-output nodes."""
         for node in g.physical_nodes - g.output_node_indices.keys():
-            g.assign_meas_basis(node, self.meas_basis)
+            g.assign_meas_basis(node, meas_basis)
 
     def _construct_detectors(self) -> None:
         raise NotImplementedError

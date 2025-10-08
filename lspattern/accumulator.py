@@ -251,16 +251,50 @@ class ParityAccumulator:
         new_dangling: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
         new_ignore_dangling: dict[PhysCoordLocal2D, bool] = {}
 
-        for coord in self._collect_all_coords(other):
-            checks_dict, dangling_entry, ignore_flag = self._merge_with_coord(
-                coord, other
-            )
+        # Get all coordinates from both accumulators
+        all_coords = (
+            set(self.checks.keys())
+            | set(self.dangling_parity.keys())
+            | set(other.checks.keys())
+            | set(other.dangling_parity.keys())
+            | set(self.ignore_dangling.keys())
+            | set(other.ignore_dangling.keys())
+        )
+
+        for coord in all_coords:
+            # Start with self's completed checks (copy the z-dict)
+            checks_dict = self.checks.get(coord, {}).copy()
+
+            coord_in_dangling = coord in self.dangling_parity
+            coord_in_otherchecks = coord in other.checks
+            match (coord_in_dangling, coord_in_otherchecks):
+                case (True, True):
+                    # Handle connection between self.dangling and other.checks
+                    self._handle_dangling_connection(coord, checks_dict, other)
+                case (True, False):
+                    # self has dangling but other doesn't have this coord
+                    # => Keep dangling for potential future connection
+                    new_dangling[coord] = self.dangling_parity[coord].copy()
+                case (False, True):
+                    # self has no dangling, other has checks
+                    for z, check_group in other.checks[coord].items():
+                        checks_dict[z] = check_group.copy()
+                case (False, False):
+                    pass
+
+            # Set new dangling from other (overwrites any existing)
+            if coord in other.dangling_parity:
+                new_dangling[coord] = other.dangling_parity[coord].copy()
+
+            # Inherit ignore_dangling information from other (prioritize other's settings)
+            if coord in self.ignore_dangling:
+                new_ignore_dangling[coord] = self.ignore_dangling[coord]
+            elif coord in other.ignore_dangling:
+                new_ignore_dangling[coord] = other.ignore_dangling[coord]
+
+            # Save checks dict if it has content
             if checks_dict:
                 new_checks[coord] = checks_dict
-            if dangling_entry is not None:
-                new_dangling[coord] = dangling_entry
-            if ignore_flag is not None:
-                new_ignore_dangling[coord] = ignore_flag
 
         return ParityAccumulator(
             checks=new_checks,
@@ -268,65 +302,60 @@ class ParityAccumulator:
             ignore_dangling=new_ignore_dangling,
         )
 
-    def _merge_with_coord(
-        self, coord: PhysCoordLocal2D, other: ParityAccumulator
-    ) -> tuple[dict[int, set[NodeIdLocal]], set[NodeIdLocal] | None, bool | None]:
-        """Merge state for a single coordinate in sequential composition."""
-        checks_dict = self.checks.get(coord, {}).copy()
-
-        dangling_entry: set[NodeIdLocal] | None = None
-        if coord in self.dangling_parity:
-            if coord in other.checks:
-                self._handle_dangling_connection(coord, checks_dict, other)
-            else:
-                dangling_entry = self.dangling_parity[coord].copy()
-        elif coord in other.checks:
-            for z, check_group in other.checks[coord].items():
-                checks_dict[z] = check_group.copy()
-
-        if coord in other.dangling_parity:
-            dangling_entry = other.dangling_parity[coord].copy()
-
-        return checks_dict, dangling_entry, self._resolve_ignore_flag(coord, other)
-
-    def _resolve_ignore_flag(
-        self, coord: PhysCoordLocal2D, other: ParityAccumulator
-    ) -> bool | None:
-        """Determine ignore_dangling flag precedence for a coordinate."""
-        if coord in self.ignore_dangling:
-            return self.ignore_dangling[coord]
-        if coord in other.ignore_dangling:
-            return other.ignore_dangling[coord]
-        return None
-
-    def _collect_all_coords(
+    def merge_parallel(
         self, other: ParityAccumulator
-    ) -> set[PhysCoordLocal2D]:
-        """Gather coordinates present in either accumulator."""
-        return (
-            set(self.checks)
-            | set(self.dangling_parity)
-            | set(other.checks)
-            | set(other.dangling_parity)
-            | set(self.ignore_dangling)
-            | set(other.ignore_dangling)
-        )
-
-    def merge_parallel(self, other: ParityAccumulator) -> ParityAccumulator:
+    ) -> ParityAccumulator:  # noqa: C901
         """Merge two parity accumulators for parallel composition with XOR merging at same z coordinates."""
         new_checks: dict[PhysCoordLocal2D, dict[int, set[NodeIdLocal]]] = {}
         new_dangling: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
         new_ignore_dangling: dict[PhysCoordLocal2D, bool] = {}
 
-        for coord in self._collect_all_coords(other):
-            checks_dict, dangling_entry, ignore_flag = self._merge_parallel_coord(
-                coord, other
-            )
+        # Get all coordinates from both accumulators
+        all_coords = (
+            set(self.checks.keys())
+            | set(other.checks.keys())
+            | set(self.dangling_parity.keys())
+            | set(other.dangling_parity.keys())
+            | set(self.ignore_dangling.keys())
+            | set(other.ignore_dangling.keys())
+        )
+
+        for coord in all_coords:
+            checks_dict: dict[int, set[NodeIdLocal]] = {}
+
+            # Process checks from self
+            if coord in self.checks:
+                for z, check_group in self.checks[coord].items():
+                    checks_dict[z] = check_group.copy()
+
+            # Process checks from other
+            if coord in other.checks:
+                for z, check_group in other.checks[coord].items():
+                    if z in checks_dict:
+                        # XOR merge for same z coordinate
+                        checks_dict[z] ^= check_group
+                    else:
+                        checks_dict[z] = check_group.copy()
+
+            # Remove empty checks
+            checks_dict = {z: group for z, group in checks_dict.items() if group}
+
+            # Save checks dict if it has content
             if checks_dict:
                 new_checks[coord] = checks_dict
-            if dangling_entry is not None:
-                new_dangling[coord] = dangling_entry
-            if ignore_flag:
+
+            # Process dangling parity
+            if coord in other.dangling_parity:
+                new_dangling[coord] = other.dangling_parity[coord].copy()
+                if coord in self.dangling_parity:
+                    new_dangling[coord] ^= self.dangling_parity[coord]
+            elif coord in self.dangling_parity:
+                new_dangling[coord] = self.dangling_parity[coord].copy()
+
+            # Process ignore_dangling: if either accumulator ignores dangling at this coord, keep ignoring
+            if self.ignore_dangling.get(coord, False) or other.ignore_dangling.get(
+                coord, False
+            ):
                 new_ignore_dangling[coord] = True
 
         return ParityAccumulator(
@@ -334,50 +363,6 @@ class ParityAccumulator:
             dangling_parity=new_dangling,
             ignore_dangling=new_ignore_dangling,
         )
-
-    def _merge_parallel_coord(
-        self, coord: PhysCoordLocal2D, other: ParityAccumulator
-    ) -> tuple[dict[int, set[NodeIdLocal]], set[NodeIdLocal] | None, bool]:
-        """Merge state for a single coordinate in parallel composition."""
-        checks_dict = self._xor_merge_checks(coord, other)
-        dangling_entry = self._merge_parallel_dangling(coord, other)
-        ignore_flag = self.ignore_dangling.get(coord, False) or other.ignore_dangling.get(
-            coord, False
-        )
-        return checks_dict, dangling_entry, ignore_flag
-
-    def _xor_merge_checks(
-        self, coord: PhysCoordLocal2D, other: ParityAccumulator
-    ) -> dict[int, set[NodeIdLocal]]:
-        """Merge check groups across accumulators using XOR semantics."""
-        merged: dict[int, set[NodeIdLocal]] = {}
-        if coord in self.checks:
-            for z, check_group in self.checks[coord].items():
-                merged[z] = check_group.copy()
-
-        if coord in other.checks:
-            for z, check_group in other.checks[coord].items():
-                if z in merged:
-                    merged[z] ^= check_group
-                    if not merged[z]:
-                        del merged[z]
-                else:
-                    merged[z] = check_group.copy()
-
-        return merged
-
-    def _merge_parallel_dangling(
-        self, coord: PhysCoordLocal2D, other: ParityAccumulator
-    ) -> set[NodeIdLocal] | None:
-        """Merge dangling parity sets for parallel composition."""
-        if coord in other.dangling_parity:
-            new_dangling = other.dangling_parity[coord].copy()
-            if coord in self.dangling_parity:
-                new_dangling ^= self.dangling_parity[coord]
-            return new_dangling
-        if coord in self.dangling_parity:
-            return self.dangling_parity[coord].copy()
-        return None
 
 
 @dataclass

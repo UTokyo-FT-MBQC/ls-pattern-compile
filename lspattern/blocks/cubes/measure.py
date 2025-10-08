@@ -3,7 +3,7 @@ from __future__ import annotations
 import operator
 from typing import TYPE_CHECKING, ClassVar, Literal, cast
 
-from graphix_zx.common import Axis, AxisMeasBasis, Sign
+from graphix_zx.common import Axis, AxisMeasBasis, MeasBasis, Sign
 from graphix_zx.graphstate import GraphState
 
 from lspattern.blocks.base import compute_logical_op_direction
@@ -109,7 +109,7 @@ class _MeasureBase(RHGCube):
             g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role
         )
 
-        self._assign_meas_bases(g)
+        self._assign_meas_bases(g, self.meas_basis)
 
         self._construct_schedule(nodes_by_z, node2role)
 
@@ -156,10 +156,12 @@ class _MeasureBase(RHGCube):
 
         return nodes_by_z
 
-    def _assign_meas_bases(self, g: GraphState) -> None:
+    def _assign_meas_bases(
+        self, g: GraphState, meas_basis: MeasBasis
+    ) -> None:  # noqa: PLR6301
         """Assign measurement basis for non-output nodes."""
         for node in g.physical_nodes:
-            g.assign_meas_basis(node, self.meas_basis)
+            g.assign_meas_basis(node, meas_basis)
 
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         idx_map = self.template.get_data_indices(patch_coord)
@@ -184,8 +186,8 @@ class MeasureX(_MeasureBase):
         super().set_out_ports(patch_coord)
 
     def set_cout_ports(
-        self, _patch_coord: tuple[int, int] | None = None
-    ) -> None:
+        self, patch_coord: tuple[int, int] | None = None
+    ) -> None:  # noqa: ARG002
         z_pos = self.source[2] * (2 * self.d)
 
         if self.edgespec is None:
@@ -250,8 +252,8 @@ class MeasureZ(_MeasureBase):
         super().set_out_ports(patch_coord)
 
     def set_cout_ports(
-        self, _patch_coord: tuple[int, int] | None = None
-    ) -> None:
+        self, patch_coord: tuple[int, int] | None = None
+    ) -> None:  # noqa: ARG002
         z_pos = self.source[2] * (2 * self.d)
 
         if self.edgespec is None:
