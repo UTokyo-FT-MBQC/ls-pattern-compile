@@ -23,9 +23,8 @@ from lspattern.blocks.pipes.base import RHGPipe
 from lspattern.canvas.composition import GraphComposer
 from lspattern.canvas.coordinates import CoordinateMapper
 from lspattern.canvas.ports import PortManager
-from lspattern.consts import BoundarySide, CoordinateSystem
-from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.canvas.seams import SeamGenerator
+from lspattern.consts import BoundarySide, CoordinateSystem
 from lspattern.mytype import (
     NodeIdGlobal,
     NodeIdLocal,
