@@ -58,6 +58,7 @@ from lspattern.blocks.cubes.initialize import InitZeroCubeThinLayerSkeleton
 from lspattern.blocks.cubes.measure import MeasureZSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
+from lspattern.consts.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D
 
 # Set code distance (controls fault tolerance and temporal height = 2*d)
@@ -67,7 +68,12 @@ d = 3
 canvas_skeleton = RHGCanvasSkeleton("Simple Example")
 
 # Define edge specifications (X/Z/O for open boundaries)
-edgespec = {"LEFT": "Z", "RIGHT": "Z", "TOP": "X", "BOTTOM": "X"}
+edgespec = {
+    BoundarySide.LEFT: EdgeSpecValue.Z,
+    BoundarySide.RIGHT: EdgeSpecValue.Z,
+    BoundarySide.TOP: EdgeSpecValue.X,
+    BoundarySide.BOTTOM: EdgeSpecValue.X,
+}
 
 # Add blocks: initialization and measurement
 canvas_skeleton.add_cube(
@@ -97,6 +103,8 @@ x_parity = [
 pattern = compile_canvas(graph, xflow=xflow, x_parity=x_parity, z_parity=[])
 ```
 
+> Enums such as `BoundarySide` and `EdgeSpecValue` inherit from `str`, so legacy string literals still work, but using the enum constants enables static analysis and IDE completion.
+
 For more complete examples including merge/split operations and error simulation, see the `examples/` directory:
 
 - `examples/merge_split_mockup.py` - Fault-tolerant merge and split with error simulation
@@ -114,6 +122,7 @@ Use skeletons to define block positions before materializing full graph states:
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
+from lspattern.consts.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D
 
 canvas_skeleton = RHGCanvasSkeleton("My Circuit")
@@ -121,14 +130,28 @@ canvas_skeleton = RHGCanvasSkeleton("My Circuit")
 # Add cubes at specific 3D patch coordinates
 canvas_skeleton.add_cube(
     PatchCoordGlobal3D((0, 0, 0)),
-    MemoryCubeSkeleton(d=3, edgespec={"LEFT": "Z", "RIGHT": "O", ...})
+    MemoryCubeSkeleton(
+        d=3,
+        edgespec={
+            BoundarySide.LEFT: EdgeSpecValue.Z,
+            BoundarySide.RIGHT: EdgeSpecValue.O,
+            ...
+        },
+    ),
 )
 
 # Add pipes connecting cubes
 canvas_skeleton.add_pipe(
     PatchCoordGlobal3D((0, 0, 1)),  # from coordinate
     PatchCoordGlobal3D((1, 0, 1)),  # to coordinate
-    InitPlusPipeSkeleton(d=3, edgespec={"LEFT": "O", "RIGHT": "O", ...})
+    InitPlusPipeSkeleton(
+        d=3,
+        edgespec={
+            BoundarySide.LEFT: EdgeSpecValue.O,
+            BoundarySide.RIGHT: EdgeSpecValue.O,
+            ...
+        },
+    ),
 )
 ```
 
@@ -223,30 +246,23 @@ fig.show()
 
 ### In Progress 🚧
 
-- **Complete logical error rate evaluation for merge/split** ([#19](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/19))
-  - Enable ancilla qubit specification for ZZ measurement
-  - Evaluate Z₁ ⊕ Z₂ ⊕ (Z₁Z₂) and X₁ ⊕ X₂ ⊕ (X₁X₂) observables
-- **Layer-by-layer construction refactoring** ([#23](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/23))
-  - Redesign blocks from fundamental layers for code reuse
-- **Module refactoring**
-  - Canvas module improvements ([#33](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/33))
-  - Visualizers module refactoring ([#32](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/32))
-- **PyPI publication preparation** ([#30](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/30))
-- **Sphinx documentation** ([#31](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/31))
+- [PR #46](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/46) Refactor canvas module into separate files (Phase 1.5)
+- [PR #45](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/45) Fix ancilla parity orientation for RHG blocks
+- [Issue #47](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/47) [ENHANCEMENT] Refresh docs after enum migration
+- [Issue #41](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/41) [BUG] Align ancilla role parity with RHG conventions
+- [Issue #33](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/33) Refactor canvas.py for better modularity and add comprehensive unit tests
+- [Issue #32](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/32) Refactor visualizers module for better maintainability
+- [Issue #31](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/31) Create Sphinx documentation
+- [Issue #30](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/30) Prepare package for PyPI publication
 
 ### Planned Features 📋
 
-- **Lattice Surgery Instructions** ([#3](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/3))
-  - Hadamard gate
-  - S gate
-  - Magic state preparation
-  - Boundary rotation
-- **Additional Measurements**
-  - Logical XX measurement ([#20](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/20))
-- **Patch Operations**
-  - Patch deformation (expansion, shrinkage, rotation) ([#22](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/22))
-- **Quality Improvements**
-  - Type checking for examples and tests ([#29](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/29))
+- [Issue #23](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/23) Layer by Layer Constuction
+- [Issue #19](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/19) Complete logical error rate simulation of merge and split
+- [Issue #20](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/20) Logical XX measurement
+- [Issue #22](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/22) Patch Deformation
+- [Issue #3](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/3) LS instructions in lattice-surgery-compiler
+- [Issue #29](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/29) [ENHANCEMENT] Enforce type checking on examples and tests
 
 ## Development
 
