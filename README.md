@@ -257,7 +257,7 @@ fig.show()
 
 ### Planned Features 📋
 
-- [Issue #23](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/23) Layer by Layer Constuction
+- [Issue #23](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/23) Layer by Layer Construction
 - [Issue #19](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/19) Complete logical error rate simulation of merge and split
 - [Issue #20](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/20) Logical XX measurement
 - [Issue #22](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/22) Patch Deformation
