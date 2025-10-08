@@ -238,7 +238,7 @@ class MeasureXPipe(_MeasurePipeBase):
         super().__init__(d, edgespec, direction, Axis.X)
 
     def _construct_detectors(self) -> None:
-        """Construct Z-stabilizer detectors for X measurement."""
+        """Construct X-stabilizer detectors for X measurement."""
         x2d = self.template.x_coords
 
         z_offset = self.source[2] * (2 * self.d)
@@ -271,7 +271,7 @@ class MeasureZPipe(_MeasurePipeBase):
         super().__init__(d, edgespec, direction, Axis.Z)
 
     def _construct_detectors(self) -> None:
-        """Construct X-stabilizer detectors for Z measurement."""
+        """Construct Z-stabilizer detectors for Z measurement."""
         z2d = self.template.z_coords
 
         z_offset = self.source[2] * (2 * self.d)
