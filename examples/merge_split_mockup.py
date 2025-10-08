@@ -44,11 +44,11 @@ blocks = [
     ),
     (
         PatchCoordGlobal3D((0, 0, 1)),
-        MemoryCubeSkeleton(d=d, edgespec=edgespec1),
+        MemoryCubeSkeleton(d=d, edgespec=edgespec),
     ),
     (
         PatchCoordGlobal3D((1, 0, 1)),
-        MemoryCubeSkeleton(d=d, edgespec=edgespec1),
+        MemoryCubeSkeleton(d=d, edgespec=edgespec),
     ),
     (
         PatchCoordGlobal3D((0, 0, 2)),

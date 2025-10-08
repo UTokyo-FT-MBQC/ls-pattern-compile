@@ -14,7 +14,9 @@ if TYPE_CHECKING:
 
 # Flow helpers (node maps guaranteed to contain all keys)
 def _remap_flow(flow: FlowLocal, node_map: dict[NodeIdLocal, NodeIdLocal]) -> FlowLocal:
-    return {node_map[src]: {node_map[dst] for dst in dsts} for src, dsts in flow.items()}
+    return {
+        node_map[src]: {node_map[dst] for dst in dsts} for src, dsts in flow.items()
+    }
 
 
 def _merge_flow(a: FlowLocal, b: FlowLocal) -> FlowLocal:
@@ -51,7 +53,9 @@ class ScheduleAccumulator:
 
     schedule: dict[int, set[NodeIdGlobal]] = field(default_factory=dict)
 
-    def remap_nodes(self, node_map: dict[NodeIdGlobal, NodeIdGlobal]) -> ScheduleAccumulator:
+    def remap_nodes(
+        self, node_map: dict[NodeIdGlobal, NodeIdGlobal]
+    ) -> ScheduleAccumulator:
         """Return a new accumulator with node ids remapped by `node_map`.
 
         Times are preserved; nodes in each time slot are mapped via `node_map`.
@@ -85,7 +89,9 @@ class ScheduleAccumulator:
         return ScheduleAccumulator(new_schedule)
 
     def compose_sequential(
-        self, late_schedule: ScheduleAccumulator, exclude_nodes: set[NodeIdGlobal] | None = None
+        self,
+        late_schedule: ScheduleAccumulator,
+        exclude_nodes: set[NodeIdGlobal] | None = None,
     ) -> ScheduleAccumulator:
         """Concatenate schedules by placing `late_schedule` after this one.
 
@@ -166,7 +172,9 @@ class ScheduleAccumulator:
         occupied_times = sorted(t for t, nodes in self.schedule.items() if nodes)
 
         # Create mapping from old time to new consecutive time
-        time_mapping = {old_time: new_time for new_time, old_time in enumerate(occupied_times)}
+        time_mapping = {
+            old_time: new_time for new_time, old_time in enumerate(occupied_times)
+        }
 
         # Build new schedule with compacted times
         compacted_schedule: dict[int, set[NodeIdGlobal]] = {}
@@ -182,17 +190,26 @@ class ScheduleAccumulator:
 class ParityAccumulator:
     """Parity check groups for X/Z stabilizers in local id space."""
 
-    checks: dict[PhysCoordLocal2D, dict[int, set[NodeIdLocal]]] = field(default_factory=dict)
-    dangling_parity: dict[PhysCoordLocal2D, set[NodeIdLocal]] = field(default_factory=dict)
+    checks: dict[PhysCoordLocal2D, dict[int, set[NodeIdLocal]]] = field(
+        default_factory=dict
+    )
+    dangling_parity: dict[PhysCoordLocal2D, set[NodeIdLocal]] = field(
+        default_factory=dict
+    )
     ignore_dangling: dict[PhysCoordLocal2D, bool] = field(default_factory=dict)
 
-    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> ParityAccumulator:
+    def remap_nodes(
+        self, node_map: dict[NodeIdLocal, NodeIdLocal]
+    ) -> ParityAccumulator:
         """Return a new parity accumulator with nodes remapped via `node_map`."""
         # Fast remap via dict comprehensions
         new_checks = {k: _remap_groups(v, node_map) for k, v in self.checks.items()}
 
         # Remap dangling_parity as well
-        new_dangling = {coord: {node_map.get(n, n) for n in nodes} for coord, nodes in self.dangling_parity.items()}
+        new_dangling = {
+            coord: {node_map.get(n, n) for n in nodes}
+            for coord, nodes in self.dangling_parity.items()
+        }
 
         # Preserve ignore_dangling information
         new_ignore_dangling = self.ignore_dangling.copy()
@@ -248,17 +265,22 @@ class ParityAccumulator:
             # Start with self's completed checks (copy the z-dict)
             checks_dict = self.checks.get(coord, {}).copy()
 
-            # Handle connection between self.dangling and other.checks
-            if coord in self.dangling_parity and coord in other.checks:
-                self._handle_dangling_connection(coord, checks_dict, other)
-            elif coord in self.dangling_parity and coord not in other.checks:
-                # self has dangling but other doesn't have this coord
-                # => Keep dangling for potential future connection
-                new_dangling[coord] = self.dangling_parity[coord].copy()
-            elif coord not in self.dangling_parity and coord in other.checks:
-                # self has no dangling, other has checks
-                for z, check_group in other.checks[coord].items():
-                    checks_dict[z] = check_group.copy()
+            coord_in_dangling = coord in self.dangling_parity
+            coord_in_otherchecks = coord in other.checks
+            match (coord_in_dangling, coord_in_otherchecks):
+                case (True, True):
+                    # Handle connection between self.dangling and other.checks
+                    self._handle_dangling_connection(coord, checks_dict, other)
+                case (True, False):
+                    # self has dangling but other doesn't have this coord
+                    # => Keep dangling for potential future connection
+                    new_dangling[coord] = self.dangling_parity[coord].copy()
+                case (False, True):
+                    # self has no dangling, other has checks
+                    for z, check_group in other.checks[coord].items():
+                        checks_dict[z] = check_group.copy()
+                case (False, False):
+                    pass
 
             # Set new dangling from other (overwrites any existing)
             if coord in other.dangling_parity:
@@ -280,7 +302,9 @@ class ParityAccumulator:
             ignore_dangling=new_ignore_dangling,
         )
 
-    def merge_parallel(self, other: ParityAccumulator) -> ParityAccumulator:  # noqa: C901
+    def merge_parallel(
+        self, other: ParityAccumulator
+    ) -> ParityAccumulator:  # noqa: C901
         """Merge two parity accumulators for parallel composition with XOR merging at same z coordinates."""
         new_checks: dict[PhysCoordLocal2D, dict[int, set[NodeIdLocal]]] = {}
         new_dangling: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
@@ -329,7 +353,9 @@ class ParityAccumulator:
                 new_dangling[coord] = self.dangling_parity[coord].copy()
 
             # Process ignore_dangling: if either accumulator ignores dangling at this coord, keep ignoring
-            if self.ignore_dangling.get(coord, False) or other.ignore_dangling.get(coord, False):
+            if self.ignore_dangling.get(coord, False) or other.ignore_dangling.get(
+                coord, False
+            ):
                 new_ignore_dangling[coord] = True
 
         return ParityAccumulator(
