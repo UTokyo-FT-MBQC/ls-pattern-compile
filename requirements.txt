@@ -4,7 +4,6 @@ stim
 pymatching
 sinter
 ortools>=9,<10
-typing_extensions
+typing_extensions>=4.0
 nbformat>=4.20
 plotly>=6
-typing_extensions

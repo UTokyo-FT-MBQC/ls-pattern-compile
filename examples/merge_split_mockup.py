@@ -11,11 +11,13 @@ from graphix_zx.pattern import Pattern, print_pattern
 from graphix_zx.scheduler import Scheduler
 from graphix_zx.stim_compiler import stim_compile
 
-from lspattern.blocks.cubes.initialize import InitPlusCubeThinLayerSkeleton, InitZeroCubeThinLayerSkeleton
-from lspattern.blocks.cubes.measure import MeasureXSkeleton, MeasureZSkeleton
+from lspattern.blocks.cubes.initialize import (
+    InitZeroCubeThinLayerSkeleton,
+)
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
 from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton
+from lspattern.blocks.cubes.measure import MeasureZSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
 from lspattern.consts import BoundarySide, EdgeSpecValue
@@ -28,10 +30,10 @@ d = 3
 
 canvass = RHGCanvasSkeleton("Merge and Split")
 
-edgespec: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.Z, BoundarySide.RIGHT: EdgeSpecValue.Z, BoundarySide.TOP: EdgeSpecValue.X, BoundarySide.BOTTOM: EdgeSpecValue.X}
-edgespec1: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.Z, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.X, BoundarySide.BOTTOM: EdgeSpecValue.X}
-edgespec2: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.Z, BoundarySide.TOP: EdgeSpecValue.X, BoundarySide.BOTTOM: EdgeSpecValue.X}
-edgespec_trimmed: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.X, BoundarySide.BOTTOM: EdgeSpecValue.X}
+edgespec: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.X, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
+edgespec1: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
+edgespec2: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.X, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
+edgespec_trimmed: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
 edgespec_measure_trimmed: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.O, BoundarySide.BOTTOM: EdgeSpecValue.O}
 blocks = [
     (
@@ -73,7 +75,7 @@ blocks = [
     (
         PatchCoordGlobal3D((1, 0, 4)),
         MeasureZSkeleton(d=d, edgespec=edgespec),
-    )
+    ),
 ]
 pipes = [
     (
@@ -96,8 +98,16 @@ for pipe in pipes:
 canvas = canvass.to_canvas()
 
 compiled_canvas: CompiledRHGCanvas = canvas.compile()
-nnodes = len(getattr(compiled_canvas.global_graph, "physical_nodes", []) or []) if compiled_canvas.global_graph else 0
-nedges = len(getattr(compiled_canvas.global_graph, "physical_edges", []) or []) if compiled_canvas.global_graph else 0
+nnodes = (
+    len(getattr(compiled_canvas.global_graph, "physical_nodes", []) or [])
+    if compiled_canvas.global_graph
+    else 0
+)
+nedges = (
+    len(getattr(compiled_canvas.global_graph, "physical_edges", []) or [])
+    if compiled_canvas.global_graph
+    else 0
+)
 print(
     {
         "layers": len(compiled_canvas.layers),
@@ -137,7 +147,9 @@ for t, nodes in compact_schedule.schedule.items():
 scheduled_nodes = set()
 for nodes in compact_schedule.schedule.values():
     scheduled_nodes.update(nodes)
-remaining_flows = {src: dsts for src, dsts in xflow.items() if src not in scheduled_nodes}
+remaining_flows = {
+    src: dsts for src, dsts in xflow.items() if src not in scheduled_nodes
+}
 if remaining_flows:
     remaining_flow_strs = [f"{src} -> {dsts}" for src, dsts in remaining_flows.items()]
     print(f"  Unscheduled flows: {', '.join(remaining_flow_strs)}")
@@ -150,11 +162,15 @@ for coord, group_list in compiled_canvas.parity.checks.items():
 print("\nDetailed Flow Information:")
 print(f"Total flow edges: {sum(len(dsts) for dsts in xflow.values())}")
 print(f"Flow sources: {len(xflow)}")
-print(f"Flow coverage: {len(set().union(*xflow.values()) if xflow else set())} unique destinations")
+print(
+    f"Flow coverage: {len(set().union(*xflow.values()) if xflow else set())} unique destinations"
+)
 
 # Print detector/stabilizer information
 print("\nDetector Information:")
-total_detectors = sum(len(group_dict) for group_dict in compiled_canvas.parity.checks.values())
+total_detectors = sum(
+    len(group_dict) for group_dict in compiled_canvas.parity.checks.values()
+)
 print(f"Total detectors: {total_detectors}")
 for coord, group_dict in compiled_canvas.parity.checks.items():
     print(f"  Patch {coord}: {len(group_dict)} detector groups")
@@ -193,7 +209,9 @@ if compiled_canvas.global_graph is not None:
             meas_time[node] = 1  # Default measurement time
             for time_slot, nodes in compact_schedule.schedule.items():
                 if node in nodes:
-                    meas_time[node] = time_slot + 1  # Shift by 1 to account for preparation at time 0
+                    meas_time[node] = (
+                        time_slot + 1
+                    )  # Shift by 1 to account for preparation at time 0
                     break
 
 # Configure scheduler with manual timing

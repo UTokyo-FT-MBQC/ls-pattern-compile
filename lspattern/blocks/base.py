@@ -166,11 +166,7 @@ class RHGBlock:
         """Sync template parameters with block settings."""
         self.template.d = int(self.d)
         if self.edge_spec is not None:
-            # Align template's edgespec with the block-side alias
-            try:
-                self.template.edgespec = dict(self.edge_spec)
-            except (TypeError, ValueError):
-                self.template.edgespec = self.edge_spec
+            self.template.edgespec = dict(self.edge_spec)
 
         # Evaluate tiling coordinates (data/X/Z) only when not yet populated.
         # This preserves any absolute XY shifts applied upstream (e.g.,
@@ -221,7 +217,12 @@ class RHGBlock:
 
     def _build_3d_graph(
         self,
-    ) -> tuple[GraphState, dict[int, tuple[int, int, int]], dict[tuple[int, int, int], int], dict[int, str]]:
+    ) -> tuple[
+        GraphState,
+        dict[int, tuple[int, int, int]],
+        dict[tuple[int, int, int], int],
+        dict[int, str],
+    ]:
         """Build 3D RHG graph structure."""
         # Collect 2D coordinates from the evaluated template
         data2d = list(self.template.data_coords or [])
@@ -229,9 +230,8 @@ class RHGBlock:
         z2d = list(self.template.z_coords or [])
 
         # Construct a 3D RHG slab of height ~2*d
-        d_val = int(self.d)
-        max_t = 2 * d_val
-        z0 = int(self.source[2]) * (2 * d_val)  # base z-offset per block
+        max_t = 2 * self.d
+        z0 = int(self.source[2]) * (2 * self.d)  # base z-offset per block
 
         g = GraphState()
         node2coord: dict[int, tuple[int, int, int]] = {}
@@ -288,18 +288,18 @@ class RHGBlock:
                     cur[int(x), int(y)] = n
                 # Interleave ancillas X/Z by time parity
                 if (t % 2) == 0:
-                    for x, y in x2d:
-                        n = g.add_physical_node()
-                        node2coord[n] = (int(x), int(y), int(t))
-                        coord2node[int(x), int(y), int(t)] = n
-                        node2role[n] = NodeRole.ANCILLA_X
-                        cur[int(x), int(y)] = n
-                else:
                     for x, y in z2d:
                         n = g.add_physical_node()
                         node2coord[n] = (int(x), int(y), int(t))
                         coord2node[int(x), int(y), int(t)] = n
                         node2role[n] = NodeRole.ANCILLA_Z
+                        cur[int(x), int(y)] = n
+                else:
+                    for x, y in x2d:
+                        n = g.add_physical_node()
+                        node2coord[n] = (int(x), int(y), int(t))
+                        coord2node[int(x), int(y), int(t)] = n
+                        node2role[n] = NodeRole.ANCILLA_X
                         cur[int(x), int(y)] = n
             nodes_by_z[t] = cur
         return nodes_by_z
@@ -369,7 +369,9 @@ class RHGBlock:
         raise NotImplementedError
 
     def _construct_schedule(
-        self, nodes_by_z: Mapping[int, Mapping[tuple[int, int], int]], node2role: Mapping[int, str]
+        self,
+        nodes_by_z: Mapping[int, Mapping[tuple[int, int], int]],
+        node2role: Mapping[int, str],
     ) -> None:
         for t, nodes in nodes_by_z.items():
             # Separate nodes by role: ancillas first, then data
@@ -453,7 +455,10 @@ class RHGBlock:
         return xy_to_lidx
 
     def _register_output_ports(
-        self, g: GraphState, xy_to_outnode: Mapping[tuple[int, int], int], xy_to_lidx: Mapping[tuple[int, int], int]
+        self,
+        g: GraphState,
+        xy_to_outnode: Mapping[tuple[int, int], int],
+        xy_to_lidx: Mapping[tuple[int, int], int],
     ) -> None:
         """Register output ports."""
         if not self.out_ports:
