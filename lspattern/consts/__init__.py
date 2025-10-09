@@ -8,6 +8,7 @@ from __future__ import annotations
 from lspattern.consts.consts import (
     DIRECTIONS2D,
     DIRECTIONS3D,
+    EDGE_TUPLE_SIZE,
     PIPEDIRECTION,
     BoundarySide,
     CoordinateSystem,
@@ -22,6 +23,7 @@ from lspattern.consts.consts import (
 __all__ = [
     "DIRECTIONS2D",
     "DIRECTIONS3D",
+    "EDGE_TUPLE_SIZE",
     "PIPEDIRECTION",
     "BoundarySide",
     "CoordinateSystem",

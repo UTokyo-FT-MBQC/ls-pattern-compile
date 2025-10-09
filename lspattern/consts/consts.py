@@ -26,6 +26,9 @@ DIRECTIONS3D: list[tuple[int, int, int]] = [
     (-1, -1, 0),  # diagonal downleft
 ]
 
+# Tuple size constant for pipe coordinates
+EDGE_TUPLE_SIZE = 2
+
 
 class PIPEDIRECTION(str, enum.Enum):  # noqa: UP042
     """Pipe direction for connecting patches in RHG lattice.
