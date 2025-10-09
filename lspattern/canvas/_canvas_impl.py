@@ -1043,6 +1043,7 @@ def _setup_temporal_connections(
             if source_node is not None and sink_node is not None and sink_node not in new_graph.neighbors(source_node):
                 new_graph.add_physical_edge(source_node, sink_node)
 
+
 # TODO: This is too complicated and needs simplification
 def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pipes: list[RHGPipe]) -> CompiledRHGCanvas:
     """Compose the compiled canvas with the next temporal layer."""
