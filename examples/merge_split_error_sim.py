@@ -1,7 +1,7 @@
 """Merge and Split error rate simulation with noise probability sweep."""
 
 import os
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import sinter
@@ -13,12 +13,13 @@ if TYPE_CHECKING:
     from lspattern.canvas import CompiledRHGCanvas
 
 from lspattern.blocks.cubes.initialize import InitZeroCubeThinLayerSkeleton
-from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.cubes.measure import MeasureZSkeleton
+from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
 from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton, MeasureZPipeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
+from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D
 
 
@@ -26,36 +27,11 @@ def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
     """Create RHG canvas skeleton for merge and split operation."""
     canvass = RHGCanvasSkeleton("Merge and Split")
 
-    edgespec: dict[str, Literal["X", "Z", "O"]] = {
-        "LEFT": "X",
-        "RIGHT": "X",
-        "TOP": "Z",
-        "BOTTOM": "Z",
-    }
-    edgespec1: dict[str, Literal["X", "Z", "O"]] = {
-        "LEFT": "X",
-        "RIGHT": "O",
-        "TOP": "Z",
-        "BOTTOM": "Z",
-    }
-    edgespec2: dict[str, Literal["X", "Z", "O"]] = {
-        "LEFT": "O",
-        "RIGHT": "X",
-        "TOP": "Z",
-        "BOTTOM": "Z",
-    }
-    edgespec_trimmed: dict[str, Literal["X", "Z", "O"]] = {
-        "LEFT": "O",
-        "RIGHT": "O",
-        "TOP": "Z",
-        "BOTTOM": "Z",
-    }
-    edgespec_measure_trimmed: dict[str, Literal["X", "Z", "O"]] = {
-        "LEFT": "O",
-        "RIGHT": "O",
-        "TOP": "O",
-        "BOTTOM": "O",
-    }
+    edgespec: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.X, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
+    edgespec1: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
+    edgespec2: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.X, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
+    edgespec_trimmed: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
+    edgespec_measure_trimmed: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.O, BoundarySide.BOTTOM: EdgeSpecValue.O}
 
     blocks = [
         (

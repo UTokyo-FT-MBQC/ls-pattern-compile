@@ -7,7 +7,6 @@ with RHGCanvas, TemporalLayer composition, and compilation.
 
 # %%
 import pathlib
-from typing import Literal
 
 import pymatching
 import stim
@@ -16,10 +15,11 @@ from graphix_zx.scheduler import Scheduler
 from graphix_zx.stim_compiler import stim_compile
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeThinLayerSkeleton
-from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.cubes.measure import MeasureXSkeleton
+from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
+from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D
 from lspattern.visualizers import visualize_compiled_canvas_plotly
 
@@ -30,7 +30,7 @@ d = 3
 skeleton = RHGCanvasSkeleton(name="Extended RHG Memory Canvas")
 
 # Define edge specification
-edgespec: dict[str, Literal["X", "Z", "O"]] = {"TOP": "X", "BOTTOM": "X", "LEFT": "Z", "RIGHT": "Z"}
+edgespec: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.TOP: EdgeSpecValue.X, BoundarySide.BOTTOM: EdgeSpecValue.X, BoundarySide.LEFT: EdgeSpecValue.Z, BoundarySide.RIGHT: EdgeSpecValue.Z}
 
 # Add InitPlus cube at the beginning
 # init_skeleton = InitPlusCubeSkeleton(d=d, edgespec=edgespec)

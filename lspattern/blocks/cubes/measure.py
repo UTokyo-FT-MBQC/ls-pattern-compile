@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import operator
-from typing import TYPE_CHECKING, ClassVar, Literal, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 from graphix_zx.common import Axis, AxisMeasBasis, MeasBasis, Sign
 from graphix_zx.graphstate import GraphState
 
 from lspattern.blocks.base import compute_logical_op_direction
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
+from lspattern.consts import BoundarySide, EdgeSpecValue, NodeRole, Observable
 from lspattern.mytype import (
     NodeIdLocal,
     PatchCoordGlobal3D,
@@ -40,12 +41,8 @@ class _MeasureBase(RHGCube):
     def __init__(self, logical: int, basis: Axis, **kwargs: object) -> None:
         # Extract specific arguments for the parent dataclass
         d = cast("int", kwargs.pop("d", 3))
-        edge_spec = cast(
-            'dict[str, Literal["X", "Z", "O"]] | None', kwargs.pop("edge_spec", None)
-        )
-        source = cast(
-            "PatchCoordGlobal3D", kwargs.pop("source", PatchCoordGlobal3D((0, 0, 0)))
-        )
+        edge_spec = cast("dict[BoundarySide, EdgeSpecValue] | None", kwargs.pop("edge_spec", None))
+        source = cast("PatchCoordGlobal3D", kwargs.pop("source", PatchCoordGlobal3D((0, 0, 0))))
         sink = cast("PatchCoordGlobal3D | None", kwargs.pop("sink", None))
         template = cast(
             "ScalableTemplate",
@@ -67,9 +64,7 @@ class _MeasureBase(RHGCube):
             cout_ports=cout_ports,
         )
         self.logical = logical
-        self.meas_basis = AxisMeasBasis(
-            basis, Sign.PLUS
-        )  # is it actually override the base class's meas_basis?
+        self.meas_basis = AxisMeasBasis(basis, Sign.PLUS)  # is it actually override the base class's meas_basis?
 
     def emit(self, canvas: RHGCanvas) -> None:
         # This detailed implementation is out of scope for this milestone.
@@ -105,9 +100,7 @@ class _MeasureBase(RHGCube):
         node2role: dict[int, str] = {}
 
         # Assign nodes for single time slice only
-        nodes_by_z = self._assign_nodes_by_timeslice(
-            g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role
-        )
+        nodes_by_z = self._assign_nodes_by_timeslice(g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role)
 
         self._assign_meas_bases(g, self.meas_basis)
 
@@ -149,22 +142,20 @@ class _MeasureBase(RHGCube):
                 n = g.add_physical_node()
                 node2coord[n] = (int(x), int(y), int(t))
                 coord2node[int(x), int(y), int(t)] = n
-                node2role[n] = "data"
+                node2role[n] = NodeRole.DATA
                 cur[int(x), int(y)] = n
 
             nodes_by_z[t] = cur
 
         return nodes_by_z
 
-    def _assign_meas_bases(
-        self, g: GraphState, meas_basis: MeasBasis
-    ) -> None:  # noqa: PLR6301
+    def _assign_meas_bases(self, g: GraphState, meas_basis: MeasBasis) -> None:  # noqa: PLR6301
         """Assign measurement basis for non-output nodes."""
         for node in g.physical_nodes:
             g.assign_meas_basis(node, meas_basis)
 
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        idx_map = self.template.get_data_indices(patch_coord)
+        idx_map = self.template.get_data_indices_cube(patch_coord)
         self.in_ports = set(idx_map.values())
 
     def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
@@ -178,27 +169,23 @@ class MeasureX(_MeasureBase):
         super().__init__(logical, Axis.X, **kwargs)
 
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        idx_map = self.template.get_data_indices(patch_coord)
+        idx_map = self.template.get_data_indices_cube(patch_coord)
         self.in_ports = set(idx_map.values())
 
     def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         # no out_ports for measurement blocks
         super().set_out_ports(patch_coord)
 
-    def set_cout_ports(
-        self, patch_coord: tuple[int, int] | None = None
-    ) -> None:  # noqa: ARG002
+    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
         z_pos = self.source[2] * (2 * self.d)
 
         if self.edgespec is None:
             msg = f"edgespec must be defined to determine logical operator direction at {self.source}"
             raise ValueError(msg)
-        direction = compute_logical_op_direction(self.edgespec, "X")
+        direction = compute_logical_op_direction(self.edgespec, Observable.X)
 
         # Get actual data coordinates from template (after any shifts)
-        data_coords = (
-            sorted(self.template.data_coords) if self.template.data_coords else []
-        )
+        data_coords = sorted(self.template.data_coords) if self.template.data_coords else []
 
         if direction == "V":
             # For vertical direction, select coords with y=min_y at regular x intervals
@@ -209,9 +196,7 @@ class MeasureX(_MeasureBase):
             # For horizontal direction, select coords with x=min_x at regular y intervals
             min_x = min(x for x, _ in data_coords) if data_coords else 0
             target_coords = [(x, y) for x, y in data_coords if x == min_x]
-            target_coords = sorted(target_coords, key=operator.itemgetter(1))[
-                : self.d
-            ]  # Sort by y, take first d
+            target_coords = sorted(target_coords, key=operator.itemgetter(1))[: self.d]  # Sort by y, take first d
 
         cout_coords = [(x, y, z_pos) for x, y in target_coords]
         cout_group = {
@@ -244,27 +229,23 @@ class MeasureZ(_MeasureBase):
         super().__init__(logical, Axis.Z, **kwargs)
 
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        idx_map = self.template.get_data_indices(patch_coord)
+        idx_map = self.template.get_data_indices_cube(patch_coord)
         self.in_ports = set(idx_map.values())
 
     def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         # no out_ports for measurement blocks
         super().set_out_ports(patch_coord)
 
-    def set_cout_ports(
-        self, patch_coord: tuple[int, int] | None = None
-    ) -> None:  # noqa: ARG002
+    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
         z_pos = self.source[2] * (2 * self.d)
 
         if self.edgespec is None:
             msg = f"edgespec must be defined to determine logical operator direction at {self.source}"
             raise ValueError(msg)
-        direction = compute_logical_op_direction(self.edgespec, "Z")
+        direction = compute_logical_op_direction(self.edgespec, Observable.Z)
 
         # Get actual data coordinates from template (after any shifts)
-        data_coords = (
-            sorted(self.template.data_coords) if self.template.data_coords else []
-        )
+        data_coords = sorted(self.template.data_coords) if self.template.data_coords else []
 
         if direction == "V":
             # For vertical direction, select coords with y=min_y at regular x intervals
@@ -275,9 +256,7 @@ class MeasureZ(_MeasureBase):
             # For horizontal direction, select coords with x=min_x at regular y intervals
             min_x = min(x for x, _ in data_coords) if data_coords else 0
             target_coords = [(x, y) for x, y in data_coords if x == min_x]
-            target_coords = sorted(target_coords, key=operator.itemgetter(1))[
-                : self.d
-            ]  # Sort by y, take first d
+            target_coords = sorted(target_coords, key=operator.itemgetter(1))[: self.d]  # Sort by y, take first d
 
         cout_coords = [(x, y, z_pos) for x, y in target_coords]
         cout_group = {
@@ -311,8 +290,8 @@ class MeasureXSkeleton(RHGCubeSkeleton):
     def to_block(self) -> MeasureX:
         """Materialize to a MeasureX (template evaluated, no local graph yet)."""
         # Apply spatial open-boundary trimming if specified
-        for direction in ["LEFT", "RIGHT", "TOP", "BOTTOM"]:
-            if str(self.edgespec.get(direction, "O")).upper() == "O":
+        for direction in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
+            if self.edgespec.get(direction, EdgeSpecValue.O) == EdgeSpecValue.O:
                 self.trim_spatial_boundary(direction)
         # Evaluate template coordinates
         self.template.to_tiling()
@@ -335,8 +314,8 @@ class MeasureZSkeleton(RHGCubeSkeleton):
     def to_block(self) -> MeasureZ:
         """Materialize to a MeasureZ (template evaluated, no local graph yet)."""
         # Apply spatial open-boundary trimming if specified
-        for direction in ["LEFT", "RIGHT", "TOP", "BOTTOM"]:
-            if str(self.edgespec.get(direction, "O")).upper() == "O":
+        for direction in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
+            if self.edgespec.get(direction, EdgeSpecValue.O) == EdgeSpecValue.O:
                 self.trim_spatial_boundary(direction)
         # Evaluate template coordinates
         self.template.to_tiling()

@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import plotly.graph_objects as go
 
+from lspattern.consts import NodeRole, VisualizationKind
 from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z, is_data
 from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D
 
@@ -17,7 +18,7 @@ def visualize_temporal_layer_plotly(  # noqa: C901
     layer: TemporalLayer,
     *,
     node_roles: dict[NodeIdLocal, str] | None = None,
-    ancilla_mode: str = "both",  # 'both' | 'x' | 'z'
+    ancilla_mode: VisualizationKind = VisualizationKind.BOTH,
     show_edges: bool = True,
     edge_width: float = 3.0,
     width: int = 800,
@@ -54,14 +55,14 @@ def visualize_temporal_layer_plotly(  # noqa: C901
 
     # Color mapping consistent with the notebook
     color_map = {
-        "data": {"color": "white", "line_color": "black", "size": 8, "name": "Data"},
-        "ancilla_x": {
+        NodeRole.DATA: {"color": "white", "line_color": "black", "size": 8, "name": "Data"},
+        NodeRole.ANCILLA_X: {
             "color": "#2ecc71",
             "line_color": "#1e8449",
             "size": 7,
             "name": "X Ancilla",
         },
-        "ancilla_z": {
+        NodeRole.ANCILLA_Z: {
             "color": "#3498db",
             "line_color": "#1f618d",
             "size": 7,
@@ -70,17 +71,17 @@ def visualize_temporal_layer_plotly(  # noqa: C901
     }
 
     # Build groups
-    groups: dict[str, dict[str, list[int]]] = {k: {"x": [], "y": [], "z": [], "nodes": []} for k in color_map}
+    groups: dict[NodeRole, dict[str, list[int]]] = {k: {"x": [], "y": [], "z": [], "nodes": []} for k in color_map}
 
-    def infer_role(coord: tuple[int, int, int]) -> str:
+    def infer_role(coord: tuple[int, int, int]) -> NodeRole:
         x, y, z = coord
         if is_data(x, y, z):
-            return "data"
+            return NodeRole.DATA
         if is_ancilla_x(x, y, z):
-            return "ancilla_x"
+            return NodeRole.ANCILLA_X
         if is_ancilla_z(x, y, z):
-            return "ancilla_z"
-        return "data"
+            return NodeRole.ANCILLA_Z
+        return NodeRole.DATA
 
     # 役割は優先して TemporalLayer.node2role から取得(引数未指定時)
     if node_roles is None:
@@ -91,12 +92,16 @@ def visualize_temporal_layer_plotly(  # noqa: C901
         node_roles_int = {int(k): v for k, v in node_roles.items()}
 
     for n, coord in node2coord.items():
-        role = node_roles_int.get(int(n)) if node_roles_int else None
-        if role not in {"data", "ancilla_x", "ancilla_z"}:
+        role_str = node_roles_int.get(int(n)) if node_roles_int else None
+        # Convert string role to NodeRole enum
+        role: NodeRole
+        if role_str in {NodeRole.DATA, NodeRole.ANCILLA_X, NodeRole.ANCILLA_Z}:
+            role = NodeRole(role_str)
+        else:
             role = infer_role(coord)
-        if ancilla_mode == "x" and role == "ancilla_z":
+        if ancilla_mode == VisualizationKind.X and role == NodeRole.ANCILLA_Z:
             continue
-        if ancilla_mode == "z" and role == "ancilla_x":
+        if ancilla_mode == VisualizationKind.Z and role == NodeRole.ANCILLA_X:
             continue
         groups[role]["x"].append(coord[0])
         groups[role]["y"].append(coord[1])

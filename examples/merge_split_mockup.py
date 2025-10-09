@@ -4,7 +4,6 @@ Merge and Split
 
 # %%
 import pathlib
-from typing import Literal
 
 import pymatching
 import stim
@@ -22,6 +21,7 @@ from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton, MeasureZPipeSke
 from lspattern.blocks.cubes.measure import MeasureXSkeleton, MeasureZSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
+from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D
 from lspattern.visualizers import visualize_compiled_canvas_plotly
 
@@ -31,36 +31,11 @@ d = 3
 
 canvass = RHGCanvasSkeleton("Merge and Split")
 
-edgespec: dict[str, Literal["X", "Z", "O"]] = {
-    "LEFT": "X",
-    "RIGHT": "X",
-    "TOP": "Z",
-    "BOTTOM": "Z",
-}
-edgespec1: dict[str, Literal["X", "Z", "O"]] = {
-    "LEFT": "X",
-    "RIGHT": "O",
-    "TOP": "Z",
-    "BOTTOM": "Z",
-}
-edgespec2: dict[str, Literal["X", "Z", "O"]] = {
-    "LEFT": "O",
-    "RIGHT": "X",
-    "TOP": "Z",
-    "BOTTOM": "Z",
-}
-edgespec_trimmed: dict[str, Literal["X", "Z", "O"]] = {
-    "LEFT": "O",
-    "RIGHT": "O",
-    "TOP": "Z",
-    "BOTTOM": "Z",
-}
-edgespec_measure_trimmed: dict[str, Literal["X", "Z", "O"]] = {
-    "LEFT": "O",
-    "RIGHT": "O",
-    "TOP": "O",
-    "BOTTOM": "O",
-}
+edgespec: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.X, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
+edgespec1: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
+edgespec2: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.X, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
+edgespec_trimmed: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
+edgespec_measure_trimmed: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.O, BoundarySide.BOTTOM: EdgeSpecValue.O}
 blocks = [
     (
         PatchCoordGlobal3D((0, 0, 0)),
