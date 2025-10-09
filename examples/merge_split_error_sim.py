@@ -16,7 +16,7 @@ from lspattern.blocks.cubes.initialize import InitZeroCubeThinLayerSkeleton
 from lspattern.blocks.cubes.measure import MeasureZSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
-from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton, MeasureZPipeSkeleton
+from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
 from lspattern.consts import BoundarySide, EdgeSpecValue
@@ -200,7 +200,7 @@ if __name__ == "__main__":
             json_metadata={"d": d, "r": 1, "p": noise, "circuit_type": "merge_split"},
         )
         for d in [3, 5, 7]
-        for noise in [1e-4, 1e-3, 5e-3, 7e-3, 1e-2, 5e-2, 2e-2, 1e-1]
+        for noise in [1e-2, 5e-2, 2e-2, 1e-1]
     ]
 
     # Collect statistics

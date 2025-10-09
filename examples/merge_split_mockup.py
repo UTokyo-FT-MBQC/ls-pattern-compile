@@ -12,13 +12,12 @@ from graphix_zx.scheduler import Scheduler
 from graphix_zx.stim_compiler import stim_compile
 
 from lspattern.blocks.cubes.initialize import (
-    InitPlusCubeThinLayerSkeleton,
     InitZeroCubeThinLayerSkeleton,
 )
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
-from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton, MeasureZPipeSkeleton
-from lspattern.blocks.cubes.measure import MeasureXSkeleton, MeasureZSkeleton
+from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton
+from lspattern.blocks.cubes.measure import MeasureZSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
 from lspattern.consts import BoundarySide, EdgeSpecValue
