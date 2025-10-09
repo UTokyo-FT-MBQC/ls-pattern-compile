@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 
+from lspattern.consts import NodeRole
 from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z
 
 if TYPE_CHECKING:
@@ -75,31 +76,31 @@ def visualize_temporal_layer(  # noqa: C901
     # 役割ベースでグルーピングして凡例を表示(z 偶奇による分岐は行わない)
     roles: dict[int, str] = {int(k): v for k, v in (layer.node2role or {}).items()}
     groups: dict[str, dict[str, list[int]]] = {
-        "data": {"x": [], "y": [], "z": []},
-        "ancilla_x": {"x": [], "y": [], "z": []},
-        "ancilla_z": {"x": [], "y": [], "z": []},
+        NodeRole.DATA: {"x": [], "y": [], "z": []},
+        NodeRole.ANCILLA_X: {"x": [], "y": [], "z": []},
+        NodeRole.ANCILLA_Z: {"x": [], "y": [], "z": []},
     }
     for nid, (x, y, z) in node2coord.items():
         role = roles.get(nid)
-        if role == "ancilla_x":
-            g = groups["ancilla_x"]
-        elif role == "ancilla_z":
-            g = groups["ancilla_z"]
+        if role == NodeRole.ANCILLA_X:
+            g = groups[NodeRole.ANCILLA_X]
+        elif role == NodeRole.ANCILLA_Z:
+            g = groups[NodeRole.ANCILLA_Z]
         # 役割がない場合はパリティから推定(それでも ancilla 判定されなければ data 扱い)
         elif role is None:
             if is_ancilla_x(x, y, z):
-                g = groups["ancilla_x"]
+                g = groups[NodeRole.ANCILLA_X]
             elif is_ancilla_z(x, y, z):
-                g = groups["ancilla_z"]
+                g = groups[NodeRole.ANCILLA_Z]
             else:
-                g = groups["data"]
+                g = groups[NodeRole.DATA]
         else:
-            g = groups["data"]
+            g = groups[NodeRole.DATA]
         g["x"].append(x)
         g["y"].append(y)
         g["z"].append(z)
 
-    def scat(gkey: str, color: str, label: str | None) -> None:
+    def scat(gkey: NodeRole, color: str, label: str | None) -> None:
         pts = groups[gkey]
         if pts["x"]:
             ax.scatter(
@@ -113,10 +114,10 @@ def visualize_temporal_layer(  # noqa: C901
                 label=label,
             )
 
-    scat("data", "white", "data")
+    scat(NodeRole.DATA, "white", "data")
     # unify palette with Plotly temporallayer: X=green, Z=blue
-    scat("ancilla_x", "#2ecc71", "ancilla X")
-    scat("ancilla_z", "#3498db", "ancilla Z")
+    scat(NodeRole.ANCILLA_X, "#2ecc71", "ancilla X")
+    scat(NodeRole.ANCILLA_Z, "#3498db", "ancilla Z")
 
     # Draw edges if we have a local graph
     local_graph = layer.local_graph

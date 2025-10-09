@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from lspattern.blocks.base import RHGBlock, RHGBlockSkeleton
+from lspattern.consts import CoordinateSystem
 from lspattern.mytype import (
     NodeIdLocal,
     PatchCoordGlobal3D,
@@ -80,7 +81,7 @@ class RHGPipe(RHGBlock):
 
         # Try pipe-specific patch3d rule (RotatedPlanarPipetemplate supports this)
         try:
-            self.template.shift_coords(by, coordinate="patch3d", direction=self.direction)  # type: ignore[call-arg]
+            self.template.shift_coords(by, coordinate=CoordinateSystem.PATCH_3D, direction=self.direction)  # type: ignore[call-arg]
         except TypeError:
             # Fallback: treat as a raw 2D tiling shift
             by_template: PatchCoordLocal2D = PatchCoordLocal2D((by[0], by[1]))

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import matplotlib.axes
 import matplotlib.figure
@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+from lspattern.consts import VisualizationKind, VisualizationMode
 from lspattern.mytype import NodeIdLocal
 from lspattern.visualizers.plotly_temporallayer import visualize_temporal_layer_plotly
 from lspattern.visualizers.temporallayer import visualize_temporal_layer
@@ -30,7 +31,7 @@ COLOR_EDGE = "#555555"
 def visualize_parity_mpl(  # noqa: C901
     layer: TemporalLayer,
     *,
-    kind: Literal["both", "x", "z"] = "both",
+    kind: VisualizationKind = VisualizationKind.BOTH,
     annotate: bool = False,
     save_path: str | None = None,
     show: bool = True,
@@ -70,7 +71,7 @@ def visualize_parity_mpl(  # noqa: C901
         if xs:
             ax.scatter(xs, ys, zs, s=20, c=color, edgecolors="black", label=label, alpha=0.9)  # type: ignore[misc]
 
-    if kind in {"both", "x"}:
+    if kind in {VisualizationKind.BOTH, VisualizationKind.X}:
         checks = [grp for coord_dict in par.checks.values() for grp in coord_dict.values()]
         draw_groups(checks, COLOR_X, "Parity X")
 
@@ -95,7 +96,7 @@ def visualize_parity_mpl(  # noqa: C901
 def visualize_flow_mpl(  # noqa: C901
     layer: TemporalLayer,
     *,
-    kind: Literal["both", "x", "z"] = "both",
+    kind: VisualizationKind = VisualizationKind.BOTH,
     max_edges: int | None = None,
     save_path: str | None = None,
     show: bool = True,
@@ -133,7 +134,7 @@ def visualize_flow_mpl(  # noqa: C901
                     if max_edges is not None and count >= max_edges:
                         return
 
-    if kind in {"both", "x"} and flow.flow:
+    if kind in {VisualizationKind.BOTH, VisualizationKind.X} and flow.flow:
         draw_edges(flow.flow, COLOR_X, "X-flow")
 
     # Draw nodes lightly for context
@@ -160,7 +161,7 @@ def visualize_flow_mpl(  # noqa: C901
 def visualize_schedule_mpl(
     layer: TemporalLayer,
     *,
-    mode: Literal["hist", "slices"] = "hist",
+    mode: VisualizationMode = VisualizationMode.HIST,
     times: list[int] | None = None,
     save_path: str | None = None,
     show: bool = True,
@@ -178,7 +179,7 @@ def visualize_schedule_mpl(
         fig = ax.get_figure()  # type: ignore[assignment]
         assert fig is not None  # noqa: S101
 
-    if mode == "hist":
+    if mode == VisualizationMode.HIST:
         ts = sorted(sched.keys())
         counts = [len(sched[t]) for t in ts]
         ax.bar(ts, counts, color="#888888")
@@ -235,7 +236,7 @@ def visualize_temporal_layer_2x2_mpl(
     visualize_temporal_layer(layer, show=False, ax=ax11)
     visualize_parity_mpl(layer, show=False, ax=ax12)
     visualize_flow_mpl(layer, show=False, ax=ax21)
-    visualize_schedule_mpl(layer, mode="hist", show=False, ax=ax22)
+    visualize_schedule_mpl(layer, mode=VisualizationMode.HIST, show=False, ax=ax22)
 
     fig.tight_layout()
     if save_path is not None:
@@ -253,7 +254,7 @@ def visualize_temporal_layer_2x2_mpl(
 def visualize_parity_plotly(
     layer: TemporalLayer,
     *,
-    kind: Literal["both", "x", "z"] = "both",
+    kind: VisualizationKind = VisualizationKind.BOTH,
 ) -> go.Figure:
     node2coord = layer.node2coord or {}
     par = layer.parity
@@ -283,7 +284,7 @@ def visualize_parity_plotly(
                 )
             )
 
-    if kind in {"both", "x"}:
+    if kind in {VisualizationKind.BOTH, VisualizationKind.X}:
         checks = [grp for coord_dict in par.checks.values() for grp in coord_dict.values()]
         add_group(checks, COLOR_X, "Parity X")
 
@@ -298,7 +299,7 @@ def visualize_parity_plotly(
 def visualize_flow_plotly(
     layer: TemporalLayer,
     *,
-    kind: Literal["both", "x", "z"] = "both",
+    kind: VisualizationKind = VisualizationKind.BOTH,
     max_edges: int | None = None,
 ) -> go.Figure:
     node2coord = layer.node2coord or {}
@@ -336,7 +337,7 @@ def visualize_flow_plotly(
                 )
             )
 
-    if kind in {"both", "x"} and flow.flow:
+    if kind in {VisualizationKind.BOTH, VisualizationKind.X} and flow.flow:
         add_edges(flow.flow, COLOR_X, "X-flow")
 
     fig.update_layout(
@@ -350,13 +351,13 @@ def visualize_flow_plotly(
 def visualize_schedule_plotly(
     layer: TemporalLayer,
     *,
-    mode: Literal["hist", "slices"] = "hist",
+    mode: VisualizationMode = VisualizationMode.HIST,
     times: list[int] | None = None,
 ) -> go.Figure:
     sched = layer.schedule.schedule if getattr(layer, "schedule", None) else {}
     node2coord = layer.node2coord or {}
 
-    if mode == "hist":
+    if mode == VisualizationMode.HIST:
         ts = sorted(sched.keys())
         counts = [len(sched[t]) for t in ts]
         return go.Figure(
@@ -419,7 +420,7 @@ def visualize_temporal_layer_2x2_plotly(layer: TemporalLayer) -> go.Figure:
         fig.add_trace(tr, row=2, col=1)
 
     # Schedule (hist 2D)
-    fig_sched = visualize_schedule_plotly(layer, mode="hist")
+    fig_sched = visualize_schedule_plotly(layer, mode=VisualizationMode.HIST)
     for tr in fig_sched.data:
         fig.add_trace(tr, row=2, col=2)
 

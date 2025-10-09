@@ -7,13 +7,8 @@ from graphix_zx.common import Axis, AxisMeasBasis, Sign
 from graphix_zx.graphstate import GraphState
 
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
-from lspattern.mytype import (
-    NodeIdLocal,
-    PatchCoordGlobal3D,
-    PhysCoordGlobal3D,
-    PhysCoordLocal2D,
-    SpatialEdgeSpec,
-)
+from lspattern.consts import NodeRole
+from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D, PhysCoordLocal2D, SpatialEdgeSpec
 from lspattern.tiling.template import RotatedPlanarPipetemplate
 from lspattern.utils import get_direction
 
@@ -47,18 +42,12 @@ class _MeasurePipeBase(RHGPipe):
 
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         """Set input ports from template data indices."""
-        if (
-            patch_coord is not None
-            and self.source is not None
-            and self.sink is not None
-        ):
+        if patch_coord is not None and self.source is not None and self.sink is not None:
             source_2d = (self.source[0], self.source[1])
             sink_2d = (self.sink[0], self.sink[1])
-            idx_map = self.template.get_data_indices(
-                source_2d, patch_type="pipe", sink_patch=sink_2d
-            )
+            idx_map = self.template.get_data_indices_pipe(source_2d, sink_2d)
         else:
-            idx_map = self.template.get_data_indices()
+            idx_map = self.template.get_data_indices_cube()
         self.in_ports = set(idx_map.values())
 
     def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
@@ -69,9 +58,7 @@ class _MeasurePipeBase(RHGPipe):
         """Measurement pipes do not have classical output ports."""
         return super().set_cout_ports(patch_coord)
 
-    def _assign_meas_bases(
-        self, g: GraphState, meas_basis: object
-    ) -> None:  # noqa: ARG002
+    def _assign_meas_bases(self, g: GraphState, meas_basis: object) -> None:  # noqa: ARG002
         """Assign measurement basis to all nodes."""
         for node in g.physical_nodes:
             g.assign_meas_basis(node, self.meas_basis)
@@ -104,9 +91,7 @@ class _MeasurePipeBase(RHGPipe):
         node2role: dict[int, str] = {}
 
         # Assign nodes for single time slice only
-        nodes_by_z = self._assign_nodes_by_timeslice(
-            g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role
-        )
+        nodes_by_z = self._assign_nodes_by_timeslice(g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role)
 
         self._assign_meas_bases(g, self.meas_basis)
 
@@ -148,7 +133,7 @@ class _MeasurePipeBase(RHGPipe):
                 n = g.add_physical_node()
                 node2coord[n] = (int(x), int(y), int(t))
                 coord2node[int(x), int(y), int(t)] = n
-                node2role[n] = "data"
+                node2role[n] = NodeRole.DATA
                 cur[int(x), int(y)] = n
 
             nodes_by_z[t] = cur
@@ -164,9 +149,7 @@ class MeasureXPipeSkeleton(RHGPipeSkeleton):
     def to_block(self) -> MeasureXPipe: ...
 
     @overload
-    def to_block(
-        self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D
-    ) -> MeasureXPipe: ...
+    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> MeasureXPipe: ...
 
     def to_block(
         self,
@@ -199,9 +182,7 @@ class MeasureZPipeSkeleton(RHGPipeSkeleton):
     def to_block(self) -> MeasureZPipe: ...
 
     @overload
-    def to_block(
-        self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D
-    ) -> MeasureZPipe: ...
+    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> MeasureZPipe: ...
 
     def to_block(
         self,
@@ -248,15 +229,13 @@ class MeasureXPipe(_MeasurePipeBase):
             for x, y in x2d:
                 node_group: set[NodeIdLocal] = set()
                 for dx, dy in ANCILLA_TARGET_DIRECTION2D:
-                    node_id = self.coord2node.get(
-                        PhysCoordGlobal3D((x + dx, y + dy, z + z_offset))
-                    )
+                    node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z + z_offset)))
                     if node_id is not None:
                         node_group.add(node_id)
                 if node_group:
-                    self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), {})[
-                        z + z_offset + 1
-                    ] = node_group  # To group with neighboring X ancilla
+                    self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), {})[z + z_offset + 1] = (
+                        node_group  # To group with neighboring X ancilla
+                    )
 
 
 class MeasureZPipe(_MeasurePipeBase):
@@ -281,12 +260,8 @@ class MeasureZPipe(_MeasurePipeBase):
             for x, y in z2d:
                 node_group: set[NodeIdLocal] = set()
                 for dx, dy in ANCILLA_TARGET_DIRECTION2D:
-                    node_id = self.coord2node.get(
-                        PhysCoordGlobal3D((x + dx, y + dy, z + z_offset))
-                    )
+                    node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z + z_offset)))
                     if node_id is not None:
                         node_group.add(node_id)
                 if node_group:
-                    self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), {})[
-                        z + z_offset
-                    ] = node_group
+                    self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), {})[z + z_offset] = node_group
