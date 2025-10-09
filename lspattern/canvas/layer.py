@@ -6,6 +6,7 @@ in the RHG canvas, along with utilities for creating temporal layers from cubes 
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
@@ -33,6 +34,7 @@ if TYPE_CHECKING:
     from graphix_zx.graphstate import GraphState
 
 
+@dataclass
 class TemporalLayer:
     """
     Represents a single temporal layer in the RHG canvas.
@@ -42,52 +44,35 @@ class TemporalLayer:
     """
 
     z: int
-    qubit_count: int
-    patches: list[PatchCoordGlobal3D]
-    lines: list[PipeCoordGlobal3D]
+    qubit_count: int = 0
+    patches: list[PatchCoordGlobal3D] = field(default_factory=list)
+    lines: list[PipeCoordGlobal3D] = field(default_factory=list)
 
     # Port management delegated to PortManager
-    port_manager: PortManager
+    port_manager: PortManager = field(default_factory=PortManager)
 
     # Coordinate mapping delegated to CoordinateMapper
-    coord_mapper: CoordinateMapper
+    coord_mapper: CoordinateMapper = field(default_factory=CoordinateMapper)
 
     # Graph composition delegated to GraphComposer
-    graph_composer: GraphComposer
+    graph_composer: GraphComposer = field(init=False)
 
-    schedule: ScheduleAccumulator
-    flow: FlowAccumulator
-    parity: ParityAccumulator
+    schedule: ScheduleAccumulator = field(default_factory=ScheduleAccumulator)
+    flow: FlowAccumulator = field(default_factory=FlowAccumulator)
+    parity: ParityAccumulator = field(default_factory=ParityAccumulator)
 
-    local_graph: GraphState | None
+    local_graph: GraphState | None = None
 
-    cubes_: dict[PatchCoordGlobal3D, RHGCube]
-    pipes_: dict[PipeCoordGlobal3D, RHGPipe]
-    tiling_node_maps: dict[str, dict[int, tuple[int, int]]]
+    cubes_: dict[PatchCoordGlobal3D, RHGCube] = field(default_factory=dict)
+    pipes_: dict[PipeCoordGlobal3D, RHGPipe] = field(default_factory=dict)
+    tiling_node_maps: dict[str, dict[int, tuple[int, int]]] = field(default_factory=dict)
 
-    coord2gid: dict[PhysCoordGlobal3D, QubitGroupIdGlobal]
-    allowed_gid_pairs: set[tuple[QubitGroupIdGlobal, QubitGroupIdGlobal]]
+    coord2gid: dict[PhysCoordGlobal3D, QubitGroupIdGlobal] = field(default_factory=dict)
+    allowed_gid_pairs: set[tuple[QubitGroupIdGlobal, QubitGroupIdGlobal]] = field(default_factory=set)
 
-    def __init__(self, z: int) -> None:
-        self.z = z
-        self.qubit_count = 0
-        self.patches = []
-        self.lines = []
-        self.port_manager = PortManager()
-        self.coord_mapper = CoordinateMapper()
+    def __post_init__(self) -> None:
+        # Initialize graph_composer after coord_mapper and port_manager are set
         self.graph_composer = GraphComposer(self.coord_mapper, self.port_manager)
-        self.local_graph = None
-        # accumulators
-        self.schedule = ScheduleAccumulator()
-        self.flow = FlowAccumulator()
-        self.parity = ParityAccumulator()
-
-        self.cubes_ = {}
-        self.pipes_ = {}
-        self.tiling_node_maps = {}
-
-        self.coord2gid = {}
-        self.allowed_gid_pairs = set()
 
     # Backward compatibility properties for port management
     @property
