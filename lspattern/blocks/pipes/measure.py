@@ -65,7 +65,12 @@ class _MeasurePipeBase(RHGPipe):
 
     def _build_3d_graph(
         self,
-    ) -> tuple[GraphState, dict[int, tuple[int, int, int]], dict[tuple[int, int, int], int], dict[int, str]]:
+    ) -> tuple[
+        GraphState,
+        dict[int, tuple[int, int, int]],
+        dict[tuple[int, int, int], int],
+        dict[int, str],
+    ]:
         """Build 3D RHG graph structure optimized for measurement pipes.
 
         Measurement pipes only need a single layer (thickness=1) with data qubits only.
@@ -147,7 +152,9 @@ class MeasureXPipeSkeleton(RHGPipeSkeleton):
     def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> MeasureXPipe: ...
 
     def to_block(
-        self, source: PatchCoordGlobal3D | None = None, sink: PatchCoordGlobal3D | None = None
+        self,
+        source: PatchCoordGlobal3D | None = None,
+        sink: PatchCoordGlobal3D | None = None,
     ) -> MeasureXPipe:
         if source is None:
             source = PatchCoordGlobal3D((0, 0, 0))
@@ -178,7 +185,9 @@ class MeasureZPipeSkeleton(RHGPipeSkeleton):
     def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> MeasureZPipe: ...
 
     def to_block(
-        self, source: PatchCoordGlobal3D | None = None, sink: PatchCoordGlobal3D | None = None
+        self,
+        source: PatchCoordGlobal3D | None = None,
+        sink: PatchCoordGlobal3D | None = None,
     ) -> MeasureZPipe:
         if source is None:
             source = PatchCoordGlobal3D((0, 0, 0))
@@ -210,14 +219,14 @@ class MeasureXPipe(_MeasurePipeBase):
         super().__init__(d, edgespec, direction, Axis.X)
 
     def _construct_detectors(self) -> None:
-        """Construct Z-stabilizer detectors for X measurement."""
-        z2d = self.template.z_coords
+        """Construct X-stabilizer detectors for X measurement."""
+        x2d = self.template.x_coords
 
         z_offset = self.source[2] * (2 * self.d)
         height = max({coord[2] for coord in self.coord2node}, default=0) - z_offset + 1
 
         for z in range(height):
-            for x, y in z2d:
+            for x, y in x2d:
                 node_group: set[NodeIdLocal] = set()
                 for dx, dy in ANCILLA_TARGET_DIRECTION2D:
                     node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z + z_offset)))
@@ -241,14 +250,14 @@ class MeasureZPipe(_MeasurePipeBase):
         super().__init__(d, edgespec, direction, Axis.Z)
 
     def _construct_detectors(self) -> None:
-        """Construct X-stabilizer detectors for Z measurement."""
-        x2d = self.template.x_coords
+        """Construct Z-stabilizer detectors for Z measurement."""
+        z2d = self.template.z_coords
 
         z_offset = self.source[2] * (2 * self.d)
         height = max({coord[2] for coord in self.coord2node}, default=0) - z_offset + 1
 
         for z in range(height):
-            for x, y in x2d:
+            for x, y in z2d:
                 node_group: set[NodeIdLocal] = set()
                 for dx, dy in ANCILLA_TARGET_DIRECTION2D:
                     node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z + z_offset)))

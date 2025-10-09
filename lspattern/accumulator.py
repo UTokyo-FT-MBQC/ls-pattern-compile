@@ -85,7 +85,9 @@ class ScheduleAccumulator:
         return ScheduleAccumulator(new_schedule)
 
     def compose_sequential(
-        self, late_schedule: ScheduleAccumulator, exclude_nodes: set[NodeIdGlobal] | None = None
+        self,
+        late_schedule: ScheduleAccumulator,
+        exclude_nodes: set[NodeIdGlobal] | None = None,
     ) -> ScheduleAccumulator:
         """Concatenate schedules by placing `late_schedule` after this one.
 
@@ -228,7 +230,7 @@ class ParityAccumulator:
                     if z > min_z:
                         checks_dict[z] = check_group.copy()
 
-    def merge_with(self, other: ParityAccumulator) -> ParityAccumulator:
+    def merge_with(self, other: ParityAccumulator) -> ParityAccumulator:  # noqa: C901
         """Merge two parity accumulators with dangling parity handling for sequential composition."""
         new_checks: dict[PhysCoordLocal2D, dict[int, set[NodeIdLocal]]] = {}
         new_dangling: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
@@ -248,17 +250,22 @@ class ParityAccumulator:
             # Start with self's completed checks (copy the z-dict)
             checks_dict = self.checks.get(coord, {}).copy()
 
-            # Handle connection between self.dangling and other.checks
-            if coord in self.dangling_parity and coord in other.checks:
-                self._handle_dangling_connection(coord, checks_dict, other)
-            elif coord in self.dangling_parity and coord not in other.checks:
-                # self has dangling but other doesn't have this coord
-                # => Keep dangling for potential future connection
-                new_dangling[coord] = self.dangling_parity[coord].copy()
-            elif coord not in self.dangling_parity and coord in other.checks:
-                # self has no dangling, other has checks
-                for z, check_group in other.checks[coord].items():
-                    checks_dict[z] = check_group.copy()
+            coord_in_dangling = coord in self.dangling_parity
+            coord_in_otherchecks = coord in other.checks
+            match (coord_in_dangling, coord_in_otherchecks):
+                case (True, True):
+                    # Handle connection between self.dangling and other.checks
+                    self._handle_dangling_connection(coord, checks_dict, other)
+                case (True, False):
+                    # self has dangling but other doesn't have this coord
+                    # => Keep dangling for potential future connection
+                    new_dangling[coord] = self.dangling_parity[coord].copy()
+                case (False, True):
+                    # self has no dangling, other has checks
+                    for z, check_group in other.checks[coord].items():
+                        checks_dict[z] = check_group.copy()
+                case (False, False):
+                    pass
 
             # Set new dangling from other (overwrites any existing)
             if coord in other.dangling_parity:

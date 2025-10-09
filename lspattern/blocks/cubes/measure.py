@@ -44,7 +44,10 @@ class _MeasureBase(RHGCube):
         edge_spec = cast("dict[BoundarySide, EdgeSpecValue] | None", kwargs.pop("edge_spec", None))
         source = cast("PatchCoordGlobal3D", kwargs.pop("source", PatchCoordGlobal3D((0, 0, 0))))
         sink = cast("PatchCoordGlobal3D | None", kwargs.pop("sink", None))
-        template = cast("ScalableTemplate", kwargs.pop("template", ScalableTemplate(d=3, edgespec={})))
+        template = cast(
+            "ScalableTemplate",
+            kwargs.pop("template", ScalableTemplate(d=3, edgespec={})),
+        )
         in_ports = cast("set[QubitIndexLocal]", kwargs.pop("in_ports", set()))
         out_ports = cast("set[QubitIndexLocal]", kwargs.pop("out_ports", set()))
         cout_ports = cast("list[set[NodeIdLocal]]", kwargs.pop("cout_ports", []))
@@ -71,7 +74,12 @@ class _MeasureBase(RHGCube):
 
     def _build_3d_graph(
         self,
-    ) -> tuple[GraphState, dict[int, tuple[int, int, int]], dict[tuple[int, int, int], int], dict[int, str]]:
+    ) -> tuple[
+        GraphState,
+        dict[int, tuple[int, int, int]],
+        dict[tuple[int, int, int], int],
+        dict[int, str],
+    ]:
         """Build 3D RHG graph structure optimized for measurement blocks.
 
         Measurement blocks only need a single layer (thickness=1) with data qubits only.
@@ -179,13 +187,13 @@ class MeasureX(_MeasureBase):
         # Get actual data coordinates from template (after any shifts)
         data_coords = sorted(self.template.data_coords) if self.template.data_coords else []
 
-        if direction == "H":
-            # For horizontal direction, select coords with y=min_y at regular x intervals
+        if direction == "V":
+            # For vertical direction, select coords with y=min_y at regular x intervals
             min_y = min(y for _, y in data_coords) if data_coords else 0
             target_coords = [(x, y) for x, y in data_coords if y == min_y]
             target_coords = sorted(target_coords)[: self.d]  # Take first d coordinates
-        else:  # direction == "V"
-            # For vertical direction, select coords with x=min_x at regular y intervals
+        else:  # direction == "H"
+            # For horizontal direction, select coords with x=min_x at regular y intervals
             min_x = min(x for x, _ in data_coords) if data_coords else 0
             target_coords = [(x, y) for x, y in data_coords if x == min_x]
             target_coords = sorted(target_coords, key=operator.itemgetter(1))[: self.d]  # Sort by y, take first d
@@ -200,12 +208,12 @@ class MeasureX(_MeasureBase):
         self.cout_ports = [cout_group]
 
     def _construct_detectors(self) -> None:
-        z2d = self.template.z_coords
+        x2d = self.template.x_coords
 
         # Use the actual z-coordinate where nodes are placed
         z0 = int(self.source[2]) * (2 * self.d)
 
-        for x, y in z2d:
+        for x, y in x2d:
             node_group: set[NodeIdLocal] = set()
             for dx, dy in ANCILLA_TARGET_DIRECTION2D:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z0)))
@@ -239,13 +247,13 @@ class MeasureZ(_MeasureBase):
         # Get actual data coordinates from template (after any shifts)
         data_coords = sorted(self.template.data_coords) if self.template.data_coords else []
 
-        if direction == "H":
-            # For horizontal direction, select coords with y=min_y at regular x intervals
+        if direction == "V":
+            # For vertical direction, select coords with y=min_y at regular x intervals
             min_y = min(y for _, y in data_coords) if data_coords else 0
             target_coords = [(x, y) for x, y in data_coords if y == min_y]
             target_coords = sorted(target_coords)[: self.d]  # Take first d coordinates
-        else:  # direction == "V"
-            # For vertical direction, select coords with x=min_x at regular y intervals
+        else:  # direction == "H"
+            # For horizontal direction, select coords with x=min_x at regular y intervals
             min_x = min(x for x, _ in data_coords) if data_coords else 0
             target_coords = [(x, y) for x, y in data_coords if x == min_x]
             target_coords = sorted(target_coords, key=operator.itemgetter(1))[: self.d]  # Sort by y, take first d
@@ -260,12 +268,12 @@ class MeasureZ(_MeasureBase):
         self.cout_ports = [cout_group]
 
     def _construct_detectors(self) -> None:
-        x2d = self.template.x_coords
+        z2d = self.template.z_coords
 
         # Use the actual z-coordinate where nodes are placed
         z0 = int(self.source[2]) * (2 * self.d)
 
-        for x, y in x2d:
+        for x, y in z2d:
             node_group: set[NodeIdLocal] = set()
             for dx, dy in ANCILLA_TARGET_DIRECTION2D:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z0)))
