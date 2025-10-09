@@ -58,7 +58,7 @@ from lspattern.blocks.cubes.initialize import InitZeroCubeThinLayerSkeleton
 from lspattern.blocks.cubes.measure import MeasureZSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
-from lspattern.consts.consts import BoundarySide, EdgeSpecValue
+from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D
 
 # Set code distance (controls fault tolerance and temporal height = 2*d)
@@ -122,7 +122,7 @@ Use skeletons to define block positions before materializing full graph states:
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
-from lspattern.consts.consts import BoundarySide, EdgeSpecValue
+from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D
 
 canvas_skeleton = RHGCanvasSkeleton("My Circuit")
