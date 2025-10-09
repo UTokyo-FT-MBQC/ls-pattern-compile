@@ -51,6 +51,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Using `str` mixin (`class X(str, Enum)`) for backward compatibility
 - Refactored `TemporalLayer` to use `SeamGenerator` for seam edge generation ([#33](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/33) Phase 1.4)
 
+### Fixed
+
+- Switched to `typing_extensions.assert_never` from `typing.assert_never` since `py310` doesn't support the latter.
+
 ### Removed
 - Deprecated modules `rhg.py` and `ops.py` ([#21](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/21))
 
