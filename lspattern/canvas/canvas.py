@@ -266,11 +266,10 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
                 for pipe_coord, pipe in self.pipes_.items():
                     u, v = pipe_coord
                     if u[2] == prev_z and v[2] == z:
-                        # 明示的に端点情報を埋めて渡す(skeleton->block で保持されないため)
-                        with suppress(Exception):
-                            pipe.source = u
-                            pipe.sink = v
-                            pipe.direction = get_direction(u, v)
+                        # Explicitly fill in endpoint information (not preserved during skeleton->block conversion)
+                        pipe.source = u
+                        pipe.sink = v
+                        pipe.direction = get_direction(u, v)
                         pipes.append(pipe)
             cgraph = add_temporal_layer(cgraph, layer, pipes)
         return cgraph
