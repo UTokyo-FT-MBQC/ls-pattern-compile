@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from graphix_zx.graphstate import BaseGraphState, GraphState, compose
 
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
+from lspattern.canvas.graph_utils import create_remapped_graphstate
 from lspattern.canvas.layer import TemporalLayer
 from lspattern.canvas.ports import PortManager
 from lspattern.mytype import (
@@ -167,58 +168,6 @@ class CompiledRHGCanvas:
     #     pass
 
     @staticmethod
-    def _remap_graph_nodes(
-        gsrc: BaseGraphState, nmap: dict[NodeIdLocal, NodeIdLocal]
-    ) -> tuple[dict[int, int], GraphState]:
-        """Create new nodes in destination graph."""
-        gdst = GraphState()
-        created: dict[int, int] = {}
-        for old in gsrc.physical_nodes:
-            new_id = nmap.get(NodeIdLocal(old), NodeIdLocal(old))
-            if int(new_id) in created:
-                continue
-            created[int(new_id)] = gdst.add_physical_node()
-        return created, gdst
-
-    @staticmethod
-    def _remap_measurement_bases(
-        gsrc: BaseGraphState,
-        gdst: BaseGraphState,
-        nmap: dict[NodeIdLocal, NodeIdLocal],
-        created: dict[int, int],
-    ) -> None:
-        """Remap measurement bases."""
-        for old, new_id in nmap.items():
-            mb = gsrc.meas_bases.get(int(old))
-            if mb is not None:
-                gdst.assign_meas_basis(created.get(int(new_id), int(new_id)), mb)
-
-    @staticmethod
-    def _remap_graph_edges(
-        gsrc: BaseGraphState,
-        gdst: BaseGraphState,
-        nmap: dict[NodeIdLocal, NodeIdLocal],
-        created: dict[int, int],
-    ) -> None:
-        """Remap graph edges."""
-        for u, v in gsrc.physical_edges:
-            nu = nmap.get(NodeIdLocal(u), NodeIdLocal(u))
-            nv = nmap.get(NodeIdLocal(v), NodeIdLocal(v))
-            gdst.add_physical_edge(created.get(int(nu), int(nu)), created.get(int(nv), int(nv)))
-
-    @staticmethod
-    def _create_remapped_graphstate(
-        gsrc: BaseGraphState | None, nmap: dict[NodeIdLocal, NodeIdLocal]
-    ) -> GraphState | None:
-        """Create a remapped GraphState."""
-        if gsrc is None:
-            return None
-        created, gdst = CompiledRHGCanvas._remap_graph_nodes(gsrc, nmap)
-        CompiledRHGCanvas._remap_measurement_bases(gsrc, gdst, nmap, created)
-        CompiledRHGCanvas._remap_graph_edges(gsrc, gdst, nmap, created)
-        return gdst
-
-    @staticmethod
     def _remap_layer(layer: TemporalLayer, node_map: Mapping[NodeIdLocal, NodeIdLocal]) -> TemporalLayer:
         """Remap a single temporal layer."""
         # Create a copy of the layer and remap its node mappings
@@ -272,7 +221,7 @@ class CompiledRHGCanvas:
 
         new_cgraph = CompiledRHGCanvas(
             layers=remapped_layers,
-            global_graph=self._create_remapped_graphstate(self.global_graph, dict(node_map)),
+            global_graph=create_remapped_graphstate(self.global_graph, dict(node_map)),
             coord2node={},
             port_manager=remapped_port_manager,
             schedule=self.schedule.remap_nodes({NodeIdGlobal(k): NodeIdGlobal(v) for k, v in node_map.items()}),
