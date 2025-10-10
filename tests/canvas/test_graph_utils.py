@@ -225,12 +225,6 @@ class TestRemapGraphEdges:
 class TestCreateRemappedGraphState:
     """Test create_remapped_graphstate functionality."""
 
-    def test_create_remapped_graphstate_none(self) -> None:
-        """Test that None source returns None."""
-        nmap: dict[NodeIdLocal, NodeIdLocal] = {}
-        result = create_remapped_graphstate(None, nmap)
-        assert result is None
-
     def test_create_remapped_graphstate_empty(self) -> None:
         """Test remapping empty graph."""
         gsrc = GraphState()

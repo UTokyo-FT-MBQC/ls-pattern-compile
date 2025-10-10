@@ -93,25 +93,21 @@ def remap_graph_edges(
         gdst.add_physical_edge(created.get(int(nu), int(nu)), created.get(int(nv), int(nv)))
 
 
-def create_remapped_graphstate(
-    gsrc: BaseGraphState | None, nmap: Mapping[NodeIdLocal, NodeIdLocal]
-) -> GraphState | None:
+def create_remapped_graphstate(gsrc: BaseGraphState, nmap: Mapping[NodeIdLocal, NodeIdLocal]) -> GraphState:
     """Create a remapped GraphState.
 
     Parameters
     ----------
-    gsrc : BaseGraphState | None
-        Source graph state to remap, or None.
+    gsrc : BaseGraphState
+        Source graph state to remap.
     nmap : collections.abc.Mapping[NodeIdLocal, NodeIdLocal]
         Node mapping from old to new IDs.
 
     Returns
     -------
-    GraphState | None
-        Remapped graph state, or None if source was None.
+    GraphState
+        Remapped graph state.
     """
-    if gsrc is None:
-        return None
     created, gdst = remap_graph_nodes(gsrc, nmap)
     remap_measurement_bases(gsrc, gdst, nmap, created)
     remap_graph_edges(gsrc, gdst, nmap, created)
