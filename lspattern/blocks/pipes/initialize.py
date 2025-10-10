@@ -94,8 +94,9 @@ class InitPlusPipe(RHGPipe):
 
     def set_out_ports(
         self, patch_coord: tuple[int, int] | None = None
-    ) -> None:  # noqa: ARG002
+    ) -> None:
         # Init pipe: 出力はテンプレートの data 全インデックス
+        del patch_coord
         if self.source is not None and self.sink is not None:
             source_2d = (self.source[0], self.source[1])
             sink_2d = (self.sink[0], self.sink[1])
@@ -244,8 +245,9 @@ class InitPlusThinLayerPipe(RHGPipe):
 
     def set_out_ports(
         self, patch_coord: tuple[int, int] | None = None
-    ) -> None:  # noqa: ARG002
+    ) -> None:
         # Init pipe: 出力はテンプレートの data 全インデックス
+        del patch_coord
         if self.source is not None and self.sink is not None:
             source_2d = (self.source[0], self.source[1])
             sink_2d = (self.sink[0], self.sink[1])
@@ -365,8 +367,9 @@ class InitZeroPipe(RHGPipe):
 
     def set_out_ports(
         self, patch_coord: tuple[int, int] | None = None
-    ) -> None:  # noqa: ARG002
+    ) -> None:
         # Init pipe: 出力はテンプレートの data 全インデックス
+        del patch_coord
         if self.source is not None and self.sink is not None:
             source_2d = (self.source[0], self.source[1])
             sink_2d = (self.sink[0], self.sink[1])
@@ -379,7 +382,7 @@ class InitZeroPipe(RHGPipe):
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         # initialize does not have cout ports
         return super().set_cout_ports(patch_coord)
-    
+
     def _build_3d_graph(self) -> Build3DGraphReturn:
         """Override to create single-layer graph with only 13 nodes (9 data + 4 ancilla) at z=2*d."""
         data2d = list(self.template.data_coords or [])
@@ -547,8 +550,9 @@ class InitZeroThinLayerPipe(RHGPipe):
 
     def set_out_ports(
         self, patch_coord: tuple[int, int] | None = None
-    ) -> None:  # noqa: ARG002
+    ) -> None:
         # set output ports to all data indices in the template
+        del patch_coord
         if self.source is not None and self.sink is not None:
             source_2d = (self.source[0], self.source[1])
             sink_2d = (self.sink[0], self.sink[1])

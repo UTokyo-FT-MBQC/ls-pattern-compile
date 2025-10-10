@@ -14,7 +14,7 @@ from graphix_zx.stim_compiler import stim_compile
 from lspattern.blocks.cubes.initialize import InitPlusCubeThinLayerSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.initialize import InitZeroPipeSkeleton
-from lspattern.blocks.cubes.measure import MeasureZSkeleton, MeasureXSkeleton
+from lspattern.blocks.cubes.measure import MeasureXSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
 from lspattern.consts import BoundarySide, EdgeSpecValue
