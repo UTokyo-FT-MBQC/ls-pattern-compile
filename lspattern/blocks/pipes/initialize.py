@@ -422,16 +422,25 @@ class InitZeroPipe(RHGPipe):
                 continue
             dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
             self.parity.ignore_dangling[PhysCoordLocal2D((x, y))] = True
+        x_coord_set = {PhysCoordLocal2D((x, y)) for x, y in x2d}
         for z in range(1, height):
             for x, y in x2d + z2d:
-                if node_id := self.coord2node.get(
-                    PhysCoordGlobal3D((x, y, z + z_offset))
-                ):
-                    coord = PhysCoordLocal2D((x, y))
-                    node_group = {node_id} | dangling_detectors.get(coord, set())
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
+                if node_id is None:
+                    continue
 
-                    self.parity.checks.setdefault(coord, {})[z + z_offset] = node_group
+                coord = PhysCoordLocal2D((x, y))
+                prev = dangling_detectors.get(coord, set())
+
+                # For X ancilla positions skip emitting the very first detector so that
+                # the initial non-deterministic node pairs with the next layer.
+                if not prev and coord in x_coord_set:
                     dangling_detectors[coord] = {node_id}
+                    continue
+
+                node_group = {node_id} | prev
+                self.parity.checks.setdefault(coord, {})[z + z_offset] = node_group
+                dangling_detectors[coord] = {node_id}
 
         # add dangling detectors for connectivity to next block
         for coord, nodes in dangling_detectors.items():
