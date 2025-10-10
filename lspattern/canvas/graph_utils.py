@@ -6,19 +6,26 @@ and measurement bases when composing temporal layers.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from graphix_zx.graphstate import BaseGraphState, GraphState
 
 from lspattern.mytype import NodeIdLocal
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
-def remap_graph_nodes(gsrc: BaseGraphState, nmap: dict[NodeIdLocal, NodeIdLocal]) -> tuple[dict[int, int], GraphState]:
+
+def remap_graph_nodes(
+    gsrc: BaseGraphState, nmap: Mapping[NodeIdLocal, NodeIdLocal]
+) -> tuple[dict[int, int], GraphState]:
     """Create new nodes in destination graph.
 
     Parameters
     ----------
     gsrc : BaseGraphState
         Source graph state to remap.
-    nmap : dict[NodeIdLocal, NodeIdLocal]
+    nmap : collections.abc.Mapping[NodeIdLocal, NodeIdLocal]
         Node mapping from old to new IDs.
 
     Returns
@@ -39,8 +46,8 @@ def remap_graph_nodes(gsrc: BaseGraphState, nmap: dict[NodeIdLocal, NodeIdLocal]
 def remap_measurement_bases(
     gsrc: BaseGraphState,
     gdst: BaseGraphState,
-    nmap: dict[NodeIdLocal, NodeIdLocal],
-    created: dict[int, int],
+    nmap: Mapping[NodeIdLocal, NodeIdLocal],
+    created: Mapping[int, int],
 ) -> None:
     """Remap measurement bases from source to destination graph.
 
@@ -50,9 +57,9 @@ def remap_measurement_bases(
         Source graph state.
     gdst : BaseGraphState
         Destination graph state.
-    nmap : dict[NodeIdLocal, NodeIdLocal]
+    nmap : collections.abc.Mapping[NodeIdLocal, NodeIdLocal]
         Node mapping from old to new IDs.
-    created : dict[int, int]
+    created : collections.abc.Mapping[int, int]
         Mapping of created nodes.
     """
     for old, new_id in nmap.items():
@@ -64,8 +71,8 @@ def remap_measurement_bases(
 def remap_graph_edges(
     gsrc: BaseGraphState,
     gdst: BaseGraphState,
-    nmap: dict[NodeIdLocal, NodeIdLocal],
-    created: dict[int, int],
+    nmap: Mapping[NodeIdLocal, NodeIdLocal],
+    created: Mapping[int, int],
 ) -> None:
     """Remap graph edges from source to destination graph.
 
@@ -75,9 +82,9 @@ def remap_graph_edges(
         Source graph state.
     gdst : BaseGraphState
         Destination graph state.
-    nmap : dict[NodeIdLocal, NodeIdLocal]
+    nmap : collections.abc.Mapping[NodeIdLocal, NodeIdLocal]
         Node mapping from old to new IDs.
-    created : dict[int, int]
+    created : collections.abc.Mapping[int, int]
         Mapping of created nodes.
     """
     for u, v in gsrc.physical_edges:
@@ -86,14 +93,16 @@ def remap_graph_edges(
         gdst.add_physical_edge(created.get(int(nu), int(nu)), created.get(int(nv), int(nv)))
 
 
-def create_remapped_graphstate(gsrc: BaseGraphState | None, nmap: dict[NodeIdLocal, NodeIdLocal]) -> GraphState | None:
+def create_remapped_graphstate(
+    gsrc: BaseGraphState | None, nmap: Mapping[NodeIdLocal, NodeIdLocal]
+) -> GraphState | None:
     """Create a remapped GraphState.
 
     Parameters
     ----------
     gsrc : BaseGraphState | None
         Source graph state to remap, or None.
-    nmap : dict[NodeIdLocal, NodeIdLocal]
+    nmap : collections.abc.Mapping[NodeIdLocal, NodeIdLocal]
         Node mapping from old to new IDs.
 
     Returns
