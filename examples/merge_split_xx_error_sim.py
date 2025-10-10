@@ -13,13 +13,12 @@ if TYPE_CHECKING:
     from lspattern.canvas import CompiledRHGCanvas
 
 from lspattern.blocks.cubes.initialize import (
-    InitZeroCubeThinLayerSkeleton,
     InitPlusCubeThinLayerSkeleton,
 )
-from lspattern.blocks.cubes.measure import MeasureXSkeleton, MeasureZSkeleton
+from lspattern.blocks.cubes.measure import MeasureXSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
-from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton, InitZeroPipeSkeleton
-from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton, MeasureZPipeSkeleton
+from lspattern.blocks.pipes.initialize import InitZeroPipeSkeleton
+from lspattern.blocks.pipes.measure import MeasureZPipeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
 from lspattern.consts import BoundarySide, EdgeSpecValue

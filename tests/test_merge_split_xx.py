@@ -5,8 +5,7 @@ from lspattern.blocks.cubes.measure import MeasureXSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.initialize import InitZeroPipeSkeleton
 from lspattern.blocks.pipes.measure import MeasureZPipeSkeleton
-from lspattern.canvas import RHGCanvasSkeleton
-from lspattern.canvas._canvas_impl import CompiledRHGCanvas
+from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D, PhysCoordLocal2D
 
