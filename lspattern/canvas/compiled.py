@@ -222,9 +222,7 @@ class CompiledRHGCanvas:
         new_cgraph = CompiledRHGCanvas(
             layers=remapped_layers,
             global_graph=(
-                create_remapped_graphstate(self.global_graph, dict(node_map))
-                if self.global_graph is not None
-                else None
+                create_remapped_graphstate(self.global_graph, dict(node_map)) if self.global_graph is not None else None
             ),
             coord2node={},
             port_manager=remapped_port_manager,
