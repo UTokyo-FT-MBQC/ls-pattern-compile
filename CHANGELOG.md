@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `VisualizationKind`: Visualization kind options (BOTH, X, Z)
   - `VisualizationMode`: Visualization mode options (HIST, SLICES)
 - Unit tests for seam edge generation functionality (`tests/canvas/test_seams.py`)
+- Unit tests for graph remapping utilities (`tests/canvas/test_graph_utils.py`) ([#52](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/52))
 
 ### Changed
 - Extracted graph remapping utilities to separate module `lspattern/canvas/graph_utils.py` ([#52](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/52))
