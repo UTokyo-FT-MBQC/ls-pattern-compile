@@ -16,7 +16,7 @@ from lspattern.blocks.cubes.initialize import (
     InitPlusCubeThinLayerSkeleton,
 )
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
-from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton, InitZeroPipeSkeleton
+from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton, InitZeroPipeSkeleton, InitZeroPipeThinLayerSkeleton
 from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton, MeasureZPipeSkeleton
 from lspattern.blocks.cubes.measure import MeasureZSkeleton, MeasureXSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
@@ -105,15 +105,20 @@ blocks = [
 ]
 pipes = [
     # (
-    #     PatchCoordGlobal3D((0, 0, 2)),
-    #     PatchCoordGlobal3D((1, 0, 2)),
-    #     InitZeroPipeSkeleton(d=d, edgespec=edgespec_trimmed),
+    #     PatchCoordGlobal3D((0, 0, 1)),
+    #     PatchCoordGlobal3D((1, 0, 1)),
+    #     InitZeroPipeThinLayerSkeleton(d=d, edgespec=edgespec_measure_trimmed),
     # ),
-    # (
-    #     PatchCoordGlobal3D((0, 0, 3)),
-    #     PatchCoordGlobal3D((1, 0, 3)),
-    #     MeasureZPipeSkeleton(d=d, edgespec=edgespec_measure_trimmed),
-    # ),
+    (
+        PatchCoordGlobal3D((0, 0, 2)),
+        PatchCoordGlobal3D((1, 0, 2)),
+        InitZeroPipeSkeleton(d=d, edgespec=edgespec_trimmed),
+    ),
+    (
+        PatchCoordGlobal3D((0, 0, 3)),
+        PatchCoordGlobal3D((1, 0, 3)),
+        MeasureZPipeSkeleton(d=d, edgespec=edgespec_measure_trimmed),
+    ),
 ]
 
 for block in blocks:

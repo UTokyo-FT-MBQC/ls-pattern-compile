@@ -378,6 +378,35 @@ class InitZeroPipe(RHGPipe):
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         # initialize does not have cout ports
         return super().set_cout_ports(patch_coord)
+    
+    def _build_3d_graph(self) -> Build3DGraphReturn:
+        """Override to create single-layer graph with only 13 nodes (9 data + 4 ancilla) at z=2*d."""
+        data2d = list(self.template.data_coords or [])
+        x2d = list(self.template.x_coords or [])
+        z2d = list(self.template.z_coords or [])
+
+        # Calculate z-coordinate based on source position and 2*d
+        d_val = int(self.d)
+        z0 = int(self.source[2]) * (2 * d_val)  # Base z-offset per block
+        start_layer_z = z0 + 1
+        max_t = 2 * self.d - 1
+
+        g = GraphState()
+        node2coord: dict[int, tuple[int, int, int]] = {}
+        coord2node: dict[tuple[int, int, int], int] = {}
+        node2role: dict[int, str] = {}
+
+        # Assign nodes for each time slice
+        nodes_by_z = self._assign_nodes_by_timeslice(
+            g, data2d, x2d, z2d, max_t, start_layer_z, node2coord, coord2node, node2role
+        )
+
+        self._construct_schedule(nodes_by_z, node2role)
+
+        self._add_spatial_edges(g, nodes_by_z)
+        self._add_temporal_edges(g, nodes_by_z)
+
+        return g, node2coord, coord2node, node2role
 
     def _construct_detectors(self) -> None:
         x2d = self.template.x_coords
