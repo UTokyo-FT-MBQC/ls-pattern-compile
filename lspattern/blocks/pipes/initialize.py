@@ -110,6 +110,7 @@ class InitPlusPipe(RHGPipe):
         return super().set_cout_ports(patch_coord)
 
     def _construct_detectors(self) -> None:
+        """Build X/Z parity detectors, deferring the first X seam ancilla pairing."""
         x2d = self.template.x_coords
         z2d = self.template.z_coords
 
@@ -432,8 +433,11 @@ class InitZeroPipe(RHGPipe):
                 coord = PhysCoordLocal2D((x, y))
                 prev = dangling_detectors.get(coord, set())
 
-                # For X ancilla positions skip emitting the very first detector so that
-                # the initial non-deterministic node pairs with the next layer.
+                # For X ancilla coordinates at the seam, skip emitting the very first
+                # detector so that the initial non-deterministic node (at z=z_offset)
+                # can pair with the follow-up node in the next layer, yielding checks
+                # such as {363, 375} instead of a lone {363}. Z ancilla coordinates do
+                # not suffer from this issue and still emit immediately.
                 if not prev and coord in x_coord_set:
                     dangling_detectors[coord] = {node_id}
                     continue

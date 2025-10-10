@@ -11,17 +11,9 @@ from graphix_zx.pattern import Pattern, print_pattern
 from graphix_zx.scheduler import Scheduler
 from graphix_zx.stim_compiler import stim_compile
 
-from lspattern.blocks.cubes.initialize import (
-    InitZeroCubeThinLayerSkeleton,
-    InitPlusCubeThinLayerSkeleton,
-)
+from lspattern.blocks.cubes.initialize import InitPlusCubeThinLayerSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
-from lspattern.blocks.pipes.initialize import (
-    InitPlusPipeSkeleton,
-    InitZeroPipeSkeleton,
-    InitZeroPipeThinLayerSkeleton,
-)
-from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton, MeasureZPipeSkeleton
+from lspattern.blocks.pipes.initialize import InitZeroPipeSkeleton
 from lspattern.blocks.cubes.measure import MeasureZSkeleton, MeasureXSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
@@ -108,11 +100,6 @@ blocks = [
     ),
 ]
 pipes = [
-    # (
-    #     PatchCoordGlobal3D((0, 0, 1)),
-    #     PatchCoordGlobal3D((1, 0, 1)),
-    #     InitZeroPipeThinLayerSkeleton(d=d, edgespec=edgespec_measure_trimmed),
-    # ),
     (
         PatchCoordGlobal3D((0, 0, 2)),
         PatchCoordGlobal3D((1, 0, 2)),
