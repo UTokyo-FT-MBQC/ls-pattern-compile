@@ -413,7 +413,7 @@ class InitZeroPipe(RHGPipe):
             dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
             self.parity.ignore_dangling[PhysCoordLocal2D((x, y))] = True
         x_coord_set = {PhysCoordLocal2D((x, y)) for x, y in x2d}
-        for z in range(1, height):
+        for z in range(2, height):
             for x, y in x2d + z2d:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
                 if node_id is None:
@@ -424,8 +424,7 @@ class InitZeroPipe(RHGPipe):
 
                 # For X ancilla coordinates at the seam, skip emitting the very first
                 # detector so that the initial non-deterministic node (at z=z_offset)
-                # can pair with the follow-up node in the next layer, yielding checks
-                # such as {363, 375} instead of a lone {363}. Z ancilla coordinates do
+                # can pair with the follow-up node in the next layer. Z ancilla coordinates do
                 # not suffer from this issue and still emit immediately.
                 if not prev and coord in x_coord_set:
                     dangling_detectors[coord] = {node_id}

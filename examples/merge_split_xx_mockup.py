@@ -145,7 +145,6 @@ print(f"output qubits: {output_indices}")
 fig3d = visualize_compiled_canvas_plotly(
     compiled_canvas,
     show_edges=True,
-    hilight_nodes=[193, 363, 369, 360],
 )
 fig3d.show()
 
@@ -182,8 +181,6 @@ if remaining_flows:
     print(f"  Unscheduled flows: {', '.join(remaining_flow_strs)}")
 
 print("X parity")
-# compiled_canvas.parity.checks = ck  # type: ignore[assignment]
-# print(compiled_canvas.parity.checks)
 for coord, group_list in compiled_canvas.parity.checks.items():
     print(f"  {coord}: {group_list}")
 
@@ -311,8 +308,8 @@ print(err)
 # Visualization export
 svg = dem.diagram(type="match-graph-svg")
 pathlib.Path("figures").mkdir(exist_ok=True)
-pathlib.Path("figures/merge_split_dem.svg").write_text(str(svg), encoding="utf-8")
-print("SVG diagram saved to figures/merge_split_dem.svg")
+pathlib.Path("figures/merge_split_dem_zz.svg").write_text(str(svg), encoding="utf-8")
+print("SVG diagram saved to figures/merge_split_zz_dem.svg")
 
 
 # %%

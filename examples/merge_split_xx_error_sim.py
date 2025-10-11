@@ -103,11 +103,6 @@ def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
         ),
     ]
     pipes = [
-        # (
-        #     PatchCoordGlobal3D((0, 0, 1)),
-        #     PatchCoordGlobal3D((1, 0, 1)),
-        #     InitZeroPipeThinLayerSkeleton(d=d, edgespec=edgespec_measure_trimmed),
-        # ),
         (
             PatchCoordGlobal3D((0, 0, 2)),
             PatchCoordGlobal3D((1, 0, 2)),
