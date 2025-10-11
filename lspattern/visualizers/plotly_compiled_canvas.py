@@ -24,6 +24,7 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
     show_edges: bool = True,
     input_nodes: Iterable[int] | None = None,
     output_nodes: Iterable[int] | None = None,
+    hilight_nodes: Iterable[int] | None = None,
     width: int = 800,
     height: int = 600,
     reverse_axes: bool = False,
@@ -121,6 +122,33 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
 
     _add_marker(input_nodes or [], "Input", "white")
     _add_marker(output_nodes or [], "Output", "red")
+
+    # highlighted nodes (same shape as base scatter, colored red)
+    if hilight_nodes:
+        highlight = [int(n) for n in hilight_nodes if int(n) in node2coord]
+        if highlight:
+            hx = [node2coord[n][0] for n in highlight]
+            hy = [node2coord[n][1] for n in highlight]
+            hz = [node2coord[n][2] for n in highlight]
+            htext = [f"Node {n}" for n in highlight]
+            fig.add_trace(
+                go.Scatter3d(
+                    x=hx,
+                    y=hy,
+                    z=hz,
+                    mode="markers",
+                    marker={
+                        "size": 4,
+                        "color": "red",
+                        "line": {"color": "black", "width": 0.5},
+                        "opacity": 0.95,
+                    },
+                    name="Highlight",
+                    hovertemplate="<b>%{text}</b><br>x: %{x}<br>y: %{y}<br>z: %{z}<extra></extra>",
+                    text=htext,
+                    showlegend=True,
+                )
+            )
 
     # layout
     scene: dict[str, Any] = {
