@@ -9,8 +9,6 @@ from lspattern.mytype import (
     NodeIdLocal,
     PatchCoordGlobal3D,
     PatchCoordLocal2D,
-    PhysCoordGlobal3D,
-    PhysCoordLocal2D,
     QubitIndexLocal,
     SpatialEdgeSpec,
 )
@@ -88,32 +86,3 @@ class RHGPipe(RHGBlock):
             # Fallback: treat as a raw 2D tiling shift
             by_template: PatchCoordLocal2D = PatchCoordLocal2D((by[0], by[1]))
             self.template.shift_coords(by_template)
-
-    def _construct_detectors(self) -> None:
-        """Build X/Z parity detectors, deferring the first X seam ancilla pairing."""
-        x2d = self.template.x_coords
-        z2d = self.template.z_coords
-
-        zmin = min({coord[2] for coord in self.coord2node}, default=0)
-        zmax = max({coord[2] for coord in self.coord2node}, default=0)
-        height = zmax - zmin + 1
-
-        dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
-        for dz in range(height):
-            for x, y in x2d + z2d:
-                coord = PhysCoordLocal2D((x, y))
-                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, zmin + dz)))
-                if not node_id:
-                    continue
-                if dz == 0:
-                    # ancillas of first layer is not deterministic
-                    dangling_detectors[coord] = {node_id}
-                    self.parity.ignore_dangling[coord] = True
-                else:
-                    node_group = {node_id} | dangling_detectors.pop(coord, set())
-                    self.parity.checks.setdefault(coord, {})[zmin + dz] = node_group
-                    dangling_detectors[coord] = {node_id}
-
-        # add dangling detectors for connectivity to next block
-        for coord, nodes in dangling_detectors.items():
-            self.parity.dangling_parity[coord] = nodes
