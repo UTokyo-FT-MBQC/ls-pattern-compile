@@ -45,9 +45,7 @@ class InitPlusPipeSkeleton(RHGPipeSkeleton):
     def to_block(self) -> InitPlusPipe: ...
 
     @overload
-    def to_block(
-        self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D
-    ) -> InitPlusPipe: ...
+    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> InitPlusPipe: ...
 
     def to_block(
         self,
@@ -92,9 +90,7 @@ class InitPlusPipe(RHGPipe):
         # Init pipe: 入力ポートは持たない
         return super().set_in_ports(patch_coord)
 
-    def set_out_ports(
-        self, patch_coord: tuple[int, int] | None = None
-    ) -> None:  # noqa: ARG002
+    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
         # Init pipe: 出力はテンプレートの data 全インデックス
         if self.source is not None and self.sink is not None:
             source_2d = (self.source[0], self.source[1])
@@ -118,9 +114,7 @@ class InitPlusPipeThinLayerSkeleton(RHGPipeSkeleton):
     def to_block(self) -> InitPlusThinLayerPipe: ...
 
     @overload
-    def to_block(
-        self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D
-    ) -> InitPlusThinLayerPipe: ...
+    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> InitPlusThinLayerPipe: ...
 
     def to_block(
         self,
@@ -204,9 +198,7 @@ class InitPlusThinLayerPipe(RHGPipe):
         # Init pipe: 入力ポートは持たない
         return super().set_in_ports(patch_coord)
 
-    def set_out_ports(
-        self, patch_coord: tuple[int, int] | None = None
-    ) -> None:  # noqa: ARG002
+    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
         # Init pipe: 出力はテンプレートの data 全インデックス
         if self.source is not None and self.sink is not None:
             source_2d = (self.source[0], self.source[1])
@@ -238,9 +230,7 @@ class InitZeroPipeSkeleton(RHGPipeSkeleton):
     def to_block(self) -> InitZeroPipe: ...
 
     @overload
-    def to_block(
-        self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D
-    ) -> InitZeroPipe: ...
+    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> InitZeroPipe: ...
 
     def to_block(
         self,
@@ -285,9 +275,7 @@ class InitZeroPipe(RHGPipe):
         # Init pipe: 入力ポートは持たない
         return super().set_in_ports(patch_coord)
 
-    def set_out_ports(
-        self, patch_coord: tuple[int, int] | None = None
-    ) -> None:  # noqa: ARG002
+    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
         # Init pipe: 出力はテンプレートの data 全インデックス
         if self.source is not None and self.sink is not None:
             source_2d = (self.source[0], self.source[1])
@@ -340,9 +328,7 @@ class InitZeroPipeThinLayerSkeleton(RHGPipeSkeleton):
     def to_block(self) -> InitZeroThinLayerPipe: ...
 
     @overload
-    def to_block(
-        self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D
-    ) -> InitZeroThinLayerPipe: ...
+    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> InitZeroThinLayerPipe: ...
 
     def to_block(
         self,
@@ -426,9 +412,7 @@ class InitZeroThinLayerPipe(RHGPipe):
         # Init pipe: 入力ポートは持たない
         return super().set_in_ports(patch_coord)
 
-    def set_out_ports(
-        self, patch_coord: tuple[int, int] | None = None
-    ) -> None:  # noqa: ARG002
+    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
         # set output ports to all data indices in the template
         if self.source is not None and self.sink is not None:
             source_2d = (self.source[0], self.source[1])

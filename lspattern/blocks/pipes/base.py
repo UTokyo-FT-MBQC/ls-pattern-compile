@@ -49,17 +49,11 @@ class RHGPipe(RHGBlock):
 
     edge_spec: SpatialEdgeSpec | None = field(default_factory=dict)
 
-    source: PatchCoordGlobal3D = field(
-        default_factory=lambda: PatchCoordGlobal3D((0, 0, 0))
-    )
-    sink: PatchCoordGlobal3D | None = field(
-        default_factory=lambda: PatchCoordGlobal3D((0, 0, 1))
-    )
+    source: PatchCoordGlobal3D = field(default_factory=lambda: PatchCoordGlobal3D((0, 0, 0)))
+    sink: PatchCoordGlobal3D | None = field(default_factory=lambda: PatchCoordGlobal3D((0, 0, 1)))
     direction: PIPEDIRECTION = field(init=False)
 
-    template: ScalableTemplate = field(
-        default_factory=lambda: ScalableTemplate(d=3, edgespec={})
-    )
+    template: ScalableTemplate = field(default_factory=lambda: ScalableTemplate(d=3, edgespec={}))
 
     in_ports: set[QubitIndexLocal] = field(default_factory=set)
     out_ports: set[QubitIndexLocal] = field(default_factory=set)
