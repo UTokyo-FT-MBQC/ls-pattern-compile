@@ -3,6 +3,7 @@ Merge and Split
 """
 
 # %%
+import hashlib
 import pathlib
 
 import pymatching
@@ -283,6 +284,8 @@ def create_circuit(pattern: Pattern, noise: float) -> stim.Circuit:
 
 noise = 0.001
 circuit = create_circuit(pattern, noise)
+fingerprint = hashlib.sha256(str(circuit).encode("utf-8")).hexdigest()
+print(f"circuit fingerprint: {fingerprint}")
 print(f"num_qubits: {circuit.num_qubits}")
 # print(circuit)
 

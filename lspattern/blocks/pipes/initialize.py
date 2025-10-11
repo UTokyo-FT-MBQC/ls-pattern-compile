@@ -90,9 +90,8 @@ class InitPlusPipe(RHGPipe):
         # Init pipe: 入力ポートは持たない
         return super().set_in_ports(patch_coord)
 
-    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
+    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
         # Init pipe: 出力はテンプレートの data 全インデックス
-        del patch_coord
         if self.source is not None and self.sink is not None:
             source_2d = (self.source[0], self.source[1])
             sink_2d = (self.sink[0], self.sink[1])
@@ -237,9 +236,8 @@ class InitPlusThinLayerPipe(RHGPipe):
         # Init pipe: 入力ポートは持たない
         return super().set_in_ports(patch_coord)
 
-    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
+    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
         # Init pipe: 出力はテンプレートの data 全インデックス
-        del patch_coord
         if self.source is not None and self.sink is not None:
             source_2d = (self.source[0], self.source[1])
             sink_2d = (self.sink[0], self.sink[1])
@@ -353,9 +351,8 @@ class InitZeroPipe(RHGPipe):
         # Init pipe: 入力ポートは持たない
         return super().set_in_ports(patch_coord)
 
-    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
+    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
         # Init pipe: 出力はテンプレートの data 全インデックス
-        del patch_coord
         if self.source is not None and self.sink is not None:
             source_2d = (self.source[0], self.source[1])
             sink_2d = (self.sink[0], self.sink[1])
@@ -412,7 +409,6 @@ class InitZeroPipe(RHGPipe):
                 continue
             dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
             self.parity.ignore_dangling[PhysCoordLocal2D((x, y))] = True
-        x_coord_set = {PhysCoordLocal2D((x, y)) for x, y in x2d}
         for z in range(2, height):
             for x, y in x2d + z2d:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
@@ -420,17 +416,7 @@ class InitZeroPipe(RHGPipe):
                     continue
 
                 coord = PhysCoordLocal2D((x, y))
-                prev = dangling_detectors.get(coord, set())
-
-                # For X ancilla coordinates at the seam, skip emitting the very first
-                # detector so that the initial non-deterministic node (at z=z_offset)
-                # can pair with the follow-up node in the next layer. Z ancilla coordinates do
-                # not suffer from this issue and still emit immediately.
-                if not prev and coord in x_coord_set:
-                    dangling_detectors[coord] = {node_id}
-                    continue
-
-                node_group = {node_id} | prev
+                node_group = {node_id} | dangling_detectors.get(coord, set())
                 self.parity.checks.setdefault(coord, {})[z + z_offset] = node_group
                 dangling_detectors[coord] = {node_id}
 
@@ -531,9 +517,8 @@ class InitZeroThinLayerPipe(RHGPipe):
         # Init pipe: 入力ポートは持たない
         return super().set_in_ports(patch_coord)
 
-    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
+    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
         # set output ports to all data indices in the template
-        del patch_coord
         if self.source is not None and self.sink is not None:
             source_2d = (self.source[0], self.source[1])
             sink_2d = (self.sink[0], self.sink[1])
