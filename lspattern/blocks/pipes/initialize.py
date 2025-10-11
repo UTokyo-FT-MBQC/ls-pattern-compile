@@ -407,7 +407,7 @@ class InitZeroPipe(RHGPipe):
         dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
         # ancillas of first layer is not deterministic
         for x, y in x2d + z2d:
-            node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z_offset)))
+            node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z_offset + 1)))
             if node_id is None:
                 continue
             dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
