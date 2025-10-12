@@ -57,6 +57,11 @@ class LayeredRHGPipe(RHGPipe):
         tuple
             (graph, node2coord, coord2node, node2role) for the complete pipe.
         """
+        # Validate that unit_layers length does not exceed d
+        if len(self.unit_layers) > self.d:
+            msg = f"Unit layers length ({len(self.unit_layers)}) cannot exceed code distance d ({self.d})"
+            raise ValueError(msg)
+
         g = GraphState()
         z0 = int(self.source[2]) * (2 * self.d)
 
@@ -69,7 +74,7 @@ class LayeredRHGPipe(RHGPipe):
         # Track last non-empty layer for connecting across empty layers
         last_nonempty_layer_z: int | None = None
 
-        for i, unit_layer in enumerate(self.unit_layers):
+        for i, unit_layer in enumerate(self.unit_layers):  # noqa: PLR1702
             layer_z = z0 + 2 * i
             layer_data = unit_layer.build_layer(g, layer_z, self.template)
 

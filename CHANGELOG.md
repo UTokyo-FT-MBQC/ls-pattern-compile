@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Support for flexible composition of different layer types within blocks
   - Enables customization at 2-layer granularity instead of full 2*d layer blocks
   - Automatic temporal edge connection across empty layers
+  - Validation to ensure `unit_layers` length does not exceed code distance `d`
 
 ---
 
