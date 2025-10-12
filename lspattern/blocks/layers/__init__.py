@@ -4,10 +4,12 @@ This module provides concrete implementations of the UnitLayer abstract base cla
 for different types of quantum operations (memory, initialization, measurement).
 """
 
+from lspattern.blocks.layers.empty import EmptyUnitLayer
 from lspattern.blocks.layers.initialize import InitPlusUnitLayer, InitZeroUnitLayer
 from lspattern.blocks.layers.memory import MemoryUnitLayer
 
 __all__ = [
+    "EmptyUnitLayer",
     "InitPlusUnitLayer",
     "InitZeroUnitLayer",
     "MemoryUnitLayer",

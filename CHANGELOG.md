@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Layer-by-layer construction architecture for RHG blocks ([#23](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/23))
+  - `UnitLayer` abstract base class for 2-layer unit (1 X-check + 1 Z-check cycle)
+  - `LayerData` dataclass for encapsulating layer metadata
+  - `MemoryUnitLayer` for standard memory layers
+  - `InitPlusUnitLayer` for |+⟩ state initialization layers
+  - `InitZeroUnitLayer` for |0⟩ state initialization layers
+  - `EmptyUnitLayer` for empty placeholder layers (no nodes)
+  - `LayeredRHGCube` base class for layer-by-layer cube construction
+  - `LayeredMemoryCube`, `LayeredInitPlusCube`, `LayeredInitZeroCube` concrete implementations
+  - `LayeredRHGPipe` base class for layer-by-layer pipe construction
+  - `LayeredMemoryPipe`, `LayeredInitPlusPipe` concrete implementations
+  - Support for flexible composition of different layer types within blocks
+  - Enables customization at 2-layer granularity instead of full 2*d layer blocks
+  - Automatic temporal edge connection across empty layers
+
 ---
 
 ## Version [0.0.2] - 2025-10-10

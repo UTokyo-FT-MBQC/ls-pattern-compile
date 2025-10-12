@@ -37,7 +37,7 @@ class LayeredRHGCube(RHGCube):
 
     unit_layers: list[UnitLayer] = field(default_factory=list)
 
-    def _build_3d_graph(
+    def _build_3d_graph(  # noqa: C901
         self,
     ) -> tuple[
         GraphState,
@@ -64,20 +64,50 @@ class LayeredRHGCube(RHGCube):
         all_coord2node: dict[tuple[int, int, int], int] = {}
         all_node2role: dict[int, str] = {}
 
+        # Track last non-empty layer for connecting across empty layers
+        last_nonempty_layer_z: int | None = None
+
         for i, unit_layer in enumerate(self.unit_layers):
             layer_z = z0 + 2 * i
             layer_data = unit_layer.build_layer(g, layer_z, self.template)
 
-            # Merge layer data
-            all_nodes_by_z.update(layer_data.nodes_by_z)
-            all_node2coord.update(layer_data.node2coord)
-            all_coord2node.update(layer_data.coord2node)
-            all_node2role.update(layer_data.node2role)
+            # Check if this layer is empty (no nodes)
+            is_empty = not layer_data.nodes_by_z
 
-            # Merge accumulators
-            self.schedule = self.schedule.compose_sequential(layer_data.schedule)
-            self.flow = self.flow.merge_with(layer_data.flow)
-            self.parity = self.parity.merge_with(layer_data.parity)
+            if not is_empty:
+                # Merge layer data
+                all_nodes_by_z.update(layer_data.nodes_by_z)
+                all_node2coord.update(layer_data.node2coord)
+                all_coord2node.update(layer_data.coord2node)
+                all_node2role.update(layer_data.node2role)
+
+                # Merge accumulators
+                self.schedule = self.schedule.compose_sequential(layer_data.schedule)
+                self.flow = self.flow.merge_with(layer_data.flow)
+                self.parity = self.parity.merge_with(layer_data.parity)
+
+                # Add temporal edges between this layer and the last non-empty layer
+                if last_nonempty_layer_z is not None:
+                    # Find the first z-coordinate in this layer
+                    current_layer_zs = sorted(layer_data.nodes_by_z.keys())
+                    if current_layer_zs:
+                        first_z = current_layer_zs[0]
+                        current_layer_nodes = layer_data.nodes_by_z[first_z]
+
+                        # Connect to the last z-coordinate of the previous non-empty layer
+                        prev_layer_nodes = all_nodes_by_z.get(last_nonempty_layer_z, {})
+
+                        for xy, u in current_layer_nodes.items():
+                            v = prev_layer_nodes.get(xy)
+                            if v is not None:
+                                with suppress(Exception):
+                                    g.add_physical_edge(u, v)
+                                self.flow.flow.setdefault(NodeIdLocal(v), set()).add(NodeIdLocal(u))
+
+                # Update last non-empty layer to be the last z in this layer
+                layer_zs = sorted(layer_data.nodes_by_z.keys())
+                if layer_zs:
+                    last_nonempty_layer_z = layer_zs[-1]
 
         # Add final data layer if final_layer is 'O' (open)
         if self.final_layer == EdgeSpecValue.O:  # noqa: PLR1702
