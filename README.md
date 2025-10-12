@@ -294,7 +294,7 @@ If you use ls-pattern-compile in your research, please cite:
   author = {{UTokyo FT-MBQC Team}},
   year = {2025},
   url = {https://github.com/UTokyo-FT-MBQC/ls-pattern-compile},
-  version = {0.1.0}
+  version = {0.0.2}
 }
 ```
 
