@@ -7,13 +7,7 @@ from graphix_zx.graphstate import GraphState
 
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
 from lspattern.consts import EdgeSpecValue
-from lspattern.mytype import (
-    NodeIdLocal,
-    PatchCoordGlobal3D,
-    PhysCoordGlobal3D,
-    PhysCoordLocal2D,
-    SpatialEdgeSpec,
-)
+from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D, PhysCoordLocal2D, SpatialEdgeSpec
 from lspattern.tiling.template import RotatedPlanarPipetemplate
 from lspattern.utils import get_direction
 
@@ -27,6 +21,68 @@ Build3DGraphReturn = tuple[
 
 if TYPE_CHECKING:
     from lspattern.consts.consts import PIPEDIRECTION
+
+
+class _InitPipeBase(RHGPipe):
+    """Base class for initialization pipes."""
+
+    def __init__(
+        self,
+        d: int,
+        edgespec: SpatialEdgeSpec | None,
+        direction: PIPEDIRECTION,
+    ) -> None:
+        edge_spec = edgespec or {}
+        super().__init__(d=d, edge_spec=edge_spec)
+        self.direction = direction
+        self.template = RotatedPlanarPipetemplate(d=d, edgespec=edge_spec)
+
+    def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
+        """Initialization pipes do not consume logical inputs."""
+        super().set_in_ports(patch_coord)
+
+    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
+        """Expose all data indices from the template as logical outputs."""
+        if self.source is not None and self.sink is not None:
+            source_2d = (self.source[0], self.source[1])
+            sink_2d = (self.sink[0], self.sink[1])
+            idx_map = self.template.get_data_indices_pipe(source_2d, sink_2d)
+        else:
+            idx_map = self.template.get_data_indices_cube()
+        self.out_ports = set(idx_map.values())
+
+    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
+        """Initialization pipes do not emit classical outputs."""
+        super().set_cout_ports(patch_coord)
+
+    def _construct_detectors(self) -> None:
+        """Build X/Z parity detectors, deferring the first X seam ancilla pairing."""
+        x2d = self.template.x_coords
+        z2d = self.template.z_coords
+
+        zmin = min({coord[2] for coord in self.coord2node}, default=0)
+        zmax = max({coord[2] for coord in self.coord2node}, default=0)
+        height = zmax - zmin + 1
+
+        dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
+        for dz in range(height):
+            for x, y in x2d + z2d:
+                coord = PhysCoordLocal2D((x, y))
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, zmin + dz)))
+                if node_id is None:
+                    continue
+                if dz == 0:
+                    # ancillas of first layer is not deterministic
+                    dangling_detectors[coord] = {node_id}
+                    self.parity.ignore_dangling[coord] = True
+                else:
+                    node_group = {node_id} | dangling_detectors.pop(coord, set())
+                    self.parity.checks.setdefault(coord, {})[zmin + dz] = node_group
+                    dangling_detectors[coord] = {node_id}
+
+        # add dangling detectors for connectivity to next block
+        for coord, nodes in dangling_detectors.items():
+            self.parity.dangling_parity[coord] = nodes
 
 
 @dataclass
@@ -73,75 +129,8 @@ class InitPlusPipeSkeleton(RHGPipeSkeleton):
         return block
 
 
-class InitPlusPipe(RHGPipe):
-    def __init__(
-        self,
-        d: int,
-        edgespec: SpatialEdgeSpec | None,
-        direction: PIPEDIRECTION,
-    ) -> None:
-        # Convert None to empty dict for compatibility
-        edge_spec = edgespec or {}
-        super().__init__(d=d, edge_spec=edge_spec)
-        self.direction = direction
-        self.template = RotatedPlanarPipetemplate(d=d, edgespec=edge_spec)
-
-    def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        # Init pipe: 入力ポートは持たない
-        return super().set_in_ports(patch_coord)
-
-    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
-        # Init pipe: 出力はテンプレートの data 全インデックス
-        if self.source is not None and self.sink is not None:
-            source_2d = (self.source[0], self.source[1])
-            sink_2d = (self.sink[0], self.sink[1])
-            idx_map = self.template.get_data_indices_pipe(source_2d, sink_2d)
-        else:
-            # Fallback for backward compatibility (no source/sink info)
-            idx_map = self.template.get_data_indices_cube()
-        self.out_ports = set(idx_map.values())
-
-    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        # initialize does not have cout ports
-        return super().set_cout_ports(patch_coord)
-
-    def _construct_detectors(self) -> None:
-        """Build X/Z parity detectors, deferring the first X seam ancilla pairing."""
-        x2d = self.template.x_coords
-        z2d = self.template.z_coords
-
-        z_offset = int(self.source[2]) * (2 * self.d)
-        height = max({coord[2] for coord in self.coord2node}, default=0) - z_offset + 1
-        dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
-        # ancillas of first layer is not deterministic
-        for x, y in x2d + z2d:
-            node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z_offset)))
-            if node_id is None:
-                continue
-            dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
-            self.parity.ignore_dangling[PhysCoordLocal2D((x, y))] = True
-        for z in range(1, height):
-            for x, y in x2d:
-                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
-                if node_id is None:
-                    continue
-                coord = PhysCoordLocal2D((x, y))
-                node_group = {node_id} | dangling_detectors.get(coord, set())
-                self.parity.checks.setdefault(coord, {})[z + z_offset] = node_group
-                dangling_detectors[coord] = {node_id}
-
-            for x, y in z2d:
-                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
-                if node_id is None:
-                    continue
-                coord = PhysCoordLocal2D((x, y))
-                node_group = {node_id} | dangling_detectors.get(coord, set())
-                self.parity.checks.setdefault(coord, {})[z + z_offset] = node_group
-                dangling_detectors[coord] = {node_id}
-
-        # add dangling detectors for connectivity to next block
-        for coord, nodes in dangling_detectors.items():
-            self.parity.dangling_parity[coord] = nodes
+class InitPlusPipe(_InitPipeBase):
+    """Plus-state initialization pipe with default RHG thickness."""
 
 
 @dataclass
@@ -188,20 +177,8 @@ class InitPlusPipeThinLayerSkeleton(RHGPipeSkeleton):
         return block
 
 
-class InitPlusThinLayerPipe(RHGPipe):
+class InitPlusThinLayerPipe(_InitPipeBase):
     """Thin-layer Plus State initialization pipe (height=3) for compose-based initialization."""
-
-    def __init__(
-        self,
-        d: int,
-        edgespec: SpatialEdgeSpec | None,
-        direction: PIPEDIRECTION,
-    ) -> None:
-        # Convert None to empty dict for compatibility
-        edge_spec = edgespec or {}
-        super().__init__(d=d, edge_spec=edge_spec)
-        self.direction = direction
-        self.template = RotatedPlanarPipetemplate(d=d, edgespec=edge_spec)
 
     def _build_3d_graph(self) -> Build3DGraphReturn:
         """Override to create single-layer graph with only 13 nodes (9 data + 4 ancilla) at z=2*d."""
@@ -231,63 +208,6 @@ class InitPlusThinLayerPipe(RHGPipe):
         self._add_temporal_edges(g, nodes_by_z)
 
         return g, node2coord, coord2node, node2role
-
-    def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        # Init pipe: 入力ポートは持たない
-        return super().set_in_ports(patch_coord)
-
-    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
-        # Init pipe: 出力はテンプレートの data 全インデックス
-        if self.source is not None and self.sink is not None:
-            source_2d = (self.source[0], self.source[1])
-            sink_2d = (self.sink[0], self.sink[1])
-            idx_map = self.template.get_data_indices_pipe(source_2d, sink_2d)
-        else:
-            # Fallback for backward compatibility (no source/sink info)
-            idx_map = self.template.get_data_indices_cube()
-        self.out_ports = set(idx_map.values())
-
-    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        # 古典出力はなし
-        return super().set_cout_ports(patch_coord)
-
-    def _construct_detectors(self) -> None:
-        """Construct detectors for the thin-layer initialization pipe."""
-        x2d = self.template.x_coords
-        z2d = self.template.z_coords
-
-        z_offset = int(self.source[2]) * (2 * self.d)
-        dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
-
-        # add dangling detectors for connectivity to next block
-        for x, y in x2d + z2d:
-            node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z_offset + 2 * self.d - 2)))
-            if node_id is None:
-                continue
-            dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
-
-        for z in range(2 * self.d - 1, 2 * self.d + 1):  # height is fixed to 2
-            for x, y in x2d:
-                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
-                if node_id is None:
-                    continue
-                coord = PhysCoordLocal2D((x, y))
-                node_group = {node_id} | dangling_detectors.get(coord, set())
-                self.parity.checks.setdefault(coord, {})[z + z_offset] = node_group
-                dangling_detectors[coord] = {node_id}
-
-            for x, y in z2d:
-                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
-                if node_id is None:
-                    continue
-                coord = PhysCoordLocal2D((x, y))
-                node_group = {node_id} | dangling_detectors.get(coord, set())
-                self.parity.checks.setdefault(coord, {})[z + z_offset] = node_group
-                dangling_detectors[coord] = {node_id}
-
-        # Add dangling detectors for connectivity to next block
-        for coord, nodes in dangling_detectors.items():
-            self.parity.dangling_parity[coord] = nodes
 
 
 @dataclass
@@ -334,37 +254,8 @@ class InitZeroPipeSkeleton(RHGPipeSkeleton):
         return block
 
 
-class InitZeroPipe(RHGPipe):
-    def __init__(
-        self,
-        d: int,
-        edgespec: SpatialEdgeSpec | None,
-        direction: PIPEDIRECTION,
-    ) -> None:
-        # Convert None to empty dict for compatibility
-        edge_spec = edgespec or {}
-        super().__init__(d=d, edge_spec=edge_spec)
-        self.direction = direction
-        self.template = RotatedPlanarPipetemplate(d=d, edgespec=edge_spec)
-
-    def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        # Init pipe: 入力ポートは持たない
-        return super().set_in_ports(patch_coord)
-
-    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
-        # Init pipe: 出力はテンプレートの data 全インデックス
-        if self.source is not None and self.sink is not None:
-            source_2d = (self.source[0], self.source[1])
-            sink_2d = (self.sink[0], self.sink[1])
-            idx_map = self.template.get_data_indices_pipe(source_2d, sink_2d)
-        else:
-            # Fallback for backward compatibility (no source/sink info)
-            idx_map = self.template.get_data_indices_cube()
-        self.out_ports = set(idx_map.values())
-
-    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        # initialize does not have cout ports
-        return super().set_cout_ports(patch_coord)
+class InitZeroPipe(_InitPipeBase):
+    """Zero-state initialization pipe with standard RHG depth."""
 
     def _build_3d_graph(self) -> Build3DGraphReturn:
         """Override to create single-layer graph with only 13 nodes (9 data + 4 ancilla) at z=2*d."""
@@ -394,35 +285,6 @@ class InitZeroPipe(RHGPipe):
         self._add_temporal_edges(g, nodes_by_z)
 
         return g, node2coord, coord2node, node2role
-
-    def _construct_detectors(self) -> None:
-        x2d = self.template.x_coords
-        z2d = self.template.z_coords
-
-        z_offset = int(self.source[2]) * (2 * self.d)
-        height = max({coord[2] for coord in self.coord2node}, default=0) - z_offset + 1
-        dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
-        # ancillas of first layer is not deterministic
-        for x, y in x2d + z2d:
-            node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z_offset + 1)))
-            if node_id is None:
-                continue
-            dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
-            self.parity.ignore_dangling[PhysCoordLocal2D((x, y))] = True
-        for z in range(2, height):
-            for x, y in x2d + z2d:
-                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
-                if node_id is None:
-                    continue
-
-                coord = PhysCoordLocal2D((x, y))
-                node_group = {node_id} | dangling_detectors.get(coord, set())
-                self.parity.checks.setdefault(coord, {})[z + z_offset] = node_group
-                dangling_detectors[coord] = {node_id}
-
-        # add dangling detectors for connectivity to next block
-        for coord, nodes in dangling_detectors.items():
-            self.parity.dangling_parity[coord] = nodes
 
 
 @dataclass
@@ -469,20 +331,8 @@ class InitZeroPipeThinLayerSkeleton(RHGPipeSkeleton):
         return block
 
 
-class InitZeroThinLayerPipe(RHGPipe):
+class InitZeroThinLayerPipe(_InitPipeBase):
     """Thin-layer Zero State initialization pipe (height=2) for compose-based initialization."""
-
-    def __init__(
-        self,
-        d: int,
-        edgespec: SpatialEdgeSpec | None,
-        direction: PIPEDIRECTION,
-    ) -> None:
-        # Convert None to empty dict for compatibility
-        edge_spec = edgespec or {}
-        super().__init__(d=d, edge_spec=edge_spec)
-        self.direction = direction
-        self.template = RotatedPlanarPipetemplate(d=d, edgespec=edge_spec)
 
     def _build_3d_graph(self) -> Build3DGraphReturn:
         """Override to create single-layer graph with only 13 nodes (9 data + 4 ancilla) at z=2*d."""
@@ -512,61 +362,3 @@ class InitZeroThinLayerPipe(RHGPipe):
         self._add_temporal_edges(g, nodes_by_z)
 
         return g, node2coord, coord2node, node2role
-
-    def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        # Init pipe: 入力ポートは持たない
-        return super().set_in_ports(patch_coord)
-
-    def set_out_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
-        # set output ports to all data indices in the template
-        if self.source is not None and self.sink is not None:
-            source_2d = (self.source[0], self.source[1])
-            sink_2d = (self.sink[0], self.sink[1])
-            idx_map = self.template.get_data_indices_pipe(source_2d, sink_2d)
-        else:
-            # Fallback for backward compatibility (no source/sink info)
-            idx_map = self.template.get_data_indices_cube()
-        self.out_ports = set(idx_map.values())
-
-    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
-        # sets no classical output ports
-        return super().set_cout_ports(patch_coord)
-
-    def _construct_detectors(self) -> None:
-        """Construct detectors for the thin-layer initialization pipe."""
-        x2d = self.template.x_coords
-        z2d = self.template.z_coords
-
-        z_offset = int(self.source[2]) * (2 * self.d)
-        dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
-
-        # add dangling detectors for connectivity to next block
-        for x, y in x2d + z2d:
-            node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z_offset + 2 * self.d - 1)))
-            if node_id is None:
-                continue
-            dangling_detectors[PhysCoordLocal2D((x, y))] = {node_id}
-
-        # TODO: this code can be simplified with plus block
-        for z in range(2 * self.d, 2 * self.d + 1):  # height is fixed to 1
-            for x, y in x2d:
-                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
-                if node_id is None:
-                    continue
-                coord = PhysCoordLocal2D((x, y))
-                node_group = {node_id} | dangling_detectors.get(coord, set())
-                self.parity.checks.setdefault(coord, {})[z + z_offset] = node_group
-                dangling_detectors[coord] = {node_id}
-
-            for x, y in z2d:
-                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
-                if node_id is None:
-                    continue
-                coord = PhysCoordLocal2D((x, y))
-                node_group = {node_id} | dangling_detectors.get(coord, set())
-                self.parity.checks.setdefault(coord, {})[z + z_offset] = node_group
-                dangling_detectors[coord] = {node_id}
-
-        # Add dangling detectors for connectivity to next block
-        for coord, nodes in dangling_detectors.items():
-            self.parity.dangling_parity[coord] = nodes
