@@ -100,7 +100,6 @@ class MemoryPipe(RHGPipe):
         return super().set_cout_ports(patch_coord)
 
     def _construct_detectors(self) -> None:
-        """Build X/Z parity detectors, deferring the first X seam ancilla pairing."""
         x2d = self.template.x_coords
         z2d = self.template.z_coords
 
@@ -115,14 +114,9 @@ class MemoryPipe(RHGPipe):
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, zmin + dz)))
                 if node_id is None:
                     continue
-                if dz == 0:
-                    # ancillas of first layer is not deterministic
-                    dangling_detectors[coord] = {node_id}
-                    self.parity.ignore_dangling[coord] = True
-                else:
-                    node_group = {node_id} | dangling_detectors.pop(coord, set())
-                    self.parity.checks.setdefault(coord, {})[zmin + dz] = node_group
-                    dangling_detectors[coord] = {node_id}
+                node_group = {node_id} | dangling_detectors.pop(coord, set())
+                self.parity.checks.setdefault(coord, {})[zmin + dz] = node_group
+                dangling_detectors[coord] = {node_id}
 
         # add dangling detectors for connectivity to next block
         for coord, nodes in dangling_detectors.items():
