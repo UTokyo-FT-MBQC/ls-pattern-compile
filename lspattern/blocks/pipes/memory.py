@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING
 
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
 from lspattern.consts import EdgeSpecValue
-from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D, PhysCoordLocal2D, SpatialEdgeSpec
+from lspattern.mytype import (
+    NodeIdLocal,
+    PatchCoordGlobal3D,
+    PhysCoordGlobal3D,
+    PhysCoordLocal2D,
+    SpatialEdgeSpec,
+)
 from lspattern.tiling.template import RotatedPlanarPipetemplate
 from lspattern.utils import get_direction
 
@@ -20,13 +26,11 @@ class MemoryPipeSkeleton(RHGPipeSkeleton):
     Note: edgespec は省略可能(None)。テンプレートは方向に依存して決まる。
     """
 
-    @overload
-    def to_block(self) -> MemoryPipe: ...
-
-    @overload
-    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> MemoryPipe: ...
-
-    def to_block(self, source: PatchCoordGlobal3D | None = None, sink: PatchCoordGlobal3D | None = None) -> MemoryPipe:
+    def to_block(
+        self,
+        source: PatchCoordGlobal3D | None = None,
+        sink: PatchCoordGlobal3D | None = None,
+    ) -> MemoryPipe:
         # Default values if not provided
         if source is None:
             source = PatchCoordGlobal3D((0, 0, 0))
@@ -93,26 +97,19 @@ class MemoryPipe(RHGPipe):
         x2d = self.template.x_coords
         z2d = self.template.z_coords
 
-        z_offset = int(self.source[2]) * (2 * self.d)
-        height = max({coord[2] for coord in self.coord2node}, default=0) - z_offset + 1
-        dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
-        for z in range(height):
-            for x, y in x2d:
-                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
-                if node_id is None:
-                    continue
-                coord = PhysCoordLocal2D((x, y))
-                node_group = {node_id} | dangling_detectors.get(coord, set())
-                self.parity.checks.setdefault(coord, {})[z + z_offset] = node_group
-                dangling_detectors[coord] = {node_id}
+        zmin = min({coord[2] for coord in self.coord2node}, default=0)
+        zmax = max({coord[2] for coord in self.coord2node}, default=0)
+        height = zmax - zmin + 1
 
-            for x, y in z2d:
-                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z + z_offset)))
+        dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
+        for dz in range(height):
+            for x, y in x2d + z2d:
+                coord = PhysCoordLocal2D((x, y))
+                node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, zmin + dz)))
                 if node_id is None:
                     continue
-                coord = PhysCoordLocal2D((x, y))
-                node_group = {node_id} | dangling_detectors.get(coord, set())
-                self.parity.checks.setdefault(coord, {})[z + z_offset] = node_group
+                node_group = {node_id} | dangling_detectors.pop(coord, set())
+                self.parity.checks.setdefault(coord, {})[zmin + dz] = node_group
                 dangling_detectors[coord] = {node_id}
 
         # add dangling detectors for connectivity to next block

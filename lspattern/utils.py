@@ -3,7 +3,7 @@ from __future__ import annotations
 from operator import itemgetter
 from typing import TYPE_CHECKING
 
-from lspattern.consts.consts import PIPEDIRECTION
+from lspattern.consts.consts import ANCILLA_X_PARITY, ANCILLA_Z_PARITY, DATA_PARITIES, PIPEDIRECTION, NodeRole
 from lspattern.mytype import (
     PatchCoordGlobal3D,
     QubitGroupIdLocal,
@@ -97,6 +97,24 @@ class UnionFind:
         m = min(ra, rb)
         self.parent[ra] = m
         self.parent[rb] = m
+
+
+def infer_role(coord: tuple[int, int, int]) -> NodeRole:
+    parity = (coord[0] & 1, coord[1] & 1, coord[2] & 1)
+    fg_data = parity in DATA_PARITIES
+    fg_ancz = parity in ANCILLA_Z_PARITY
+    fg_ancx = parity in ANCILLA_X_PARITY
+
+    match (fg_data, fg_ancx, fg_ancz):
+        case (True, False, False):
+            return NodeRole.DATA
+        case (False, True, False):
+            return NodeRole.ANCILLA_X
+        case (False, False, True):
+            return NodeRole.ANCILLA_Z
+        case _:
+            msg = f"Cannot infer role from coord {coord}"
+            raise ValueError(msg)
 
 
 if __name__ == "__main__":

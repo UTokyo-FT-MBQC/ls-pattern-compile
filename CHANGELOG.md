@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-
 - Layer-by-layer construction architecture for RHG blocks ([#23](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/23))
   - `UnitLayer` abstract base class for 2-layer unit (1 X-check + 1 Z-check cycle)
   - `LayerData` dataclass for encapsulating layer metadata
@@ -24,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enables customization at 2-layer granularity instead of full 2*d layer blocks
   - Automatic temporal edge connection across empty layers
   - Validation to ensure `unit_layers` length does not exceed code distance `d`
+
+### Removed
+- Legacy `lspattern.geom` package remnants (`__init__.py`, `rhg_parity.py`, `tiler.py`) and unused visualizer stubs (`visualize.py`, `template.py`) as part of cleanup for [#64](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/64).
+- Skipped legacy inactive tests `tests/test_T42_skip.py` and `tests/test_T48_skip.py`.
+
+### Changed
+- Refined temporal-layer visualizers to remove dependencies on deleted geom helpers, harmonize color palettes between Matplotlib and Plotly variants, and improve axis handling and input/output highlighting.
+
 
 ---
 
@@ -53,6 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `VisualizationKind`: Visualization kind options (BOTH, X, Z)
   - `VisualizationMode`: Visualization mode options (HIST, SLICES)
 - Unit tests for seam edge generation functionality (`tests/canvas/test_seams.py`)
+ - Plotly visualization option `hilight_nodes` in `visualize_compiled_canvas_plotly` to highlight specific nodes for review/debug (PR #55)
+ - Example: `examples/merge_split_xx_error_sim.py` for XX merge/split error simulation (PR #55)
 - Unit tests for graph remapping utilities (`tests/canvas/test_graph_utils.py`) ([#52](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/52))
 
 ### Changed
@@ -76,10 +85,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated function signatures to accept enum types
   - Using `str` mixin (`class X(str, Enum)`) for backward compatibility
 - Refactored `TemporalLayer` to use `SeamGenerator` for seam edge generation ([#33](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/33) Phase 1.4)
+ - Removed `@overload` type stubs from pipe skeletons’ `to_block` methods for simplicity (PR #55 review)
+ - Standardized example filenames to include `_xx` suffix (e.g., `merge_split_xx_mockup.py`) (PR #55 review)
 
 ### Fixed
 
 - Switched to `typing_extensions.assert_never` from `typing.assert_never` since `py310` doesn't support the latter.
+ - Deterministic X-seam detector pairing in `InitZeroPipe` (prevents singleton detectors at seam; fixes non-deterministic groups around nodes like `{363}` by pairing e.g. `{363, 375}`) (PR #55, fixes #20)
+
+### Examples
+- Regenerated `examples/merge_split_xx_mockup.txt` parity dump to reflect corrected detector groups (PR #55)
 
 ### Removed
 - Deprecated modules `rhg.py` and `ops.py` ([#21](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/21))

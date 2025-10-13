@@ -28,6 +28,9 @@ DIRECTIONS3D: list[tuple[int, int, int]] = [
 
 # Tuple size constant for pipe coordinates
 EDGE_TUPLE_SIZE = 2
+DATA_PARITIES = [(0, 0, 0), (1, 1, 0), (0, 0, 1), (1, 1, 1)]
+ANCILLA_Z_PARITY = [(0, 1, 0)]
+ANCILLA_X_PARITY = [(1, 0, 1)]
 
 
 class PIPEDIRECTION(str, enum.Enum):  # noqa: UP042
