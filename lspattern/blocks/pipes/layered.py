@@ -7,7 +7,6 @@ spatial connections between cubes.
 
 from __future__ import annotations
 
-from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar, overload
 
@@ -107,8 +106,7 @@ class LayeredRHGPipe(RHGPipe):
                         for xy, u in current_layer_nodes.items():
                             v = prev_layer_nodes.get(xy)
                             if v is not None:
-                                with suppress(Exception):
-                                    g.add_physical_edge(u, v)
+                                g.add_physical_edge(u, v)
                                 self.flow.flow.setdefault(NodeIdLocal(v), set()).add(NodeIdLocal(u))
 
                 # Update last non-empty layer to be the last z in this layer
@@ -142,8 +140,7 @@ class LayeredRHGPipe(RHGPipe):
                     for xy, u in final_layer.items():
                         v = prev_layer.get(xy)
                         if v is not None:
-                            with suppress(Exception):
-                                g.add_physical_edge(u, v)
+                            g.add_physical_edge(u, v)
                             self.flow.flow.setdefault(NodeIdLocal(v), set()).add(NodeIdLocal(u))
 
             # Add final layer to schedule
