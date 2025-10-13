@@ -3,7 +3,7 @@ from __future__ import annotations
 from operator import itemgetter
 from typing import TYPE_CHECKING
 
-from lspattern.consts.consts import PIPEDIRECTION, NodeRole
+from lspattern.consts.consts import ANCILLA_X_PARITY, ANCILLA_Z_PARITY, DATA_PARITIES, PIPEDIRECTION, NodeRole
 from lspattern.mytype import (
     PatchCoordGlobal3D,
     QubitGroupIdLocal,
@@ -100,14 +100,10 @@ class UnionFind:
 
 
 def infer_role(coord: tuple[int, int, int]) -> NodeRole:
-    data_parities = [(0, 0, 0), (1, 1, 0), (0, 0, 1), (1, 1, 1)]
-    ancilla_z_parity = [(0, 1, 0)]
-    ancilla_x_parity = [(1, 0, 1)]
-
     parity = (coord[0] & 1, coord[1] & 1, coord[2] & 1)
-    fg_data = parity in data_parities
-    fg_ancz = parity in ancilla_z_parity
-    fg_ancx = parity in ancilla_x_parity
+    fg_data = parity in DATA_PARITIES
+    fg_ancz = parity in ANCILLA_Z_PARITY
+    fg_ancx = parity in ANCILLA_X_PARITY
 
     match (fg_data, fg_ancx, fg_ancz):
         case (True, False, False):
