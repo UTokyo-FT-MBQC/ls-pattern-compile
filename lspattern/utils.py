@@ -100,14 +100,14 @@ class UnionFind:
 
 
 def infer_role(coord: tuple[int, int, int]) -> NodeRole:
-    DATA_PARITIES = [(0, 0, 0), (1, 1, 0), (0, 0, 1), (1, 1, 1)]
-    ANCILLA_Z_PARITY = [(0, 1, 0)]
-    ANCILLA_X_PARITY = [(1, 0, 1)]
+    data_parities = [(0, 0, 0), (1, 1, 0), (0, 0, 1), (1, 1, 1)]
+    ancilla_z_parity = [(0, 1, 0)]
+    ancilla_x_parity = [(1, 0, 1)]
 
     parity = (coord[0] & 1, coord[1] & 1, coord[2] & 1)
-    fg_data = parity in DATA_PARITIES
-    fg_ancz = parity in ANCILLA_Z_PARITY
-    fg_ancx = parity in ANCILLA_X_PARITY
+    fg_data = parity in data_parities
+    fg_ancz = parity in ancilla_z_parity
+    fg_ancx = parity in ancilla_x_parity
 
     match (fg_data, fg_ancx, fg_ancz):
         case (True, False, False):
@@ -119,7 +119,7 @@ def infer_role(coord: tuple[int, int, int]) -> NodeRole:
         case _:
             msg = f"Cannot infer role from coord {coord}"
             raise ValueError(msg)
-        
+
 
 if __name__ == "__main__":
     # Simple self-test for utils

@@ -14,8 +14,6 @@ if TYPE_CHECKING:
     from lspattern.canvas import TemporalLayer
 
 
-
-
 def visualize_temporal_layer_plotly(  # noqa: C901
     layer: TemporalLayer,
     *,
