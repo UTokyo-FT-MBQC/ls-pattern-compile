@@ -12,13 +12,11 @@ from graphix_zx.pattern import Pattern, print_pattern
 from graphix_zx.scheduler import Scheduler
 from graphix_zx.stim_compiler import stim_compile
 
-from lspattern.blocks.cubes.initialize import (
-    InitZeroCubeThinLayerSkeleton,
-)
+from lspattern.blocks.cubes.initialize import InitPlusCubeThinLayerSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
-from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
-from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton
-from lspattern.blocks.cubes.measure import MeasureZSkeleton
+from lspattern.blocks.pipes.initialize import InitZeroPipeSkeleton
+from lspattern.blocks.cubes.measure import MeasureXSkeleton
+from lspattern.blocks.pipes.measure import MeasureZPipeSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
 from lspattern.consts import BoundarySide, EdgeSpecValue
@@ -29,21 +27,46 @@ from lspattern.visualizers import visualize_compiled_canvas_plotly
 d = 3
 
 
-canvass = RHGCanvasSkeleton("Merge and Split")
+canvass = RHGCanvasSkeleton("Merge and Split XX")
 
-edgespec: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.X, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
-edgespec1: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
-edgespec2: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.X, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
-edgespec_trimmed: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
-edgespec_measure_trimmed: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.O, BoundarySide.BOTTOM: EdgeSpecValue.O}
+edgespec: dict[BoundarySide, EdgeSpecValue] = {
+    BoundarySide.LEFT: EdgeSpecValue.Z,
+    BoundarySide.RIGHT: EdgeSpecValue.Z,
+    BoundarySide.TOP: EdgeSpecValue.X,
+    BoundarySide.BOTTOM: EdgeSpecValue.X,
+}
+edgespec1: dict[BoundarySide, EdgeSpecValue] = {
+    BoundarySide.LEFT: EdgeSpecValue.Z,
+    BoundarySide.RIGHT: EdgeSpecValue.O,
+    BoundarySide.TOP: EdgeSpecValue.X,
+    BoundarySide.BOTTOM: EdgeSpecValue.X,
+}
+edgespec2: dict[BoundarySide, EdgeSpecValue] = {
+    BoundarySide.LEFT: EdgeSpecValue.O,
+    BoundarySide.RIGHT: EdgeSpecValue.Z,
+    BoundarySide.TOP: EdgeSpecValue.X,
+    BoundarySide.BOTTOM: EdgeSpecValue.X,
+}
+edgespec_trimmed: dict[BoundarySide, EdgeSpecValue] = {
+    BoundarySide.LEFT: EdgeSpecValue.O,
+    BoundarySide.RIGHT: EdgeSpecValue.O,
+    BoundarySide.TOP: EdgeSpecValue.X,
+    BoundarySide.BOTTOM: EdgeSpecValue.X,
+}
+edgespec_measure_trimmed: dict[BoundarySide, EdgeSpecValue] = {
+    BoundarySide.LEFT: EdgeSpecValue.O,
+    BoundarySide.RIGHT: EdgeSpecValue.O,
+    BoundarySide.TOP: EdgeSpecValue.O,
+    BoundarySide.BOTTOM: EdgeSpecValue.O,
+}
 blocks = [
     (
         PatchCoordGlobal3D((0, 0, 0)),
-        InitZeroCubeThinLayerSkeleton(d=d, edgespec=edgespec),
+        InitPlusCubeThinLayerSkeleton(d=d, edgespec=edgespec),
     ),
     (
         PatchCoordGlobal3D((1, 0, 0)),
-        InitZeroCubeThinLayerSkeleton(d=d, edgespec=edgespec),
+        InitPlusCubeThinLayerSkeleton(d=d, edgespec=edgespec),
     ),
     (
         PatchCoordGlobal3D((0, 0, 1)),
@@ -71,23 +94,23 @@ blocks = [
     ),
     (
         PatchCoordGlobal3D((0, 0, 4)),
-        MeasureZSkeleton(d=d, edgespec=edgespec),
+        MeasureXSkeleton(d=d, edgespec=edgespec),
     ),
     (
         PatchCoordGlobal3D((1, 0, 4)),
-        MeasureZSkeleton(d=d, edgespec=edgespec),
+        MeasureXSkeleton(d=d, edgespec=edgespec),
     ),
 ]
 pipes = [
     (
         PatchCoordGlobal3D((0, 0, 2)),
         PatchCoordGlobal3D((1, 0, 2)),
-        InitPlusPipeSkeleton(d=d, edgespec=edgespec_trimmed),
+        InitZeroPipeSkeleton(d=d, edgespec=edgespec_trimmed),
     ),
     (
         PatchCoordGlobal3D((0, 0, 3)),
         PatchCoordGlobal3D((1, 0, 3)),
-        MeasureXPipeSkeleton(d=d, edgespec=edgespec_measure_trimmed),
+        MeasureZPipeSkeleton(d=d, edgespec=edgespec_measure_trimmed),
     ),
 ]
 
@@ -120,7 +143,10 @@ print(
 output_indices = compiled_canvas.global_graph.output_node_indices or {}  # type: ignore[union-attr]
 print(f"output qubits: {output_indices}")
 
-fig3d = visualize_compiled_canvas_plotly(compiled_canvas, show_edges=True)
+fig3d = visualize_compiled_canvas_plotly(
+    compiled_canvas,
+    show_edges=True,
+)
 fig3d.show()
 
 # %%
@@ -285,8 +311,8 @@ print(err)
 # Visualization export
 svg = dem.diagram(type="match-graph-svg")
 pathlib.Path("figures").mkdir(exist_ok=True)
-pathlib.Path("figures/merge_split_dem.svg").write_text(str(svg), encoding="utf-8")
-print("SVG diagram saved to figures/merge_split_dem.svg")
+pathlib.Path("figures/merge_split_dem_xx.svg").write_text(str(svg), encoding="utf-8")
+print("SVG diagram saved to figures/merge_split_xx_dem.svg")
 
 
 # %%

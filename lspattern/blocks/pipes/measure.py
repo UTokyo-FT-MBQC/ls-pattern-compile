@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING
 
 from graphix_zx.common import Axis, AxisMeasBasis, Sign
 from graphix_zx.graphstate import GraphState
 
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
-from lspattern.consts import NodeRole
+from lspattern.consts import DIRECTIONS2D, NodeRole
 from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D, PhysCoordLocal2D, SpatialEdgeSpec
 from lspattern.tiling.template import RotatedPlanarPipetemplate
 from lspattern.utils import get_direction
@@ -16,8 +16,6 @@ if TYPE_CHECKING:
     from collections.abc import MutableMapping, Sequence
 
     from lspattern.consts.consts import PIPEDIRECTION
-
-ANCILLA_TARGET_DIRECTION2D = {(1, 1), (1, -1), (-1, 1), (-1, -1)}
 
 
 class _MeasurePipeBase(RHGPipe):
@@ -145,12 +143,6 @@ class _MeasurePipeBase(RHGPipe):
 class MeasureXPipeSkeleton(RHGPipeSkeleton):
     """Skeleton for X-basis measurement pipes."""
 
-    @overload
-    def to_block(self) -> MeasureXPipe: ...
-
-    @overload
-    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> MeasureXPipe: ...
-
     def to_block(
         self,
         source: PatchCoordGlobal3D | None = None,
@@ -177,12 +169,6 @@ class MeasureXPipeSkeleton(RHGPipeSkeleton):
 @dataclass
 class MeasureZPipeSkeleton(RHGPipeSkeleton):
     """Skeleton for Z-basis measurement pipes."""
-
-    @overload
-    def to_block(self) -> MeasureZPipe: ...
-
-    @overload
-    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> MeasureZPipe: ...
 
     def to_block(
         self,
@@ -228,7 +214,7 @@ class MeasureXPipe(_MeasurePipeBase):
         for z in range(height):
             for x, y in x2d:
                 node_group: set[NodeIdLocal] = set()
-                for dx, dy in ANCILLA_TARGET_DIRECTION2D:
+                for dx, dy in DIRECTIONS2D:
                     node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z + z_offset)))
                     if node_id is not None:
                         node_group.add(node_id)
@@ -259,7 +245,7 @@ class MeasureZPipe(_MeasurePipeBase):
         for z in range(height):
             for x, y in z2d:
                 node_group: set[NodeIdLocal] = set()
-                for dx, dy in ANCILLA_TARGET_DIRECTION2D:
+                for dx, dy in DIRECTIONS2D:
                     node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z + z_offset)))
                     if node_id is not None:
                         node_group.add(node_id)

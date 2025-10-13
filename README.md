@@ -108,6 +108,7 @@ pattern = compile_canvas(graph, xflow=xflow, x_parity=x_parity, z_parity=[])
 For more complete examples including merge/split operations and error simulation, see the `examples/` directory:
 
 - `examples/merge_split_mockup.py` - Fault-tolerant merge and split with error simulation
+- `examples/merge_split_xx_mockup.py` - Fault-tolerant merge and split with error simulation
 - `examples/memory_error_sim.py` - Logical error rate evaluation for memory
 - `examples/plus_initialization.py` / `zero_initialization.py` - Initialization examples
 - `examples/compiled_canvas_visualization.py` - 3D visualization of compiled canvases
