@@ -6,15 +6,9 @@ into executable quantum patterns with proper temporal layering and flow manageme
 
 from __future__ import annotations
 
-# Import main classes from _canvas_impl
-from lspattern.canvas._canvas_impl import (
-    CompiledRHGCanvas,
-    RHGCanvas,
-    RHGCanvasSkeleton,
-    TemporalLayer,
-    add_temporal_layer,
-    to_temporal_layer,
-)
+# Import main classes from new module structure
+from lspattern.canvas.canvas import RHGCanvas, RHGCanvasSkeleton
+from lspattern.canvas.compiled import CompiledRHGCanvas, add_temporal_layer
 
 # Import graph composition
 from lspattern.canvas.composition import GraphComposer
@@ -24,6 +18,7 @@ from lspattern.canvas.coordinates import CoordinateMapper
 
 # Import exceptions
 from lspattern.canvas.exceptions import MixedCodeDistanceError
+from lspattern.canvas.layer import TemporalLayer, to_temporal_layer
 
 # Import PortManager
 from lspattern.canvas.ports import PortManager

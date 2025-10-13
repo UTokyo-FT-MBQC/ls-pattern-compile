@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## Version [0.0.2] - 2025-10-10
+
 ### Added
 - Apache License 2.0 (LICENSE file)
 - License information in pyproject.toml
@@ -33,8 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit tests for seam edge generation functionality (`tests/canvas/test_seams.py`)
  - Plotly visualization option `hilight_nodes` in `visualize_compiled_canvas_plotly` to highlight specific nodes for review/debug (PR #55)
  - Example: `examples/merge_split_xx_error_sim.py` for XX merge/split error simulation (PR #55)
+- Unit tests for graph remapping utilities (`tests/canvas/test_graph_utils.py`) ([#52](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/52))
 
 ### Changed
+- Extracted graph remapping utilities to separate module `lspattern/canvas/graph_utils.py` ([#52](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/52))
+  - Moved `_remap_graph_nodes()`, `_remap_measurement_bases()`, `_remap_graph_edges()`, and `_create_remapped_graphstate()` from `CompiledRHGCanvas` to module-level functions
+  - Improved code modularity and testability
 - Unified into absolute coordinate ([#24](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/24))
 - Refactored `lspattern/canvas.py` into modular structure ([#33](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/33))
   - Created `lspattern/canvas/` package with separate modules
@@ -68,7 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## Version [0.1.0] - 2025-10-02
+## Version [0.0.1] - 2025-10-02
 
 ### Added
 - Fault-tolerant merge and split functionality for MBQC error simulation ([#18](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/18))
