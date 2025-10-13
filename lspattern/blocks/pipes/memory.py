@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING
 
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
 from lspattern.consts import EdgeSpecValue
@@ -25,12 +25,6 @@ class MemoryPipeSkeleton(RHGPipeSkeleton):
 
     Note: edgespec は省略可能(None)。テンプレートは方向に依存して決まる。
     """
-
-    @overload
-    def to_block(self) -> MemoryPipe: ...
-
-    @overload
-    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> MemoryPipe: ...
 
     def to_block(
         self,

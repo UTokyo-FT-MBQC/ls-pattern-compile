@@ -28,7 +28,7 @@ from lspattern.mytype import PatchCoordGlobal3D
 def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
     """Create RHG canvas skeleton for merge and split operation."""
 
-    canvass = RHGCanvasSkeleton("Merge and Split")
+    canvass = RHGCanvasSkeleton("Merge and Split XX")
 
     edgespec: dict[BoundarySide, EdgeSpecValue] = {
         BoundarySide.LEFT: EdgeSpecValue.Z,
@@ -258,5 +258,5 @@ if __name__ == "__main__":
     ax.grid(which="minor")
     ax.legend()
     fig.set_dpi(120)
-    fig.savefig("figures/merge_split_error_sim.png", bbox_inches="tight")
+    fig.savefig("figures/merge_split_error_xx_sim.png", bbox_inches="tight")
     plt.show()

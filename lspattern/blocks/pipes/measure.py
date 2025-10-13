@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING
 
 from graphix_zx.common import Axis, AxisMeasBasis, Sign
 from graphix_zx.graphstate import GraphState
@@ -143,12 +143,6 @@ class _MeasurePipeBase(RHGPipe):
 class MeasureXPipeSkeleton(RHGPipeSkeleton):
     """Skeleton for X-basis measurement pipes."""
 
-    @overload
-    def to_block(self) -> MeasureXPipe: ...
-
-    @overload
-    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> MeasureXPipe: ...
-
     def to_block(
         self,
         source: PatchCoordGlobal3D | None = None,
@@ -175,12 +169,6 @@ class MeasureXPipeSkeleton(RHGPipeSkeleton):
 @dataclass
 class MeasureZPipeSkeleton(RHGPipeSkeleton):
     """Skeleton for Z-basis measurement pipes."""
-
-    @overload
-    def to_block(self) -> MeasureZPipe: ...
-
-    @overload
-    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> MeasureZPipe: ...
 
     def to_block(
         self,

@@ -27,7 +27,7 @@ from lspattern.visualizers import visualize_compiled_canvas_plotly
 d = 3
 
 
-canvass = RHGCanvasSkeleton("Merge and Split")
+canvass = RHGCanvasSkeleton("Merge and Split XX")
 
 edgespec: dict[BoundarySide, EdgeSpecValue] = {
     BoundarySide.LEFT: EdgeSpecValue.Z,
@@ -311,8 +311,8 @@ print(err)
 # Visualization export
 svg = dem.diagram(type="match-graph-svg")
 pathlib.Path("figures").mkdir(exist_ok=True)
-pathlib.Path("figures/merge_split_dem_zz.svg").write_text(str(svg), encoding="utf-8")
-print("SVG diagram saved to figures/merge_split_zz_dem.svg")
+pathlib.Path("figures/merge_split_dem_xx.svg").write_text(str(svg), encoding="utf-8")
+print("SVG diagram saved to figures/merge_split_xx_dem.svg")
 
 
 # %%

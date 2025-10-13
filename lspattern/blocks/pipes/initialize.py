@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING
 
 from graphix_zx.graphstate import GraphState
 
@@ -97,12 +97,6 @@ class InitPlusPipeSkeleton(RHGPipeSkeleton):
       ``get_direction``.
     """
 
-    @overload
-    def to_block(self) -> InitPlusPipe: ...
-
-    @overload
-    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> InitPlusPipe: ...
-
     def to_block(
         self,
         source: PatchCoordGlobal3D | None = None,
@@ -136,12 +130,6 @@ class InitPlusPipe(_InitPipeBase):
 @dataclass
 class InitPlusPipeThinLayerSkeleton(RHGPipeSkeleton):
     """Skeleton for thin-layer Plus State initialization pipes in pipe-shaped RHG structures."""
-
-    @overload
-    def to_block(self) -> InitPlusThinLayerPipe: ...
-
-    @overload
-    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> InitPlusThinLayerPipe: ...
 
     def to_block(
         self,
@@ -222,12 +210,6 @@ class InitZeroPipeSkeleton(RHGPipeSkeleton):
       ``get_direction``.
     """
 
-    @overload
-    def to_block(self) -> InitZeroPipe: ...
-
-    @overload
-    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> InitZeroPipe: ...
-
     def to_block(
         self,
         source: PatchCoordGlobal3D | None = None,
@@ -290,12 +272,6 @@ class InitZeroPipe(_InitPipeBase):
 @dataclass
 class InitZeroPipeThinLayerSkeleton(RHGPipeSkeleton):
     """Skeleton for thin-layer Zero State initialization pipes in pipe-shaped RHG structures."""
-
-    @overload
-    def to_block(self) -> InitZeroThinLayerPipe: ...
-
-    @overload
-    def to_block(self, source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> InitZeroThinLayerPipe: ...
 
     def to_block(
         self,
