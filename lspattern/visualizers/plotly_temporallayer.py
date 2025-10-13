@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 import plotly.graph_objects as go
 
 from lspattern.consts import NodeRole, VisualizationKind
-from lspattern.geom.rhg_parity import is_ancilla_x, is_ancilla_z, is_data
 from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D
+from lspattern.utils import infer_role
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -55,7 +55,12 @@ def visualize_temporal_layer_plotly(  # noqa: C901
 
     # Color mapping consistent with the notebook
     color_map = {
-        NodeRole.DATA: {"color": "white", "line_color": "black", "size": 8, "name": "Data"},
+        NodeRole.DATA: {
+            "color": "white",
+            "line_color": "black",
+            "size": 8,
+            "name": "Data",
+        },
         NodeRole.ANCILLA_X: {
             "color": "#2ecc71",
             "line_color": "#1e8449",
@@ -72,16 +77,6 @@ def visualize_temporal_layer_plotly(  # noqa: C901
 
     # Build groups
     groups: dict[NodeRole, dict[str, list[int]]] = {k: {"x": [], "y": [], "z": [], "nodes": []} for k in color_map}
-
-    def infer_role(coord: tuple[int, int, int]) -> NodeRole:
-        x, y, z = coord
-        if is_data(x, y, z):
-            return NodeRole.DATA
-        if is_ancilla_x(x, y, z):
-            return NodeRole.ANCILLA_X
-        if is_ancilla_z(x, y, z):
-            return NodeRole.ANCILLA_Z
-        return NodeRole.DATA
 
     # 役割は優先して TemporalLayer.node2role から取得(引数未指定時)
     if node_roles is None:
@@ -176,7 +171,12 @@ def visualize_temporal_layer_plotly(  # noqa: C901
                 y=yin,
                 z=zin,
                 mode="markers",
-                marker={"size": 10, "color": "white", "line": {"color": "red", "width": 2}, "symbol": "diamond"},
+                marker={
+                    "size": 10,
+                    "color": "white",
+                    "line": {"color": "red", "width": 2},
+                    "symbol": "diamond",
+                },
                 name="Input",
                 text=[f"Input node {n}" for n in input_nodes],
                 hovertemplate="<b>%{text}</b><br>x: %{x}<br>y: %{y}<br>z: %{z}<extra></extra>",
@@ -193,7 +193,12 @@ def visualize_temporal_layer_plotly(  # noqa: C901
                 y=yout,
                 z=zout,
                 mode="markers",
-                marker={"size": 10, "color": "red", "line": {"color": "darkred", "width": 2}, "symbol": "diamond"},
+                marker={
+                    "size": 10,
+                    "color": "red",
+                    "line": {"color": "darkred", "width": 2},
+                    "symbol": "diamond",
+                },
                 name="Output",
                 text=[f"Output node {n}" for n in output_nodes],
                 hovertemplate="<b>%{text}</b><br>x: %{x}<br>y: %{y}<br>z: %{z}<extra></extra>",

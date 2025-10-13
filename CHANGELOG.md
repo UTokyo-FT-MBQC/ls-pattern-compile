@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- Legacy `lspattern.geom` package remnants (`__init__.py`, `rhg_parity.py`, `tiler.py`) and unused visualizer stubs (`visualize.py`, `template.py`) as part of cleanup for [#64](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/64).
+- Skipped legacy inactive tests `tests/test_T42_skip.py` and `tests/test_T48_skip.py`.
+
+### Changed
+- Refined temporal-layer visualizers to remove dependencies on deleted geom helpers, harmonize color palettes between Matplotlib and Plotly variants, and improve axis handling and input/output highlighting.
+
 ---
 
 ## Version [0.0.2] - 2025-10-10
