@@ -7,14 +7,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from graphix_zx.graphstate import GraphState
-
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator
 from lspattern.blocks.unit_layer import LayerData, UnitLayer
 from lspattern.consts import NodeRole
 from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D, PhysCoordLocal2D
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+
+    from graphix_zx.graphstate import GraphState
+
     from lspattern.tiling.template import ScalableTemplate
 
 
@@ -61,17 +63,13 @@ class MemoryUnitLayer(UnitLayer):
 
         # Layer 0 (z_offset): Data + Z-check ancillas
         z0 = z_offset
-        layer0 = self._assign_nodes_at_z(
-            graph, z0, data2d, z2d, NodeRole.ANCILLA_Z, node2coord, coord2node, node2role
-        )
+        layer0 = self._assign_nodes_at_z(graph, z0, data2d, z2d, NodeRole.ANCILLA_Z, node2coord, coord2node, node2role)
         nodes_by_z[z0] = layer0
         self.add_spatial_edges(graph, layer0)
 
         # Layer 1 (z_offset + 1): Data + X-check ancillas
         z1 = z_offset + 1
-        layer1 = self._assign_nodes_at_z(
-            graph, z1, data2d, x2d, NodeRole.ANCILLA_X, node2coord, coord2node, node2role
-        )
+        layer1 = self._assign_nodes_at_z(graph, z1, data2d, x2d, NodeRole.ANCILLA_X, node2coord, coord2node, node2role)
         nodes_by_z[z1] = layer1
         self.add_spatial_edges(graph, layer1)
 
@@ -95,12 +93,12 @@ class MemoryUnitLayer(UnitLayer):
             parity=parity,
         )
 
+    @staticmethod
     def _construct_parity(
-        self,
         z_offset: int,
-        x2d: list[tuple[int, int]],
-        z2d: list[tuple[int, int]],
-        coord2node: dict[tuple[int, int, int], int],
+        x2d: Sequence[tuple[int, int]],
+        z2d: Sequence[tuple[int, int]],
+        coord2node: Mapping[tuple[int, int, int], int],
     ) -> ParityAccumulator:
         """Construct parity checks for this memory layer.
 
@@ -108,11 +106,11 @@ class MemoryUnitLayer(UnitLayer):
         ----------
         z_offset : int
             Starting z-coordinate for this layer.
-        x2d : list[tuple[int, int]]
+        x2d : collections.abc.Sequence[tuple[int, int]]
             X-check ancilla coordinates.
-        z2d : list[tuple[int, int]]
+        z2d : collections.abc.Sequence[tuple[int, int]]
             Z-check ancilla coordinates.
-        coord2node : dict[tuple[int, int, int], int]
+        coord2node : collections.abc.Mapping[tuple[int, int, int], int]
             Coordinate to node mapping.
 
         Returns
@@ -129,7 +127,7 @@ class MemoryUnitLayer(UnitLayer):
             if node_id is None:
                 continue
             coord = PhysCoordLocal2D((x, y))
-            node_group = {NodeIdLocal(node_id)} | dangling_detectors.get(coord, set())
+            node_group = {NodeIdLocal(node_id)}
             parity.checks.setdefault(coord, {})[z_offset] = node_group
             dangling_detectors[coord] = {NodeIdLocal(node_id)}
 
@@ -139,7 +137,7 @@ class MemoryUnitLayer(UnitLayer):
             if node_id is None:
                 continue
             coord = PhysCoordLocal2D((x, y))
-            node_group = {NodeIdLocal(node_id)} | dangling_detectors.get(coord, set())
+            node_group = {NodeIdLocal(node_id)}
             parity.checks.setdefault(coord, {})[z_offset + 1] = node_group
             dangling_detectors[coord] = {NodeIdLocal(node_id)}
 
