@@ -6,32 +6,14 @@ import plotly.graph_objects as go
 
 from lspattern.consts import NodeRole, VisualizationKind
 from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D
+from lspattern.utils import infer_role
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from lspattern.canvas import TemporalLayer
 
-DATA_PARITIES = [(0, 0, 0), (1, 1, 0), (0, 0, 1), (1, 1, 1)]
-ANCILLA_Z_PARITY = [(0, 1, 0)]
-ANCILLA_X_PARITY = [(1, 0, 1)]
 
-
-def infer_role(coord: tuple[int, int, int]) -> NodeRole:
-    fg_data = coord in DATA_PARITIES
-    fg_ancz = coord in ANCILLA_Z_PARITY
-    fg_ancx = coord in ANCILLA_X_PARITY
-
-    match (fg_data, fg_ancx, fg_ancz):
-        case (True, False, False):
-            return NodeRole.DATA
-        case (False, True, False):
-            return NodeRole.ANCILLA_X
-        case (False, False, True):
-            return NodeRole.ANCILLA_Z
-        case _:
-            msg = f"Cannot infer role from coord {coord}"
-            raise ValueError(msg)
 
 
 def visualize_temporal_layer_plotly(  # noqa: C901

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 
 from lspattern.consts import NodeRole
+from lspattern.utils import infer_role
 
 if TYPE_CHECKING:
     import matplotlib.axes
@@ -85,7 +86,9 @@ def visualize_temporal_layer(  # noqa: C901
             g = groups[NodeRole.ANCILLA_X]
         elif role == NodeRole.ANCILLA_Z:
             g = groups[NodeRole.ANCILLA_Z]
-        # 役割がない場合はパリティから推定(それでも ancilla 判定されなければ data 扱い)
+        elif role is None:
+            role = infer_role((x, y, z))
+            g = groups[role]
         else:
             g = groups[NodeRole.DATA]
         g["x"].append(x)
