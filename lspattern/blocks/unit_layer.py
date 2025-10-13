@@ -11,15 +11,14 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from graphix_zx.graphstate import GraphState
-
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
-from lspattern.consts import NodeRole
-from lspattern.consts.consts import DIRECTIONS3D
+from lspattern.consts import DIRECTIONS3D, NodeRole
 from lspattern.mytype import NodeIdGlobal, NodeIdLocal
 
 if TYPE_CHECKING:
-    from collections.abc import MutableMapping, Sequence
+    from collections.abc import Mapping, MutableMapping, Sequence
+
+    from graphix_zx.graphstate import GraphState
 
     from lspattern.tiling.template import ScalableTemplate
 
@@ -36,8 +35,8 @@ class LayerData:
         Mapping from node ID to (x, y, z) coordinate.
     coord2node : dict[tuple[int, int, int], int]
         Mapping from (x, y, z) coordinate to node ID.
-    node2role : dict[int, str]
-        Mapping from node ID to role string ('data', 'ancilla_x', 'ancilla_z').
+    node2role : dict[int, NodeRole]
+        Mapping from node ID to role ('data', 'ancilla_x', 'ancilla_z').
     schedule : ScheduleAccumulator
         Measurement schedule for this layer.
     flow : FlowAccumulator
@@ -49,14 +48,14 @@ class LayerData:
     nodes_by_z: dict[int, dict[tuple[int, int], int]] = field(default_factory=dict)
     node2coord: dict[int, tuple[int, int, int]] = field(default_factory=dict)
     coord2node: dict[tuple[int, int, int], int] = field(default_factory=dict)
-    node2role: dict[int, str] = field(default_factory=dict)
+    node2role: dict[int, NodeRole] = field(default_factory=dict)
     schedule: ScheduleAccumulator = field(default_factory=ScheduleAccumulator)
     flow: FlowAccumulator = field(default_factory=FlowAccumulator)
     parity: ParityAccumulator = field(default_factory=ParityAccumulator)
 
 
 class UnitLayer(ABC):
-    """Abstract base class for 2-layer unit (1 X-check + 1 Z-check cycle).
+    """Abstract base class for 2-layer unit (1 Z-check + 1 X-check cycle).
 
     A UnitLayer encapsulates the logic for building two physical layers of an RHG
     block, typically consisting of:
@@ -96,16 +95,16 @@ class UnitLayer(ABC):
             Layer data including nodes, coordinates, roles, and accumulators.
         """
 
+    @staticmethod
     def _assign_nodes_at_z(
-        self,
         graph: GraphState,
         z: int,
         data2d: Sequence[tuple[int, int]],
         ancilla2d: Sequence[tuple[int, int]],
-        ancilla_role: str,
+        ancilla_role: NodeRole,
         node2coord: MutableMapping[int, tuple[int, int, int]],
         coord2node: MutableMapping[tuple[int, int, int], int],
-        node2role: MutableMapping[int, str],
+        node2role: MutableMapping[int, NodeRole],
     ) -> dict[tuple[int, int], int]:
         """Assign nodes for a single z-layer.
 
@@ -119,13 +118,13 @@ class UnitLayer(ABC):
             2D coordinates for data qubits.
         ancilla2d : Sequence[tuple[int, int]]
             2D coordinates for ancilla qubits.
-        ancilla_role : str
-            Role string for ancilla qubits (NodeRole.ANCILLA_X or NodeRole.ANCILLA_Z).
+        ancilla_role : NodeRole
+            Role for ancilla qubits (NodeRole.ANCILLA_X or NodeRole.ANCILLA_Z).
         node2coord : MutableMapping[int, tuple[int, int, int]]
             Mapping to populate with node ID -> coordinate.
         coord2node : MutableMapping[tuple[int, int, int], int]
             Mapping to populate with coordinate -> node ID.
-        node2role : MutableMapping[int, str]
+        node2role : MutableMapping[int, NodeRole]
             Mapping to populate with node ID -> role.
 
         Returns
@@ -156,7 +155,7 @@ class UnitLayer(ABC):
     @staticmethod
     def add_spatial_edges(
         graph: GraphState,
-        layer_nodes: dict[tuple[int, int], int],
+        layer_nodes: Mapping[tuple[int, int], int],
     ) -> None:
         """Add intra-layer spatial edges.
 
@@ -164,7 +163,7 @@ class UnitLayer(ABC):
         ----------
         graph : GraphState
             Graph to add edges to.
-        layer_nodes : dict[tuple[int, int], int]
+        layer_nodes : collections.abc.Mapping[tuple[int, int], int]
             Mapping from (x, y) to node ID for this layer.
         """
         for (x, y), u in layer_nodes.items():
@@ -177,11 +176,11 @@ class UnitLayer(ABC):
                     with suppress(Exception):
                         graph.add_physical_edge(u, v)
 
+    @staticmethod
     def _add_temporal_edges(
-        self,
         graph: GraphState,
-        curr_layer: dict[tuple[int, int], int],
-        prev_layer: dict[tuple[int, int], int] | None,
+        curr_layer: Mapping[tuple[int, int], int],
+        prev_layer: Mapping[tuple[int, int], int] | None,
         flow: FlowAccumulator,
     ) -> None:
         """Add inter-layer temporal edges.
@@ -190,9 +189,9 @@ class UnitLayer(ABC):
         ----------
         graph : GraphState
             Graph to add edges to.
-        curr_layer : dict[tuple[int, int], int]
+        curr_layer : collections.abc.Mapping[tuple[int, int], int]
             Current layer nodes {(x,y): node_id}.
-        prev_layer : dict[tuple[int, int], int] | None
+        prev_layer : collections.abc.Mapping[tuple[int, int], int] | None
             Previous layer nodes {(x,y): node_id}, or None if this is the first layer.
         flow : FlowAccumulator
             Flow accumulator to populate with temporal dependencies.
@@ -207,18 +206,18 @@ class UnitLayer(ABC):
                     graph.add_physical_edge(u, v)
                 flow.flow.setdefault(NodeIdLocal(v), set()).add(NodeIdLocal(u))
 
+    @staticmethod
     def _construct_schedule(
-        self,
-        nodes_by_z: dict[int, dict[tuple[int, int], int]],
-        node2role: dict[int, str],
+        nodes_by_z: Mapping[int, Mapping[tuple[int, int], int]],
+        node2role: Mapping[int, NodeRole],
     ) -> ScheduleAccumulator:
         """Construct measurement schedule for this layer.
 
         Parameters
         ----------
-        nodes_by_z : dict[int, dict[tuple[int, int], int]]
+        nodes_by_z : collections.abc.Mapping[int, collections.abc.Mapping[tuple[int, int], int]]
             Nodes organized by z-coordinate.
-        node2role : dict[int, str]
+        node2role : collections.abc.Mapping[int, NodeRole]
             Node role mapping.
 
         Returns
