@@ -6,7 +6,6 @@ of UnitLayer objects, enabling flexible composition of different layer types.
 
 from __future__ import annotations
 
-from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import ClassVar
 
@@ -105,8 +104,7 @@ class LayeredRHGCube(RHGCube):
                         for xy, u in current_layer_nodes.items():
                             v = prev_layer_nodes.get(xy)
                             if v is not None:
-                                with suppress(Exception):
-                                    g.add_physical_edge(u, v)
+                                g.add_physical_edge(u, v)
                                 self.flow.flow.setdefault(NodeIdLocal(v), set()).add(NodeIdLocal(u))
 
                 # Update last non-empty layer to be the last z in this layer
@@ -115,7 +113,7 @@ class LayeredRHGCube(RHGCube):
                     last_nonempty_layer_z = layer_zs[-1]
 
         # Add final data layer if final_layer is 'O' (open)
-        if self.final_layer == EdgeSpecValue.O:  # noqa: PLR1702
+        if self.final_layer == EdgeSpecValue.O:
             data2d = list(self.template.data_coords or [])
             final_z = z0 + 2 * len(self.unit_layers)
             final_layer: dict[tuple[int, int], int] = {}
@@ -140,8 +138,7 @@ class LayeredRHGCube(RHGCube):
                     for xy, u in final_layer.items():
                         v = prev_layer.get(xy)
                         if v is not None:
-                            with suppress(Exception):
-                                g.add_physical_edge(u, v)
+                            g.add_physical_edge(u, v)
                             self.flow.flow.setdefault(NodeIdLocal(v), set()).add(NodeIdLocal(u))
 
             # Add final layer to schedule

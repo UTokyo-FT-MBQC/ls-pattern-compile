@@ -7,7 +7,6 @@ and pipes: two physical layers containing one X-check and one Z-check cycle.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -173,8 +172,7 @@ class UnitLayer(ABC):
                 xy2 = (x + dx, y + dy)
                 v = layer_nodes.get(xy2)
                 if v is not None and v > u:
-                    with suppress(Exception):
-                        graph.add_physical_edge(u, v)
+                    graph.add_physical_edge(u, v)
 
     @staticmethod
     def _add_temporal_edges(
@@ -202,8 +200,7 @@ class UnitLayer(ABC):
         for xy, u in curr_layer.items():
             v = prev_layer.get(xy)
             if v is not None:
-                with suppress(Exception):
-                    graph.add_physical_edge(u, v)
+                graph.add_physical_edge(u, v)
                 flow.flow.setdefault(NodeIdLocal(v), set()).add(NodeIdLocal(u))
 
     @staticmethod
