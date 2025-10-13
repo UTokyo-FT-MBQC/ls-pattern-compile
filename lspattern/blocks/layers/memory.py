@@ -58,7 +58,7 @@ class MemoryUnitLayer(UnitLayer):
 
         node2coord: dict[int, tuple[int, int, int]] = {}
         coord2node: dict[tuple[int, int, int], int] = {}
-        node2role: dict[int, str] = {}
+        node2role: dict[int, NodeRole] = {}
         nodes_by_z: dict[int, dict[tuple[int, int], int]] = {}
 
         # Layer 0 (z_offset): Data + Z-check ancillas

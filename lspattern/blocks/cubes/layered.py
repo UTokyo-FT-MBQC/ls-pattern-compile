@@ -7,7 +7,7 @@ of UnitLayer objects, enabling flexible composition of different layer types.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import ClassVar, cast
 
 from graphix_zx.graphstate import GraphState
 
@@ -16,7 +16,7 @@ from lspattern.blocks.layers.initialize import InitPlusUnitLayer, InitZeroUnitLa
 from lspattern.blocks.layers.memory import MemoryUnitLayer
 from lspattern.blocks.unit_layer import UnitLayer
 from lspattern.consts import BoundarySide, EdgeSpecValue, NodeRole
-from lspattern.mytype import NodeIdLocal
+from lspattern.mytype import NodeIdGlobal, NodeIdLocal
 
 
 @dataclass
@@ -142,7 +142,7 @@ class LayeredRHGCube(RHGCube):
                             self.flow.flow.setdefault(NodeIdLocal(v), set()).add(NodeIdLocal(u))
 
             # Add final layer to schedule
-            final_data_nodes = set(final_layer.values())
+            final_data_nodes = {NodeIdGlobal(n) for n in final_layer.values()}
             if final_data_nodes:
                 self.schedule.schedule[2 * final_z + 1] = final_data_nodes
 
@@ -177,7 +177,7 @@ class LayeredMemoryCubeSkeleton(RHGCubeSkeleton):
             d=self.d,
             edge_spec=self.edgespec,
             template=self.template,
-            unit_layers=unit_layers,
+            unit_layers=cast("list[UnitLayer]", unit_layers),
         )
         block.final_layer = EdgeSpecValue.O
         return block
@@ -240,7 +240,7 @@ class LayeredInitPlusCubeSkeleton(RHGCubeSkeleton):
             d=self.d,
             edge_spec=self.edgespec,
             template=self.template,
-            unit_layers=unit_layers,
+            unit_layers=cast("list[UnitLayer]", unit_layers),
         )
         block.final_layer = EdgeSpecValue.O
         return block
@@ -296,7 +296,7 @@ class LayeredInitZeroCubeSkeleton(RHGCubeSkeleton):
             d=self.d,
             edge_spec=self.edgespec,
             template=self.template,
-            unit_layers=unit_layers,
+            unit_layers=cast("list[UnitLayer]", unit_layers),
         )
         block.final_layer = EdgeSpecValue.O
         return block

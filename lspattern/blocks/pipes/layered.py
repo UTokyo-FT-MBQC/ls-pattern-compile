@@ -8,7 +8,7 @@ spatial connections between cubes.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, ClassVar, overload
+from typing import TYPE_CHECKING, ClassVar, cast, overload
 
 from graphix_zx.graphstate import GraphState
 
@@ -17,7 +17,7 @@ from lspattern.blocks.layers.memory import MemoryUnitLayer
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
 from lspattern.blocks.unit_layer import UnitLayer
 from lspattern.consts import EdgeSpecValue, NodeRole
-from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, SpatialEdgeSpec
+from lspattern.mytype import NodeIdGlobal, NodeIdLocal, PatchCoordGlobal3D, SpatialEdgeSpec
 from lspattern.tiling.template import RotatedPlanarPipetemplate
 from lspattern.utils import get_direction
 
@@ -115,7 +115,7 @@ class LayeredRHGPipe(RHGPipe):
                     last_nonempty_layer_z = layer_zs[-1]
 
         # Add final data layer if final_layer is 'O' (open)
-        if self.final_layer == EdgeSpecValue.O:  # noqa: PLR1702
+        if self.final_layer == EdgeSpecValue.O:
             data2d = list(self.template.data_coords or [])
             final_z = z0 + 2 * len(self.unit_layers)
             final_layer: dict[tuple[int, int], int] = {}
@@ -144,7 +144,7 @@ class LayeredRHGPipe(RHGPipe):
                             self.flow.flow.setdefault(NodeIdLocal(v), set()).add(NodeIdLocal(u))
 
             # Add final layer to schedule
-            final_data_nodes = set(final_layer.values())
+            final_data_nodes = {NodeIdGlobal(n) for n in final_layer.values()}
             if final_data_nodes:
                 self.schedule.schedule[2 * final_z + 1] = final_data_nodes
 
@@ -195,7 +195,7 @@ class LayeredMemoryPipeSkeleton(RHGPipeSkeleton):
             d=self.d,
             edgespec=self.edgespec,
             direction=direction,
-            unit_layers=unit_layers,
+            unit_layers=cast("list[UnitLayer]", unit_layers),
         )
         block.source = source
         block.sink = sink
@@ -309,7 +309,7 @@ class LayeredInitPlusPipeSkeleton(RHGPipeSkeleton):
             d=self.d,
             edgespec=self.edgespec,
             direction=direction,
-            unit_layers=unit_layers,
+            unit_layers=cast("list[UnitLayer]", unit_layers),
         )
         block.source = source
         block.sink = sink
