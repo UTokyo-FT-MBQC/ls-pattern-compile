@@ -66,6 +66,19 @@ class EdgeSpecValue(str, enum.Enum):  # noqa: UP042
     O = "O"  # noqa: E741
 
 
+class TimeBoundarySpecValue(str, enum.Enum):  # noqa: UP042
+    """Time boundary specification values for quantum patch temporal boundaries.
+
+    O: Open boundary (add final data layer)
+    MX: X-basis measurement at final layer
+    MZ: Z-basis measurement at final layer
+    """
+
+    O = "O"  # noqa: E741
+    MX = "MX"
+    MZ = "MZ"
+
+
 class BoundarySide(str, enum.Enum):  # noqa: UP042
     """Spatial boundary sides for patch edges.
 

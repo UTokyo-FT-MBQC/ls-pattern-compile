@@ -7,7 +7,7 @@ from typing import ClassVar
 from graphix_zx.graphstate import GraphState
 
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
-from lspattern.consts import BoundarySide, EdgeSpecValue
+from lspattern.consts import BoundarySide, EdgeSpecValue, TimeBoundarySpecValue
 from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D, PhysCoordLocal2D
 
 # Type alias for the return type of _build_3d_graph method
@@ -39,7 +39,7 @@ class InitPlusCubeSkeleton(RHGCubeSkeleton):
         )
 
         # Init 系は最終層は測定せず開放(O)
-        block.final_layer = EdgeSpecValue.O
+        block.final_layer = TimeBoundarySpecValue.O
 
         return block
 
@@ -122,7 +122,7 @@ class InitPlusCubeThinLayerSkeleton(RHGCubeSkeleton):
             template=self.template,
         )
 
-        block.final_layer = EdgeSpecValue.O
+        block.final_layer = TimeBoundarySpecValue.O
 
         return block
 
@@ -238,7 +238,7 @@ class InitZeroCubeThinLayerSkeleton(RHGCubeSkeleton):
             template=self.template,
         )
 
-        block.final_layer = EdgeSpecValue.O
+        block.final_layer = TimeBoundarySpecValue.O
 
         return block
 

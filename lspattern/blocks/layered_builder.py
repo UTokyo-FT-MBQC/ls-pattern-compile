@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
 from lspattern.blocks.unit_layer import UnitLayer
-from lspattern.consts import NodeRole
+from lspattern.consts import NodeRole, TimeBoundarySpecValue
 from lspattern.mytype import NodeIdGlobal, NodeIdLocal
 
 if TYPE_CHECKING:
@@ -25,7 +25,7 @@ def build_layered_graph(  # noqa: C901
     d: int,
     source: tuple[int, int, int],
     template: ScalableTemplate,
-    final_layer: str | None,
+    final_layer: TimeBoundarySpecValue,
     schedule_accumulator: ScheduleAccumulator,
     flow_accumulator: FlowAccumulator,
     parity_accumulator: ParityAccumulator,
@@ -120,7 +120,7 @@ def build_layered_graph(  # noqa: C901
                 last_nonempty_layer_z = layer_zs[-1]
 
     # Add final data layer if final_layer is 'O' (open)
-    if final_layer == "O":
+    if final_layer == TimeBoundarySpecValue.O:
         data2d = list(template.data_coords or [])
         final_z = z0 + 2 * len(unit_layers)
         final_layer_dict: dict[tuple[int, int], int] = {}
