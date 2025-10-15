@@ -9,8 +9,11 @@ UnitLayer sequences.
 # %%
 import pathlib
 
-from graphix_zx.pattern import print_pattern
+import pymatching
+import stim
+from graphix_zx.pattern import Pattern, print_pattern
 from graphix_zx.scheduler import Scheduler
+from graphix_zx.stim_compiler import stim_compile
 
 from lspattern.blocks.cubes.layered import LayeredInitPlusCubeSkeleton
 from lspattern.blocks.cubes.measure import MeasureXSkeleton
@@ -140,3 +143,41 @@ print(f"Demo completed: [InitPlusUnitLayer *1, MemoryUnitLayer*{d-1}, MeasureX *
 print(f"Total temporal layers: {len(compiled_canvas.layers)}")
 print(f"Total qubits: {getattr(compiled_canvas.global_graph, 'num_qubits', 'unknown')}")
 print("="*80)
+
+# %%
+# Circuit creation
+def create_circuit(pattern: Pattern, noise: float) -> stim.Circuit:
+    print(f"Using logical observables: {logical_observables}")
+    stim_str = stim_compile(
+        pattern,
+        logical_observables,
+        after_clifford_depolarization=0,
+        before_measure_flip_probability=noise,
+    )
+    return stim.Circuit(stim_str)
+
+
+noise = 0.001
+circuit = create_circuit(pattern, noise)
+print(f"\nnum_qubits: {circuit.num_qubits}")
+print(circuit)
+
+# %%
+# Error correction simulation
+dem = circuit.detector_error_model(decompose_errors=True)
+print("\nDetector Error Model:")
+print(dem)
+
+matching = pymatching.Matching.from_detector_error_model(dem)
+print(f"\nMatching object: {matching}")
+
+err = dem.shortest_graphlike_error(ignore_ungraphlike_errors=False)
+print(f"\nShortest graphlike error length: {len(err)}")
+print(err)
+
+# %%
+# Visualization export
+svg = dem.diagram(type="match-graph-svg")
+pathlib.Path("figures").mkdir(exist_ok=True)
+pathlib.Path("figures/layered_unit_memory_dem.svg").write_text(str(svg), encoding="utf-8")
+print("\nSVG diagram saved to figures/layered_unit_memory_dem.svg")
