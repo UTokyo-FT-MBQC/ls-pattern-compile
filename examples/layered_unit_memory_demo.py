@@ -12,7 +12,7 @@ import pathlib
 from graphix_zx.pattern import print_pattern
 from graphix_zx.scheduler import Scheduler
 
-from lspattern.blocks.cubes.layered import LayeredInitPlusCubeSkeleton, LayeredMemoryCubeSkeleton
+from lspattern.blocks.cubes.layered import LayeredInitPlusCubeSkeleton
 from lspattern.blocks.cubes.measure import MeasureXSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
@@ -34,18 +34,13 @@ edgespec: dict[BoundarySide, EdgeSpecValue] = {
     BoundarySide.RIGHT: EdgeSpecValue.Z,
 }
 
-# Add InitPlus cube at z=0 using LayeredInitPlusCubeSkeleton (d=1 for 1 unit layer)
-init_skeleton = LayeredInitPlusCubeSkeleton(d=1, edgespec=edgespec)
+# Add InitPlus cube at z=0 using LayeredInitPlusCubeSkeleton
+init_skeleton = LayeredInitPlusCubeSkeleton(d=d, edgespec=edgespec)
 skeleton.add_cube(PatchCoordGlobal3D((0, 0, 0)), init_skeleton)
 
-# Add Memory cubes at z=1 to z=(d-1) using LayeredMemoryCubeSkeleton (d=1 each for 1 unit layer)
-for i in range(1, d):
-    memory_skeleton = LayeredMemoryCubeSkeleton(d=1, edgespec=edgespec)
-    skeleton.add_cube(PatchCoordGlobal3D((0, 0, i)), memory_skeleton)
-
-# Add MeasureX cube at z=d
+# Add MeasureX cube
 measure_skeleton = MeasureXSkeleton(d=d, edgespec=edgespec)
-skeleton.add_cube(PatchCoordGlobal3D((0, 0, d)), measure_skeleton)
+skeleton.add_cube(PatchCoordGlobal3D((0, 0, 1)), measure_skeleton)
 
 canvas = skeleton.to_canvas()
 print(f"Created canvas with {len(canvas.cubes_)} cubes and {len(canvas.pipes_)} pipes")
@@ -55,7 +50,7 @@ print(f"Structure: [LayeredInitPlus(d=1) *1, LayeredMemory(d=1)*{d-1}, MeasureX 
 # Compile the canvas
 compiled_canvas = canvas.compile()
 print(f"\nCompiled canvas has {len(compiled_canvas.layers)} temporal layers")
-print(f"Global graph has {getattr(compiled_canvas.global_graph, 'num_qubits', 'unknown')} qubits")
+print(f"Global graph has {getattr(compiled_canvas.global_graph, 'num_qubits', len(compiled_canvas.global_graph.physical_nodes))} qubits")
 
 # Print schedule information
 schedule = compiled_canvas.schedule.compact()
@@ -136,7 +131,7 @@ print_pattern(pattern)
 
 # Set logical observables
 cout_portmap = compiled_canvas.cout_portset
-coord2logical_group = {0: PatchCoordGlobal3D((0, 0, d))}  # MeasureX cube is at position (0, 0, d)
+coord2logical_group = {0: PatchCoordGlobal3D((0, 0, 1))}  # MeasureX cube is at position (0, 0, d)
 logical_observables = {i: cout_portmap[coord] for i, coord in coord2logical_group.items()}
 print(f"\nUsing logical observables: {logical_observables}")
 
