@@ -13,6 +13,7 @@ from graphix_zx.graphstate import GraphState
 
 from lspattern.blocks.layers.empty import EmptyUnitLayer
 from lspattern.blocks.layers.initialize import InitPlusUnitLayer, InitZeroUnitLayer
+from lspattern.blocks.layers.measure import MeasureXUnitLayer, MeasureZUnitLayer
 from lspattern.blocks.layers.memory import MemoryUnitLayer
 from lspattern.consts import BoundarySide, EdgeSpecValue, NodeRole
 from lspattern.tiling.template import RotatedPlanarCubeTemplate
@@ -212,3 +213,127 @@ def test_unit_layer_temporal_edges() -> None:
         assert int(src) in layer_data.node2role
         for dst in dsts:
             assert int(dst) in layer_data.node2role
+
+
+def test_measure_x_unit_layer_structure() -> None:
+    """Test that MeasureXUnitLayer creates the expected single-layer structure."""
+    d = 3
+    edgespec = {
+        BoundarySide.LEFT: EdgeSpecValue.X,
+        BoundarySide.RIGHT: EdgeSpecValue.X,
+        BoundarySide.TOP: EdgeSpecValue.Z,
+        BoundarySide.BOTTOM: EdgeSpecValue.Z,
+    }
+    template = RotatedPlanarCubeTemplate(d=d, edgespec=edgespec)
+    template.to_tiling()
+
+    graph = GraphState()
+    measure_layer = MeasureXUnitLayer()
+    z_offset = 0
+    layer_data = measure_layer.build_layer(graph, z_offset, template)
+
+    # MeasureX should only have one layer with data qubits only
+    assert len(layer_data.nodes_by_z) == 1
+    assert z_offset in layer_data.nodes_by_z
+
+    # Check that all nodes are data qubits (no ancillas)
+    layer_nodes = layer_data.nodes_by_z[z_offset]
+    for node_id in layer_nodes.values():
+        assert layer_data.node2role[node_id] == NodeRole.DATA
+
+    # Check that we have the expected number of data qubits
+    assert len(layer_nodes) == 9  # 3x3 data qubits for d=3
+
+    # Check that parity checks are populated (detectors)
+    assert len(layer_data.parity.checks) > 0
+
+    # Check that schedule is populated
+    assert len(layer_data.schedule.schedule) > 0
+
+
+def test_measure_z_unit_layer_structure() -> None:
+    """Test that MeasureZUnitLayer creates the expected single-layer structure."""
+    d = 3
+    edgespec = {
+        BoundarySide.LEFT: EdgeSpecValue.X,
+        BoundarySide.RIGHT: EdgeSpecValue.X,
+        BoundarySide.TOP: EdgeSpecValue.Z,
+        BoundarySide.BOTTOM: EdgeSpecValue.Z,
+    }
+    template = RotatedPlanarCubeTemplate(d=d, edgespec=edgespec)
+    template.to_tiling()
+
+    graph = GraphState()
+    measure_layer = MeasureZUnitLayer()
+    z_offset = 0
+    layer_data = measure_layer.build_layer(graph, z_offset, template)
+
+    # MeasureZ should only have one layer with data qubits only
+    assert len(layer_data.nodes_by_z) == 1
+    assert z_offset in layer_data.nodes_by_z
+
+    # Check that all nodes are data qubits (no ancillas)
+    layer_nodes = layer_data.nodes_by_z[z_offset]
+    for node_id in layer_nodes.values():
+        assert layer_data.node2role[node_id] == NodeRole.DATA
+
+    # Check that we have the expected number of data qubits
+    assert len(layer_nodes) == 9  # 3x3 data qubits for d=3
+
+    # Check that parity checks are populated (detectors)
+    assert len(layer_data.parity.checks) > 0
+
+    # Check that schedule is populated
+    assert len(layer_data.schedule.schedule) > 0
+
+
+def test_measure_x_parity_construction() -> None:
+    """Test that MeasureXUnitLayer constructs correct parity checks."""
+    d = 3
+    edgespec = {
+        BoundarySide.LEFT: EdgeSpecValue.X,
+        BoundarySide.RIGHT: EdgeSpecValue.X,
+        BoundarySide.TOP: EdgeSpecValue.Z,
+        BoundarySide.BOTTOM: EdgeSpecValue.Z,
+    }
+    template = RotatedPlanarCubeTemplate(d=d, edgespec=edgespec)
+    template.to_tiling()
+
+    graph = GraphState()
+    measure_layer = MeasureXUnitLayer()
+    z_offset = 0
+    layer_data = measure_layer.build_layer(graph, z_offset, template)
+
+    # Verify that parity checks contain node IDs that exist in the graph
+    for coord, z_dict in layer_data.parity.checks.items():
+        for z, node_set in z_dict.items():
+            assert z == z_offset  # All checks should be at z_offset
+            for node_id in node_set:
+                assert int(node_id) in layer_data.node2role
+                assert layer_data.node2role[int(node_id)] == NodeRole.DATA
+
+
+def test_measure_z_parity_construction() -> None:
+    """Test that MeasureZUnitLayer constructs correct parity checks."""
+    d = 3
+    edgespec = {
+        BoundarySide.LEFT: EdgeSpecValue.X,
+        BoundarySide.RIGHT: EdgeSpecValue.X,
+        BoundarySide.TOP: EdgeSpecValue.Z,
+        BoundarySide.BOTTOM: EdgeSpecValue.Z,
+    }
+    template = RotatedPlanarCubeTemplate(d=d, edgespec=edgespec)
+    template.to_tiling()
+
+    graph = GraphState()
+    measure_layer = MeasureZUnitLayer()
+    z_offset = 0
+    layer_data = measure_layer.build_layer(graph, z_offset, template)
+
+    # Verify that parity checks contain node IDs that exist in the graph
+    for coord, z_dict in layer_data.parity.checks.items():
+        for z, node_set in z_dict.items():
+            assert z == z_offset  # All checks should be at z_offset
+            for node_id in node_set:
+                assert int(node_id) in layer_data.node2role
+                assert layer_data.node2role[int(node_id)] == NodeRole.DATA
