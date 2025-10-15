@@ -74,9 +74,6 @@ def build_layered_graph(  # noqa: C901
     all_coord2node: dict[tuple[int, int, int], int] = {}
     all_node2role: dict[int, NodeRole] = {}
 
-    # Track last non-empty layer for connecting across empty layers
-    last_nonempty_layer_z: int | None = None
-
     for i, unit_layer in enumerate(unit_layers):  # noqa: PLR1702
         layer_z = z0 + 2 * i
         layer_data = unit_layer.build_layer(graph, layer_z, template)
@@ -96,17 +93,18 @@ def build_layered_graph(  # noqa: C901
             flow_accumulator = flow_accumulator.merge_with(layer_data.flow)
             parity_accumulator = parity_accumulator.merge_with(layer_data.parity)
 
-            # Add temporal edges between this layer and the last non-empty layer
-            if last_nonempty_layer_z is not None:
-                # Find the first z-coordinate in this layer
-                current_layer_zs = sorted(layer_data.nodes_by_z.keys())
-                if current_layer_zs:
-                    first_z = current_layer_zs[0]
-                    current_layer_nodes = layer_data.nodes_by_z[first_z]
+            # Add temporal edges to the immediately previous z-layer if it exists
+            current_layer_zs = sorted(layer_data.nodes_by_z.keys())
+            if current_layer_zs:
+                first_z = current_layer_zs[0]
+                current_layer_nodes = layer_data.nodes_by_z[first_z]
 
-                    # Connect to the last z-coordinate of the previous non-empty layer
-                    prev_layer_nodes = all_nodes_by_z.get(last_nonempty_layer_z, {})
+                # Look for nodes at z-1 (immediately previous layer)
+                prev_z = first_z - 1
+                prev_layer_nodes = all_nodes_by_z.get(prev_z, {})
 
+                # Only connect if previous layer has nodes (empty layers will be skipped)
+                if prev_layer_nodes:
                     # Build temporal flow for this connection
                     temp_flow: dict[NodeIdLocal, set[NodeIdLocal]] = {}
                     for xy, u in current_layer_nodes.items():
@@ -117,11 +115,6 @@ def build_layered_graph(  # noqa: C901
                     # Merge temporal flow into accumulator
                     if temp_flow:
                         flow_accumulator = flow_accumulator.merge_with(FlowAccumulator(flow=temp_flow))
-
-            # Update last non-empty layer to be the last z in this layer
-            layer_zs = sorted(layer_data.nodes_by_z.keys())
-            if layer_zs:
-                last_nonempty_layer_z = layer_zs[-1]
 
     # Add final data layer if final_layer is 'O' (open)
     if final_layer == TimeBoundarySpecValue.O:

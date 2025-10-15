@@ -139,8 +139,21 @@ def test_empty_layer_handling_consecutive() -> None:
     assert cube.local_graph is not None
     assert len(cube.local_graph.physical_nodes) > 0
 
-    # Temporal edges should connect across empty layers
+    # Temporal edges should NOT connect across empty layers
+    # Memory0 (z=0,1) -> Empty1 (nothing) -> Empty2 (nothing) -> Memory3 (z=6,7) -> Memory4 (z=8,9)
+    # z=1 should NOT connect to z=6 (empty layers in between)
+    # z=6 should NOT connect to anything below it (no nodes at z=5)
+    # z=7 should connect to z=8 (adjacent layers)
     assert len(cube.flow.flow) > 0
+
+    # Verify no cross-empty-layer connections
+    for src, dsts in cube.flow.flow.items():
+        src_z = cube.node2coord.get(int(src), (None, None, -1))[2]
+        for dst in dsts:
+            dst_z = cube.node2coord.get(int(dst), (None, None, -1))[2]
+            # Assert that connections are only to adjacent z-layers (diff of 1)
+            # or within the same UnitLayer (diff of 1)
+            assert abs(dst_z - src_z) == 1, f"Invalid flow: z={src_z} -> z={dst_z}"
 
 
 def test_empty_layer_at_beginning() -> None:
