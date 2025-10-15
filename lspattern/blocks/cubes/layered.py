@@ -6,17 +6,18 @@ of UnitLayer objects, enabling flexible composition of different layer types.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import ClassVar, cast
+from typing import ClassVar
 
 from graphix_zx.graphstate import GraphState
 
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
+from lspattern.blocks.layered_builder import build_layered_graph
 from lspattern.blocks.layers.initialize import InitPlusUnitLayer, InitZeroUnitLayer
 from lspattern.blocks.layers.memory import MemoryUnitLayer
 from lspattern.blocks.unit_layer import UnitLayer
 from lspattern.consts import BoundarySide, EdgeSpecValue, NodeRole
-from lspattern.mytype import NodeIdGlobal, NodeIdLocal
 
 
 @dataclass
@@ -34,15 +35,24 @@ class LayeredRHGCube(RHGCube):
         the effective code distance.
     """
 
-    unit_layers: list[UnitLayer] = field(default_factory=list)
+    unit_layers: Sequence[UnitLayer] = field(default_factory=list)
 
-    def _build_3d_graph(  # noqa: C901
+    def _construct_detectors(self) -> None:
+        """Detectors are already constructed by unit layers via parity accumulator.
+
+        This method does nothing as the parity accumulator is populated during
+        layer construction in build_layered_graph.
+        """
+        # The parity accumulator is already populated during layer construction
+        # No additional detector construction needed
+
+    def _build_3d_graph(  # type: ignore[override]
         self,
     ) -> tuple[
         GraphState,
         dict[int, tuple[int, int, int]],
         dict[tuple[int, int, int], int],
-        dict[int, str],
+        dict[int, NodeRole],
     ]:
         """Build 3D RHG graph structure layer-by-layer.
 
@@ -54,99 +64,18 @@ class LayeredRHGCube(RHGCube):
         tuple
             (graph, node2coord, coord2node, node2role) for the complete cube.
         """
-        # Validate that unit_layers length does not exceed d
-        if len(self.unit_layers) > self.d:
-            msg = f"Unit layers length ({len(self.unit_layers)}) cannot exceed code distance d ({self.d})"
-            raise ValueError(msg)
-
         g = GraphState()
-        z0 = int(self.source[2]) * (2 * self.d)
-
-        # Accumulate all layer data
-        all_nodes_by_z: dict[int, dict[tuple[int, int], int]] = {}
-        all_node2coord: dict[int, tuple[int, int, int]] = {}
-        all_coord2node: dict[tuple[int, int, int], int] = {}
-        all_node2role: dict[int, str] = {}
-
-        # Track last non-empty layer for connecting across empty layers
-        last_nonempty_layer_z: int | None = None
-
-        for i, unit_layer in enumerate(self.unit_layers):  # noqa: PLR1702
-            layer_z = z0 + 2 * i
-            layer_data = unit_layer.build_layer(g, layer_z, self.template)
-
-            # Check if this layer is empty (no nodes)
-            is_empty = not layer_data.nodes_by_z
-
-            if not is_empty:
-                # Merge layer data
-                all_nodes_by_z.update(layer_data.nodes_by_z)
-                all_node2coord.update(layer_data.node2coord)
-                all_coord2node.update(layer_data.coord2node)
-                all_node2role.update(layer_data.node2role)
-
-                # Merge accumulators
-                self.schedule = self.schedule.compose_sequential(layer_data.schedule)
-                self.flow = self.flow.merge_with(layer_data.flow)
-                self.parity = self.parity.merge_with(layer_data.parity)
-
-                # Add temporal edges between this layer and the last non-empty layer
-                if last_nonempty_layer_z is not None:
-                    # Find the first z-coordinate in this layer
-                    current_layer_zs = sorted(layer_data.nodes_by_z.keys())
-                    if current_layer_zs:
-                        first_z = current_layer_zs[0]
-                        current_layer_nodes = layer_data.nodes_by_z[first_z]
-
-                        # Connect to the last z-coordinate of the previous non-empty layer
-                        prev_layer_nodes = all_nodes_by_z.get(last_nonempty_layer_z, {})
-
-                        for xy, u in current_layer_nodes.items():
-                            v = prev_layer_nodes.get(xy)
-                            if v is not None:
-                                g.add_physical_edge(u, v)
-                                self.flow.flow.setdefault(NodeIdLocal(v), set()).add(NodeIdLocal(u))
-
-                # Update last non-empty layer to be the last z in this layer
-                layer_zs = sorted(layer_data.nodes_by_z.keys())
-                if layer_zs:
-                    last_nonempty_layer_z = layer_zs[-1]
-
-        # Add final data layer if final_layer is 'O' (open)
-        if self.final_layer == EdgeSpecValue.O:
-            data2d = list(self.template.data_coords or [])
-            final_z = z0 + 2 * len(self.unit_layers)
-            final_layer: dict[tuple[int, int], int] = {}
-
-            for x, y in data2d:
-                n = g.add_physical_node()
-                all_node2coord[n] = (int(x), int(y), int(final_z))
-                all_coord2node[int(x), int(y), int(final_z)] = n
-                all_node2role[n] = NodeRole.DATA
-                final_layer[int(x), int(y)] = n
-
-            all_nodes_by_z[final_z] = final_layer
-
-            # Add spatial edges for final layer
-            UnitLayer.add_spatial_edges(g, final_layer)
-
-            # Add temporal edges connecting to previous layer
-            if all_nodes_by_z:
-                prev_z = final_z - 1
-                if prev_z in all_nodes_by_z:
-                    prev_layer = all_nodes_by_z[prev_z]
-                    for xy, u in final_layer.items():
-                        v = prev_layer.get(xy)
-                        if v is not None:
-                            g.add_physical_edge(u, v)
-                            self.flow.flow.setdefault(NodeIdLocal(v), set()).add(NodeIdLocal(u))
-
-            # Add final layer to schedule
-            final_data_nodes = {NodeIdGlobal(n) for n in final_layer.values()}
-            if final_data_nodes:
-                self.schedule.schedule[2 * final_z + 1] = final_data_nodes
-
-        return g, all_node2coord, all_coord2node, all_node2role
+        return build_layered_graph(
+            unit_layers=self.unit_layers,
+            d=self.d,
+            source=self.source,
+            template=self.template,
+            final_layer=self.final_layer,
+            schedule_accumulator=self.schedule,
+            flow_accumulator=self.flow,
+            parity_accumulator=self.parity,
+            graph=g,
+        )
 
 
 class LayeredMemoryCubeSkeleton(RHGCubeSkeleton):
@@ -161,6 +90,11 @@ class LayeredMemoryCubeSkeleton(RHGCubeSkeleton):
         -------
         LayeredMemoryCube
             Materialized cube with d memory unit layers.
+
+        Raises
+        ------
+        ValueError
+            If the number of unit layers exceeds code distance d.
         """
         # Apply spatial open-boundary trimming if specified
         for direction in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
@@ -173,11 +107,16 @@ class LayeredMemoryCubeSkeleton(RHGCubeSkeleton):
         # Create sequence of memory unit layers
         unit_layers = [MemoryUnitLayer() for _ in range(self.d)]
 
+        # Validate unit_layers length
+        if len(unit_layers) > self.d:
+            msg = f"Unit layers length ({len(unit_layers)}) cannot exceed code distance d ({self.d})"
+            raise ValueError(msg)
+
         block = LayeredMemoryCube(
             d=self.d,
             edge_spec=self.edgespec,
             template=self.template,
-            unit_layers=cast("list[UnitLayer]", unit_layers),
+            unit_layers=unit_layers,
         )
         block.final_layer = EdgeSpecValue.O
         return block
@@ -224,6 +163,11 @@ class LayeredInitPlusCubeSkeleton(RHGCubeSkeleton):
         -------
         LayeredInitPlusCube
             Materialized cube with d initialization unit layers.
+
+        Raises
+        ------
+        ValueError
+            If the number of unit layers exceeds code distance d.
         """
         # Apply spatial open-boundary trimming if specified
         for direction in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
@@ -236,6 +180,11 @@ class LayeredInitPlusCubeSkeleton(RHGCubeSkeleton):
         # Create sequence of init plus unit layers
         unit_layers: list[UnitLayer] = [InitPlusUnitLayer()]
         unit_layers += [MemoryUnitLayer() for _ in range(self.d - 1)]
+
+        # Validate unit_layers length
+        if len(unit_layers) > self.d:
+            msg = f"Unit layers length ({len(unit_layers)}) cannot exceed code distance d ({self.d})"
+            raise ValueError(msg)
 
         block = LayeredInitPlusCube(
             d=self.d,
@@ -281,6 +230,11 @@ class LayeredInitZeroCubeSkeleton(RHGCubeSkeleton):
         -------
         LayeredInitZeroCube
             Materialized cube with d initialization unit layers.
+
+        Raises
+        ------
+        ValueError
+            If the number of unit layers exceeds code distance d.
         """
         # Apply spatial open-boundary trimming if specified
         for direction in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
@@ -293,6 +247,11 @@ class LayeredInitZeroCubeSkeleton(RHGCubeSkeleton):
         # Create sequence of init zero unit layers
         unit_layers: list[UnitLayer] = [InitZeroUnitLayer()]
         unit_layers += [MemoryUnitLayer() for _ in range(self.d - 1)]
+
+        # Validate unit_layers length
+        if len(unit_layers) > self.d:
+            msg = f"Unit layers length ({len(unit_layers)}) cannot exceed code distance d ({self.d})"
+            raise ValueError(msg)
 
         block = LayeredInitZeroCube(
             d=self.d,
