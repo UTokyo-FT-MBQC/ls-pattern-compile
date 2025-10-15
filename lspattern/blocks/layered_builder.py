@@ -52,8 +52,8 @@ def build_layered_graph(  # noqa: C901
         Source coordinate for z-offset calculation.
     template : ScalableTemplate
         Template providing data/ancilla coordinates.
-    final_layer : EdgeSpecValue
-        Edge specification for final layer ('O' = open boundary).
+    final_layer : TimeBoundarySpecValue
+        Time boundary specification for final layer.
     graph : GraphState
         Graph state to add nodes and edges to (modified in place).
 
