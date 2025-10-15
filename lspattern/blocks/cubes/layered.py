@@ -6,9 +6,8 @@ of UnitLayer objects, enabling flexible composition of different layer types.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from graphix_zx.graphstate import GraphState
 
@@ -16,8 +15,12 @@ from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
 from lspattern.blocks.layered_builder import build_layered_graph
 from lspattern.blocks.layers.initialize import InitPlusUnitLayer, InitZeroUnitLayer
 from lspattern.blocks.layers.memory import MemoryUnitLayer
-from lspattern.blocks.unit_layer import UnitLayer
 from lspattern.consts import BoundarySide, EdgeSpecValue, NodeRole, TimeBoundarySpecValue
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from lspattern.blocks.unit_layer import UnitLayer
 
 
 @dataclass
@@ -65,17 +68,19 @@ class LayeredRHGCube(RHGCube):
             (graph, node2coord, coord2node, node2role) for the complete cube.
         """
         g = GraphState()
-        return build_layered_graph(
+        graph, node2coord, coord2node, node2role, schedule, flow, parity = build_layered_graph(
             unit_layers=self.unit_layers,
             d=self.d,
             source=self.source,
             template=self.template,
             final_layer=self.final_layer,
-            schedule_accumulator=self.schedule,
-            flow_accumulator=self.flow,
-            parity_accumulator=self.parity,
             graph=g,
         )
+        # Update accumulators with returned values
+        self.schedule = schedule
+        self.flow = flow
+        self.parity = parity
+        return graph, node2coord, coord2node, node2role
 
 
 class LayeredMemoryCubeSkeleton(RHGCubeSkeleton):

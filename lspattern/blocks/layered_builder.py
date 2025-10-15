@@ -6,7 +6,6 @@ from sequences of UnitLayer objects, used by both LayeredRHGCube and LayeredRHGP
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
@@ -15,6 +14,8 @@ from lspattern.consts import NodeRole, TimeBoundarySpecValue
 from lspattern.mytype import NodeIdGlobal, NodeIdLocal
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from graphix_zx.graphstate import GraphState
 
     from lspattern.tiling.template import ScalableTemplate
@@ -26,15 +27,15 @@ def build_layered_graph(  # noqa: C901
     source: tuple[int, int, int],
     template: ScalableTemplate,
     final_layer: TimeBoundarySpecValue,
-    schedule_accumulator: ScheduleAccumulator,
-    flow_accumulator: FlowAccumulator,
-    parity_accumulator: ParityAccumulator,
     graph: GraphState,
 ) -> tuple[
     GraphState,
     dict[int, tuple[int, int, int]],
     dict[tuple[int, int, int], int],
     dict[int, NodeRole],
+    ScheduleAccumulator,
+    FlowAccumulator,
+    ParityAccumulator,
 ]:
     """Build 3D RHG graph structure layer-by-layer.
 
@@ -53,20 +54,18 @@ def build_layered_graph(  # noqa: C901
         Template providing data/ancilla coordinates.
     final_layer : EdgeSpecValue
         Edge specification for final layer ('O' = open boundary).
-    schedule_accumulator : ScheduleAccumulator
-        Schedule accumulator to populate (modified in place).
-    flow_accumulator : FlowAccumulator
-        Flow accumulator to populate (modified in place).
-    parity_accumulator : ParityAccumulator
-        Parity accumulator to populate (modified in place).
     graph : GraphState
         Graph state to add nodes and edges to (modified in place).
 
     Returns
     -------
     tuple
-        (graph, node2coord, coord2node, node2role) for the complete block.
+        (graph, node2coord, coord2node, node2role, schedule, flow, parity) for the complete block.
     """
+    # Initialize accumulators
+    schedule_accumulator = ScheduleAccumulator()
+    flow_accumulator = FlowAccumulator()
+    parity_accumulator = ParityAccumulator()
     z0 = int(source[2]) * (2 * d)
 
     # Accumulate all layer data
@@ -92,10 +91,10 @@ def build_layered_graph(  # noqa: C901
             all_coord2node.update(layer_data.coord2node)
             all_node2role.update(layer_data.node2role)
 
-            # Merge accumulators
-            schedule_accumulator.compose_sequential(layer_data.schedule)
-            flow_accumulator.merge_with(layer_data.flow)
-            parity_accumulator.merge_with(layer_data.parity)
+            # Merge accumulators (accumulator methods return new objects)
+            schedule_accumulator = schedule_accumulator.compose_sequential(layer_data.schedule)
+            flow_accumulator = flow_accumulator.merge_with(layer_data.flow)
+            parity_accumulator = parity_accumulator.merge_with(layer_data.parity)
 
             # Add temporal edges between this layer and the last non-empty layer
             if last_nonempty_layer_z is not None:
@@ -108,11 +107,16 @@ def build_layered_graph(  # noqa: C901
                     # Connect to the last z-coordinate of the previous non-empty layer
                     prev_layer_nodes = all_nodes_by_z.get(last_nonempty_layer_z, {})
 
+                    # Build temporal flow for this connection
+                    temp_flow: dict[NodeIdLocal, set[NodeIdLocal]] = {}
                     for xy, u in current_layer_nodes.items():
                         v = prev_layer_nodes.get(xy)
                         if v is not None:
                             graph.add_physical_edge(u, v)
-                            flow_accumulator.flow.setdefault(NodeIdLocal(v), set()).add(NodeIdLocal(u))
+                            temp_flow.setdefault(NodeIdLocal(v), set()).add(NodeIdLocal(u))
+                    # Merge temporal flow into accumulator
+                    if temp_flow:
+                        flow_accumulator = flow_accumulator.merge_with(FlowAccumulator(flow=temp_flow))
 
             # Update last non-empty layer to be the last z in this layer
             layer_zs = sorted(layer_data.nodes_by_z.keys())
@@ -142,15 +146,29 @@ def build_layered_graph(  # noqa: C901
             prev_z = final_z - 1
             if prev_z in all_nodes_by_z:
                 prev_layer = all_nodes_by_z[prev_z]
+                final_flow: dict[NodeIdLocal, set[NodeIdLocal]] = {}
                 for xy, u in final_layer_dict.items():
                     v = prev_layer.get(xy)
                     if v is not None:
                         graph.add_physical_edge(u, v)
-                        flow_accumulator.flow.setdefault(NodeIdLocal(v), set()).add(NodeIdLocal(u))
+                        final_flow.setdefault(NodeIdLocal(v), set()).add(NodeIdLocal(u))
+                # Merge temporal flow into accumulator
+                if final_flow:
+                    flow_accumulator = flow_accumulator.merge_with(FlowAccumulator(flow=final_flow))
 
         # Add final layer to schedule
         final_data_nodes = {NodeIdGlobal(n) for n in final_layer_dict.values()}
         if final_data_nodes:
-            schedule_accumulator.schedule[2 * final_z + 1] = final_data_nodes
+            # Create new schedule with final layer
+            final_schedule = ScheduleAccumulator(schedule={2 * final_z + 1: final_data_nodes})
+            schedule_accumulator = schedule_accumulator.compose_parallel(final_schedule)
 
-    return graph, all_node2coord, all_coord2node, all_node2role
+    return (
+        graph,
+        all_node2coord,
+        all_coord2node,
+        all_node2role,
+        schedule_accumulator,
+        flow_accumulator,
+        parity_accumulator,
+    )
