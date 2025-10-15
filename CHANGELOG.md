@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enables customization at 2-layer granularity instead of full 2*d layer blocks
   - Automatic temporal edge connection across empty layers
   - Validation to ensure `unit_layers` length does not exceed code distance `d`
+- `TimeBoundarySpecValue` enum in `lspattern/consts/consts.py` for type-safe temporal boundary specification ([#23](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/23))
+  - `O`: Open boundary (add final data layer)
+  - `MX`: X-basis measurement at final layer
+  - `MZ`: Z-basis measurement at final layer
 
 ### Removed
 - Legacy `lspattern.geom` package remnants (`__init__.py`, `rhg_parity.py`, `tiler.py`) and unused visualizer stubs (`visualize.py`, `template.py`) as part of cleanup for [#64](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/64).
@@ -30,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Refined temporal-layer visualizers to remove dependencies on deleted geom helpers, harmonize color palettes between Matplotlib and Plotly variants, and improve axis handling and input/output highlighting.
+- `RHGBlock.final_layer` field type changed from `str | None` to `TimeBoundarySpecValue` for improved type safety ([#23](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/23))
 
 
 ---
