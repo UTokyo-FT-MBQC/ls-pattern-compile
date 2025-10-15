@@ -234,14 +234,14 @@ class LayeredInitPlusCubeSkeleton(RHGCubeSkeleton):
         self.template.to_tiling()
 
         # Create sequence of init plus unit layers
-        unit_layers = [InitPlusUnitLayer()]
+        unit_layers: list[UnitLayer] = [InitPlusUnitLayer()]
         unit_layers += [MemoryUnitLayer() for _ in range(self.d - 1)]
 
         block = LayeredInitPlusCube(
             d=self.d,
             edge_spec=self.edgespec,
             template=self.template,
-            unit_layers=cast("list[UnitLayer]", unit_layers),
+            unit_layers=unit_layers,
         )
         block.final_layer = EdgeSpecValue.O
         return block
@@ -291,14 +291,14 @@ class LayeredInitZeroCubeSkeleton(RHGCubeSkeleton):
         self.template.to_tiling()
 
         # Create sequence of init zero unit layers
-        unit_layers = [InitZeroUnitLayer()]
+        unit_layers: list[UnitLayer] = [InitZeroUnitLayer()]
         unit_layers += [MemoryUnitLayer() for _ in range(self.d - 1)]
 
         block = LayeredInitZeroCube(
             d=self.d,
             edge_spec=self.edgespec,
             template=self.template,
-            unit_layers=cast("list[UnitLayer]", unit_layers),
+            unit_layers=unit_layers,
         )
         block.final_layer = EdgeSpecValue.O
         return block

@@ -303,15 +303,10 @@ class LayeredInitPlusPipeSkeleton(RHGPipeSkeleton):
         direction = get_direction(source, sink)
 
         # Create sequence of init plus unit layers
-        unit_layers = [InitPlusUnitLayer]
+        unit_layers: list[UnitLayer] = [InitPlusUnitLayer()]
         unit_layers += [MemoryUnitLayer() for _ in range(self.d - 1)]
 
-        block = LayeredInitPlusPipe(
-            d=self.d,
-            edgespec=self.edgespec,
-            direction=direction,
-            unit_layers=cast("list[UnitLayer]", unit_layers),
-        )
+        block = LayeredInitPlusPipe(d=self.d, edgespec=self.edgespec, direction=direction, unit_layers=unit_layers)
         block.source = source
         block.sink = sink
         block.final_layer = EdgeSpecValue.O
