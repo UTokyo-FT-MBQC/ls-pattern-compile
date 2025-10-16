@@ -7,7 +7,7 @@ from graphix_zx.common import Axis, AxisMeasBasis, Sign
 from graphix_zx.graphstate import GraphState
 
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
-from lspattern.consts import DIRECTIONS2D, NodeRole, TimeBoundarySpecValue
+from lspattern.consts import DIRECTIONS2D, NodeRole, TemporalBoundarySpecValue
 from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D, PhysCoordLocal2D, SpatialEdgeSpec
 from lspattern.tiling.template import RotatedPlanarPipetemplate
 from lspattern.utils import get_direction
@@ -162,7 +162,7 @@ class MeasureXPipeSkeleton(RHGPipeSkeleton):
         )
         block.source = source
         block.sink = sink
-        block.final_layer = TimeBoundarySpecValue.MX
+        block.final_layer = TemporalBoundarySpecValue.MX
         return block
 
 
@@ -189,7 +189,7 @@ class MeasureZPipeSkeleton(RHGPipeSkeleton):
         )
         block.source = source
         block.sink = sink
-        block.final_layer = TimeBoundarySpecValue.MZ
+        block.final_layer = TemporalBoundarySpecValue.MZ
         return block
 
 

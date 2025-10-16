@@ -8,7 +8,7 @@ from graphix_zx.graphstate import GraphState
 
 from lspattern.blocks.base import compute_logical_op_direction
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
-from lspattern.consts import BoundarySide, EdgeSpecValue, NodeRole, Observable, TimeBoundarySpecValue
+from lspattern.consts import BoundarySide, EdgeSpecValue, NodeRole, Observable, TemporalBoundarySpecValue
 from lspattern.mytype import (
     NodeIdLocal,
     PatchCoordGlobal3D,
@@ -302,7 +302,7 @@ class MeasureXSkeleton(RHGCubeSkeleton):
             edge_spec=self.edgespec,
             template=self.template,
         )
-        block.final_layer = TimeBoundarySpecValue.MX
+        block.final_layer = TemporalBoundarySpecValue.MX
         return block
 
 
@@ -326,5 +326,5 @@ class MeasureZSkeleton(RHGCubeSkeleton):
             edge_spec=self.edgespec,
             template=self.template,
         )
-        block.final_layer = TimeBoundarySpecValue.MZ
+        block.final_layer = TemporalBoundarySpecValue.MZ
         return block

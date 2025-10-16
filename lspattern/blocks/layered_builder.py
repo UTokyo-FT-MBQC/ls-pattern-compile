@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
 from lspattern.blocks.unit_layer import UnitLayer
-from lspattern.consts import NodeRole, TimeBoundarySpecValue
+from lspattern.consts import NodeRole, TemporalBoundarySpecValue
 from lspattern.mytype import NodeIdGlobal, NodeIdLocal
 
 if TYPE_CHECKING:
@@ -26,7 +26,7 @@ def build_layered_graph(  # noqa: C901
     d: int,
     source: tuple[int, int, int],
     template: ScalableTemplate,
-    final_layer: TimeBoundarySpecValue,
+    final_layer: TemporalBoundarySpecValue,
     graph: GraphState,
 ) -> tuple[
     GraphState,
@@ -52,7 +52,7 @@ def build_layered_graph(  # noqa: C901
         Source coordinate for z-offset calculation.
     template : ScalableTemplate
         Template providing data/ancilla coordinates.
-    final_layer : TimeBoundarySpecValue
+    final_layer : TemporalBoundarySpecValue
         Time boundary specification for final layer.
     graph : GraphState
         Graph state to add nodes and edges to (modified in place).
@@ -117,7 +117,7 @@ def build_layered_graph(  # noqa: C901
                         flow_accumulator = flow_accumulator.merge_with(FlowAccumulator(flow=temp_flow))
 
     # Add final data layer if final_layer is 'O' (open)
-    if final_layer == TimeBoundarySpecValue.O:
+    if final_layer == TemporalBoundarySpecValue.O:
         data2d = list(template.data_coords or [])
         final_z = z0 + 2 * len(unit_layers)
         final_layer_dict: dict[tuple[int, int], int] = {}

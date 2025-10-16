@@ -16,7 +16,7 @@ from lspattern.consts.consts import (
     InitializationState,
     NodeRole,
     Observable,
-    TimeBoundarySpecValue,
+    TemporalBoundarySpecValue,
     VisualizationKind,
     VisualizationMode,
 )
@@ -32,7 +32,7 @@ __all__ = [
     "InitializationState",
     "NodeRole",
     "Observable",
-    "TimeBoundarySpecValue",
+    "TemporalBoundarySpecValue",
     "VisualizationKind",
     "VisualizationMode",
 ]

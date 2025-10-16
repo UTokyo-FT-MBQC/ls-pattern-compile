@@ -16,7 +16,7 @@ from lspattern.accumulator import (
     ParityAccumulator,
     ScheduleAccumulator,
 )
-from lspattern.consts import BoundarySide, EdgeSpecValue, NodeRole, Observable, TimeBoundarySpecValue
+from lspattern.consts import BoundarySide, EdgeSpecValue, NodeRole, Observable, TemporalBoundarySpecValue
 from lspattern.consts.consts import DIRECTIONS3D
 from lspattern.tiling.template import (
     RotatedPlanarCubeTemplate,
@@ -116,7 +116,7 @@ class RHGBlock:
     # Node mapping from local to global space (set during graph composition)
     node_map_global: dict[NodeIdLocal, NodeIdLocal] = field(init=False, default_factory=dict)
 
-    final_layer: TimeBoundarySpecValue = TimeBoundarySpecValue.O
+    final_layer: TemporalBoundarySpecValue = TemporalBoundarySpecValue.O
 
     def __post_init__(self) -> None:
         # Sync template parameters (d, edgespec)
@@ -267,7 +267,7 @@ class RHGBlock:
         for t_local in range(max_t + 1):
             t = z0 + t_local
             cur: dict[tuple[int, int], int] = {}
-            if t_local == max_t and self.final_layer == TimeBoundarySpecValue.O:
+            if t_local == max_t and self.final_layer == TemporalBoundarySpecValue.O:
                 # add data node
                 for x, y in data2d:
                     n = g.add_physical_node()

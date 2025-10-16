@@ -16,7 +16,7 @@ from lspattern.blocks.layered_builder import build_layered_graph
 from lspattern.blocks.layers.initialize import InitPlusUnitLayer
 from lspattern.blocks.layers.memory import MemoryUnitLayer
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
-from lspattern.consts import NodeRole, TimeBoundarySpecValue
+from lspattern.consts import NodeRole, TemporalBoundarySpecValue
 from lspattern.mytype import PatchCoordGlobal3D, SpatialEdgeSpec
 from lspattern.tiling.template import RotatedPlanarPipetemplate
 from lspattern.utils import get_direction
@@ -142,7 +142,7 @@ class LayeredMemoryPipeSkeleton(RHGPipeSkeleton):
         )
         block.source = source
         block.sink = sink
-        block.final_layer = TimeBoundarySpecValue.O
+        block.final_layer = TemporalBoundarySpecValue.O
         return block
 
 
@@ -262,7 +262,7 @@ class LayeredInitPlusPipeSkeleton(RHGPipeSkeleton):
         block = LayeredInitPlusPipe(d=self.d, edgespec=self.edgespec, direction=direction, unit_layers=unit_layers)
         block.source = source
         block.sink = sink
-        block.final_layer = TimeBoundarySpecValue.O
+        block.final_layer = TemporalBoundarySpecValue.O
         return block
 
 

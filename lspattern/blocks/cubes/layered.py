@@ -15,7 +15,7 @@ from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
 from lspattern.blocks.layered_builder import build_layered_graph
 from lspattern.blocks.layers.initialize import InitPlusUnitLayer, InitZeroUnitLayer
 from lspattern.blocks.layers.memory import MemoryUnitLayer
-from lspattern.consts import BoundarySide, EdgeSpecValue, NodeRole, TimeBoundarySpecValue
+from lspattern.consts import BoundarySide, EdgeSpecValue, NodeRole, TemporalBoundarySpecValue
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -123,7 +123,7 @@ class LayeredMemoryCubeSkeleton(RHGCubeSkeleton):
             template=self.template,
             unit_layers=unit_layers,
         )
-        block.final_layer = TimeBoundarySpecValue.O
+        block.final_layer = TemporalBoundarySpecValue.O
         return block
 
 
@@ -197,7 +197,7 @@ class LayeredInitPlusCubeSkeleton(RHGCubeSkeleton):
             template=self.template,
             unit_layers=unit_layers,
         )
-        block.final_layer = TimeBoundarySpecValue.O
+        block.final_layer = TemporalBoundarySpecValue.O
         return block
 
 
@@ -264,7 +264,7 @@ class LayeredInitZeroCubeSkeleton(RHGCubeSkeleton):
             template=self.template,
             unit_layers=unit_layers,
         )
-        block.final_layer = TimeBoundarySpecValue.O
+        block.final_layer = TemporalBoundarySpecValue.O
         return block
 
 
