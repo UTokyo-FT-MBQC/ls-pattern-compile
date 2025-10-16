@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enables customization at 2-layer granularity instead of full 2*d layer blocks
   - Automatic temporal edge connection across empty layers
   - Validation to ensure `unit_layers` length does not exceed code distance `d`
-- `TimeBoundarySpecValue` enum in `lspattern/consts/consts.py` for type-safe temporal boundary specification ([#23](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/23))
+- `TemporalBoundarySpecValue` enum in `lspattern/consts/consts.py` for type-safe temporal boundary specification ([#23](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/23))
   - `O`: Open boundary (add final data layer)
   - `MX`: X-basis measurement at final layer
   - `MZ`: Z-basis measurement at final layer
