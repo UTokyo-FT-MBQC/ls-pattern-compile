@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import ClassVar
 
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
-from lspattern.consts import BoundarySide, EdgeSpecValue
+from lspattern.consts import BoundarySide, EdgeSpecValue, TemporalBoundarySpecValue
 from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D, PhysCoordLocal2D
 
 
@@ -27,7 +27,7 @@ class MemoryCubeSkeleton(RHGCubeSkeleton):
             template=self.template,
         )
         # Memory 系も最終層は開放(O): 次段へ受け渡し
-        block.final_layer = EdgeSpecValue.O
+        block.final_layer = TemporalBoundarySpecValue.O
         return block
 
 
