@@ -15,7 +15,7 @@ from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D, PhysCoordLocal2D
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-    from graphix_zx.graphstate import GraphState
+    from graphqomb.graphstate import GraphState
 
     from lspattern.tiling.template import ScalableTemplate
 

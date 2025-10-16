@@ -117,4 +117,4 @@ include = ["lspattern"]
 reportMissingImports = false
 # Note: For stricter type checking with editable installs, users may create
 # a local .pyrightconfig.json file with:
-# {"extraPaths": ["../graphix-zx"], "reportMissingImports": true}
+# {"extraPaths": ["../graphqomb"], "reportMissingImports": true}

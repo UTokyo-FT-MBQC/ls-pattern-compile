@@ -12,7 +12,7 @@ from lspattern.accumulator import FlowAccumulator, ParityAccumulator
 from lspattern.blocks.unit_layer import LayerData, UnitLayer
 
 if TYPE_CHECKING:
-    from graphix_zx.graphstate import GraphState
+    from graphqomb.graphstate import GraphState
 
     from lspattern.tiling.template import ScalableTemplate
 

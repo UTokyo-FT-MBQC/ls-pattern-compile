@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from graphix_zx.qompiler import qompile
+from graphqomb.qompiler import qompile
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
     from collections.abc import Set as AbstractSet
 
-    from graphix_zx.graphstate import BaseGraphState
-    from graphix_zx.pattern import Pattern
-    from graphix_zx.scheduler import Scheduler
+    from graphqomb.graphstate import BaseGraphState
+    from graphqomb.pattern import Pattern
+    from graphqomb.scheduler import Scheduler
 
 
 def compile_canvas(
@@ -21,7 +21,7 @@ def compile_canvas(
     scheduler: Scheduler | None = None,
 ) -> Pattern:
     """
-    Thin wrapper around `graphix_zx.qompile` for an RHG canvas.
+    Thin wrapper around `graphqomb.qompile` for an RHG canvas.
 
     Parameters
     ----------
@@ -40,7 +40,7 @@ def compile_canvas(
     Returns
     -------
     Pattern
-        Whatever `graphix_zx.qompile` returns (pattern, circuit, etc.).
+        Whatever `graphqomb.qompile` returns (pattern, circuit, etc.).
     """
     return qompile(
         graph=graph,

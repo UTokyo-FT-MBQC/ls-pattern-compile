@@ -9,7 +9,7 @@ This module tests the basic functionality of different UnitLayer types:
 
 from __future__ import annotations
 
-from graphix_zx.graphstate import GraphState
+from graphqomb.graphstate import GraphState
 
 from lspattern.blocks.layers.empty import EmptyUnitLayer
 from lspattern.blocks.layers.initialize import InitPlusUnitLayer, InitZeroUnitLayer

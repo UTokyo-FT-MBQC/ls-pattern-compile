@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from graphix_zx.common import Axis, AxisMeasBasis, Sign
-from graphix_zx.graphstate import GraphState
+from graphqomb.common import Axis, AxisMeasBasis, Sign
+from graphqomb.graphstate import GraphState
 
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
 from lspattern.consts import DIRECTIONS2D, NodeRole, TemporalBoundarySpecValue

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from graphix_zx.graphstate import BaseGraphState, GraphState, compose
+from graphqomb.graphstate import BaseGraphState, GraphState, compose
 
 from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D, PipeCoordGlobal3D
 

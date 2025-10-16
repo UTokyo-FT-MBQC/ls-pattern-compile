@@ -8,9 +8,9 @@ import pathlib
 
 import pymatching
 import stim
-from graphix_zx.pattern import Pattern, print_pattern
-from graphix_zx.scheduler import Scheduler
-from graphix_zx.stim_compiler import stim_compile
+from graphqomb.pattern import Pattern, print_pattern
+from graphqomb.scheduler import Scheduler
+from graphqomb.stim_compiler import stim_compile
 
 from lspattern.blocks.cubes.initialize import (
     InitZeroCubeThinLayerSkeleton,

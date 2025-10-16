@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from graphix_zx.graphstate import BaseGraphState, GraphState
+from graphqomb.graphstate import BaseGraphState, GraphState
 
 from lspattern.mytype import NodeIdLocal
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from graphix_zx.graphstate import GraphState
+from graphqomb.graphstate import GraphState
 
 from lspattern.canvas.graph_utils import (
     create_remapped_graphstate,

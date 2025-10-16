@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Refined temporal-layer visualizers to remove dependencies on deleted geom helpers, harmonize color palettes between Matplotlib and Plotly variants, and improve axis handling and input/output highlighting.
 - `RHGBlock.final_layer` field type changed from `str | None` to `TimeBoundarySpecValue` for improved type safety ([#23](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/23))
+- Updated dependency from `graphix-zx` to `graphqomb` following upstream library rename
+  - Updated all import statements across library code, examples, and tests
+  - Updated installation documentation in README.md
+  - Updated requirements-dev.txt dependency URL
 
 
 ---

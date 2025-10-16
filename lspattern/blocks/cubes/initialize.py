@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import ClassVar
 
-from graphix_zx.graphstate import GraphState
+from graphqomb.graphstate import GraphState
 
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
 from lspattern.consts import BoundarySide, EdgeSpecValue, TemporalBoundarySpecValue

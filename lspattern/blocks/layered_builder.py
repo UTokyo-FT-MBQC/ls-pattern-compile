@@ -16,7 +16,7 @@ from lspattern.mytype import NodeIdGlobal, NodeIdLocal
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from graphix_zx.graphstate import GraphState
+    from graphqomb.graphstate import GraphState
 
     from lspattern.tiling.template import ScalableTemplate
 
