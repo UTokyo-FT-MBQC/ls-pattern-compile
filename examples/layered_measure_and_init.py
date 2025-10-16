@@ -9,7 +9,7 @@ from lspattern.blocks.cubes.layered import LayeredRHGCube
 from lspattern.blocks.layers import EmptyUnitLayer, InitPlusUnitLayer, MeasureXUnitLayer
 from lspattern.blocks.unit_layer import UnitLayer
 from lspattern.canvas import RHGCanvasSkeleton
-from lspattern.consts import BoundarySide, EdgeSpecValue, TimeBoundarySpecValue
+from lspattern.consts import BoundarySide, EdgeSpecValue, TemporalBoundarySpecValue
 from lspattern.mytype import PatchCoordGlobal3D
 from lspattern.visualizers import visualize_compiled_canvas_plotly
 
@@ -71,7 +71,7 @@ class MeasureAndInitCubeSkeleton(RHGCubeSkeleton):
             template=self.template,
             unit_layers=unit_layers,
         )
-        block.final_layer = TimeBoundarySpecValue.O
+        block.final_layer = TemporalBoundarySpecValue.O
         return block
 
 
