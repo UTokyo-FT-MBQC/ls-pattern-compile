@@ -306,7 +306,7 @@ UTokyo FT-MBQC Team. (2025). ls-pattern-compile: MBQC Lattice Surgery Compiler (
 
 ## Related Projects
 
-- [graphqomb](https://github.com/TeamGraphix/graphqomb) - ZX-calculus based MBQC framework
+- [graphqomb](https://github.com/TeamGraphix/graphqomb) - A Modular Graph State Qompiler for Measurement-Based Quantum Computing
 
 ## License
 
