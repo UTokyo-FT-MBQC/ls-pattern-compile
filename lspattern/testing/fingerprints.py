@@ -4,12 +4,12 @@ import dataclasses as _dc
 import hashlib as _hashlib
 import json as _json
 from pathlib import Path
-from typing import Any, Dict, Mapping
+from typing import TYPE_CHECKING, Any
 
-try:
-    import stim  # type: ignore
-except Exception:  # pragma: no cover - stim is required by callers
-    stim = None  # type: ignore
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    import stim
 
 
 @_dc.dataclass(frozen=True)
@@ -26,7 +26,7 @@ class CircuitFingerprint:
     num_observables: int
 
     @staticmethod
-    def from_circuit(name: str, circuit: "stim.Circuit") -> "CircuitFingerprint":
+    def from_circuit(name: str, circuit: stim.Circuit) -> CircuitFingerprint:
         """Create a fingerprint from a `stim.Circuit`.
 
         Parameters
@@ -47,7 +47,7 @@ class CircuitFingerprint:
             num_observables=int(getattr(circuit, "num_observables", 0)),
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "sha256": self.sha256,
             "num_qubits": self.num_qubits,
@@ -56,7 +56,7 @@ class CircuitFingerprint:
         }
 
     @staticmethod
-    def from_dict(name: str, data: Mapping[str, Any]) -> "CircuitFingerprint":
+    def from_dict(name: str, data: Mapping[str, Any]) -> CircuitFingerprint:
         return CircuitFingerprint(
             name=name,
             sha256=str(data["sha256"]),
@@ -84,17 +84,14 @@ class FingerprintRegistry:
 
     def __init__(self, path: Path) -> None:
         self.path = Path(path)
-        self._items: Dict[str, CircuitFingerprint] = {}
+        self._items: dict[str, CircuitFingerprint] = {}
 
     def load(self) -> None:
         if not self.path.exists():
             self._items = {}
             return
         data = _json.loads(self.path.read_text(encoding="utf-8"))
-        self._items = {
-            name: CircuitFingerprint.from_dict(name, payload)
-            for name, payload in dict(data).items()
-        }
+        self._items = {name: CircuitFingerprint.from_dict(name, payload) for name, payload in dict(data).items()}
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -116,24 +113,21 @@ class FingerprintRegistry:
         if golden is None:
             return False, f"Missing golden for {fp.name}"
         if golden.sha256 != fp.sha256:
-            return False, f"Fingerprint mismatch for {fp.name}: expected {golden.sha256}, got {fp.sha256}"
+            return (
+                False,
+                f"Fingerprint mismatch for {fp.name}: expected {golden.sha256}, got {fp.sha256}",
+            )
         # Also check metadata stability
         if (
             golden.num_qubits != fp.num_qubits
             or golden.num_detectors != fp.num_detectors
             or golden.num_observables != fp.num_observables
         ):
-            return (
-                False,
-                "Metadata changed for {} (q:{}->{}, d:{}->{}, o:{}->{})".format(
-                    fp.name,
-                    golden.num_qubits,
-                    fp.num_qubits,
-                    golden.num_detectors,
-                    fp.num_detectors,
-                    golden.num_observables,
-                    fp.num_observables,
-                ),
+            msg = (
+                f"Metadata changed for {fp.name} "
+                f"(q:{golden.num_qubits}->{fp.num_qubits}, "
+                f"d:{golden.num_detectors}->{fp.num_detectors}, "
+                f"o:{golden.num_observables}->{fp.num_observables})"
             )
+            return False, msg
         return True, None
-
