@@ -51,7 +51,15 @@ class MeasureXUnitLayer(UnitLayer):
         -------
         LayerData
             Layer data with nodes, edges, and accumulators for this measurement layer.
+
+        Raises
+        ------
+        ValueError
+            If z_offset is not even. The library currently supports even z_offset only.
         """
+        if z_offset % 2 != 0:
+            msg = f"z_offset must be even. Got {z_offset}."
+            raise ValueError(msg)
         # Extract 2D coordinates from template
         data2d = list(template.data_coords or [])
         x2d = list(template.x_coords or [])
@@ -165,7 +173,15 @@ class MeasureZUnitLayer(UnitLayer):
         -------
         LayerData
             Layer data with nodes, edges, and accumulators for this measurement layer.
+
+        Raises
+        ------
+        ValueError
+            If z_offset is not even. The library currently supports even z_offset only.
         """
+        if z_offset % 2 != 0:
+            msg = f"z_offset must be even. Got {z_offset}."
+            raise ValueError(msg)
         # Extract 2D coordinates from template
         data2d = list(template.data_coords or [])
         z2d = list(template.z_coords or [])
