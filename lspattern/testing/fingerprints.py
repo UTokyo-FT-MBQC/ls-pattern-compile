@@ -1,0 +1,139 @@
+from __future__ import annotations
+
+import dataclasses as _dc
+import hashlib as _hashlib
+import json as _json
+from pathlib import Path
+from typing import Any, Dict, Mapping
+
+try:
+    import stim  # type: ignore
+except Exception:  # pragma: no cover - stim is required by callers
+    stim = None  # type: ignore
+
+
+@_dc.dataclass(frozen=True)
+class CircuitFingerprint:
+    """Stable fingerprint and metadata for a Stim circuit.
+
+    Fields are intentionally minimal and stable across runs for regression checks.
+    """
+
+    name: str
+    sha256: str
+    num_qubits: int
+    num_detectors: int
+    num_observables: int
+
+    @staticmethod
+    def from_circuit(name: str, circuit: "stim.Circuit") -> "CircuitFingerprint":
+        """Create a fingerprint from a `stim.Circuit`.
+
+        Parameters
+        ----------
+        name
+            Identifier used as the registry key.
+        circuit
+            Stim circuit to fingerprint.
+        """
+        # Use the canonical text form for stable hashing
+        text = str(circuit)
+        digest = _hashlib.sha256(text.encode("utf-8")).hexdigest()
+        return CircuitFingerprint(
+            name=name,
+            sha256=digest,
+            num_qubits=int(getattr(circuit, "num_qubits", 0)),
+            num_detectors=int(getattr(circuit, "num_detectors", 0)),
+            num_observables=int(getattr(circuit, "num_observables", 0)),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "sha256": self.sha256,
+            "num_qubits": self.num_qubits,
+            "num_detectors": self.num_detectors,
+            "num_observables": self.num_observables,
+        }
+
+    @staticmethod
+    def from_dict(name: str, data: Mapping[str, Any]) -> "CircuitFingerprint":
+        return CircuitFingerprint(
+            name=name,
+            sha256=str(data["sha256"]),
+            num_qubits=int(data["num_qubits"]),
+            num_detectors=int(data["num_detectors"]),
+            num_observables=int(data["num_observables"]),
+        )
+
+
+class FingerprintRegistry:
+    """Manages loading, saving, and verifying circuit fingerprints.
+
+    JSON schema stored on disk:
+
+    {
+      "<name>": {
+        "sha256": "...",
+        "num_qubits": 0,
+        "num_detectors": 0,
+        "num_observables": 0
+      },
+      ...
+    }
+    """
+
+    def __init__(self, path: Path) -> None:
+        self.path = Path(path)
+        self._items: Dict[str, CircuitFingerprint] = {}
+
+    def load(self) -> None:
+        if not self.path.exists():
+            self._items = {}
+            return
+        data = _json.loads(self.path.read_text(encoding="utf-8"))
+        self._items = {
+            name: CircuitFingerprint.from_dict(name, payload)
+            for name, payload in dict(data).items()
+        }
+
+    def save(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {name: fp.to_dict() for name, fp in sorted(self._items.items())}
+        self.path.write_text(_json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    def set(self, fp: CircuitFingerprint) -> None:
+        self._items[fp.name] = fp
+
+    def get(self, name: str) -> CircuitFingerprint | None:
+        return self._items.get(name)
+
+    def verify(self, fp: CircuitFingerprint) -> tuple[bool, str | None]:
+        """Verify a fingerprint against the registry.
+
+        Returns (ok, error_message). When the name is missing, returns (False, ...).
+        """
+        golden = self._items.get(fp.name)
+        if golden is None:
+            return False, f"Missing golden for {fp.name}"
+        if golden.sha256 != fp.sha256:
+            return False, f"Fingerprint mismatch for {fp.name}: expected {golden.sha256}, got {fp.sha256}"
+        # Also check metadata stability
+        if (
+            golden.num_qubits != fp.num_qubits
+            or golden.num_detectors != fp.num_detectors
+            or golden.num_observables != fp.num_observables
+        ):
+            return (
+                False,
+                "Metadata changed for {} (q:{}->{}, d:{}->{}, o:{}->{})".format(
+                    fp.name,
+                    golden.num_qubits,
+                    fp.num_qubits,
+                    golden.num_detectors,
+                    fp.num_detectors,
+                    golden.num_observables,
+                    fp.num_observables,
+                ),
+            )
+        return True, None
+
