@@ -8,7 +8,7 @@ from graphix_zx.graphstate import GraphState
 
 from lspattern.blocks.base import compute_logical_op_direction
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
-from lspattern.consts import BoundarySide, EdgeSpecValue, NodeRole, Observable, TemporalBoundarySpecValue
+from lspattern.consts import DIRECTIONS2D, BoundarySide, EdgeSpecValue, NodeRole, Observable, TemporalBoundarySpecValue
 from lspattern.mytype import (
     NodeIdLocal,
     PatchCoordGlobal3D,
@@ -22,8 +22,6 @@ if TYPE_CHECKING:
     from collections.abc import MutableMapping, Sequence
 
     from lspattern.canvas import RHGCanvas
-
-ANCILLA_TARGET_DIRECTION2D = {(1, 1), (1, -1), (-1, 1), (-1, -1)}
 
 
 class _MeasureBase(RHGCube):
@@ -215,7 +213,7 @@ class MeasureX(_MeasureBase):
 
         for x, y in x2d:
             node_group: set[NodeIdLocal] = set()
-            for dx, dy in ANCILLA_TARGET_DIRECTION2D:
+            for dx, dy in DIRECTIONS2D:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z0)))
                 if node_id is not None:
                     node_group.add(node_id)
@@ -275,7 +273,7 @@ class MeasureZ(_MeasureBase):
 
         for x, y in z2d:
             node_group: set[NodeIdLocal] = set()
-            for dx, dy in ANCILLA_TARGET_DIRECTION2D:
+            for dx, dy in DIRECTIONS2D:
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z0)))
                 if node_id is not None:
                     node_group.add(node_id)

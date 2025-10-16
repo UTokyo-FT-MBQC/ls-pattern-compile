@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator
 from lspattern.blocks.unit_layer import LayerData, UnitLayer
-from lspattern.consts import NodeRole
+from lspattern.consts import DIRECTIONS2D, NodeRole
 from lspattern.mytype import NodeIdLocal, PhysCoordGlobal3D, PhysCoordLocal2D
 
 if TYPE_CHECKING:
@@ -19,9 +19,6 @@ if TYPE_CHECKING:
     from graphix_zx.graphstate import GraphState
 
     from lspattern.tiling.template import ScalableTemplate
-
-# Diagonal directions for detector construction (same as in cubes/measure.py)
-ANCILLA_TARGET_DIRECTION2D = {(1, 1), (1, -1), (-1, 1), (-1, -1)}
 
 
 class MeasureXUnitLayer(UnitLayer):
@@ -128,7 +125,7 @@ class MeasureXUnitLayer(UnitLayer):
         # Construct detectors at X-check ancilla coordinates
         for x, y in x2d:
             node_group: set[NodeIdLocal] = set()
-            for dx, dy in ANCILLA_TARGET_DIRECTION2D:
+            for dx, dy in DIRECTIONS2D:
                 node_id = coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z_offset)))
                 if node_id is not None:
                     node_group.add(NodeIdLocal(node_id))
@@ -242,7 +239,7 @@ class MeasureZUnitLayer(UnitLayer):
         # Construct detectors at Z-check ancilla coordinates
         for x, y in z2d:
             node_group: set[NodeIdLocal] = set()
-            for dx, dy in ANCILLA_TARGET_DIRECTION2D:
+            for dx, dy in DIRECTIONS2D:
                 node_id = coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z_offset)))
                 if node_id is not None:
                     node_group.add(NodeIdLocal(node_id))
