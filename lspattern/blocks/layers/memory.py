@@ -61,21 +61,24 @@ class MemoryUnitLayer(UnitLayer):
         node2role: dict[int, NodeRole] = {}
         nodes_by_z: dict[int, dict[tuple[int, int], int]] = {}
 
-        # Layer 0 (z_offset): Data + Z-check ancillas
-        z0 = z_offset
-        layer0 = self._assign_nodes_at_z(graph, z0, data2d, z2d, NodeRole.ANCILLA_Z, node2coord, coord2node, node2role)
-        nodes_by_z[z0] = layer0
-        self.add_spatial_edges(graph, layer0)
-
-        # Layer 1 (z_offset + 1): Data + X-check ancillas
-        z1 = z_offset + 1
-        layer1 = self._assign_nodes_at_z(graph, z1, data2d, x2d, NodeRole.ANCILLA_X, node2coord, coord2node, node2role)
-        nodes_by_z[z1] = layer1
-        self.add_spatial_edges(graph, layer1)
+        for height in (0, 1):
+            z0 = z_offset + height
+            if z0 % 2 == 0:
+                # Even layer: Data + Z-check ancillas
+                layer = self._assign_nodes_at_z(
+                    graph, z0, data2d, z2d, NodeRole.ANCILLA_Z, node2coord, coord2node, node2role
+                )
+            else:
+                # Odd layer: Data + X-check ancillas
+                layer = self._assign_nodes_at_z(
+                    graph, z0, data2d, x2d, NodeRole.ANCILLA_X, node2coord, coord2node, node2role
+                )
+            nodes_by_z[z0] = layer
+            self.add_spatial_edges(graph, layer)
 
         # Add temporal edges between layers
         flow = FlowAccumulator()
-        self._add_temporal_edges(graph, layer1, layer0, flow)
+        self._add_temporal_edges(graph, nodes_by_z[z_offset + 1], nodes_by_z[z_offset], flow)
 
         # Construct schedule
         schedule = self._construct_schedule(nodes_by_z, node2role)
@@ -121,25 +124,17 @@ class MemoryUnitLayer(UnitLayer):
         parity = ParityAccumulator()
         dangling_detectors: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
 
-        # Z-check layer (z_offset)
-        for x, y in z2d:
-            node_id = coord2node.get(PhysCoordGlobal3D((x, y, z_offset)))
-            if node_id is None:
-                continue
-            coord = PhysCoordLocal2D((x, y))
-            node_group = {NodeIdLocal(node_id)}
-            parity.checks.setdefault(coord, {})[z_offset] = node_group
-            dangling_detectors[coord] = {NodeIdLocal(node_id)}
-
-        # X-check layer (z_offset + 1)
-        for x, y in x2d:
-            node_id = coord2node.get(PhysCoordGlobal3D((x, y, z_offset + 1)))
-            if node_id is None:
-                continue
-            coord = PhysCoordLocal2D((x, y))
-            node_group = {NodeIdLocal(node_id)}
-            parity.checks.setdefault(coord, {})[z_offset + 1] = node_group
-            dangling_detectors[coord] = {NodeIdLocal(node_id)}
+        for height in (0, 1):
+            current_z = z_offset + height
+            coord_list = z2d if current_z % 2 == 0 else x2d
+            for x, y in coord_list:
+                node_id = coord2node.get(PhysCoordGlobal3D((x, y, current_z)))
+                if node_id is None:
+                    continue
+                local_coord = PhysCoordLocal2D((x, y))
+                node_group = {NodeIdLocal(node_id)}
+                parity.checks.setdefault(local_coord, {})[current_z] = node_group
+                dangling_detectors[local_coord] = {NodeIdLocal(node_id)}
 
         # Add dangling detectors for connectivity to next layer
         for coord, nodes in dangling_detectors.items():
