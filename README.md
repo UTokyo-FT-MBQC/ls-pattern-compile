@@ -24,13 +24,13 @@ This project provides a modular framework for constructing fault-tolerant MBQC c
 - Python 3.10 or higher
 - [uv](https://github.com/astral-sh/uv) package manager (recommended)
 
-### Install graphix-zx dependency
+### Install graphqomb dependency
 
-Since `graphix-zx` is not yet available on PyPI, you need to install it from source:
+Since `graphqomb` is not yet available on PyPI, you need to install it from source:
 
 ```bash
-git clone https://github.com/TeamGraphix/graphix-zx.git
-cd graphix-zx
+git clone https://github.com/TeamGraphix/graphqomb.git
+cd graphqomb
 uv pip install -e .
 cd ..
 ```
@@ -191,8 +191,8 @@ schedule = compiled_canvas.schedule.compact()
 
 ```python
 from lspattern.compile import compile_canvas
-from graphix_zx.scheduler import Scheduler
-from graphix_zx.stim_compiler import stim_compile
+from graphqomb.scheduler import Scheduler
+from graphqomb.stim_compiler import stim_compile
 import stim
 import pymatching
 
@@ -306,7 +306,7 @@ UTokyo FT-MBQC Team. (2025). ls-pattern-compile: MBQC Lattice Surgery Compiler (
 
 ## Related Projects
 
-- [graphix-zx](https://github.com/TeamGraphix/graphix-zx) - ZX-calculus based MBQC framework
+- [graphqomb](https://github.com/TeamGraphix/graphqomb) - A Modular Graph State Qompiler for Measurement-Based Quantum Computing
 
 ## License
 

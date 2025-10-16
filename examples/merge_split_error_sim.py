@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import sinter
 import stim
-from graphix_zx.scheduler import Scheduler
-from graphix_zx.stim_compiler import stim_compile
+from graphqomb.scheduler import Scheduler
+from graphqomb.stim_compiler import stim_compile
 
 if TYPE_CHECKING:
     from lspattern.canvas import CompiledRHGCanvas

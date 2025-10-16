@@ -3,8 +3,8 @@ from __future__ import annotations
 import operator
 from typing import TYPE_CHECKING, ClassVar, cast
 
-from graphix_zx.common import Axis, AxisMeasBasis, MeasBasis, Sign
-from graphix_zx.graphstate import GraphState
+from graphqomb.common import Axis, AxisMeasBasis, MeasBasis, Sign
+from graphqomb.graphstate import GraphState
 
 from lspattern.blocks.base import compute_logical_op_direction
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton

@@ -8,8 +8,8 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
 
-from graphix_zx.common import Axis, AxisMeasBasis, MeasBasis, Sign
-from graphix_zx.graphstate import GraphState
+from graphqomb.common import Axis, AxisMeasBasis, MeasBasis, Sign
+from graphqomb.graphstate import GraphState
 
 from lspattern.accumulator import (
     FlowAccumulator,
