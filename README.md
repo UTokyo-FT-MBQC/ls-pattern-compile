@@ -2,6 +2,9 @@
 
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
+[![pytest](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/actions/workflows/pytest.yml/badge.svg)](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/actions/workflows/pytest.yml)
+[![Type Checking](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/actions/workflows/typecheck.yml/badge.svg)](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/actions/workflows/typecheck.yml)
+[![ruff](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/actions/workflows/ruff.yml/badge.svg)](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/actions/workflows/ruff.yml)
 
 **ls-pattern-compile** is an experimental MBQC (Measurement-Based Quantum Computing) compiler that converts lattice surgery commands to quantum patterns using the RHG (Raussendorf-Harrington-Goyal) lattice blocks-and-pipes architecture. This library implements fault-tolerant quantum computing compilation through spatial and temporal composition of modular quantum building blocks.
 

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- CI status badges (pytest, type checking, ruff) to README.md
+
+### Changed
+- Expanded CI test matrix to cover Python 3.10, 3.11, 3.12, and 3.13 ([#61](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/61))
+
 ---
 
 ## Version [0.0.3]  - 2025-10-16
