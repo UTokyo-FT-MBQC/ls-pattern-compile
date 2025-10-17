@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- CI status badges (pytest, type checking, ruff) to README.md
+
 ### Changed
+- Expanded CI test matrix to cover Python 3.10, 3.11, 3.12, and 3.13 ([#61](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/61))
 - Unified `x_parity` and `z_parity` parameters into single `parity` parameter in `compile_canvas()`
   - Updated `lspattern.compile.compile_canvas()` function signature to match graphqomb's unified `parity_check_group` API
   - Removed separate `z_parity` parameter (was unused in all examples)
