@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## Version [0.0.3]  - 2025-10-16
+
 ### Added
 - Layer-by-layer construction architecture for RHG blocks ([#23](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/23))
   - `UnitLayer` abstract base class for 2-layer unit (1 X-check + 1 Z-check cycle)

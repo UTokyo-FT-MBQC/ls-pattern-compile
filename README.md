@@ -295,13 +295,13 @@ If you use ls-pattern-compile in your research, please cite:
   author = {{UTokyo FT-MBQC Team}},
   year = {2025},
   url = {https://github.com/UTokyo-FT-MBQC/ls-pattern-compile},
-  version = {0.0.2}
+  version = {0.0.3}
 }
 ```
 
 ### APA
 ```
-UTokyo FT-MBQC Team. (2025). ls-pattern-compile: MBQC Lattice Surgery Compiler (Version 0.1.0) [Computer software]. https://github.com/UTokyo-FT-MBQC/ls-pattern-compile
+UTokyo FT-MBQC Team. (2025). ls-pattern-compile: MBQC Lattice Surgery Compiler (Version 0.0.3) [Computer software]. https://github.com/UTokyo-FT-MBQC/ls-pattern-compile
 ```
 
 ## Related Projects

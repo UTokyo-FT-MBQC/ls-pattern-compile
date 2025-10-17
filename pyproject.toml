@@ -4,15 +4,46 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lspattern"
-version = "0.0.2"
+version = "0.0.3"
 description = "MBQC lattice-surgery compiler experiments (RHG blocks/pipes)"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10, <3.14"
 license = {text = "Apache-2.0"}
 authors = [
-  { name = "Internal", email = "devnull@example.com" }
+  { name = "Masato Fukushima", email = "masa1063fuk@gmail.com" },
+  { name = "Shinichi Inoue"},
+  { name = "Daichi Sasaki"},
+]
+keywords = [
+    "quantum computing",
+    "MBQC",
+    "measurement-based quantum computing",
+    "FTQC",
+    "fault-tolerant quantum computing",
+    "lattice surgery",
+    "quantum compilation",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Quantum Computing",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dynamic = ["dependencies", "optional-dependencies"]
+
+[project.urls]
+Homepage = "https://github.com/UTokyo-FT-MBQC/ls-pattern-compile"
+Repository = "https://github.com/UTokyo-FT-MBQC/ls-pattern-compile"
+Issues = "https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues"
+Changelog = "https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/blob/main/CHANGELOG.md"
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
