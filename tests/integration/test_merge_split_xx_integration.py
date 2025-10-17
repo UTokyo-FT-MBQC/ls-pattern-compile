@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-import sinter
 
 from lspattern.testing.fingerprints import CircuitFingerprint, FingerprintRegistry
 
