@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- Unified `x_parity` and `z_parity` parameters into single `parity` parameter in `compile_canvas()` ([#67](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/67))
+- Unified `x_parity` and `z_parity` parameters into single `parity` parameter in `compile_canvas()`
   - Updated `lspattern.compile.compile_canvas()` function signature to match graphqomb's unified `parity_check_group` API
   - Removed separate `z_parity` parameter (was unused in all examples)
   - Updated all example files to use unified `parity` variable naming
