@@ -16,8 +16,7 @@ if TYPE_CHECKING:
 def compile_canvas(
     graph: BaseGraphState,
     xflow: Mapping[int, AbstractSet[int]],
-    x_parity: Sequence[AbstractSet[int]] | None = None,
-    z_parity: Sequence[AbstractSet[int]] | None = None,
+    parity: Sequence[AbstractSet[int]] | None = None,
     scheduler: Scheduler | None = None,
 ) -> Pattern:
     """
@@ -30,10 +29,8 @@ def compile_canvas(
     xflow : dict[int, set[int]] | None
         Optional X-flow mapping (node -> correction target nodes).
         Pass `None` to let the backend derive it if supported.
-    x_parity : list[set[int]] | None
-        Optional list of X-parity check groups (GLOBAL node-id sets).
-    z_parity : list[set[int]] | None
-        Optional list of Z-parity check groups (GLOBAL node-id sets).
+    parity : list[set[int]] | None
+        Optional list of parity check groups (GLOBAL node-id sets).
     scheduler : Any | None
         Optional measurement scheduler. If `None`, backend default is used.
 
@@ -45,7 +42,6 @@ def compile_canvas(
     return qompile(
         graph=graph,
         xflow=xflow,
-        x_parity_check_group=x_parity,
-        z_parity_check_group=z_parity,
+        parity_check_group=parity,
         scheduler=scheduler,
     )
