@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from graphix_zx.graphstate import BaseGraphState, GraphState, compose
+from graphqomb.graphstate import BaseGraphState, GraphState, compose
 
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
 from lspattern.canvas.graph_utils import create_remapped_graphstate

@@ -7,12 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- CI status badges (pytest, type checking, ruff) to README.md
+
+### Changed
+- Expanded CI test matrix to cover Python 3.10, 3.11, 3.12, and 3.13 ([#61](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/61))
+- Unified `x_parity` and `z_parity` parameters into single `parity` parameter in `compile_canvas()`
+  - Updated `lspattern.compile.compile_canvas()` function signature to match graphqomb's unified `parity_check_group` API
+  - Removed separate `z_parity` parameter (was unused in all examples)
+  - Updated all example files to use unified `parity` variable naming
+  - Updated README.md documentation with new API usage
+
+---
+
+## Version [0.0.3]  - 2025-10-16
+
+### Added
+- Layer-by-layer construction architecture for RHG blocks ([#23](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/23))
+  - `UnitLayer` abstract base class for 2-layer unit (1 X-check + 1 Z-check cycle)
+  - `LayerData` dataclass for encapsulating layer metadata
+  - `MemoryUnitLayer` for standard memory layers
+  - `InitPlusUnitLayer` for |+⟩ state initialization layers
+  - `InitZeroUnitLayer` for |0⟩ state initialization layers
+  - `EmptyUnitLayer` for empty placeholder layers (no nodes)
+  - `LayeredRHGCube` base class for layer-by-layer cube construction
+  - `LayeredMemoryCube`, `LayeredInitPlusCube`, `LayeredInitZeroCube` concrete implementations
+  - `LayeredRHGPipe` base class for layer-by-layer pipe construction
+  - `LayeredMemoryPipe`, `LayeredInitPlusPipe` concrete implementations
+  - Support for flexible composition of different layer types within blocks
+  - Enables customization at 2-layer granularity instead of full 2*d layer blocks
+  - Automatic temporal edge connection across empty layers
+  - Validation to ensure `unit_layers` length does not exceed code distance `d`
+- `TemporalBoundarySpecValue` enum in `lspattern/consts/consts.py` for type-safe temporal boundary specification ([#23](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/23))
+  - `O`: Open boundary (add final data layer)
+  - `MX`: X-basis measurement at final layer
+  - `MZ`: Z-basis measurement at final layer
+
 ### Removed
 - Legacy `lspattern.geom` package remnants (`__init__.py`, `rhg_parity.py`, `tiler.py`) and unused visualizer stubs (`visualize.py`, `template.py`) as part of cleanup for [#64](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/64).
 - Skipped legacy inactive tests `tests/test_T42_skip.py` and `tests/test_T48_skip.py`.
 
 ### Changed
 - Refined temporal-layer visualizers to remove dependencies on deleted geom helpers, harmonize color palettes between Matplotlib and Plotly variants, and improve axis handling and input/output highlighting.
+- `RHGBlock.final_layer` field type changed from `str | None` to `TimeBoundarySpecValue` for improved type safety ([#23](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/23))
+- Updated dependency from `graphix-zx` to `graphqomb` following upstream library rename
+  - Updated all import statements across library code, examples, and tests
+  - Updated installation documentation in README.md
+  - Updated requirements-dev.txt dependency URL
+
 
 ---
 

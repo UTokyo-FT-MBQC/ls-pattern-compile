@@ -22,7 +22,7 @@ from lspattern.utils import is_allowed_pair
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from graphix_zx.graphstate import GraphState
+    from graphqomb.graphstate import GraphState
 
     from lspattern.blocks.cubes.base import RHGCube
     from lspattern.blocks.pipes.base import RHGPipe

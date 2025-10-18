@@ -31,7 +31,7 @@ from lspattern.utils import UnionFind, get_direction
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
 
-    from graphix_zx.graphstate import GraphState
+    from graphqomb.graphstate import GraphState
 
 
 @dataclass

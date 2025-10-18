@@ -2,26 +2,25 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from graphix_zx.qompiler import qompile
+from graphqomb.qompiler import qompile
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
     from collections.abc import Set as AbstractSet
 
-    from graphix_zx.graphstate import BaseGraphState
-    from graphix_zx.pattern import Pattern
-    from graphix_zx.scheduler import Scheduler
+    from graphqomb.graphstate import BaseGraphState
+    from graphqomb.pattern import Pattern
+    from graphqomb.scheduler import Scheduler
 
 
 def compile_canvas(
     graph: BaseGraphState,
     xflow: Mapping[int, AbstractSet[int]],
-    x_parity: Sequence[AbstractSet[int]] | None = None,
-    z_parity: Sequence[AbstractSet[int]] | None = None,
+    parity: Sequence[AbstractSet[int]] | None = None,
     scheduler: Scheduler | None = None,
 ) -> Pattern:
     """
-    Thin wrapper around `graphix_zx.qompile` for an RHG canvas.
+    Thin wrapper around `graphqomb.qompile` for an RHG canvas.
 
     Parameters
     ----------
@@ -30,22 +29,19 @@ def compile_canvas(
     xflow : dict[int, set[int]] | None
         Optional X-flow mapping (node -> correction target nodes).
         Pass `None` to let the backend derive it if supported.
-    x_parity : list[set[int]] | None
-        Optional list of X-parity check groups (GLOBAL node-id sets).
-    z_parity : list[set[int]] | None
-        Optional list of Z-parity check groups (GLOBAL node-id sets).
+    parity : list[set[int]] | None
+        Optional list of parity check groups (GLOBAL node-id sets).
     scheduler : Any | None
         Optional measurement scheduler. If `None`, backend default is used.
 
     Returns
     -------
     Pattern
-        Whatever `graphix_zx.qompile` returns (pattern, circuit, etc.).
+        Whatever `graphqomb.qompile` returns (pattern, circuit, etc.).
     """
     return qompile(
         graph=graph,
         xflow=xflow,
-        x_parity_check_group=x_parity,
-        z_parity_check_group=z_parity,
+        parity_check_group=parity,
         scheduler=scheduler,
     )

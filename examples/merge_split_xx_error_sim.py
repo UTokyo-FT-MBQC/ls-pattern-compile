@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import sinter
 import stim
-from graphix_zx.scheduler import Scheduler
-from graphix_zx.stim_compiler import stim_compile
+from graphqomb.scheduler import Scheduler
+from graphqomb.stim_compiler import stim_compile
 
 if TYPE_CHECKING:
     from lspattern.canvas import CompiledRHGCanvas
@@ -184,16 +184,15 @@ def create_circuit(d: int, noise: float) -> stim.Circuit:
     if compiled_canvas.global_graph is None:
         raise ValueError("Global graph is None")
 
-    x_parity: list[set[int]] = []
+    parity: list[set[int]] = []
     for group_dict in compiled_canvas.parity.checks.values():
         for group in group_dict.values():
-            x_parity.append({int(node) for node in group})
+            parity.append({int(node) for node in group})
 
     pattern = compile_canvas(
         compiled_canvas.global_graph,
         xflow=xflow,
-        x_parity=x_parity,
-        z_parity=[],
+        parity=parity,
         scheduler=scheduler,
     )
 

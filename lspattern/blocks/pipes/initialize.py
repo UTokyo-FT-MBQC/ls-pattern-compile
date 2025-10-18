@@ -3,10 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from graphix_zx.graphstate import GraphState
+from graphqomb.graphstate import GraphState
 
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
-from lspattern.consts import EdgeSpecValue
+from lspattern.consts import TemporalBoundarySpecValue
 from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D, PhysCoordLocal2D, SpatialEdgeSpec
 from lspattern.tiling.template import RotatedPlanarPipetemplate
 from lspattern.utils import get_direction
@@ -119,7 +119,7 @@ class InitPlusPipeSkeleton(RHGPipeSkeleton):
         block.source = source
         block.sink = sink
         # Init blocks: final layer is open (O) without measurement
-        block.final_layer = EdgeSpecValue.O
+        block.final_layer = TemporalBoundarySpecValue.O
         return block
 
 
@@ -161,7 +161,7 @@ class InitPlusPipeThinLayerSkeleton(RHGPipeSkeleton):
         block.source = source
         block.sink = sink
         # Init blocks: final layer is open (O) without measurement
-        block.final_layer = EdgeSpecValue.O
+        block.final_layer = TemporalBoundarySpecValue.O
         return block
 
 
@@ -232,7 +232,7 @@ class InitZeroPipeSkeleton(RHGPipeSkeleton):
         block.source = source
         block.sink = sink
         # Init blocks: final layer is open (O) without measurement
-        block.final_layer = EdgeSpecValue.O
+        block.final_layer = TemporalBoundarySpecValue.O
         return block
 
 
@@ -303,7 +303,7 @@ class InitZeroPipeThinLayerSkeleton(RHGPipeSkeleton):
         block.source = source
         block.sink = sink
         # Init blocks: final layer is open (O) without measurement
-        block.final_layer = EdgeSpecValue.O
+        block.final_layer = TemporalBoundarySpecValue.O
         return block
 
 

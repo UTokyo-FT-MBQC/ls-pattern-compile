@@ -2,6 +2,9 @@
 
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
+[![pytest](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/actions/workflows/pytest.yml/badge.svg)](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/actions/workflows/pytest.yml)
+[![Type Checking](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/actions/workflows/typecheck.yml/badge.svg)](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/actions/workflows/typecheck.yml)
+[![ruff](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/actions/workflows/ruff.yml/badge.svg)](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/actions/workflows/ruff.yml)
 
 **ls-pattern-compile** is an experimental MBQC (Measurement-Based Quantum Computing) compiler that converts lattice surgery commands to quantum patterns using the RHG (Raussendorf-Harrington-Goyal) lattice blocks-and-pipes architecture. This library implements fault-tolerant quantum computing compilation through spatial and temporal composition of modular quantum building blocks.
 
@@ -24,13 +27,13 @@ This project provides a modular framework for constructing fault-tolerant MBQC c
 - Python 3.10 or higher
 - [uv](https://github.com/astral-sh/uv) package manager (recommended)
 
-### Install graphix-zx dependency
+### Install graphqomb dependency
 
-Since `graphix-zx` is not yet available on PyPI, you need to install it from source:
+Since `graphqomb` is not yet available on PyPI, you need to install it from source:
 
 ```bash
-git clone https://github.com/TeamGraphix/graphix-zx.git
-cd graphix-zx
+git clone https://github.com/TeamGraphix/graphqomb.git
+cd graphqomb
 uv pip install -e .
 cd ..
 ```
@@ -93,14 +96,14 @@ compiled_canvas = canvas.compile()
 graph = compiled_canvas.global_graph
 xflow = {int(src): {int(dst) for dst in dsts}
          for src, dsts in compiled_canvas.flow.flow.items()}
-x_parity = [
+parity = [
     {int(node) for node in group}
     for group_dict in compiled_canvas.parity.checks.values()
     for group in group_dict.values()
 ]
 
 # Compile to MBQC pattern
-pattern = compile_canvas(graph, xflow=xflow, x_parity=x_parity, z_parity=[])
+pattern = compile_canvas(graph, xflow=xflow, parity=parity)
 ```
 
 > Enums such as `BoundarySide` and `EdgeSpecValue` inherit from `str`, so legacy string literals still work, but using the enum constants enables static analysis and IDE completion.
@@ -177,7 +180,7 @@ xflow = {int(src): {int(dst) for dst in dsts}
          for src, dsts in compiled_canvas.flow.flow.items()}
 
 # Stabilizer parity checks (detectors)
-x_parity = [
+parity = [
     {int(node) for node in group}
     for group_dict in compiled_canvas.parity.checks.values()
     for group in group_dict.values()
@@ -191,13 +194,13 @@ schedule = compiled_canvas.schedule.compact()
 
 ```python
 from lspattern.compile import compile_canvas
-from graphix_zx.scheduler import Scheduler
-from graphix_zx.stim_compiler import stim_compile
+from graphqomb.scheduler import Scheduler
+from graphqomb.stim_compiler import stim_compile
 import stim
 import pymatching
 
 # Create pattern
-pattern = compile_canvas(graph, xflow=xflow, x_parity=x_parity, z_parity=[])
+pattern = compile_canvas(graph, xflow=xflow, parity=parity)
 
 # Compile to Stim circuit
 stim_str = stim_compile(
@@ -302,18 +305,18 @@ If you use ls-pattern-compile in your research, please cite:
   author = {{UTokyo FT-MBQC Team}},
   year = {2025},
   url = {https://github.com/UTokyo-FT-MBQC/ls-pattern-compile},
-  version = {0.0.2}
+  version = {0.0.3}
 }
 ```
 
 ### APA
 ```
-UTokyo FT-MBQC Team. (2025). ls-pattern-compile: MBQC Lattice Surgery Compiler (Version 0.1.0) [Computer software]. https://github.com/UTokyo-FT-MBQC/ls-pattern-compile
+UTokyo FT-MBQC Team. (2025). ls-pattern-compile: MBQC Lattice Surgery Compiler (Version 0.0.3) [Computer software]. https://github.com/UTokyo-FT-MBQC/ls-pattern-compile
 ```
 
 ## Related Projects
 
-- [graphix-zx](https://github.com/TeamGraphix/graphix-zx) - ZX-calculus based MBQC framework
+- [graphqomb](https://github.com/TeamGraphix/graphqomb) - A Modular Graph State Qompiler for Measurement-Based Quantum Computing
 
 ## License
 
