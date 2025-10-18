@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D
+from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PipeCoordGlobal3D
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -19,8 +19,8 @@ class PortManager:
 
     This class encapsulates all port-related operations including:
     - Port registration (in/out/cout)
-    - Port grouping (cout_port_groups)
-    - Port lookup (cout_group_lookup)
+    - Port grouping (cout_port_groups_cube/pipe)
+    - Port lookup (cout_group_lookup_cube/pipe)
     - Node remapping for ports
 
     Attributes
@@ -29,37 +29,48 @@ class PortManager:
         Input ports organized by patch coordinate
     out_portset : dict[PatchCoordGlobal3D, list[NodeIdLocal]]
         Output ports organized by patch coordinate
-    cout_portset : dict[PatchCoordGlobal3D, list[NodeIdLocal]]
-        Cout (ancilla output) ports organized by patch coordinate (flat list)
-    cout_port_groups : dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]]
-        Grouped cout ports per patch for logical observable extraction
-    cout_group_lookup : dict[NodeIdLocal, tuple[PatchCoordGlobal3D, int]]
-        Reverse index from node id to (patch, group index)
+    cout_portset_cube : dict[PatchCoordGlobal3D, list[NodeIdLocal]]
+        Cout (ancilla output) ports for cubes organized by patch coordinate (flat list)
+    cout_portset_pipe : dict[PipeCoordGlobal3D, list[NodeIdLocal]]
+        Cout (ancilla output) ports for pipes organized by pipe coordinate (flat list)
+    cout_port_groups_cube : dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]]
+        Grouped cout ports per cube patch for logical observable extraction
+    cout_port_groups_pipe : dict[PipeCoordGlobal3D, list[list[NodeIdLocal]]]
+        Grouped cout ports per pipe for logical observable extraction
+    cout_group_lookup_cube : dict[NodeIdLocal, tuple[PatchCoordGlobal3D, int]]
+        Reverse index from node id to (cube patch, group index)
+    cout_group_lookup_pipe : dict[NodeIdLocal, tuple[PipeCoordGlobal3D, int]]
+        Reverse index from node id to (pipe coord, group index)
     in_ports : list[NodeIdLocal]
         Flattened list of all input ports
     out_ports : list[NodeIdLocal]
         Flattened list of all output ports
-    cout_ports : list[NodeIdLocal]
-        Flattened list of all cout ports
     """
 
     def __init__(self) -> None:
         """Initialize empty port manager."""
         self.in_portset: dict[PatchCoordGlobal3D, list[NodeIdLocal]] = {}
         self.out_portset: dict[PatchCoordGlobal3D, list[NodeIdLocal]] = {}
-        self.cout_portset: dict[PatchCoordGlobal3D, list[NodeIdLocal]] = {}
-        self.cout_port_groups: dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]] = {}
-        self.cout_group_lookup: dict[NodeIdLocal, tuple[PatchCoordGlobal3D, int]] = {}
+
+        # Cube cout ports
+        self.cout_portset_cube: dict[PatchCoordGlobal3D, list[NodeIdLocal]] = {}
+        self.cout_port_groups_cube: dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]] = {}
+        self.cout_group_lookup_cube: dict[NodeIdLocal, tuple[PatchCoordGlobal3D, int]] = {}
+
+        # Pipe cout ports
+        self.cout_portset_pipe: dict[PipeCoordGlobal3D, list[NodeIdLocal]] = {}
+        self.cout_port_groups_pipe: dict[PipeCoordGlobal3D, list[list[NodeIdLocal]]] = {}
+        self.cout_group_lookup_pipe: dict[NodeIdLocal, tuple[PipeCoordGlobal3D, int]] = {}
+
         self.in_ports: list[NodeIdLocal] = []
         self.out_ports: list[NodeIdLocal] = []
-        self.cout_ports: list[NodeIdLocal] = []
 
-    def register_cout_group(
+    def register_cout_group_cube(
         self,
         patch_pos: PatchCoordGlobal3D,
         nodes: Sequence[NodeIdLocal],
     ) -> None:
-        """Record a cout group for the given patch and keep caches in sync.
+        """Record a cout group for the given cube patch and keep caches in sync.
 
         Parameters
         ----------
@@ -71,37 +82,76 @@ class PortManager:
         group_nodes = [NodeIdLocal(int(n)) for n in nodes if n is not None]
         if not group_nodes:
             return
-        groups = self.cout_port_groups.setdefault(patch_pos, [])
+        groups = self.cout_port_groups_cube.setdefault(patch_pos, [])
         index = len(groups)
         groups.append(group_nodes)
-        flat = self.cout_portset.setdefault(patch_pos, [])
+        flat = self.cout_portset_cube.setdefault(patch_pos, [])
         flat.extend(group_nodes)
-        self.cout_ports.extend(group_nodes)
         for node in group_nodes:
-            self.cout_group_lookup[node] = (patch_pos, index)
+            self.cout_group_lookup_cube[node] = (patch_pos, index)
+
+    def register_cout_group_pipe(
+        self,
+        pipe_coord: PipeCoordGlobal3D,
+        nodes: Sequence[NodeIdLocal],
+    ) -> None:
+        """Record a cout group for the given pipe and keep caches in sync.
+
+        Parameters
+        ----------
+        pipe_coord : PipeCoordGlobal3D
+            The pipe coordinate (source, sink) where this cout group belongs
+        nodes : list[NodeIdLocal]
+            List of node IDs in this cout group
+        """
+        group_nodes = [NodeIdLocal(int(n)) for n in nodes if n is not None]
+        if not group_nodes:
+            return
+        groups = self.cout_port_groups_pipe.setdefault(pipe_coord, [])
+        index = len(groups)
+        groups.append(group_nodes)
+        flat = self.cout_portset_pipe.setdefault(pipe_coord, [])
+        flat.extend(group_nodes)
+        for node in group_nodes:
+            self.cout_group_lookup_pipe[node] = (pipe_coord, index)
 
     def rebuild_cout_group_cache(self) -> None:
         """Recompute flat cout caches from grouped data.
 
-        This method rebuilds cout_portset, cout_ports, and cout_group_lookup
-        from the authoritative cout_port_groups data.
+        This method rebuilds cout_portset_cube/pipe and cout_group_lookup_cube/pipe
+        from the authoritative cout_port_groups_cube/pipe data.
         """
-        self.cout_portset = {}
-        self.cout_ports = []
-        self.cout_group_lookup = {}
-        for patch_pos, groups in self.cout_port_groups.items():
+        # Rebuild cube caches
+        self.cout_portset_cube = {}
+        self.cout_group_lookup_cube = {}
+        for patch_pos, groups in self.cout_port_groups_cube.items():
             flat: list[NodeIdLocal] = []
             for idx, group in enumerate(groups):
                 normalized = [NodeIdLocal(int(n)) for n in group if n is not None]
                 if not normalized:
                     continue
-                self.cout_port_groups[patch_pos][idx] = normalized
+                self.cout_port_groups_cube[patch_pos][idx] = normalized
                 flat.extend(normalized)
-                self.cout_ports.extend(normalized)
                 for node in normalized:
-                    self.cout_group_lookup[node] = (patch_pos, idx)
+                    self.cout_group_lookup_cube[node] = (patch_pos, idx)
             if flat:
-                self.cout_portset[patch_pos] = flat
+                self.cout_portset_cube[patch_pos] = flat
+
+        # Rebuild pipe caches
+        self.cout_portset_pipe = {}
+        self.cout_group_lookup_pipe = {}
+        for pipe_coord, groups in self.cout_port_groups_pipe.items():
+            flat_pipe: list[NodeIdLocal] = []
+            for idx, group in enumerate(groups):
+                normalized = [NodeIdLocal(int(n)) for n in group if n is not None]
+                if not normalized:
+                    continue
+                self.cout_port_groups_pipe[pipe_coord][idx] = normalized
+                flat_pipe.extend(normalized)
+                for node in normalized:
+                    self.cout_group_lookup_pipe[node] = (pipe_coord, idx)
+            if flat_pipe:
+                self.cout_portset_pipe[pipe_coord] = flat_pipe
 
     def remap_ports(self, node_map: Mapping[int, int]) -> None:
         """Remap all ports with given node mapping.
@@ -115,32 +165,37 @@ class PortManager:
         -----
         This method remaps in_portset, out_portset, in_ports, out_ports,
         and cout-related structures using the provided node mapping.
-
-        For cout ports, the behavior depends on whether cout_port_groups is populated:
-        - If cout_port_groups exists: Uses grouped structure and rebuilds flat caches
-        - Otherwise: Remaps cout_portset and cout_ports directly
-
-        This dual behavior ensures compatibility with both grouped and non-grouped
-        cout port management patterns.
         """
+        # Remap in/out ports
         for p, nodes in self.in_portset.items():
             self.in_portset[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
         for p, nodes in self.out_portset.items():
             self.out_portset[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
-        if self.cout_port_groups:
-            new_groups: dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]] = {}
-            for patch_pos, groups in self.cout_port_groups.items():
-                remapped_groups: list[list[NodeIdLocal]] = []
-                for group in groups:
-                    remapped = [NodeIdLocal(node_map.get(n, n)) for n in group]
-                    remapped_groups.append(remapped)
-                new_groups[patch_pos] = remapped_groups
-            self.cout_port_groups = new_groups
-            self.rebuild_cout_group_cache()
-        else:
-            for p, nodes in self.cout_portset.items():
-                self.cout_portset[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
-            self.cout_ports = [NodeIdLocal(node_map.get(n, n)) for n in self.cout_ports]
+
+        # Remap cube cout ports
+        new_groups_cube: dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]] = {}
+        for patch_pos, groups in self.cout_port_groups_cube.items():
+            remapped_groups: list[list[NodeIdLocal]] = []
+            for group in groups:
+                remapped = [NodeIdLocal(node_map.get(n, n)) for n in group]
+                remapped_groups.append(remapped)
+            new_groups_cube[patch_pos] = remapped_groups
+        self.cout_port_groups_cube = new_groups_cube
+
+        # Remap pipe cout ports
+        new_groups_pipe: dict[PipeCoordGlobal3D, list[list[NodeIdLocal]]] = {}
+        for pipe_coord, groups in self.cout_port_groups_pipe.items():
+            remapped_groups_pipe: list[list[NodeIdLocal]] = []
+            for group in groups:
+                remapped = [NodeIdLocal(node_map.get(n, n)) for n in group]
+                remapped_groups_pipe.append(remapped)
+            new_groups_pipe[pipe_coord] = remapped_groups_pipe
+        self.cout_port_groups_pipe = new_groups_pipe
+
+        # Rebuild caches
+        self.rebuild_cout_group_cache()
+
+        # Remap flat port lists
         self.in_ports = [NodeIdLocal(node_map.get(n, n)) for n in self.in_ports]
         self.out_ports = [NodeIdLocal(node_map.get(n, n)) for n in self.out_ports]
 
@@ -178,7 +233,9 @@ class PortManager:
         self.out_portset.setdefault(patch_pos, []).extend(valid_nodes)
         self.out_ports.extend(valid_nodes)
 
-    def get_cout_group_by_node(self, node: NodeIdLocal) -> tuple[PatchCoordGlobal3D, list[NodeIdLocal]] | None:
+    def get_cout_group_by_node(
+        self, node: NodeIdLocal
+    ) -> tuple[PatchCoordGlobal3D | PipeCoordGlobal3D, list[NodeIdLocal]] | None:
         """Get the cout group containing the given node.
 
         Parameters
@@ -188,17 +245,27 @@ class PortManager:
 
         Returns
         -------
-        tuple[PatchCoordGlobal3D, list[NodeIdLocal]] | None
-            Tuple of (patch_pos, group_nodes) if found, None otherwise
+        tuple[PatchCoordGlobal3D | PipeCoordGlobal3D, list[NodeIdLocal]] | None
+            Tuple of (coord, group_nodes) if found, None otherwise.
+            coord is PatchCoordGlobal3D for cube groups, PipeCoordGlobal3D for pipe groups.
         """
-        mapping = self.cout_group_lookup.get(node)
-        if mapping is None:
-            return None
-        patch_pos, group_idx = mapping
-        groups = self.cout_port_groups.get(patch_pos)
-        if groups is None or group_idx >= len(groups):
-            return None
-        return patch_pos, list(groups[group_idx])
+        # Check cube groups first
+        mapping = self.cout_group_lookup_cube.get(node)
+        if mapping is not None:
+            patch_pos, group_idx = mapping
+            groups = self.cout_port_groups_cube.get(patch_pos)
+            if groups is not None and group_idx < len(groups):
+                return patch_pos, list(groups[group_idx])
+
+        # Check pipe groups
+        mapping_pipe = self.cout_group_lookup_pipe.get(node)
+        if mapping_pipe is not None:
+            pipe_coord, group_idx = mapping_pipe
+            groups_pipe = self.cout_port_groups_pipe.get(pipe_coord)
+            if groups_pipe is not None and group_idx < len(groups_pipe):
+                return pipe_coord, list(groups_pipe[group_idx])
+
+        return None
 
     def merge(  # noqa: C901
         self,
@@ -232,7 +299,7 @@ class PortManager:
         This method is designed for temporal layer composition where:
         - in_ports typically come from the next layer (other)
         - out_ports are merged from both layers
-        - cout_port_groups are merged from both layers
+        - cout_port_groups_cube/pipe are merged from both layers
         """
         merged = PortManager()
 
@@ -265,13 +332,21 @@ class PortManager:
         for pos, nodes in other_remapped.out_portset.items():
             merged.add_out_ports(pos, nodes)
 
-        # Merge cout_port_groups from both
-        for pos, groups in self_remapped.cout_port_groups.items():
+        # Merge cout_port_groups_cube from both
+        for pos, groups in self_remapped.cout_port_groups_cube.items():
             for group in groups:
-                merged.register_cout_group(pos, group)
-        for pos, groups in other_remapped.cout_port_groups.items():
+                merged.register_cout_group_cube(pos, group)
+        for pos, groups in other_remapped.cout_port_groups_cube.items():
             for group in groups:
-                merged.register_cout_group(pos, group)
+                merged.register_cout_group_cube(pos, group)
+
+        # Merge cout_port_groups_pipe from both
+        for pipe_coord, groups in self_remapped.cout_port_groups_pipe.items():
+            for group in groups:
+                merged.register_cout_group_pipe(pipe_coord, group)
+        for pipe_coord, groups in other_remapped.cout_port_groups_pipe.items():
+            for group in groups:
+                merged.register_cout_group_pipe(pipe_coord, group)
 
         return merged
 
@@ -292,10 +367,17 @@ class PortManager:
         # Copy all port-related data structures
         new_manager.in_portset = {k: list(v) for k, v in self.in_portset.items()}
         new_manager.out_portset = {k: list(v) for k, v in self.out_portset.items()}
-        new_manager.cout_portset = {k: list(v) for k, v in self.cout_portset.items()}
-        new_manager.cout_port_groups = {k: [list(g) for g in v] for k, v in self.cout_port_groups.items()}
-        new_manager.cout_group_lookup = dict(self.cout_group_lookup)
+
+        # Copy cube cout ports
+        new_manager.cout_portset_cube = {k: list(v) for k, v in self.cout_portset_cube.items()}
+        new_manager.cout_port_groups_cube = {k: [list(g) for g in v] for k, v in self.cout_port_groups_cube.items()}
+        new_manager.cout_group_lookup_cube = dict(self.cout_group_lookup_cube)
+
+        # Copy pipe cout ports
+        new_manager.cout_portset_pipe = {k: list(v) for k, v in self.cout_portset_pipe.items()}
+        new_manager.cout_port_groups_pipe = {k: [list(g) for g in v] for k, v in self.cout_port_groups_pipe.items()}
+        new_manager.cout_group_lookup_pipe = dict(self.cout_group_lookup_pipe)
+
         new_manager.in_ports = list(self.in_ports)
         new_manager.out_ports = list(self.out_ports)
-        new_manager.cout_ports = list(self.cout_ports)
         return new_manager

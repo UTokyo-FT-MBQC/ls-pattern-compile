@@ -90,27 +90,50 @@ class CompiledRHGCanvas:
         return self.port_manager.out_portset
 
     @property
-    def cout_portset(self) -> dict[PatchCoordGlobal3D, list[NodeIdLocal]]:
-        """Get cout_portset from port_manager."""
-        return self.port_manager.cout_portset
+    def cout_portset_cube(self) -> dict[PatchCoordGlobal3D, list[NodeIdLocal]]:
+        """Get cout_portset_cube from port_manager."""
+        return self.port_manager.cout_portset_cube
 
     @property
-    def cout_port_groups(self) -> dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]]:
-        """Get cout_port_groups from port_manager."""
-        return self.port_manager.cout_port_groups
+    def cout_portset_pipe(self) -> dict[PipeCoordGlobal3D, list[NodeIdLocal]]:
+        """Get cout_portset_pipe from port_manager."""
+        return self.port_manager.cout_portset_pipe
 
     @property
-    def cout_group_lookup(self) -> dict[NodeIdLocal, tuple[PatchCoordGlobal3D, int]]:
-        """Get cout_group_lookup from port_manager."""
-        return self.port_manager.cout_group_lookup
+    def cout_port_groups_cube(self) -> dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]]:
+        """Get cout_port_groups_cube from port_manager."""
+        return self.port_manager.cout_port_groups_cube
 
-    def _register_cout_group(
+    @property
+    def cout_port_groups_pipe(self) -> dict[PipeCoordGlobal3D, list[list[NodeIdLocal]]]:
+        """Get cout_port_groups_pipe from port_manager."""
+        return self.port_manager.cout_port_groups_pipe
+
+    @property
+    def cout_group_lookup_cube(self) -> dict[NodeIdLocal, tuple[PatchCoordGlobal3D, int]]:
+        """Get cout_group_lookup_cube from port_manager."""
+        return self.port_manager.cout_group_lookup_cube
+
+    @property
+    def cout_group_lookup_pipe(self) -> dict[NodeIdLocal, tuple[PipeCoordGlobal3D, int]]:
+        """Get cout_group_lookup_pipe from port_manager."""
+        return self.port_manager.cout_group_lookup_pipe
+
+    def _register_cout_group_cube(
         self,
         patch_pos: PatchCoordGlobal3D,
         nodes: list[NodeIdLocal],
     ) -> None:
-        """Record a cout group on the compiled canvas and sync caches."""
-        self.port_manager.register_cout_group(patch_pos, nodes)
+        """Record a cube cout group on the compiled canvas and sync caches."""
+        self.port_manager.register_cout_group_cube(patch_pos, nodes)
+
+    def _register_cout_group_pipe(
+        self,
+        pipe_coord: PipeCoordGlobal3D,
+        nodes: list[NodeIdLocal],
+    ) -> None:
+        """Record a pipe cout group on the compiled canvas and sync caches."""
+        self.port_manager.register_cout_group_pipe(pipe_coord, nodes)
 
     def _rebuild_cout_group_cache(self) -> None:
         """Recompute flat cout caches from grouped data."""
@@ -119,8 +142,15 @@ class CompiledRHGCanvas:
     def get_cout_group_by_coord(
         self,
         coord: PhysCoordGlobal3D,
-    ) -> tuple[PatchCoordGlobal3D, list[NodeIdLocal]] | None:
-        """Return the cout group for the node at `coord`, if present."""
+    ) -> tuple[PatchCoordGlobal3D | PipeCoordGlobal3D, list[NodeIdLocal]] | None:
+        """Return the cout group for the node at `coord`, if present.
+
+        Returns
+        -------
+        tuple[PatchCoordGlobal3D | PipeCoordGlobal3D, list[NodeIdLocal]] | None
+            Tuple of (coord, group_nodes) if found, None otherwise.
+            coord is PatchCoordGlobal3D for cube groups, PipeCoordGlobal3D for pipe groups.
+        """
         node = self.coord2node.get(coord)
         if node is None:
             return None

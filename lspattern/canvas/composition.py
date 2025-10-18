@@ -151,7 +151,7 @@ class GraphComposer:
                     if new_id is None:
                         continue
                     mapped_group.append(NodeIdLocal(new_id))
-                self.port_manager.register_cout_group(pos, mapped_group)
+                self.port_manager.register_cout_group_cube(pos, mapped_group)
 
     def process_cube_ports_direct(self, pos: PatchCoordGlobal3D, blk: RHGCube) -> None:
         """Process cube ports directly without node mapping.
@@ -176,7 +176,7 @@ class GraphComposer:
         if blk.cout_ports:
             for group in blk.cout_ports:
                 mapped_group = [NodeIdLocal(int(node)) for node in group]
-                self.port_manager.register_cout_group(pos, mapped_group)
+                self.port_manager.register_cout_group_cube(pos, mapped_group)
 
     def process_pipe_ports(self, pipe_coord: PipeCoordGlobal3D, pipe: RHGPipe, node_map2: Mapping[int, int]) -> None:
         """Process pipe ports with node mapping.
@@ -200,7 +200,6 @@ class GraphComposer:
             mapped_nodes = [NodeIdLocal(node_map2[n]) for n in pipe.out_ports if n in node_map2]
             self.port_manager.add_out_ports(patch_pos, mapped_nodes)
         if pipe.cout_ports:
-            patch_pos = PatchCoordGlobal3D(sink)
             for group in pipe.cout_ports:
                 mapped_group: list[NodeIdLocal] = []
                 for node in group:
@@ -208,7 +207,7 @@ class GraphComposer:
                     if new_id is None:
                         continue
                     mapped_group.append(NodeIdLocal(new_id))
-                self.port_manager.register_cout_group(patch_pos, mapped_group)
+                self.port_manager.register_cout_group_pipe(pipe_coord, mapped_group)
 
     def compose_pipe_graphs(
         self,
