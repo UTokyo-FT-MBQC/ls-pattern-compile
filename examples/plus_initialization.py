@@ -70,10 +70,10 @@ print("Extended canvas plotly visualization completed and saved to figures/exten
 xflow = {}
 for src, dsts in compiled_canvas.flow.flow.items():
     xflow[int(src)] = {int(dst) for dst in dsts}
-x_parity = []
+parity = []
 for group_dict in compiled_canvas.parity.checks.values():
     for group in group_dict.values():
-        x_parity.append({int(node) for node in group})
+        parity.append({int(node) for node in group})
 print(f"X flow: {xflow}")
 print("X parity")
 for coord, group_list in compiled_canvas.parity.checks.items():  # type: ignore[assignment]
@@ -119,8 +119,7 @@ scheduler.manual_schedule(prepare_time=prep_time, measure_time=meas_time)
 pattern = compile_canvas(
     compiled_canvas.global_graph,
     xflow=xflow,
-    x_parity=x_parity,
-    z_parity=[],
+    parity=parity,
     scheduler=scheduler,
 )
 print("Pattern compilation successful")

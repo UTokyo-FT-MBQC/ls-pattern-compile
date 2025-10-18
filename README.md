@@ -96,14 +96,14 @@ compiled_canvas = canvas.compile()
 graph = compiled_canvas.global_graph
 xflow = {int(src): {int(dst) for dst in dsts}
          for src, dsts in compiled_canvas.flow.flow.items()}
-x_parity = [
+parity = [
     {int(node) for node in group}
     for group_dict in compiled_canvas.parity.checks.values()
     for group in group_dict.values()
 ]
 
 # Compile to MBQC pattern
-pattern = compile_canvas(graph, xflow=xflow, x_parity=x_parity, z_parity=[])
+pattern = compile_canvas(graph, xflow=xflow, parity=parity)
 ```
 
 > Enums such as `BoundarySide` and `EdgeSpecValue` inherit from `str`, so legacy string literals still work, but using the enum constants enables static analysis and IDE completion.
@@ -180,7 +180,7 @@ xflow = {int(src): {int(dst) for dst in dsts}
          for src, dsts in compiled_canvas.flow.flow.items()}
 
 # Stabilizer parity checks (detectors)
-x_parity = [
+parity = [
     {int(node) for node in group}
     for group_dict in compiled_canvas.parity.checks.values()
     for group in group_dict.values()
@@ -200,7 +200,7 @@ import stim
 import pymatching
 
 # Create pattern
-pattern = compile_canvas(graph, xflow=xflow, x_parity=x_parity, z_parity=[])
+pattern = compile_canvas(graph, xflow=xflow, parity=parity)
 
 # Compile to Stim circuit
 stim_str = stim_compile(
