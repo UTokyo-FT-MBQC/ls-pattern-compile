@@ -1,20 +1,11 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from lspattern.testing.fingerprints import CircuitFingerprint, FingerprintRegistry
 
 
-def _registry() -> FingerprintRegistry:
-    path = Path(__file__).parent / "fixtures" / "circuit_fingerprints.json"
-    reg = FingerprintRegistry(path)
-    reg.load()
-    return reg
-
-
-def test_merge_split_xx_compile_and_metadata() -> None:
+def test_merge_split_xx_compile_and_metadata(fingerprint_registry: FingerprintRegistry) -> None:
     from examples.merge_split_xx_error_sim import create_circuit
 
     d = 3
@@ -25,9 +16,8 @@ def test_merge_split_xx_compile_and_metadata() -> None:
     assert circuit.num_observables >= 1
 
     # Fingerprint regression
-    reg = _registry()
     fp = CircuitFingerprint.from_circuit(f"merge_split_xx_d{d}", circuit)
-    ok, err = reg.verify(fp)
+    ok, err = fingerprint_registry.verify(fp)
     assert ok, err
 
 

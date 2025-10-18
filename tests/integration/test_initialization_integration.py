@@ -1,21 +1,12 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from lspattern.consts import InitializationState
 from lspattern.testing.fingerprints import CircuitFingerprint, FingerprintRegistry
 
 
-def _registry() -> FingerprintRegistry:
-    path = Path(__file__).parent / "fixtures" / "circuit_fingerprints.json"
-    reg = FingerprintRegistry(path)
-    reg.load()
-    return reg
-
-
-def test_initialization_plus_compile_and_metadata() -> None:
+def test_initialization_plus_compile_and_metadata(fingerprint_registry: FingerprintRegistry) -> None:
     from examples.memory_error_sim import create_circuit
 
     d = 3
@@ -26,9 +17,8 @@ def test_initialization_plus_compile_and_metadata() -> None:
     assert circuit.num_observables >= 1
 
     # Fingerprint regression
-    reg = _registry()
     fp = CircuitFingerprint.from_circuit(f"initialization_plus_d{d}", circuit)
-    ok, err = reg.verify(fp)
+    ok, err = fingerprint_registry.verify(fp)
     assert ok, err
 
 
