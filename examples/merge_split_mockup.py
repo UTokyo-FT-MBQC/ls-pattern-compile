@@ -22,7 +22,7 @@ from lspattern.blocks.cubes.measure import MeasureZSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
 from lspattern.consts import BoundarySide, EdgeSpecValue
-from lspattern.mytype import PatchCoordGlobal3D
+from lspattern.mytype import PatchCoordGlobal3D, PipeCoordGlobal3D
 from lspattern.visualizers import visualize_compiled_canvas_plotly
 
 # %%
@@ -120,7 +120,7 @@ print(
 output_indices = compiled_canvas.global_graph.output_node_indices or {}  # type: ignore[union-attr]
 print(f"output qubits: {output_indices}")
 
-fig3d = visualize_compiled_canvas_plotly(compiled_canvas, show_edges=True)
+fig3d = visualize_compiled_canvas_plotly(compiled_canvas, show_edges=True, hilight_nodes={326, 327, 328, 329})
 fig3d.show()
 
 # %%
@@ -178,7 +178,9 @@ for coord, group_dict in compiled_canvas.parity.checks.items():
 
 # classical outs
 cout_portmap = compiled_canvas.cout_portset_cube
+cout_portmap_pipe = compiled_canvas.cout_portset_pipe
 print(f"Classical output ports: {cout_portmap}")
+print(f"Classical output ports (pipes): {cout_portmap_pipe}")
 
 
 # %%
@@ -229,16 +231,26 @@ print_pattern(pattern)
 
 # set logical observables
 coord2logical_group = {
-    # 0: {PatchCoordGlobal3D((0, 0, 3)), PatchCoordGlobal3D((1, 0, 3))},  # First output patch
-    0: {PatchCoordGlobal3D((0, 0, 4))},
-    # 1: {PatchCoordGlobal3D((1, 0, 3))},  # Second output patch
+    0: {PatchCoordGlobal3D((0, 0, 4))}, # First output patch
+    1: {PatchCoordGlobal3D((1, 0, 4))},  # Second output patch
+    2: {PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 2)), PatchCoordGlobal3D((1, 0, 2))))},  # InitPlus pipe
 }
 logical_observables = {}
 for i, group in coord2logical_group.items():
     nodes = []
     for coord in group:
-        if coord in cout_portmap:
+        # PipeCoordGlobal3D is a 2-tuple of PatchCoordGlobal3D (nested tuples)
+        # PatchCoordGlobal3D is a 3-tuple of ints
+        if isinstance(coord, tuple) and len(coord) == 2 and all(isinstance(c, tuple) for c in coord):  # isinstance cannot be used with NewType
+            # This is a PipeCoordGlobal3D
+            nodes.extend(cout_portmap_pipe[coord])
+        elif isinstance(coord, tuple) and len(coord) == 3:
+            # This is a PatchCoordGlobal3D
             nodes.extend(cout_portmap[coord])
+        else:
+            msg = f"Unknown coord type: {type(coord)}"
+            raise TypeError(msg)
+
     logical_observables[i] = set(nodes)
 
 
