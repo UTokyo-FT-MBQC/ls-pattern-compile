@@ -177,7 +177,7 @@ for coord, group_dict in compiled_canvas.parity.checks.items():
     print(f"  Patch {coord}: {len(group_dict)} detector groups")
 
 # classical outs
-cout_portmap = compiled_canvas.cout_portset
+cout_portmap = compiled_canvas.cout_portset_cube
 print(f"Classical output ports: {cout_portmap}")
 
 

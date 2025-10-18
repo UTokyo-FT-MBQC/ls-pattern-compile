@@ -170,7 +170,7 @@ def create_circuit(d: int, noise: float) -> stim.Circuit:
     )
 
     # Set logical observables - use the first output patch only
-    cout_portmap = compiled_canvas.cout_portset
+    cout_portmap = compiled_canvas.cout_portset_cube
     coord2logical_group = {
         0: {PatchCoordGlobal3D((0, 0, 4))},  # First output patch
     }

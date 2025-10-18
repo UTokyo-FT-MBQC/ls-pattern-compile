@@ -125,7 +125,7 @@ def create_circuit(d: int, noise: float, init_type: InitializationState) -> stim
         scheduler=scheduler,
     )
     # Set logical observables using coordinate-based approach (similar to plus_initialization.py)
-    cout_portmap = compiled_canvas.cout_portset
+    cout_portmap = compiled_canvas.cout_portset_cube
     coord2logical_group = {0: PatchCoordGlobal3D((0, 0, 2))}  # Measurement cube is at position (0, 0, 2)
     logical_observables = {i: cout_portmap[coord] for i, coord in coord2logical_group.items()}
     stim_str = stim_compile(
