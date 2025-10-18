@@ -32,7 +32,7 @@ def test_merge_split_compile_and_metadata() -> None:
 
 
 @pytest.mark.slow
-def test_merge_split_quick_error_sim() -> None:
+def test_merge_split_dem() -> None:
     from examples.merge_split_error_sim import create_circuit
     import pymatching as pm
 

@@ -33,7 +33,7 @@ def test_memory_zero_compile_and_metadata() -> None:
 
 
 @pytest.mark.slow
-def test_memory_zero_quick_error_sim() -> None:
+def test_memory_zero_dem() -> None:
     from examples.memory_error_sim import create_circuit
     import pymatching as pm
 
