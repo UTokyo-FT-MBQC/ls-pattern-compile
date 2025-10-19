@@ -258,19 +258,5 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
         # Compose layers in increasing temporal order, wiring any cross-layer pipes
         for z in sorted(temporal_layers.keys()):
             layer = temporal_layers[z]
-            # Select pipes whose start.z is the last compiled z and end.z is this layer z
-            prev_z = cgraph.zlist[-1] if cgraph.zlist else None
-            if prev_z is None:
-                pipes: list[RHGPipe] = []
-            else:
-                pipes = []
-                for pipe_coord, pipe in self.pipes_.items():
-                    u, v = pipe_coord
-                    if u[2] == prev_z and v[2] == z:
-                        # Explicitly fill in endpoint information (not preserved during skeleton->block conversion)
-                        pipe.source = u
-                        pipe.sink = v
-                        pipe.direction = get_direction(u, v)
-                        pipes.append(pipe)
-            cgraph = add_temporal_layer(cgraph, layer, pipes)
+            cgraph = add_temporal_layer(cgraph, layer)
         return cgraph

@@ -379,56 +379,7 @@ def _build_coordinate_gid_mapping(
     return new_coord2gid
 
 
-def _setup_temporal_connections(
-    pipes: list[RHGPipe],
-    cgraph: CompiledRHGCanvas,
-    next_layer: TemporalLayer,
-    new_graph: BaseGraphState,
-    new_coord2node: dict[PhysCoordGlobal3D, int],
-    new_coord2gid: dict[PhysCoordGlobal3D, QubitGroupIdGlobal],
-) -> None:
-    """Setup temporal connections between layers."""
-    allowed_gid_pairs: set[tuple[QubitGroupIdGlobal, QubitGroupIdGlobal]] = set()
-
-    for p in pipes:
-        if p.sink is None:
-            continue
-        source_cube = cgraph.cubes_.get(p.source)
-        sink_cube = next_layer.cubes_.get(p.sink)
-        if source_cube is None:
-            msg = f"Source cube not found at position {p.source} for temporal pipe"
-            raise KeyError(msg)
-        if sink_cube is None:
-            msg = f"Sink cube not found at position {p.sink} for temporal pipe"
-            raise KeyError(msg)
-        allowed_gid_pairs.add(
-            (
-                QubitGroupIdGlobal(source_cube.get_tiling_id()),
-                QubitGroupIdGlobal(sink_cube.get_tiling_id()),
-            )
-        )
-
-    for source in next_layer.get_boundary_nodes(face="z-", depth=[-1])["data"]:
-        sink_coord = PhysCoordGlobal3D((source[0], source[1], source[2] - 1))
-        source_gid = new_coord2gid.get(PhysCoordGlobal3D(source))
-        sink_gid = new_coord2gid.get(sink_coord)
-
-        if (
-            source_gid is not None
-            and sink_gid is not None
-            and is_allowed_pair(
-                TilingId(int(source_gid)),
-                TilingId(int(sink_gid)),
-                {(TilingId(int(a)), TilingId(int(b))) for a, b in allowed_gid_pairs},
-            )
-        ):
-            source_node = new_coord2node.get(PhysCoordGlobal3D(source))
-            sink_node = new_coord2node.get(sink_coord)
-            if source_node is not None and sink_node is not None and sink_node not in new_graph.neighbors(source_node):
-                new_graph.add_physical_edge(source_node, sink_node)
-
-
-def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pipes: list[RHGPipe]) -> CompiledRHGCanvas:
+def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> CompiledRHGCanvas:
     """Compose the compiled canvas with the next temporal layer.
 
     Parameters
@@ -437,8 +388,6 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         The current compiled canvas.
     next_layer : TemporalLayer
         The next temporal layer to add.
-    pipes : list[RHGPipe]
-        List of temporal pipes connecting the layers.
 
     Returns
     -------
@@ -461,10 +410,6 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
     # Build merged mappings
     new_coord2node = _build_merged_coord2node(cgraph, next_layer)
     merged_port_manager = cgraph.port_manager.merge(next_layer.port_manager, node_map1, node_map2)
-    new_coord2gid = _build_coordinate_gid_mapping(cgraph, next_layer)
-
-    # Setup temporal connections
-    _setup_temporal_connections(pipes, cgraph, next_layer, new_graph, new_coord2node, new_coord2gid)
 
     new_layers = [*cgraph.layers, next_layer]
 
