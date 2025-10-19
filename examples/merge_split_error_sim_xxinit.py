@@ -14,14 +14,14 @@ if TYPE_CHECKING:
     from lspattern.canvas import CompiledRHGCanvas
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeThinLayerSkeleton
-from lspattern.blocks.cubes.measure import MeasureZSkeleton
+from lspattern.blocks.cubes.measure import MeasureXSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
 from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
 from lspattern.consts import BoundarySide, EdgeSpecValue
-from lspattern.mytype import PatchCoordGlobal3D, PipeCoordGlobal3D
+from lspattern.mytype import PatchCoordGlobal3D
 
 
 def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
@@ -69,11 +69,11 @@ def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
         ),
         (
             PatchCoordGlobal3D((0, 0, 4)),
-            MeasureZSkeleton(d=d, edgespec=edgespec),
+            MeasureXSkeleton(d=d, edgespec=edgespec),
         ),
         (
             PatchCoordGlobal3D((1, 0, 4)),
-            MeasureZSkeleton(d=d, edgespec=edgespec),
+            MeasureXSkeleton(d=d, edgespec=edgespec),
         ),
     ]
     pipes = [
@@ -174,7 +174,7 @@ def create_circuit(d: int, noise: float) -> stim.Circuit:
     cout_portmap = compiled_canvas.cout_portset_cube
     cout_portmap_pipe = compiled_canvas.cout_portset_pipe
     coord2logical_group = {
-        0: {PatchCoordGlobal3D((0, 0, 4)), PatchCoordGlobal3D((1, 0, 4)), PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 2)), PatchCoordGlobal3D((1, 0, 2))))},
+        0: {PatchCoordGlobal3D((0, 0, 4)), PatchCoordGlobal3D((1, 0, 4))},
     }
     logical_observables = {}
     for i, group in coord2logical_group.items():
