@@ -319,14 +319,6 @@ class CompiledRHGCanvas:
         selected = [c for c in coords if on_face(c)]
         return {"data": selected, "xcheck": [], "zcheck": []}
 
-    def add_temporal_layer(self, next_layer: TemporalLayer, *, pipes: list[RHGPipe] | None = None) -> CompiledRHGCanvas:
-        """Compose this compiled canvas with `next_layer`.
-
-        Convenience instance-method wrapper around the module-level
-        `add_temporal_layer` with optional `pipes` gating cross-time connections.
-        """
-        return add_temporal_layer(self, next_layer, list(pipes or []))
-
 
 def _create_first_layer_canvas(next_layer: TemporalLayer) -> CompiledRHGCanvas:
     """Create compiled canvas for the first temporal layer."""
@@ -365,18 +357,6 @@ def _build_merged_coord2node(cgraph: CompiledRHGCanvas, next_layer: TemporalLaye
         **cgraph.coord2node,
         **next_layer.coord2node,
     }
-
-
-def _build_coordinate_gid_mapping(
-    cgraph: CompiledRHGCanvas, next_layer: TemporalLayer
-) -> dict[PhysCoordGlobal3D, QubitGroupIdGlobal]:
-    """Build coordinate to group ID mapping."""
-    new_coord2gid: dict[PhysCoordGlobal3D, QubitGroupIdGlobal] = {}
-    for cube in [*cgraph.cubes_.values(), *next_layer.cubes_.values()]:
-        new_coord2gid.update({PhysCoordGlobal3D(k): QubitGroupIdGlobal(v) for k, v in cube.coord2gid.items()})
-    for pipe in [*cgraph.pipes_.values(), *next_layer.pipes_.values()]:
-        new_coord2gid.update({PhysCoordGlobal3D(k): QubitGroupIdGlobal(v) for k, v in pipe.coord2gid.items()})
-    return new_coord2gid
 
 
 def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> CompiledRHGCanvas:
