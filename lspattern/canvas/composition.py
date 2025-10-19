@@ -88,7 +88,8 @@ class GraphComposer:
         for old_n, coord in block.node2coord.items():
             new_n = node_map2.get(old_n)
             if new_n is None:
-                continue
+                msg = f"Node {old_n} not found in node_map2 during coordinate processing."
+                raise KeyError(msg)
             x, y, z = int(coord[0]), int(coord[1]), int(coord[2])
             c_new = PhysCoordGlobal3D((x, y, z))
             role = block.node2role.get(old_n)
@@ -149,7 +150,8 @@ class GraphComposer:
                 for node in group:
                     new_id = node_map2.get(int(node))
                     if new_id is None:
-                        continue
+                        msg = f"Node {node} not found in node_map2 during cube cout port processing."
+                        raise KeyError(msg)
                     mapped_group.append(NodeIdLocal(new_id))
                 self.port_manager.register_cout_group_cube(pos, mapped_group)
 
@@ -205,7 +207,8 @@ class GraphComposer:
                 for node in group:
                     new_id = node_map2.get(int(node))
                     if new_id is None:
-                        continue
+                        msg = f"Node {node} not found in node_map2 during pipe cout port processing."
+                        raise KeyError(msg)
                     mapped_group.append(NodeIdLocal(new_id))
                 self.port_manager.register_cout_group_pipe(pipe_coord, mapped_group)
 

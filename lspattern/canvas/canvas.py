@@ -95,7 +95,8 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
         for pipe_coord in list(self.pipes_.keys()):
             coord_tuple = tuple(pipe_coord)
             if len(coord_tuple) != EDGE_TUPLE_SIZE:
-                continue
+                msg = f"Expected pipe coordinate tuple of size {EDGE_TUPLE_SIZE}, got {len(coord_tuple)}"
+                raise ValueError(msg)
             u, v = coord_tuple
             ux, uy, uz = u
             vx, vy, vz = v
