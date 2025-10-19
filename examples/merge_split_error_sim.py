@@ -4,6 +4,7 @@ import os
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
+import numpy as np
 import sinter
 import stim
 from graphqomb.scheduler import Scheduler
@@ -20,7 +21,7 @@ from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
 from lspattern.consts import BoundarySide, EdgeSpecValue
-from lspattern.mytype import PatchCoordGlobal3D
+from lspattern.mytype import PatchCoordGlobal3D, PipeCoordGlobal3D
 
 
 def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
@@ -169,16 +170,26 @@ def create_circuit(d: int, noise: float) -> stim.Circuit:
         scheduler=scheduler,
     )
 
-    # Set logical observables - use the first output patch only
+    # Set logical observables
     cout_portmap = compiled_canvas.cout_portset_cube
+    cout_portmap_pipe = compiled_canvas.cout_portset_pipe
     coord2logical_group = {
         0: {PatchCoordGlobal3D((0, 0, 4))},  # First output patch
+        1: {PatchCoordGlobal3D((1, 0, 4))},  # Second output patch
+        2: {PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 2)), PatchCoordGlobal3D((1, 0, 2))))},  # InitPlus pipe
     }
     logical_observables = {}
     for i, group in coord2logical_group.items():
         nodes = []
         for coord in group:
-            if coord in cout_portmap:
+            # PipeCoordGlobal3D is a 2-tuple of PatchCoordGlobal3D (nested tuples)
+            # PatchCoordGlobal3D is a 3-tuple of ints
+            if isinstance(coord, tuple) and len(coord) == 2 and all(isinstance(c, tuple) for c in coord):
+                # This is a PipeCoordGlobal3D
+                if coord in cout_portmap_pipe:
+                    nodes.extend(cout_portmap_pipe[coord])
+            elif coord in cout_portmap:
+                # This is a PatchCoordGlobal3D
                 nodes.extend(cout_portmap[coord])
         logical_observables[i] = set(nodes)
 
@@ -209,26 +220,79 @@ if __name__ == "__main__":
         decoders=["pymatching"],
         max_shots=1_000_000,
         max_errors=5_000,
+        count_observable_error_combos=True,
         print_progress=True,
     )
 
-    # Plot the results
-    fig, ax = plt.subplots(1, 1)
-    sinter.plot_error_rate(
-        ax=ax,
-        stats=collected_stats,
-        x_func=lambda stat: stat.json_metadata["p"],
-        group_func=lambda stat: f"d={stat.json_metadata['d']}",
-        failure_units_per_shot_func=lambda stat: stat.json_metadata["r"],
-    )
+    # Extract per-observable error rates with uncertainty
+    def extract_per_observable_error_rates(
+        stats: sinter.TaskStats, n_obs: int = 3
+    ) -> list[tuple[float, float]]:
+        """Extract per-observable error rates and standard errors from custom_counts.
 
-    ax.loglog()
-    ax.set_title("Merge and Split Error Rates per Round under Circuit Noise")
-    ax.set_xlabel("Physical Error Rate")
-    ax.set_ylabel("Logical Error Rate per Round")
-    ax.grid(which="major")
-    ax.grid(which="minor")
-    ax.legend()
+        Returns
+        -------
+        list[tuple[float, float]]
+            List of (error_rate, std_error) tuples for each observable.
+        """
+        err_counts = [0] * n_obs
+        for key, count in stats.custom_counts.items():
+            if not key.startswith("obs_mistake_mask="):
+                continue
+            mask = key.split("=", 1)[1]
+            for i, ch in enumerate(mask[:n_obs]):
+                if ch == "E":
+                    err_counts[i] += count
+
+        results = []
+        for err_count in err_counts:
+            if stats.shots > 0:
+                error_rate = err_count / stats.shots
+                # Standard error using binomial distribution
+                std_error = np.sqrt(error_rate * (1 - error_rate) / stats.shots)
+                results.append((error_rate, std_error))
+            else:
+                results.append((0.0, 0.0))
+        return results
+
+    # Create per-observable TaskStats for sinter.plot_error_rate
+    from dataclasses import replace
+
+    stats_per_obs: dict[int, list[sinter.TaskStats]] = {0: [], 1: [], 2: []}
+
+    for stat in collected_stats:
+        per_obs_data = extract_per_observable_error_rates(stat)
+        for obs_id, (error_rate, std_error) in enumerate(per_obs_data):
+            # Calculate error count for this observable
+            err_count = int(error_rate * stat.shots)
+            # Create new TaskStats with observable-specific error count
+            new_stat = replace(stat, errors=err_count)
+            stats_per_obs[obs_id].append(new_stat)
+
+    # Plot the results with 3 subplots (one per observable)
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+    observable_names = [
+        "Output patch 0 (0,0,4)",
+        "Output patch 1 (1,0,4)",
+        "InitPlus pipe (0,0,2)-(1,0,2)",
+    ]
+
+    for obs_id, (ax, obs_name) in enumerate(zip(axes, observable_names)):
+        sinter.plot_error_rate(
+            ax=ax,
+            stats=stats_per_obs[obs_id],
+            x_func=lambda stat: stat.json_metadata["p"],
+            group_func=lambda stat: f"d={stat.json_metadata['d']}",
+            failure_units_per_shot_func=lambda stat: stat.json_metadata["r"],
+        )
+        ax.set_title(f"Observable {obs_id}: {obs_name}")
+        ax.loglog()
+        ax.grid(which="major")
+        ax.grid(which="minor")
+        ax.legend()
+
+    fig.suptitle("Merge and Split: Per-Observable Error Rates under Circuit Noise", fontsize=14)
+    fig.tight_layout()
     fig.set_dpi(120)
     fig.savefig("figures/merge_split_error_sim.png", bbox_inches="tight")
     plt.show()
