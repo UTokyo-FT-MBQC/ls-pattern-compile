@@ -120,7 +120,7 @@ print(
 output_indices = compiled_canvas.global_graph.output_node_indices or {}  # type: ignore[union-attr]
 print(f"output qubits: {output_indices}")
 
-fig3d = visualize_compiled_canvas_plotly(compiled_canvas, show_edges=True, hilight_nodes={326, 327, 328, 329})
+fig3d = visualize_compiled_canvas_plotly(compiled_canvas, show_edges=True)
 fig3d.show()
 
 # %%
