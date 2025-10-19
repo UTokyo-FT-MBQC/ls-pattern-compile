@@ -257,8 +257,7 @@ class GraphComposer:
                 for cube in cubes.values():
                     if cube.node_map_global:
                         cube.node_map_global = {
-                            k: NodeIdLocal(node_map1.get(int(v), int(v)))
-                            for k, v in cube.node_map_global.items()
+                            k: NodeIdLocal(node_map1.get(int(v), int(v))) for k, v in cube.node_map_global.items()
                         }
                 # Update all previously processed pipes
                 for processed_pipe in processed_pipes:

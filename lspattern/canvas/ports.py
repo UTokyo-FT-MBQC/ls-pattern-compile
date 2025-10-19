@@ -115,7 +115,7 @@ class PortManager:
         for node in group_nodes:
             self.cout_group_lookup_pipe[node] = (pipe_coord, index)
 
-    def rebuild_cout_group_cache(self) -> None:
+    def rebuild_cout_group_cache(self) -> None:  # noqa: C901
         """Recompute flat cout caches from grouped data.
 
         This method rebuilds cout_portset_cube/pipe and cout_group_lookup_cube/pipe

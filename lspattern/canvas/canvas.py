@@ -23,7 +23,6 @@ from lspattern.mytype import (
     PatchCoordGlobal3D,
     PipeCoordGlobal3D,
 )
-from lspattern.utils import get_direction
 
 if TYPE_CHECKING:
     from lspattern.blocks.cubes.base import RHGCubeSkeleton
