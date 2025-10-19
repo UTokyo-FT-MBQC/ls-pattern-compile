@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from graphqomb.graphstate import BaseGraphState, GraphState, compose
+from graphqomb.graphstate import GraphState, compose
 
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
 from lspattern.canvas.graph_utils import create_remapped_graphstate
@@ -22,10 +22,7 @@ from lspattern.mytype import (
     PatchCoordGlobal3D,
     PhysCoordGlobal3D,
     PipeCoordGlobal3D,
-    QubitGroupIdGlobal,
-    TilingId,
 )
-from lspattern.utils import is_allowed_pair
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -389,7 +386,9 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> 
 
     # Build merged mappings
     new_coord2node = _build_merged_coord2node(cgraph, next_layer)
-    merged_port_manager = cgraph.port_manager.merge(next_layer.port_manager, node_map1, node_map2)
+    # cgraph is already remapped with node_map1 at line 386, so pass empty map to avoid double remapping
+    # TODO: should simplify the logic for better clarity
+    merged_port_manager = cgraph.port_manager.merge(next_layer.port_manager, {}, node_map2)
 
     new_layers = [*cgraph.layers, next_layer]
 
