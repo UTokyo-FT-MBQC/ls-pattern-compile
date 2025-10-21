@@ -42,9 +42,9 @@ class CircuitFingerprint:
         return CircuitFingerprint(
             name=name,
             sha256=digest,
-            num_qubits=int(getattr(circuit, "num_qubits", 0)),
-            num_detectors=int(getattr(circuit, "num_detectors", 0)),
-            num_observables=int(getattr(circuit, "num_observables", 0)),
+            num_qubits=int(circuit.num_qubits),
+            num_detectors=int(circuit.num_detectors),
+            num_observables=int(circuit.num_observables),
         )
 
     def to_dict(self) -> dict[str, Any]:
