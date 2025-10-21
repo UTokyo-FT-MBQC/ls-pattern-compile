@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import pymatching as pm
 import pytest
 
+from examples.merge_split_xx_error_sim import create_circuit
 from lspattern.testing.fingerprints import CircuitFingerprint, FingerprintRegistry
 
 
 def test_merge_split_xx_compile_and_metadata(fingerprint_registry: FingerprintRegistry) -> None:
-    from examples.merge_split_xx_error_sim import create_circuit
 
     d = 3
     circuit = create_circuit(d=d, noise=0.0)
@@ -23,8 +24,6 @@ def test_merge_split_xx_compile_and_metadata(fingerprint_registry: FingerprintRe
 
 @pytest.mark.slow
 def test_merge_split_xx_dem() -> None:
-    from examples.merge_split_xx_error_sim import create_circuit
-    import pymatching as pm
 
     d = 3
     noise = 1e-2

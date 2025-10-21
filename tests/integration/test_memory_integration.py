@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+import pymatching as pm
 import pytest
 
+from examples.memory_error_sim import create_circuit
 from lspattern.consts import InitializationState
 from lspattern.testing.fingerprints import CircuitFingerprint, FingerprintRegistry
 
 
 def test_memory_zero_compile_and_metadata(fingerprint_registry: FingerprintRegistry) -> None:
-    from examples.memory_error_sim import create_circuit
 
     d = 3
     circuit = create_circuit(d=d, noise=0.0, init_type=InitializationState.ZERO)
@@ -24,8 +25,6 @@ def test_memory_zero_compile_and_metadata(fingerprint_registry: FingerprintRegis
 
 @pytest.mark.slow
 def test_memory_zero_dem() -> None:
-    from examples.memory_error_sim import create_circuit
-    import pymatching as pm
 
     d = 3
     noise = 1e-2

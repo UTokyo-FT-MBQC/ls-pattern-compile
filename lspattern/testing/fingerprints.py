@@ -82,9 +82,11 @@ class FingerprintRegistry:
     }
     """
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, auto_update: bool = False) -> None:
         self.path = Path(path)
         self._items: dict[str, CircuitFingerprint] = {}
+        self.auto_update = auto_update
+        self._updated = False
 
     def load(self) -> None:
         if not self.path.exists():
@@ -108,11 +110,20 @@ class FingerprintRegistry:
         """Verify a fingerprint against the registry.
 
         Returns (ok, error_message). When the name is missing, returns (False, ...).
+        If auto_update is enabled, automatically updates mismatched fingerprints.
         """
         golden = self._items.get(fp.name)
         if golden is None:
+            if self.auto_update:
+                self.set(fp)
+                self._updated = True
+                return True, f"[AUTO-UPDATE] Added new fingerprint for {fp.name}"
             return False, f"Missing golden for {fp.name}"
         if golden.sha256 != fp.sha256:
+            if self.auto_update:
+                self.set(fp)
+                self._updated = True
+                return True, f"[AUTO-UPDATE] Updated fingerprint for {fp.name}: {golden.sha256} -> {fp.sha256}"
             return (
                 False,
                 f"Fingerprint mismatch for {fp.name}: expected {golden.sha256}, got {fp.sha256}",
@@ -129,5 +140,19 @@ class FingerprintRegistry:
                 f"d:{golden.num_detectors}->{fp.num_detectors}, "
                 f"o:{golden.num_observables}->{fp.num_observables})"
             )
+            if self.auto_update:
+                self.set(fp)
+                self._updated = True
+                return True, f"[AUTO-UPDATE] {msg}"
             return False, msg
         return True, None
+
+    def save_if_updated(self) -> bool:
+        """Save the registry if it was updated during auto-update mode.
+
+        Returns True if the registry was saved, False otherwise.
+        """
+        if self._updated:
+            self.save()
+            return True
+        return False
