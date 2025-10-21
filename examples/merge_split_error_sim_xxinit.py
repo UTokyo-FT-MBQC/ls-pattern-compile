@@ -21,7 +21,7 @@ from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
 from lspattern.consts import BoundarySide, EdgeSpecValue
-from lspattern.mytype import PatchCoordGlobal3D
+from lspattern.mytype import PatchCoordGlobal3D, PipeCoordGlobal3D
 
 
 def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
@@ -174,7 +174,7 @@ def create_circuit(d: int, noise: float) -> stim.Circuit:
     cout_portmap = compiled_canvas.cout_portset_cube
     cout_portmap_pipe = compiled_canvas.cout_portset_pipe
     coord2logical_group = {
-        0: {PatchCoordGlobal3D((0, 0, 4)), PatchCoordGlobal3D((1, 0, 4))},
+        0: {PatchCoordGlobal3D((0, 0, 4)), PatchCoordGlobal3D((1, 0, 4)), PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 3)), PatchCoordGlobal3D((1, 0, 3))))},  # X1X2 observable
     }
     logical_observables = {}
     for i, group in coord2logical_group.items():
@@ -194,7 +194,7 @@ def create_circuit(d: int, noise: float) -> stim.Circuit:
     stim_str = stim_compile(
         pattern,
         logical_observables,
-        after_clifford_depolarization=0,
+        after_clifford_depolarization=noise,
         before_measure_flip_probability=noise,
     )
     return stim.Circuit(stim_str)
@@ -208,7 +208,7 @@ if __name__ == "__main__":
             json_metadata={"d": d, "r": 1, "p": noise, "circuit_type": "merge_split"},
         )
         for d in [3, 5, 7]
-        for noise in [1e-2, 5e-2, 2e-2, 1e-1]
+        for noise in [1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2]
     ]
 
     # Collect statistics
