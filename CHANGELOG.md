@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - CI status badges (pytest, type checking, ruff) to README.md
+- Complete logical error rate simulation for merge and split operations ([#19](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/19))
+  - Cout port setting functionality for pipes (`InitPlusPipe`, `MeasureXPipe`, `MeasureZPipe`)
+  - Full multi-observable evaluation: Z₁, Z₂, Z₁Z₂ and X₁X₂ observables
+  - New example file `examples/merge_split_error_sim_xxinit.py` for XX-initialized merge/split error simulation
+  - Enhanced `examples/merge_split_error_sim.py` with comprehensive error pattern correlation analysis
+  - Per-observable error rates and standard errors calculation
+  - Statistical analysis tools for observable error combinations using Sinter's `count_observable_error_combos`
+  - Correlation coefficient calculation between observables (Pearson correlation)
+  - Multi-panel visualization showing total error rate, per-observable rates, and correlation matrices
 - Pipe-specific cout_port unit tests in `tests/canvas/test_ports.py` (12 new tests)
   - `test_register_cout_group_pipe_basic`: Basic pipe cout group registration
   - `test_register_multiple_pipe_cout_groups`: Multiple groups per pipe
@@ -59,6 +68,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `examples/merge_split_xx_error_sim.py`
   - Updated `tests/canvas/test_ports.py` to use new API
   - Updated `tests/test_mockup.py` and `tests/test_temporal_and_spatial.py` to use `cout_portset_cube`
+- Improved error handling in `GraphComposer` to raise exceptions instead of suppressing errors
+  - Better diagnostics for missing node mappings and coordinate system mismatches
+- Removed redundant methods from internal APIs for cleaner codebase
+
+### Fixed
+- Fixed critical duplicated node remapping bug in `CompiledRHGCanvas` ([#19](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/19))
+  - Eliminated duplicate calls to `_remap_graph_nodes()` that caused incorrect node ID mappings
+  - Resolved issue where `node_map_global` was being remapped twice during compilation
+  - This fix was essential for correct multi-observable evaluation in error simulations
+- Fixed `node_map_global` composition in pipe connection handling
+  - Ensured proper node ID mapping across pipe-cube boundaries
+  - Added proper merging of node maps from different coordinate systems
 
 ---
 
