@@ -139,8 +139,8 @@ def create_circuit(pattern: Pattern, noise: float) -> stim.Circuit:
     stim_str = stim_compile(
         pattern,
         logical_observables,
-        after_clifford_depolarization=noise,
-        before_measure_flip_probability=noise,
+        p_depol_after_clifford=noise,
+        p_before_meas_flip=noise,
     )
     return stim.Circuit(stim_str)
 
