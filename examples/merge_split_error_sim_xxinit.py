@@ -4,6 +4,7 @@ import os
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
+import numpy as np
 import sinter
 import stim
 from graphqomb.scheduler import Scheduler
@@ -12,54 +13,27 @@ from graphqomb.stim_compiler import stim_compile
 if TYPE_CHECKING:
     from lspattern.canvas import CompiledRHGCanvas
 
-from lspattern.blocks.cubes.initialize import (
-    InitPlusCubeThinLayerSkeleton,
-)
+from lspattern.blocks.cubes.initialize import InitPlusCubeThinLayerSkeleton
 from lspattern.blocks.cubes.measure import MeasureXSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
-from lspattern.blocks.pipes.initialize import InitZeroPipeSkeleton
-from lspattern.blocks.pipes.measure import MeasureZPipeSkeleton
+from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
+from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
 from lspattern.consts import BoundarySide, EdgeSpecValue
-from lspattern.mytype import PatchCoordGlobal3D
+from lspattern.mytype import PatchCoordGlobal3D, PipeCoordGlobal3D
 
 
 def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
     """Create RHG canvas skeleton for merge and split operation."""
+    canvass = RHGCanvasSkeleton("Merge and Split")
 
-    canvass = RHGCanvasSkeleton("Merge and Split XX")
+    edgespec: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.X, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
+    edgespec1: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
+    edgespec2: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.X, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
+    edgespec_trimmed: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
+    edgespec_measure_trimmed: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.O, BoundarySide.BOTTOM: EdgeSpecValue.O}
 
-    edgespec: dict[BoundarySide, EdgeSpecValue] = {
-        BoundarySide.LEFT: EdgeSpecValue.Z,
-        BoundarySide.RIGHT: EdgeSpecValue.Z,
-        BoundarySide.TOP: EdgeSpecValue.X,
-        BoundarySide.BOTTOM: EdgeSpecValue.X,
-    }
-    edgespec1: dict[BoundarySide, EdgeSpecValue] = {
-        BoundarySide.LEFT: EdgeSpecValue.Z,
-        BoundarySide.RIGHT: EdgeSpecValue.O,
-        BoundarySide.TOP: EdgeSpecValue.X,
-        BoundarySide.BOTTOM: EdgeSpecValue.X,
-    }
-    edgespec2: dict[BoundarySide, EdgeSpecValue] = {
-        BoundarySide.LEFT: EdgeSpecValue.O,
-        BoundarySide.RIGHT: EdgeSpecValue.Z,
-        BoundarySide.TOP: EdgeSpecValue.X,
-        BoundarySide.BOTTOM: EdgeSpecValue.X,
-    }
-    edgespec_trimmed: dict[BoundarySide, EdgeSpecValue] = {
-        BoundarySide.LEFT: EdgeSpecValue.O,
-        BoundarySide.RIGHT: EdgeSpecValue.O,
-        BoundarySide.TOP: EdgeSpecValue.X,
-        BoundarySide.BOTTOM: EdgeSpecValue.X,
-    }
-    edgespec_measure_trimmed: dict[BoundarySide, EdgeSpecValue] = {
-        BoundarySide.LEFT: EdgeSpecValue.O,
-        BoundarySide.RIGHT: EdgeSpecValue.O,
-        BoundarySide.TOP: EdgeSpecValue.O,
-        BoundarySide.BOTTOM: EdgeSpecValue.O,
-    }
     blocks = [
         (
             PatchCoordGlobal3D((0, 0, 0)),
@@ -106,12 +80,12 @@ def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
         (
             PatchCoordGlobal3D((0, 0, 2)),
             PatchCoordGlobal3D((1, 0, 2)),
-            InitZeroPipeSkeleton(d=d, edgespec=edgespec_trimmed),
+            InitPlusPipeSkeleton(d=d, edgespec=edgespec_trimmed),
         ),
         (
             PatchCoordGlobal3D((0, 0, 3)),
             PatchCoordGlobal3D((1, 0, 3)),
-            MeasureZPipeSkeleton(d=d, edgespec=edgespec_measure_trimmed),
+            MeasureXPipeSkeleton(d=d, edgespec=edgespec_measure_trimmed),
         ),
     ]
 
@@ -196,23 +170,31 @@ def create_circuit(d: int, noise: float) -> stim.Circuit:
         scheduler=scheduler,
     )
 
-    # Set logical observables - use the first output patch only
+    # Set logical observables
     cout_portmap = compiled_canvas.cout_portset_cube
+    cout_portmap_pipe = compiled_canvas.cout_portset_pipe
     coord2logical_group = {
-        0: {PatchCoordGlobal3D((0, 0, 4))},  # First output patch
+        0: {PatchCoordGlobal3D((0, 0, 4)), PatchCoordGlobal3D((1, 0, 4)), PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 3)), PatchCoordGlobal3D((1, 0, 3))))},  # X1X2 observable
     }
     logical_observables = {}
     for i, group in coord2logical_group.items():
-        nodes = []
+        nodes = set()
         for coord in group:
-            if coord in cout_portmap:
-                nodes.extend(cout_portmap[coord])
-        logical_observables[i] = set(nodes)
+            # PipeCoordGlobal3D is a 2-tuple of PatchCoordGlobal3D (nested tuples)
+            # PatchCoordGlobal3D is a 3-tuple of ints
+            if isinstance(coord, tuple) and len(coord) == 2 and all(isinstance(c, tuple) for c in coord):
+                # This is a PipeCoordGlobal3D
+                if coord in cout_portmap_pipe:
+                    nodes ^= set(cout_portmap_pipe[coord])
+            elif coord in cout_portmap:
+                # This is a PatchCoordGlobal3D
+                nodes ^= set(cout_portmap[coord])
+        logical_observables[i] = nodes
 
     stim_str = stim_compile(
         pattern,
         logical_observables,
-        p_depol_after_clifford=0,
+        p_depol_after_clifford=noise,
         p_before_meas_flip=noise,
     )
     return stim.Circuit(stim_str)
@@ -226,7 +208,7 @@ if __name__ == "__main__":
             json_metadata={"d": d, "r": 1, "p": noise, "circuit_type": "merge_split"},
         )
         for d in [3, 5, 7]
-        for noise in [1e-2, 5e-2, 2e-2, 1e-1]
+        for noise in [1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2]
     ]
 
     # Collect statistics
@@ -236,6 +218,7 @@ if __name__ == "__main__":
         decoders=["pymatching"],
         max_shots=1_000_000,
         max_errors=5_000,
+        count_observable_error_combos=True,
         print_progress=True,
     )
 
@@ -250,12 +233,12 @@ if __name__ == "__main__":
     )
 
     ax.loglog()
-    ax.set_title("Merge and Split Error Rates per Round under Circuit Noise")
+    ax.set_title("Merge and Split Error Rates per Shot under Circuit Noise")
     ax.set_xlabel("Physical Error Rate")
-    ax.set_ylabel("Logical Error Rate per Round")
+    ax.set_ylabel("Logical Error Rate per Shot")
     ax.grid(which="major")
     ax.grid(which="minor")
     ax.legend()
     fig.set_dpi(120)
-    fig.savefig("figures/merge_split_error_xx_sim.png", bbox_inches="tight")
+    fig.savefig("figures/merge_split_error_sim_xx_init.png", bbox_inches="tight")
     plt.show()

@@ -128,7 +128,7 @@ def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:
 
     in_ports = _ports_to_coords(cg.in_portset)  # type: ignore
     out_ports = _ports_to_coords(cg.out_portset)  # type: ignore
-    cout_ports = _ports_to_coords(cg.cout_portset)  # type: ignore
+    cout_ports = _ports_to_coords(cg.cout_portset_cube)  # type: ignore
 
     snapshot = {
         "meta": {
@@ -186,7 +186,7 @@ def test_cout_group_resolution_interface() -> None:
     # Inject a cout group and ensure lookup works
     first_layer = compiled.layers[0]
     patch = first_layer.patches[0]
-    compiled.port_manager.cout_port_groups = {patch: [[sample_node]]}
+    compiled.port_manager.cout_port_groups_cube = {patch: [[sample_node]]}
     compiled.port_manager.rebuild_cout_group_cache()
 
     fetched = compiled.get_cout_group_by_coord(sample_coord)

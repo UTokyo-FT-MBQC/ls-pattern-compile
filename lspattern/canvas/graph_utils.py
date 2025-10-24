@@ -38,7 +38,8 @@ def remap_graph_nodes(
     for old in gsrc.physical_nodes:
         new_id = nmap.get(NodeIdLocal(old), NodeIdLocal(old))
         if int(new_id) in created:
-            continue
+            msg = f"Node {new_id} is already created in destination graph."
+            raise KeyError(msg)
         created[int(new_id)] = gdst.add_physical_node()
     return created, gdst
 

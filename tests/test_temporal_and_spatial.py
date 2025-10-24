@@ -107,7 +107,7 @@ def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:
     # Convert portsets to correct format
     in_portset_conv: dict[tuple[int, int, int], list[int]] = {(k[0], k[1], k[2]): [int(v) for v in lst] for k, lst in cg.in_portset.items()}
     out_portset_conv: dict[tuple[int, int, int], list[int]] = {(k[0], k[1], k[2]): [int(v) for v in lst] for k, lst in cg.out_portset.items()}
-    cout_portset_conv: dict[tuple[int, int, int], list[int]] = {(k[0], k[1], k[2]): [int(v) for v in lst] for k, lst in cg.cout_portset.items()}
+    cout_portset_conv: dict[tuple[int, int, int], list[int]] = {(k[0], k[1], k[2]): [int(v) for v in lst] for k, lst in cg.cout_portset_cube.items()}
 
     in_ports = _ports_to_coords(in_portset_conv)
     out_ports = _ports_to_coords(out_portset_conv)

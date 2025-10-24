@@ -23,7 +23,6 @@ from lspattern.mytype import (
     PatchCoordGlobal3D,
     PipeCoordGlobal3D,
 )
-from lspattern.utils import get_direction
 
 if TYPE_CHECKING:
     from lspattern.blocks.cubes.base import RHGCubeSkeleton
@@ -95,7 +94,8 @@ class RHGCanvasSkeleton:  # BlockGraph in tqec
         for pipe_coord in list(self.pipes_.keys()):
             coord_tuple = tuple(pipe_coord)
             if len(coord_tuple) != EDGE_TUPLE_SIZE:
-                continue
+                msg = f"Expected pipe coordinate tuple of size {EDGE_TUPLE_SIZE}, got {len(coord_tuple)}"
+                raise ValueError(msg)
             u, v = coord_tuple
             ux, uy, uz = u
             vx, vy, vz = v
@@ -257,19 +257,5 @@ class RHGCanvas:  # TopologicalComputationGraph in tqec
         # Compose layers in increasing temporal order, wiring any cross-layer pipes
         for z in sorted(temporal_layers.keys()):
             layer = temporal_layers[z]
-            # Select pipes whose start.z is the last compiled z and end.z is this layer z
-            prev_z = cgraph.zlist[-1] if cgraph.zlist else None
-            if prev_z is None:
-                pipes: list[RHGPipe] = []
-            else:
-                pipes = []
-                for pipe_coord, pipe in self.pipes_.items():
-                    u, v = pipe_coord
-                    if u[2] == prev_z and v[2] == z:
-                        # Explicitly fill in endpoint information (not preserved during skeleton->block conversion)
-                        pipe.source = u
-                        pipe.sink = v
-                        pipe.direction = get_direction(u, v)
-                        pipes.append(pipe)
-            cgraph = add_temporal_layer(cgraph, layer, pipes)
+            cgraph = add_temporal_layer(cgraph, layer)
         return cgraph

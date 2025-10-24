@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from graphqomb.graphstate import BaseGraphState, GraphState, compose
+from graphqomb.graphstate import GraphState, compose
 
 from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
 from lspattern.canvas.graph_utils import create_remapped_graphstate
@@ -22,10 +22,7 @@ from lspattern.mytype import (
     PatchCoordGlobal3D,
     PhysCoordGlobal3D,
     PipeCoordGlobal3D,
-    QubitGroupIdGlobal,
-    TilingId,
 )
-from lspattern.utils import is_allowed_pair
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -90,27 +87,50 @@ class CompiledRHGCanvas:
         return self.port_manager.out_portset
 
     @property
-    def cout_portset(self) -> dict[PatchCoordGlobal3D, list[NodeIdLocal]]:
-        """Get cout_portset from port_manager."""
-        return self.port_manager.cout_portset
+    def cout_portset_cube(self) -> dict[PatchCoordGlobal3D, list[NodeIdLocal]]:
+        """Get cout_portset_cube from port_manager."""
+        return self.port_manager.cout_portset_cube
 
     @property
-    def cout_port_groups(self) -> dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]]:
-        """Get cout_port_groups from port_manager."""
-        return self.port_manager.cout_port_groups
+    def cout_portset_pipe(self) -> dict[PipeCoordGlobal3D, list[NodeIdLocal]]:
+        """Get cout_portset_pipe from port_manager."""
+        return self.port_manager.cout_portset_pipe
 
     @property
-    def cout_group_lookup(self) -> dict[NodeIdLocal, tuple[PatchCoordGlobal3D, int]]:
-        """Get cout_group_lookup from port_manager."""
-        return self.port_manager.cout_group_lookup
+    def cout_port_groups_cube(self) -> dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]]:
+        """Get cout_port_groups_cube from port_manager."""
+        return self.port_manager.cout_port_groups_cube
 
-    def _register_cout_group(
+    @property
+    def cout_port_groups_pipe(self) -> dict[PipeCoordGlobal3D, list[list[NodeIdLocal]]]:
+        """Get cout_port_groups_pipe from port_manager."""
+        return self.port_manager.cout_port_groups_pipe
+
+    @property
+    def cout_group_lookup_cube(self) -> dict[NodeIdLocal, tuple[PatchCoordGlobal3D, int]]:
+        """Get cout_group_lookup_cube from port_manager."""
+        return self.port_manager.cout_group_lookup_cube
+
+    @property
+    def cout_group_lookup_pipe(self) -> dict[NodeIdLocal, tuple[PipeCoordGlobal3D, int]]:
+        """Get cout_group_lookup_pipe from port_manager."""
+        return self.port_manager.cout_group_lookup_pipe
+
+    def _register_cout_group_cube(
         self,
         patch_pos: PatchCoordGlobal3D,
         nodes: list[NodeIdLocal],
     ) -> None:
-        """Record a cout group on the compiled canvas and sync caches."""
-        self.port_manager.register_cout_group(patch_pos, nodes)
+        """Record a cube cout group on the compiled canvas and sync caches."""
+        self.port_manager.register_cout_group_cube(patch_pos, nodes)
+
+    def _register_cout_group_pipe(
+        self,
+        pipe_coord: PipeCoordGlobal3D,
+        nodes: list[NodeIdLocal],
+    ) -> None:
+        """Record a pipe cout group on the compiled canvas and sync caches."""
+        self.port_manager.register_cout_group_pipe(pipe_coord, nodes)
 
     def _rebuild_cout_group_cache(self) -> None:
         """Recompute flat cout caches from grouped data."""
@@ -119,8 +139,15 @@ class CompiledRHGCanvas:
     def get_cout_group_by_coord(
         self,
         coord: PhysCoordGlobal3D,
-    ) -> tuple[PatchCoordGlobal3D, list[NodeIdLocal]] | None:
-        """Return the cout group for the node at `coord`, if present."""
+    ) -> tuple[PatchCoordGlobal3D | PipeCoordGlobal3D, list[NodeIdLocal]] | None:
+        """Return the cout group for the node at `coord`, if present.
+
+        Returns
+        -------
+        tuple[PatchCoordGlobal3D | PipeCoordGlobal3D, list[NodeIdLocal]] | None
+            Tuple of (coord, group_nodes) if found, None otherwise.
+            coord is PatchCoordGlobal3D for cube groups, PipeCoordGlobal3D for pipe groups.
+        """
         node = self.coord2node.get(coord)
         if node is None:
             return None
@@ -289,14 +316,6 @@ class CompiledRHGCanvas:
         selected = [c for c in coords if on_face(c)]
         return {"data": selected, "xcheck": [], "zcheck": []}
 
-    def add_temporal_layer(self, next_layer: TemporalLayer, *, pipes: list[RHGPipe] | None = None) -> CompiledRHGCanvas:
-        """Compose this compiled canvas with `next_layer`.
-
-        Convenience instance-method wrapper around the module-level
-        `add_temporal_layer` with optional `pipes` gating cross-time connections.
-        """
-        return add_temporal_layer(self, next_layer, list(pipes or []))
-
 
 def _create_first_layer_canvas(next_layer: TemporalLayer) -> CompiledRHGCanvas:
     """Create compiled canvas for the first temporal layer."""
@@ -337,68 +356,7 @@ def _build_merged_coord2node(cgraph: CompiledRHGCanvas, next_layer: TemporalLaye
     }
 
 
-def _build_coordinate_gid_mapping(
-    cgraph: CompiledRHGCanvas, next_layer: TemporalLayer
-) -> dict[PhysCoordGlobal3D, QubitGroupIdGlobal]:
-    """Build coordinate to group ID mapping."""
-    new_coord2gid: dict[PhysCoordGlobal3D, QubitGroupIdGlobal] = {}
-    for cube in [*cgraph.cubes_.values(), *next_layer.cubes_.values()]:
-        new_coord2gid.update({PhysCoordGlobal3D(k): QubitGroupIdGlobal(v) for k, v in cube.coord2gid.items()})
-    for pipe in [*cgraph.pipes_.values(), *next_layer.pipes_.values()]:
-        new_coord2gid.update({PhysCoordGlobal3D(k): QubitGroupIdGlobal(v) for k, v in pipe.coord2gid.items()})
-    return new_coord2gid
-
-
-def _setup_temporal_connections(
-    pipes: list[RHGPipe],
-    cgraph: CompiledRHGCanvas,
-    next_layer: TemporalLayer,
-    new_graph: BaseGraphState,
-    new_coord2node: dict[PhysCoordGlobal3D, int],
-    new_coord2gid: dict[PhysCoordGlobal3D, QubitGroupIdGlobal],
-) -> None:
-    """Setup temporal connections between layers."""
-    allowed_gid_pairs: set[tuple[QubitGroupIdGlobal, QubitGroupIdGlobal]] = set()
-
-    for p in pipes:
-        if p.sink is None:
-            continue
-        source_cube = cgraph.cubes_.get(p.source)
-        sink_cube = next_layer.cubes_.get(p.sink)
-        if source_cube is None:
-            msg = f"Source cube not found at position {p.source} for temporal pipe"
-            raise KeyError(msg)
-        if sink_cube is None:
-            msg = f"Sink cube not found at position {p.sink} for temporal pipe"
-            raise KeyError(msg)
-        allowed_gid_pairs.add(
-            (
-                QubitGroupIdGlobal(source_cube.get_tiling_id()),
-                QubitGroupIdGlobal(sink_cube.get_tiling_id()),
-            )
-        )
-
-    for source in next_layer.get_boundary_nodes(face="z-", depth=[-1])["data"]:
-        sink_coord = PhysCoordGlobal3D((source[0], source[1], source[2] - 1))
-        source_gid = new_coord2gid.get(PhysCoordGlobal3D(source))
-        sink_gid = new_coord2gid.get(sink_coord)
-
-        if (
-            source_gid is not None
-            and sink_gid is not None
-            and is_allowed_pair(
-                TilingId(int(source_gid)),
-                TilingId(int(sink_gid)),
-                {(TilingId(int(a)), TilingId(int(b))) for a, b in allowed_gid_pairs},
-            )
-        ):
-            source_node = new_coord2node.get(PhysCoordGlobal3D(source))
-            sink_node = new_coord2node.get(sink_coord)
-            if source_node is not None and sink_node is not None and sink_node not in new_graph.neighbors(source_node):
-                new_graph.add_physical_edge(source_node, sink_node)
-
-
-def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pipes: list[RHGPipe]) -> CompiledRHGCanvas:
+def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> CompiledRHGCanvas:
     """Compose the compiled canvas with the next temporal layer.
 
     Parameters
@@ -407,8 +365,6 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
         The current compiled canvas.
     next_layer : TemporalLayer
         The next temporal layer to add.
-    pipes : list[RHGPipe]
-        List of temporal pipes connecting the layers.
 
     Returns
     -------
@@ -430,11 +386,9 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer, pip
 
     # Build merged mappings
     new_coord2node = _build_merged_coord2node(cgraph, next_layer)
-    merged_port_manager = cgraph.port_manager.merge(next_layer.port_manager, node_map1, node_map2)
-    new_coord2gid = _build_coordinate_gid_mapping(cgraph, next_layer)
-
-    # Setup temporal connections
-    _setup_temporal_connections(pipes, cgraph, next_layer, new_graph, new_coord2node, new_coord2gid)
+    # cgraph is already remapped with node_map1 at line 386, so pass empty map to avoid double remapping
+    # TODO: should simplify the logic for better clarity
+    merged_port_manager = cgraph.port_manager.merge(next_layer.port_manager, {}, node_map2)
 
     new_layers = [*cgraph.layers, next_layer]
 

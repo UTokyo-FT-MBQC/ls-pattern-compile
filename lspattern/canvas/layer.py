@@ -86,19 +86,34 @@ class TemporalLayer:
         return self.port_manager.out_portset
 
     @property
-    def cout_portset(self) -> dict[PatchCoordGlobal3D, list[NodeIdLocal]]:
-        """Get cout_portset from port_manager."""
-        return self.port_manager.cout_portset
+    def cout_portset_cube(self) -> dict[PatchCoordGlobal3D, list[NodeIdLocal]]:
+        """Get cout_portset_cube from port_manager."""
+        return self.port_manager.cout_portset_cube
 
     @property
-    def cout_port_groups(self) -> dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]]:
-        """Get cout_port_groups from port_manager."""
-        return self.port_manager.cout_port_groups
+    def cout_portset_pipe(self) -> dict[PipeCoordGlobal3D, list[NodeIdLocal]]:
+        """Get cout_portset_pipe from port_manager."""
+        return self.port_manager.cout_portset_pipe
 
     @property
-    def cout_group_lookup(self) -> dict[NodeIdLocal, tuple[PatchCoordGlobal3D, int]]:
-        """Get cout_group_lookup from port_manager."""
-        return self.port_manager.cout_group_lookup
+    def cout_port_groups_cube(self) -> dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]]:
+        """Get cout_port_groups_cube from port_manager."""
+        return self.port_manager.cout_port_groups_cube
+
+    @property
+    def cout_port_groups_pipe(self) -> dict[PipeCoordGlobal3D, list[list[NodeIdLocal]]]:
+        """Get cout_port_groups_pipe from port_manager."""
+        return self.port_manager.cout_port_groups_pipe
+
+    @property
+    def cout_group_lookup_cube(self) -> dict[NodeIdLocal, tuple[PatchCoordGlobal3D, int]]:
+        """Get cout_group_lookup_cube from port_manager."""
+        return self.port_manager.cout_group_lookup_cube
+
+    @property
+    def cout_group_lookup_pipe(self) -> dict[NodeIdLocal, tuple[PipeCoordGlobal3D, int]]:
+        """Get cout_group_lookup_pipe from port_manager."""
+        return self.port_manager.cout_group_lookup_pipe
 
     @property
     def in_ports(self) -> list[NodeIdLocal]:
@@ -109,11 +124,6 @@ class TemporalLayer:
     def out_ports(self) -> list[NodeIdLocal]:
         """Get out_ports from port_manager."""
         return self.port_manager.out_ports
-
-    @property
-    def cout_ports(self) -> list[NodeIdLocal]:
-        """Get cout_ports from port_manager."""
-        return self.port_manager.cout_ports
 
     # Backward compatibility properties for coordinate mapping
     @property
@@ -209,13 +219,21 @@ class TemporalLayer:
         """Remap portsets with given node map."""
         self.port_manager.remap_ports(node_map)
 
-    def _register_cout_group(
+    def _register_cout_group_cube(
         self,
         patch_pos: PatchCoordGlobal3D,
         nodes: list[NodeIdLocal],
     ) -> None:
-        """Record a cout group for the given patch and keep caches in sync."""
-        self.port_manager.register_cout_group(patch_pos, nodes)
+        """Record a cube cout group for the given patch and keep caches in sync."""
+        self.port_manager.register_cout_group_cube(patch_pos, nodes)
+
+    def _register_cout_group_pipe(
+        self,
+        pipe_coord: PipeCoordGlobal3D,
+        nodes: list[NodeIdLocal],
+    ) -> None:
+        """Record a pipe cout group for the given pipe and keep caches in sync."""
+        self.port_manager.register_cout_group_pipe(pipe_coord, nodes)
 
     def _rebuild_cout_group_cache(self) -> None:
         """Recompute flat cout caches from grouped data."""
