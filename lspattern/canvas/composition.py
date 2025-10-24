@@ -88,7 +88,8 @@ class GraphComposer:
         for old_n, coord in block.node2coord.items():
             new_n = node_map2.get(old_n)
             if new_n is None:
-                continue
+                msg = f"Node {old_n} not found in node_map2 during coordinate processing."
+                raise KeyError(msg)
             x, y, z = int(coord[0]), int(coord[1]), int(coord[2])
             c_new = PhysCoordGlobal3D((x, y, z))
             role = block.node2role.get(old_n)
@@ -149,9 +150,10 @@ class GraphComposer:
                 for node in group:
                     new_id = node_map2.get(int(node))
                     if new_id is None:
-                        continue
+                        msg = f"Node {node} not found in node_map2 during cube cout port processing."
+                        raise KeyError(msg)
                     mapped_group.append(NodeIdLocal(new_id))
-                self.port_manager.register_cout_group(pos, mapped_group)
+                self.port_manager.register_cout_group_cube(pos, mapped_group)
 
     def process_cube_ports_direct(self, pos: PatchCoordGlobal3D, blk: RHGCube) -> None:
         """Process cube ports directly without node mapping.
@@ -176,7 +178,7 @@ class GraphComposer:
         if blk.cout_ports:
             for group in blk.cout_ports:
                 mapped_group = [NodeIdLocal(int(node)) for node in group]
-                self.port_manager.register_cout_group(pos, mapped_group)
+                self.port_manager.register_cout_group_cube(pos, mapped_group)
 
     def process_pipe_ports(self, pipe_coord: PipeCoordGlobal3D, pipe: RHGPipe, node_map2: Mapping[int, int]) -> None:
         """Process pipe ports with node mapping.
@@ -200,20 +202,21 @@ class GraphComposer:
             mapped_nodes = [NodeIdLocal(node_map2[n]) for n in pipe.out_ports if n in node_map2]
             self.port_manager.add_out_ports(patch_pos, mapped_nodes)
         if pipe.cout_ports:
-            patch_pos = PatchCoordGlobal3D(sink)
             for group in pipe.cout_ports:
                 mapped_group: list[NodeIdLocal] = []
                 for node in group:
                     new_id = node_map2.get(int(node))
                     if new_id is None:
-                        continue
+                        msg = f"Node {node} not found in node_map2 during pipe cout port processing."
+                        raise KeyError(msg)
                     mapped_group.append(NodeIdLocal(new_id))
-                self.port_manager.register_cout_group(patch_pos, mapped_group)
+                self.port_manager.register_cout_group_pipe(pipe_coord, mapped_group)
 
     def compose_pipe_graphs(
         self,
         g: BaseGraphState,
         pipes: Mapping[PipeCoordGlobal3D, RHGPipe],
+        cubes: Mapping[PatchCoordGlobal3D, RHGCube],
     ) -> GraphState:
         """Compose pipe graphs into the main graph state.
 
@@ -223,6 +226,8 @@ class GraphComposer:
             The current graph state.
         pipes : Mapping[PipeCoordGlobal3D, RHGPipe]
             Mapping of pipe coordinates to pipe blocks.
+        cubes : Mapping[PatchCoordGlobal3D, RHGCube]
+            Mapping of cube coordinates to cube blocks (needed to update their node_map_global).
 
         Returns
         -------
@@ -231,15 +236,39 @@ class GraphComposer:
 
         Notes
         -----
-        This method has side effects on the input pipe objects:
+        This method has side effects on the input pipe and cube objects:
         - Sets the `node_map_global` attribute on each pipe for accumulator merging.
+        - Updates the `node_map_global` attribute on all cubes when nodes are remapped.
         """
+        # Keep track of all pipes processed so far in this method
+        processed_pipes: list[RHGPipe] = []
+
         for pipe_coord, pipe in pipes.items():
             g2 = pipe.local_graph
 
             g_new, node_map1, node_map2 = compose(g, g2)
             # Store node mapping for later use in accumulator merging
             pipe.node_map_global = {NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map2.items()}
+
+            # Update node_map_global for all previously composed blocks
+            # when existing nodes are remapped by node_map1
+            if any(k != v for k, v in node_map1.items()):
+                # Update all cubes
+                for cube in cubes.values():
+                    if cube.node_map_global:
+                        cube.node_map_global = {
+                            k: NodeIdLocal(node_map1.get(int(v), int(v))) for k, v in cube.node_map_global.items()
+                        }
+                # Update all previously processed pipes
+                for processed_pipe in processed_pipes:
+                    if processed_pipe.node_map_global:
+                        processed_pipe.node_map_global = {
+                            k: NodeIdLocal(node_map1.get(int(v), int(v)))
+                            for k, v in processed_pipe.node_map_global.items()
+                        }
+
+            processed_pipes.append(pipe)
+
             self.coord_mapper.remap_nodes(node_map1)
             self.port_manager.remap_ports(node_map1)
             g = g_new
@@ -276,6 +305,7 @@ class GraphComposer:
         This method has side effects on the input cube and pipe objects:
         - Sets the `node_map_global` attribute on each cube and pipe for
           accumulator merging during temporal layer compilation.
+        - Updates the `node_map_global` attribute on all cubes when nodes are remapped.
         """
         # Special case: single block - use its GraphState directly to preserve q_indices
         if len(cubes) == 1 and len(pipes) == 0:
@@ -289,15 +319,31 @@ class GraphComposer:
         # Multiple blocks case - compose as before
         g_state: GraphState = GraphState()
 
+        # Keep track of all cubes processed so far
+        processed_cubes: list[RHGCube] = []
+
         # Compose cube graphs
         for pos, blk in cubes.items():
             g_state, node_map1, node_map2 = self.compose_single_cube(pos, blk, g_state)
             # Store node mapping for later use in accumulator merging
             blk.node_map_global = {NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map2.items()}
+
+            # Update node_map_global for all previously composed cubes
+            # when existing nodes are remapped by node_map1
+            if any(k != v for k, v in node_map1.items()):
+                for processed_cube in processed_cubes:
+                    if processed_cube.node_map_global:
+                        processed_cube.node_map_global = {
+                            k: NodeIdLocal(node_map1.get(int(v), int(v)))
+                            for k, v in processed_cube.node_map_global.items()
+                        }
+
+            processed_cubes.append(blk)
+
             self.coord_mapper.remap_nodes(node_map1)
             self.port_manager.remap_ports(node_map1)
             self.process_cube_coordinates(blk, node_map2)
             self.process_cube_ports(pos, blk, node_map2)
 
         # Compose pipe graphs (spatial pipes in this layer)
-        return self.compose_pipe_graphs(g_state, pipes)
+        return self.compose_pipe_graphs(g_state, pipes, cubes)

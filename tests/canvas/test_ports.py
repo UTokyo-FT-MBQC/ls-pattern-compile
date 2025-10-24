@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from lspattern.canvas.ports import PortManager
-from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D
+from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PipeCoordGlobal3D
 
 
 class TestPortManagerBasic:
@@ -16,12 +16,10 @@ class TestPortManagerBasic:
         manager = PortManager()
         assert manager.in_portset == {}
         assert manager.out_portset == {}
-        assert manager.cout_portset == {}
-        assert manager.cout_port_groups == {}
-        assert manager.cout_group_lookup == {}
+        assert manager.cout_port_groups_cube == {}
+        assert manager.cout_group_lookup_cube == {}
         assert manager.in_ports == []
         assert manager.out_ports == []
-        assert manager.cout_ports == []
 
     def test_add_in_ports(self) -> None:
         """Test adding input ports."""
@@ -76,22 +74,20 @@ class TestPortManagerBasic:
 class TestPortManagerCoutGroups:
     """Test cout group management functionality."""
 
-    def test_register_cout_group(self) -> None:
+    def test_register_cout_group_cube(self) -> None:
         """Test registering a cout group."""
         manager = PortManager()
         patch_pos = PatchCoordGlobal3D((0, 0, 0))
         nodes = [NodeIdLocal(10), NodeIdLocal(11), NodeIdLocal(12)]
 
-        manager.register_cout_group(patch_pos, nodes)
+        manager.register_cout_group_cube(patch_pos, nodes)
 
-        assert patch_pos in manager.cout_port_groups
-        assert len(manager.cout_port_groups[patch_pos]) == 1
-        assert manager.cout_port_groups[patch_pos][0] == nodes
-        assert manager.cout_portset[patch_pos] == nodes
-        assert manager.cout_ports == nodes
+        assert patch_pos in manager.cout_port_groups_cube
+        assert len(manager.cout_port_groups_cube[patch_pos]) == 1
+        assert manager.cout_port_groups_cube[patch_pos][0] == nodes
         # Check lookup
-        for i, node in enumerate(nodes):
-            assert manager.cout_group_lookup[node] == (patch_pos, 0)
+        for node in nodes:
+            assert manager.cout_group_lookup_cube[node] == (patch_pos, 0)
 
     def test_register_multiple_cout_groups(self) -> None:
         """Test registering multiple cout groups for same patch."""
@@ -100,39 +96,36 @@ class TestPortManagerCoutGroups:
         group1 = [NodeIdLocal(10), NodeIdLocal(11)]
         group2 = [NodeIdLocal(12), NodeIdLocal(13)]
 
-        manager.register_cout_group(patch_pos, group1)
-        manager.register_cout_group(patch_pos, group2)
+        manager.register_cout_group_cube(patch_pos, group1)
+        manager.register_cout_group_cube(patch_pos, group2)
 
-        assert len(manager.cout_port_groups[patch_pos]) == 2
-        assert manager.cout_port_groups[patch_pos][0] == group1
-        assert manager.cout_port_groups[patch_pos][1] == group2
-        assert set(manager.cout_portset[patch_pos]) == set(group1 + group2)
-        assert set(manager.cout_ports) == set(group1 + group2)
+        assert len(manager.cout_port_groups_cube[patch_pos]) == 2
+        assert manager.cout_port_groups_cube[patch_pos][0] == group1
+        assert manager.cout_port_groups_cube[patch_pos][1] == group2
+        assert set(manager.cout_portset_cube[patch_pos]) == set(group1 + group2)
         # Check lookup indices
-        assert manager.cout_group_lookup[NodeIdLocal(10)] == (patch_pos, 0)
-        assert manager.cout_group_lookup[NodeIdLocal(12)] == (patch_pos, 1)
+        assert manager.cout_group_lookup_cube[NodeIdLocal(10)] == (patch_pos, 0)
+        assert manager.cout_group_lookup_cube[NodeIdLocal(12)] == (patch_pos, 1)
 
     def test_register_empty_cout_group(self) -> None:
         """Test that empty cout groups are not registered."""
         manager = PortManager()
         patch_pos = PatchCoordGlobal3D((0, 0, 0))
 
-        manager.register_cout_group(patch_pos, [])
+        manager.register_cout_group_cube(patch_pos, [])
 
-        assert patch_pos not in manager.cout_port_groups
-        assert manager.cout_ports == []
+        assert patch_pos not in manager.cout_port_groups_cube
 
     def test_register_cout_group_with_none_values(self) -> None:
         """Test cout group registration filters None values."""
         manager = PortManager()
         patch_pos = PatchCoordGlobal3D((0, 0, 0))
-        nodes_with_none = [NodeIdLocal(10), None, NodeIdLocal(11)]  # type: ignore[list-item]
+        nodes_with_none: list[NodeIdLocal | None] = [NodeIdLocal(10), None, NodeIdLocal(11)]
 
-        manager.register_cout_group(patch_pos, nodes_with_none)  # type: ignore[arg-type]
+        manager.register_cout_group_cube(patch_pos, nodes_with_none)  # type: ignore[arg-type]
 
         expected = [NodeIdLocal(10), NodeIdLocal(11)]
-        assert manager.cout_port_groups[patch_pos][0] == expected
-        assert manager.cout_ports == expected
+        assert manager.cout_port_groups_cube[patch_pos][0] == expected
 
     def test_get_cout_group_by_node(self) -> None:
         """Test retrieving cout group by node ID."""
@@ -140,7 +133,7 @@ class TestPortManagerCoutGroups:
         patch_pos = PatchCoordGlobal3D((0, 0, 0))
         nodes = [NodeIdLocal(10), NodeIdLocal(11)]
 
-        manager.register_cout_group(patch_pos, nodes)
+        manager.register_cout_group_cube(patch_pos, nodes)
 
         result = manager.get_cout_group_by_node(NodeIdLocal(10))
         assert result is not None
@@ -161,22 +154,20 @@ class TestPortManagerCoutGroups:
         group1 = [NodeIdLocal(10), NodeIdLocal(11)]
         group2 = [NodeIdLocal(12), NodeIdLocal(13)]
 
-        manager.register_cout_group(patch_pos, group1)
-        manager.register_cout_group(patch_pos, group2)
+        manager.register_cout_group_cube(patch_pos, group1)
+        manager.register_cout_group_cube(patch_pos, group2)
 
         # Manually corrupt caches
-        manager.cout_portset = {}
-        manager.cout_ports = []
-        manager.cout_group_lookup = {}
+        manager.cout_portset_cube = {}
+        manager.cout_group_lookup_cube = {}
 
         # Rebuild
         manager.rebuild_cout_group_cache()
 
         # Verify caches are restored
-        assert set(manager.cout_portset[patch_pos]) == set(group1 + group2)
-        assert set(manager.cout_ports) == set(group1 + group2)
-        assert manager.cout_group_lookup[NodeIdLocal(10)] == (patch_pos, 0)
-        assert manager.cout_group_lookup[NodeIdLocal(12)] == (patch_pos, 1)
+        assert set(manager.cout_portset_cube[patch_pos]) == set(group1 + group2)
+        assert manager.cout_group_lookup_cube[NodeIdLocal(10)] == (patch_pos, 0)
+        assert manager.cout_group_lookup_cube[NodeIdLocal(12)] == (patch_pos, 1)
 
 
 class TestPortManagerRemapping:
@@ -210,16 +201,14 @@ class TestPortManagerRemapping:
         """Test remapping cout port groups."""
         manager = PortManager()
         patch_pos = PatchCoordGlobal3D((0, 0, 0))
-        manager.register_cout_group(patch_pos, [NodeIdLocal(10), NodeIdLocal(11)])
+        manager.register_cout_group_cube(patch_pos, [NodeIdLocal(10), NodeIdLocal(11)])
 
         node_map = {10: 100, 11: 110}
         manager.remap_ports(node_map)
 
         expected = [NodeIdLocal(100), NodeIdLocal(110)]
-        assert manager.cout_port_groups[patch_pos][0] == expected
-        assert manager.cout_portset[patch_pos] == expected
-        assert manager.cout_ports == expected
-        assert manager.cout_group_lookup[NodeIdLocal(100)] == (patch_pos, 0)
+        assert manager.cout_port_groups_cube[patch_pos][0] == expected
+        assert manager.cout_group_lookup_cube[NodeIdLocal(100)] == (patch_pos, 0)
 
     def test_remap_preserves_unmapped_nodes(self) -> None:
         """Test that nodes not in mapping are preserved."""
@@ -241,7 +230,6 @@ class TestPortManagerRemapping:
 
         assert manager.in_ports == []
         assert manager.out_ports == []
-        assert manager.cout_ports == []
 
 
 class TestPortManagerCopy:
@@ -252,7 +240,7 @@ class TestPortManagerCopy:
         manager = PortManager()
         patch_pos = PatchCoordGlobal3D((0, 0, 0))
         manager.add_in_ports(patch_pos, [NodeIdLocal(1)])
-        manager.register_cout_group(patch_pos, [NodeIdLocal(10)])
+        manager.register_cout_group_cube(patch_pos, [NodeIdLocal(10)])
 
         copied = manager.copy()
 
@@ -270,7 +258,7 @@ class TestPortManagerCopy:
         patch2 = PatchCoordGlobal3D((1, 0, 0))
         manager.add_in_ports(patch1, [NodeIdLocal(1)])
         manager.add_out_ports(patch2, [NodeIdLocal(2)])
-        manager.register_cout_group(patch1, [NodeIdLocal(10), NodeIdLocal(11)])
+        manager.register_cout_group_cube(patch1, [NodeIdLocal(10), NodeIdLocal(11)])
 
         copied = manager.copy()
 
@@ -279,8 +267,8 @@ class TestPortManagerCopy:
         assert copied.in_portset is not manager.in_portset
         assert copied.out_portset == manager.out_portset
         assert copied.out_portset is not manager.out_portset
-        assert copied.cout_port_groups == manager.cout_port_groups
-        assert copied.cout_port_groups is not manager.cout_port_groups
+        assert copied.cout_port_groups_cube == manager.cout_port_groups_cube
+        assert copied.cout_port_groups_cube is not manager.cout_port_groups_cube
 
 
 class TestPortManagerEdgeCases:
@@ -295,11 +283,11 @@ class TestPortManagerEdgeCases:
 
         manager.add_in_ports(patch1, [NodeIdLocal(1)])
         manager.add_out_ports(patch2, [NodeIdLocal(2)])
-        manager.register_cout_group(patch3, [NodeIdLocal(10)])
+        manager.register_cout_group_cube(patch3, [NodeIdLocal(10)])
 
         assert len(manager.in_portset) == 1
         assert len(manager.out_portset) == 1
-        assert len(manager.cout_port_groups) == 1
+        assert len(manager.cout_port_groups_cube) == 1
 
     def test_large_node_ids(self) -> None:
         """Test handling of large node IDs."""
@@ -351,7 +339,7 @@ class TestPortManagerEdgeCases:
         """Test that None values are filtered from in_ports."""
         manager = PortManager()
         patch_pos = PatchCoordGlobal3D((0, 0, 0))
-        nodes_with_none = [NodeIdLocal(1), None, NodeIdLocal(2)]  # type: ignore[list-item]
+        nodes_with_none: list[NodeIdLocal | None] = [NodeIdLocal(1), None, NodeIdLocal(2)]
 
         manager.add_in_ports(patch_pos, nodes_with_none)  # type: ignore[arg-type]
 
@@ -363,7 +351,7 @@ class TestPortManagerEdgeCases:
         """Test that None values are filtered from out_ports."""
         manager = PortManager()
         patch_pos = PatchCoordGlobal3D((0, 0, 0))
-        nodes_with_none = [NodeIdLocal(1), None, NodeIdLocal(2)]  # type: ignore[list-item]
+        nodes_with_none: list[NodeIdLocal | None] = [NodeIdLocal(1), None, NodeIdLocal(2)]
 
         manager.add_out_ports(patch_pos, nodes_with_none)  # type: ignore[arg-type]
 
@@ -390,7 +378,7 @@ class TestPortManagerMerge:
         pm2.add_out_ports(patch2, [NodeIdLocal(20)])
 
         # Identity mapping (no remapping)
-        node_map = {}
+        node_map: dict[int, int] = {}
         merged = pm1.merge(pm2, node_map, node_map)
 
         # in_ports should come from pm2 (other) by default
@@ -458,7 +446,7 @@ class TestPortManagerMerge:
         pm2 = PortManager()
 
         with pytest.raises(ValueError, match="Invalid in_ports_from"):
-            pm1.merge(pm2, {}, {}, in_ports_from="invalid")  # type: ignore[arg-type]
+            pm1.merge(pm2, {}, {}, in_ports_from="invalid")
 
     def test_merge_cout_groups(self) -> None:
         """Test merge with cout_port_groups."""
@@ -467,11 +455,248 @@ class TestPortManagerMerge:
 
         patch = PatchCoordGlobal3D((0, 0, 0))
 
-        pm1.register_cout_group(patch, [NodeIdLocal(1), NodeIdLocal(2)])
-        pm2.register_cout_group(patch, [NodeIdLocal(10), NodeIdLocal(11)])
+        pm1.register_cout_group_cube(patch, [NodeIdLocal(1), NodeIdLocal(2)])
+        pm2.register_cout_group_cube(patch, [NodeIdLocal(10), NodeIdLocal(11)])
 
         merged = pm1.merge(pm2, {}, {})
 
         # Both groups should be present
-        assert patch in merged.cout_port_groups
-        assert len(merged.cout_port_groups[patch]) == 2
+        assert patch in merged.cout_port_groups_cube
+        assert len(merged.cout_port_groups_cube[patch]) == 2
+
+
+class TestPortManagerPipeCoutGroups:
+    """Test pipe cout group management functionality."""
+
+    def test_register_cout_group_pipe_basic(self) -> None:
+        """Test registering a pipe cout group."""
+        manager = PortManager()
+        source = PatchCoordGlobal3D((0, 0, 0))
+        sink = PatchCoordGlobal3D((1, 0, 0))
+        pipe_coord = PipeCoordGlobal3D((source, sink))
+        nodes = [NodeIdLocal(20), NodeIdLocal(21), NodeIdLocal(22)]
+
+        manager.register_cout_group_pipe(pipe_coord, nodes)
+
+        assert pipe_coord in manager.cout_port_groups_pipe
+        assert len(manager.cout_port_groups_pipe[pipe_coord]) == 1
+        assert manager.cout_port_groups_pipe[pipe_coord][0] == nodes
+        # Check flat portset
+        assert pipe_coord in manager.cout_portset_pipe
+        assert set(manager.cout_portset_pipe[pipe_coord]) == set(nodes)
+        # Check lookup
+        for node in nodes:
+            assert manager.cout_group_lookup_pipe[node] == (pipe_coord, 0)
+
+    def test_register_multiple_pipe_cout_groups(self) -> None:
+        """Test registering multiple cout groups for same pipe."""
+        manager = PortManager()
+        source = PatchCoordGlobal3D((0, 0, 0))
+        sink = PatchCoordGlobal3D((1, 0, 0))
+        pipe_coord = PipeCoordGlobal3D((source, sink))
+        group1 = [NodeIdLocal(20), NodeIdLocal(21)]
+        group2 = [NodeIdLocal(22), NodeIdLocal(23)]
+
+        manager.register_cout_group_pipe(pipe_coord, group1)
+        manager.register_cout_group_pipe(pipe_coord, group2)
+
+        assert len(manager.cout_port_groups_pipe[pipe_coord]) == 2
+        assert manager.cout_port_groups_pipe[pipe_coord][0] == group1
+        assert manager.cout_port_groups_pipe[pipe_coord][1] == group2
+        assert set(manager.cout_portset_pipe[pipe_coord]) == set(group1 + group2)
+        # Check lookup indices
+        assert manager.cout_group_lookup_pipe[NodeIdLocal(20)] == (pipe_coord, 0)
+        assert manager.cout_group_lookup_pipe[NodeIdLocal(22)] == (pipe_coord, 1)
+
+    def test_register_empty_pipe_cout_group(self) -> None:
+        """Test that empty pipe cout groups are not registered."""
+        manager = PortManager()
+        source = PatchCoordGlobal3D((0, 0, 0))
+        sink = PatchCoordGlobal3D((1, 0, 0))
+        pipe_coord = PipeCoordGlobal3D((source, sink))
+
+        manager.register_cout_group_pipe(pipe_coord, [])
+
+        assert pipe_coord not in manager.cout_port_groups_pipe
+
+    def test_register_pipe_cout_group_with_none_values(self) -> None:
+        """Test pipe cout group registration filters None values."""
+        manager = PortManager()
+        source = PatchCoordGlobal3D((0, 0, 0))
+        sink = PatchCoordGlobal3D((1, 0, 0))
+        pipe_coord = PipeCoordGlobal3D((source, sink))
+        nodes_with_none: list[NodeIdLocal | None] = [NodeIdLocal(20), None, NodeIdLocal(21)]
+
+        manager.register_cout_group_pipe(pipe_coord, nodes_with_none)  # type: ignore[arg-type]
+
+        expected = [NodeIdLocal(20), NodeIdLocal(21)]
+        assert manager.cout_port_groups_pipe[pipe_coord][0] == expected
+
+    def test_get_cout_group_by_node_pipe(self) -> None:
+        """Test retrieving pipe cout group by node ID."""
+        manager = PortManager()
+        source = PatchCoordGlobal3D((0, 0, 0))
+        sink = PatchCoordGlobal3D((1, 0, 0))
+        pipe_coord = PipeCoordGlobal3D((source, sink))
+        nodes = [NodeIdLocal(20), NodeIdLocal(21)]
+
+        manager.register_cout_group_pipe(pipe_coord, nodes)
+
+        result = manager.get_cout_group_by_node(NodeIdLocal(20))
+        assert result is not None
+        coord, group = result
+        assert coord == pipe_coord
+        assert group == nodes
+
+    def test_cube_and_pipe_cout_groups_separated(self) -> None:
+        """Test that cube and pipe cout groups are properly separated."""
+        manager = PortManager()
+        cube_patch = PatchCoordGlobal3D((0, 0, 0))
+        source = PatchCoordGlobal3D((0, 0, 0))
+        sink = PatchCoordGlobal3D((1, 0, 0))
+        pipe_coord = PipeCoordGlobal3D((source, sink))
+
+        cube_nodes = [NodeIdLocal(10), NodeIdLocal(11)]
+        pipe_nodes = [NodeIdLocal(20), NodeIdLocal(21)]
+
+        manager.register_cout_group_cube(cube_patch, cube_nodes)
+        manager.register_cout_group_pipe(pipe_coord, pipe_nodes)
+
+        # Verify cube groups
+        assert cube_patch in manager.cout_port_groups_cube
+        assert manager.cout_port_groups_cube[cube_patch][0] == cube_nodes
+        # Verify pipe groups
+        assert pipe_coord in manager.cout_port_groups_pipe
+        assert manager.cout_port_groups_pipe[pipe_coord][0] == pipe_nodes
+        # Verify lookups are separate
+        cube_result = manager.get_cout_group_by_node(NodeIdLocal(10))
+        assert cube_result is not None
+        assert cube_result[0] == cube_patch
+        pipe_result = manager.get_cout_group_by_node(NodeIdLocal(20))
+        assert pipe_result is not None
+        assert pipe_result[0] == pipe_coord
+
+    def test_cube_and_pipe_at_same_sink_coordinate(self) -> None:
+        """Test distinguishing cube and pipe cout groups at same sink coordinate.
+
+        This is the key test for the cube/pipe separation feature - ensuring
+        that when both a cube and a pipe have cout_ports at the same coordinate,
+        they can be distinguished by their different key types.
+        """
+        manager = PortManager()
+        sink = PatchCoordGlobal3D((1, 0, 0))
+        source = PatchCoordGlobal3D((0, 0, 0))
+        pipe_coord = PipeCoordGlobal3D((source, sink))
+
+        cube_nodes = [NodeIdLocal(10), NodeIdLocal(11)]
+        pipe_nodes = [NodeIdLocal(20), NodeIdLocal(21)]
+
+        # Register cube cout_ports at sink coordinate
+        manager.register_cout_group_cube(sink, cube_nodes)
+        # Register pipe cout_ports with pipe coordinate (source, sink)
+        manager.register_cout_group_pipe(pipe_coord, pipe_nodes)
+
+        # Both should be registered independently
+        assert sink in manager.cout_port_groups_cube
+        assert pipe_coord in manager.cout_port_groups_pipe
+        assert manager.cout_port_groups_cube[sink][0] == cube_nodes
+        assert manager.cout_port_groups_pipe[pipe_coord][0] == pipe_nodes
+
+        # Nodes should resolve to correct coordinates
+        cube_result = manager.get_cout_group_by_node(NodeIdLocal(10))
+        assert cube_result is not None
+        assert cube_result[0] == sink  # Cube uses PatchCoordGlobal3D
+        assert cube_result[1] == cube_nodes
+
+        pipe_result = manager.get_cout_group_by_node(NodeIdLocal(20))
+        assert pipe_result is not None
+        assert pipe_result[0] == pipe_coord  # Pipe uses PipeCoordGlobal3D
+        assert pipe_result[1] == pipe_nodes
+
+    def test_remap_pipe_cout_groups(self) -> None:
+        """Test remapping pipe cout port groups."""
+        manager = PortManager()
+        source = PatchCoordGlobal3D((0, 0, 0))
+        sink = PatchCoordGlobal3D((1, 0, 0))
+        pipe_coord = PipeCoordGlobal3D((source, sink))
+        manager.register_cout_group_pipe(pipe_coord, [NodeIdLocal(20), NodeIdLocal(21)])
+
+        node_map = {20: 200, 21: 210}
+        manager.remap_ports(node_map)
+
+        expected = [NodeIdLocal(200), NodeIdLocal(210)]
+        assert manager.cout_port_groups_pipe[pipe_coord][0] == expected
+        assert manager.cout_group_lookup_pipe[NodeIdLocal(200)] == (pipe_coord, 0)
+        assert manager.cout_group_lookup_pipe[NodeIdLocal(210)] == (pipe_coord, 0)
+
+    def test_rebuild_pipe_cout_group_cache(self) -> None:
+        """Test rebuilding pipe cout group caches."""
+        manager = PortManager()
+        source = PatchCoordGlobal3D((0, 0, 0))
+        sink = PatchCoordGlobal3D((1, 0, 0))
+        pipe_coord = PipeCoordGlobal3D((source, sink))
+        group1 = [NodeIdLocal(20), NodeIdLocal(21)]
+        group2 = [NodeIdLocal(22), NodeIdLocal(23)]
+
+        manager.register_cout_group_pipe(pipe_coord, group1)
+        manager.register_cout_group_pipe(pipe_coord, group2)
+
+        # Manually corrupt pipe caches
+        manager.cout_portset_pipe = {}
+        manager.cout_group_lookup_pipe = {}
+
+        # Rebuild
+        manager.rebuild_cout_group_cache()
+
+        # Verify pipe caches are restored
+        assert set(manager.cout_portset_pipe[pipe_coord]) == set(group1 + group2)
+        assert manager.cout_group_lookup_pipe[NodeIdLocal(20)] == (pipe_coord, 0)
+        assert manager.cout_group_lookup_pipe[NodeIdLocal(22)] == (pipe_coord, 1)
+
+    def test_copy_includes_pipe_cout_ports(self) -> None:
+        """Test that copy includes pipe cout ports."""
+        manager = PortManager()
+        source = PatchCoordGlobal3D((0, 0, 0))
+        sink = PatchCoordGlobal3D((1, 0, 0))
+        pipe_coord = PipeCoordGlobal3D((source, sink))
+        manager.register_cout_group_pipe(pipe_coord, [NodeIdLocal(20), NodeIdLocal(21)])
+
+        copied = manager.copy()
+
+        # Modify original
+        manager.register_cout_group_pipe(pipe_coord, [NodeIdLocal(22)])
+
+        # Copied should be unchanged
+        assert len(copied.cout_port_groups_pipe[pipe_coord]) == 1
+        assert copied.cout_port_groups_pipe[pipe_coord][0] == [NodeIdLocal(20), NodeIdLocal(21)]
+
+    def test_merge_pipe_cout_groups(self) -> None:
+        """Test merge with pipe cout_port_groups."""
+        pm1 = PortManager()
+        pm2 = PortManager()
+
+        source = PatchCoordGlobal3D((0, 0, 0))
+        sink = PatchCoordGlobal3D((1, 0, 0))
+        pipe_coord = PipeCoordGlobal3D((source, sink))
+
+        pm1.register_cout_group_pipe(pipe_coord, [NodeIdLocal(20), NodeIdLocal(21)])
+        pm2.register_cout_group_pipe(pipe_coord, [NodeIdLocal(30), NodeIdLocal(31)])
+
+        merged = pm1.merge(pm2, {}, {})
+
+        # Both groups should be present
+        assert pipe_coord in merged.cout_port_groups_pipe
+        assert len(merged.cout_port_groups_pipe[pipe_coord]) == 2
+
+    def test_multiple_pipes_different_coords(self) -> None:
+        """Test managing cout groups across multiple pipes."""
+        manager = PortManager()
+        pipe1_coord = PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 0)), PatchCoordGlobal3D((1, 0, 0))))
+        pipe2_coord = PipeCoordGlobal3D((PatchCoordGlobal3D((1, 0, 0)), PatchCoordGlobal3D((2, 0, 0))))
+
+        manager.register_cout_group_pipe(pipe1_coord, [NodeIdLocal(20)])
+        manager.register_cout_group_pipe(pipe2_coord, [NodeIdLocal(30)])
+
+        assert len(manager.cout_port_groups_pipe) == 2
+        assert pipe1_coord in manager.cout_port_groups_pipe
+        assert pipe2_coord in manager.cout_port_groups_pipe

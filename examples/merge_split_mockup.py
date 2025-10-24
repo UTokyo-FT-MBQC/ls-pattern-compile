@@ -22,7 +22,7 @@ from lspattern.blocks.cubes.measure import MeasureZSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
 from lspattern.consts import BoundarySide, EdgeSpecValue
-from lspattern.mytype import PatchCoordGlobal3D
+from lspattern.mytype import PatchCoordGlobal3D, PipeCoordGlobal3D
 from lspattern.visualizers import visualize_compiled_canvas_plotly
 
 # %%
@@ -177,8 +177,10 @@ for coord, group_dict in compiled_canvas.parity.checks.items():
     print(f"  Patch {coord}: {len(group_dict)} detector groups")
 
 # classical outs
-cout_portmap = compiled_canvas.cout_portset
+cout_portmap = compiled_canvas.cout_portset_cube
+cout_portmap_pipe = compiled_canvas.cout_portset_pipe
 print(f"Classical output ports: {cout_portmap}")
+print(f"Classical output ports (pipes): {cout_portmap_pipe}")
 
 
 # %%
@@ -229,16 +231,26 @@ print_pattern(pattern)
 
 # set logical observables
 coord2logical_group = {
-    # 0: {PatchCoordGlobal3D((0, 0, 3)), PatchCoordGlobal3D((1, 0, 3))},  # First output patch
-    0: {PatchCoordGlobal3D((0, 0, 4))},
-    # 1: {PatchCoordGlobal3D((1, 0, 3))},  # Second output patch
+    0: {PatchCoordGlobal3D((0, 0, 4))}, # First output patch
+    1: {PatchCoordGlobal3D((1, 0, 4))},  # Second output patch
+    2: {PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 2)), PatchCoordGlobal3D((1, 0, 2))))},  # InitPlus pipe
 }
 logical_observables = {}
 for i, group in coord2logical_group.items():
     nodes = []
     for coord in group:
-        if coord in cout_portmap:
+        # PipeCoordGlobal3D is a 2-tuple of PatchCoordGlobal3D (nested tuples)
+        # PatchCoordGlobal3D is a 3-tuple of ints
+        if isinstance(coord, tuple) and len(coord) == 2 and all(isinstance(c, tuple) for c in coord):  # isinstance cannot be used with NewType
+            # This is a PipeCoordGlobal3D
+            nodes.extend(cout_portmap_pipe[coord])
+        elif isinstance(coord, tuple) and len(coord) == 3:
+            # This is a PatchCoordGlobal3D
             nodes.extend(cout_portmap[coord])
+        else:
+            msg = f"Unknown coord type: {type(coord)}"
+            raise TypeError(msg)
+
     logical_observables[i] = set(nodes)
 
 
@@ -249,8 +261,8 @@ def create_circuit(pattern: Pattern, noise: float) -> stim.Circuit:
     stim_str = stim_compile(
         pattern,
         logical_observables,
-        after_clifford_depolarization=0,
-        before_measure_flip_probability=noise,
+        p_depol_after_clifford=0,
+        p_before_meas_flip=noise,
     )
     return stim.Circuit(stim_str)
 

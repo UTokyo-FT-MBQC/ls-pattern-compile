@@ -57,25 +57,22 @@ class TestRemapGraphNodes:
         assert len(created) == 2
 
     def test_remap_many_to_one_mapping(self) -> None:
-        """Test remapping with many-to-one mapping (deduplication)."""
+        """Test that many-to-one mapping raises an error."""
         gsrc = GraphState()
         n1 = gsrc.add_physical_node()
         n2 = gsrc.add_physical_node()
         n3 = gsrc.add_physical_node()
 
-        # Map n1 and n2 to same new ID
+        # Map n1 and n2 to same new ID - this should raise KeyError
         nmap = {
             NodeIdLocal(n1): NodeIdLocal(100),
             NodeIdLocal(n2): NodeIdLocal(100),
             NodeIdLocal(n3): NodeIdLocal(200),
         }
-        created, gdst = remap_graph_nodes(gsrc, nmap)
 
-        # Should only create 2 nodes (100 and 200)
-        assert 100 in created
-        assert 200 in created
-        assert len(created) == 2
-        assert len(gdst.physical_nodes) == 2
+        import pytest
+        with pytest.raises(KeyError, match="Node 100 is already created"):
+            remap_graph_nodes(gsrc, nmap)
 
     def test_remap_partial_mapping(self) -> None:
         """Test remapping where some nodes are not in the mapping."""
@@ -334,20 +331,19 @@ class TestGraphUtilsEdgeCases:
         assert len(result.physical_edges) == 4
 
     def test_remap_many_to_one_reduces_graph_size(self) -> None:
-        """Test that many-to-one mapping reduces graph size."""
+        """Test that many-to-one mapping raises an error."""
         gsrc = GraphState()
         n1 = gsrc.add_physical_node()
         n2 = gsrc.add_physical_node()
         n3 = gsrc.add_physical_node()
 
-        # Map all to same node
+        # Map all to same node - this should raise KeyError
         nmap = {
             NodeIdLocal(n1): NodeIdLocal(42),
             NodeIdLocal(n2): NodeIdLocal(42),
             NodeIdLocal(n3): NodeIdLocal(42),
         }
-        result = create_remapped_graphstate(gsrc, nmap)
 
-        assert result is not None
-        # Should only create 1 node
-        assert len(result.physical_nodes) == 1
+        import pytest
+        with pytest.raises(KeyError, match="Node 42 is already created"):
+            create_remapped_graphstate(gsrc, nmap)

@@ -132,7 +132,7 @@ print("\nPattern compilation successful")
 print_pattern(pattern)
 
 # Set logical observables
-cout_portmap = compiled_canvas.cout_portset
+cout_portmap = compiled_canvas.cout_portset_cube
 coord2logical_group = {0: PatchCoordGlobal3D((0, 0, 1))}  # MeasureX cube is at position (0, 0, d)
 logical_observables = {i: cout_portmap[coord] for i, coord in coord2logical_group.items()}
 print(f"\nUsing logical observables: {logical_observables}")
@@ -150,8 +150,8 @@ def create_circuit(pattern: Pattern, noise: float) -> stim.Circuit:
     stim_str = stim_compile(
         pattern,
         logical_observables,
-        after_clifford_depolarization=0,
-        before_measure_flip_probability=noise,
+        p_depol_after_clifford=0,
+        p_before_meas_flip=noise,
     )
     return stim.Circuit(stim_str)
 

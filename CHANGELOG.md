@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - CI status badges (pytest, type checking, ruff) to README.md
+- Complete logical error rate simulation for merge and split operations ([#19](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/19))
+  - Cout port setting functionality for pipes (`InitPlusPipe`, `MeasureXPipe`, `MeasureZPipe`)
+  - Full multi-observable evaluation: Z₁, Z₂, Z₁Z₂ and X₁X₂ observables
+  - New example file `examples/merge_split_error_sim_xxinit.py` for XX-initialized merge/split error simulation
+  - Enhanced `examples/merge_split_error_sim.py` with comprehensive error pattern correlation analysis
+  - Per-observable error rates and standard errors calculation
+  - Statistical analysis tools for observable error combinations using Sinter's `count_observable_error_combos`
+  - Correlation coefficient calculation between observables (Pearson correlation)
+  - Multi-panel visualization showing total error rate, per-observable rates, and correlation matrices
+- Pipe-specific cout_port unit tests in `tests/canvas/test_ports.py` (12 new tests)
+  - `test_register_cout_group_pipe_basic`: Basic pipe cout group registration
+  - `test_register_multiple_pipe_cout_groups`: Multiple groups per pipe
+  - `test_register_empty_pipe_cout_group`: Empty group handling
+  - `test_register_pipe_cout_group_with_none_values`: None value filtering
+  - `test_get_cout_group_by_node_pipe`: Node-based pipe group retrieval
+  - `test_cube_and_pipe_cout_groups_separated`: Cube/pipe separation verification
+  - `test_cube_and_pipe_at_same_sink_coordinate`: **Key test verifying cube/pipe disambiguation at same sink coordinate**
+  - `test_remap_pipe_cout_groups`: Pipe cout group remapping
+  - `test_rebuild_pipe_cout_group_cache`: Pipe cache rebuilding
+  - `test_copy_includes_pipe_cout_ports`: Copy method pipe handling
+  - `test_merge_pipe_cout_groups`: Merge method pipe handling
+  - `test_multiple_pipes_different_coords`: Multiple pipe management
 
 ### Changed
 - Expanded CI test matrix to cover Python 3.10, 3.11, 3.12, and 3.13 ([#61](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/61))
@@ -17,6 +39,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed separate `z_parity` parameter (was unused in all examples)
   - Updated all example files to use unified `parity` variable naming
   - Updated README.md documentation with new API usage
+- **BREAKING CHANGE**: Separated cube and pipe cout_port management in `PortManager` to eliminate ambiguity
+  - Pipes are now uniquely identified by `PipeCoordGlobal3D` (source, sink) tuple instead of sink coordinate only
+  - Renamed methods:
+    - `register_cout_group()` → `register_cout_group_cube()` for cube cout_ports
+    - Added new `register_cout_group_pipe()` for pipe cout_ports
+  - Split unified `cout_portset` into separate dictionaries:
+    - `cout_portset_cube: dict[PatchCoordGlobal3D, list[NodeIdLocal]]` for cubes
+    - `cout_portset_pipe: dict[PipeCoordGlobal3D, list[NodeIdLocal]]` for pipes
+  - Split unified `cout_port_groups` into:
+    - `cout_port_groups_cube: dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]]`
+    - `cout_port_groups_pipe: dict[PipeCoordGlobal3D, list[list[NodeIdLocal]]]`
+  - Split lookup caches into:
+    - `cout_group_lookup_cube: dict[NodeIdLocal, tuple[PatchCoordGlobal3D, int]]`
+    - `cout_group_lookup_pipe: dict[NodeIdLocal, tuple[PipeCoordGlobal3D, int]]`
+  - Updated `get_cout_group_by_node()` return type to `tuple[PatchCoordGlobal3D | PipeCoordGlobal3D, list[NodeIdLocal]]`
+  - Updated `lspattern/canvas/composition.py` to use `pipe_coord` for pipe cout_port registration
+  - Updated `lspattern/canvas/compiled.py` to expose separate `cout_portset_cube` and `cout_portset_pipe` properties
+  - Updated `lspattern/canvas/layer.py` to expose separate cube/pipe cout_port properties
+  - Updated all 8 example files to use `cout_portset_cube` instead of `cout_portset`:
+    - `examples/plus_initialization.py`
+    - `examples/zero_initialization.py`
+    - `examples/memory_error_sim.py`
+    - `examples/layered_unit_memory_demo.py`
+    - `examples/merge_split_error_sim.py`
+    - `examples/merge_split_mockup.py`
+    - `examples/merge_split_xx_mockup.py`
+    - `examples/merge_split_xx_error_sim.py`
+  - Updated `tests/canvas/test_ports.py` to use new API
+  - Updated `tests/test_mockup.py` and `tests/test_temporal_and_spatial.py` to use `cout_portset_cube`
+- Improved error handling in `GraphComposer` to raise exceptions instead of suppressing errors
+  - Better diagnostics for missing node mappings and coordinate system mismatches
+- Removed redundant methods from internal APIs for cleaner codebase
+
+### Fixed
+- Fixed critical duplicated node remapping bug in `CompiledRHGCanvas` ([#19](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/19))
+  - Eliminated duplicate calls to `_remap_graph_nodes()` that caused incorrect node ID mappings
+  - Resolved issue where `node_map_global` was being remapped twice during compilation
+  - This fix was essential for correct multi-observable evaluation in error simulations
+- Fixed `node_map_global` composition in pipe connection handling
+  - Ensured proper node ID mapping across pipe-cube boundaries
+  - Added proper merging of node maps from different coordinate systems
 
 ---
 

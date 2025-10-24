@@ -204,6 +204,16 @@ class MeasureXPipe(_MeasurePipeBase):
     ) -> None:
         super().__init__(d, edgespec, direction, Axis.X)
 
+    # TODO: This is a temporal patch so more appropriate cout port handling must be implemented
+    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
+        data2d = list(self.template.data_coords or [])
+        target = data2d[0]  # Assuming single data qubit for measurement pipe
+        node = self.coord2node.get(PhysCoordGlobal3D((target[0], target[1], self.source[2] * 2 * self.d)))
+        if node is None:
+            msg = f"Data node not found at expected coordinate for cout port: {target}"
+            raise ValueError(msg)
+        self.cout_ports = [{node}]
+
     def _construct_detectors(self) -> None:
         """Construct X-stabilizer detectors for X measurement."""
         x2d = self.template.x_coords
@@ -234,6 +244,16 @@ class MeasureZPipe(_MeasurePipeBase):
         direction: PIPEDIRECTION,
     ) -> None:
         super().__init__(d, edgespec, direction, Axis.Z)
+
+    # TODO: This is a temporal patch so more appropriate cout port handling must be implemented
+    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
+        data2d = list(self.template.data_coords or [])
+        target = data2d[0]  # Assuming single data qubit for measurement pipe
+        node = self.coord2node.get(PhysCoordGlobal3D((target[0], target[1], self.source[2] * 2 * self.d)))
+        if node is None:
+            msg = f"Data node not found at expected coordinate for cout port: {target}"
+            raise ValueError(msg)
+        self.cout_ports = [{node}]
 
     def _construct_detectors(self) -> None:
         """Construct Z-stabilizer detectors for Z measurement."""
