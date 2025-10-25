@@ -27,17 +27,6 @@ This project provides a modular framework for constructing fault-tolerant MBQC c
 - Python 3.10 or higher
 - [uv](https://github.com/astral-sh/uv) package manager (recommended)
 
-### Install graphqomb dependency
-
-Since `graphqomb` is not yet available on PyPI, you need to install it from source:
-
-```bash
-git clone https://github.com/TeamGraphix/graphqomb.git
-cd graphqomb
-uv pip install -e .
-cd ..
-```
-
 ### Install ls-pattern-compile
 
 ```bash
