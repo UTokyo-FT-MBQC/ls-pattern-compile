@@ -146,6 +146,3 @@ files = ["lspattern"]
 [tool.pyright]
 include = ["lspattern"]
 reportMissingImports = false
-# Note: For stricter type checking with editable installs, users may create
-# a local .pyrightconfig.json file with:
-# {"extraPaths": ["../graphqomb"], "reportMissingImports": true}
