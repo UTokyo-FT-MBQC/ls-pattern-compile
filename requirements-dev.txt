@@ -2,4 +2,3 @@ ruff
 mypy
 pyright
 pytest
-graphqomb @ git+https://github.com/TeamGraphix/graphqomb.git@67-compiler-from-pattern-to-stim-circuit
