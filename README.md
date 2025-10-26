@@ -267,6 +267,13 @@ pytest tests/test_*.py    # Run specific test file
 pytest -v                 # Verbose output
 ```
 
+Integration tests with circuit fingerprinting live under `tests/integration/`. Slow tests (error simulation) are marked with `slow`:
+
+```bash
+pytest tests/integration -v           # Fast integration tests (no simulation)
+pytest tests/integration -v -m slow   # Include slow tests
+```
+
 ### Code Quality Checks
 
 ```bash

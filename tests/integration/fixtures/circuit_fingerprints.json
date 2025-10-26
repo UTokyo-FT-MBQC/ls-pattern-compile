@@ -1,0 +1,26 @@
+{
+  "initialization_plus_d3": {
+    "num_detectors": 32,
+    "num_observables": 1,
+    "num_qubits": 113,
+    "sha256": "ab417b02b2705b60771081a6a2bd51b67a21daee4e7a3cb2c55d759e839e3091"
+  },
+  "memory_zero_d3": {
+    "num_detectors": 28,
+    "num_observables": 1,
+    "num_qubits": 100,
+    "sha256": "5653b289bd29e9d5981432b05ecfa16e1949ed2b7c6f2de8fbc9bdbbc3c76a30"
+  },
+  "merge_split_d3": {
+    "num_detectors": 160,
+    "num_observables": 3,
+    "num_qubits": 545,
+    "sha256": "bb1335671fee56274cf345e4ac6e7fab8403e3c6769c6a5f582cb2e9551be643"
+  },
+  "merge_split_xx_d3": {
+    "num_detectors": 166,
+    "num_observables": 1,
+    "num_qubits": 566,
+    "sha256": "c9769ed871a972b453793c9b4f83ac19151d3da0d42b3e6f7706834011a8957d"
+  }
+}
