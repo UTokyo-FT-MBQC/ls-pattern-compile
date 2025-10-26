@@ -71,6 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved error handling in `GraphComposer` to raise exceptions instead of suppressing errors
   - Better diagnostics for missing node mappings and coordinate system mismatches
 - Removed redundant methods from internal APIs for cleaner codebase
+- Switched to install `graphqomb` from PyPI server
 
 ### Fixed
 - Fixed critical duplicated node remapping bug in `CompiledRHGCanvas` ([#19](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/19))
