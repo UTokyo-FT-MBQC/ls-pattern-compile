@@ -10,8 +10,12 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
-from lspattern.consts import DIRECTIONS3D, NodeRole
+from lspattern.accumulator import (
+    FlowAccumulator,
+    ParityAccumulator,
+    ScheduleAccumulator,
+)
+from lspattern.consts import DIRECTIONS2D, NodeRole
 from lspattern.mytype import NodeIdGlobal, NodeIdLocal
 
 if TYPE_CHECKING:
@@ -166,9 +170,7 @@ class UnitLayer(ABC):
             Mapping from (x, y) to node ID for this layer.
         """
         for (x, y), u in layer_nodes.items():
-            for dx, dy, dz in DIRECTIONS3D:
-                if dz != 0:
-                    continue
+            for dx, dy in DIRECTIONS2D:
                 xy2 = (x + dx, y + dy)
                 v = layer_nodes.get(xy2)
                 if v is not None and v > u:
