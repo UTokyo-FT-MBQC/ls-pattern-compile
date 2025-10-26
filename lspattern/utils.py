@@ -13,6 +13,10 @@ from lspattern.mytype import (
 if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
 
+def to_edgespec(espec_str: str):
+    assert len(espec_str) == 4, "Edge spec string must be length 4"
+    
+    
 
 def get_direction(source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> PIPEDIRECTION:
     dx = sink[0] - source[0]
