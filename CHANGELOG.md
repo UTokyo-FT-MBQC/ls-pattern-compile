@@ -72,7 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Better diagnostics for missing node mappings and coordinate system mismatches
 - Removed redundant methods from internal APIs for cleaner codebase
 - Switched to install `graphqomb` from PyPI server
-
+- Switch from `DIRECTION3D` to `DIRECTION2D`
 ### Fixed
 - Fixed critical duplicated node remapping bug in `CompiledRHGCanvas` ([#19](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/19))
   - Eliminated duplicate calls to `_remap_graph_nodes()` that caused incorrect node ID mappings
