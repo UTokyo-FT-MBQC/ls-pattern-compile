@@ -13,9 +13,9 @@
   },
   "merge_split_d3": {
     "num_detectors": 160,
-    "num_observables": 1,
+    "num_observables": 3,
     "num_qubits": 545,
-    "sha256": "7f63fadf7358a4f8c72161bc17b78e4012b43fff017f3d95a889a5f4f56a8c83"
+    "sha256": "bb1335671fee56274cf345e4ac6e7fab8403e3c6769c6a5f582cb2e9551be643"
   },
   "merge_split_xx_d3": {
     "num_detectors": 166,
