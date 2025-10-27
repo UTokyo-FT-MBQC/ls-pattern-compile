@@ -22,7 +22,7 @@ from lspattern.blocks.layers.empty import EmptyUnitLayer
 from lspattern.blocks.layers.memory import MemoryUnitLayer
 from lspattern.blocks.pipes.layered import LayeredInitPlusPipeSkeleton, LayeredMemoryPipeSkeleton
 from lspattern.consts import BoundarySide, EdgeSpecValue
-from lspattern.mytype import PatchCoordGlobal3D
+from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D
 
 
 def test_layered_memory_cube_various_d_values() -> None:
@@ -148,9 +148,9 @@ def test_empty_layer_handling_consecutive() -> None:
 
     # Verify no cross-empty-layer connections
     for src, dsts in cube.flow.flow.items():
-        src_z = cube.node2coord.get(int(src), (None, None, -1))[2]
+        src_z = cube.node2coord.get(NodeIdLocal(int(src)), PhysCoordGlobal3D((0, 0, -1)))[2]
         for dst in dsts:
-            dst_z = cube.node2coord.get(int(dst), (None, None, -1))[2]
+            dst_z = cube.node2coord.get(NodeIdLocal(int(dst)), PhysCoordGlobal3D((0, 0, -1)))[2]
             # Assert that connections are only to adjacent z-layers (diff of 1)
             # or within the same UnitLayer (diff of 1)
             assert abs(dst_z - src_z) == 1, f"Invalid flow: z={src_z} -> z={dst_z}"

@@ -3,11 +3,17 @@ from typing import Literal
 
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.memory import MemoryPipeSkeleton
+from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D
 
 
 def test_memory_cube_ports_and_boundaries() -> None:
-    spec: dict[str, Literal["X", "Z", "O"]] = {"TOP": "Z", "BOTTOM": "Z", "LEFT": "X", "RIGHT": "X"}
+    spec: dict[BoundarySide, EdgeSpecValue] = {
+        BoundarySide.TOP: EdgeSpecValue.Z,
+        BoundarySide.BOTTOM: EdgeSpecValue.Z,
+        BoundarySide.LEFT: EdgeSpecValue.X,
+        BoundarySide.RIGHT: EdgeSpecValue.X,
+    }
     block = MemoryCubeSkeleton(d=3, edgespec=spec).to_block().materialize()
 
     # in/out are non-empty and equal to number of data in template (d*d)
@@ -21,7 +27,13 @@ def test_memory_cube_ports_and_boundaries() -> None:
 
 
 def test_memory_pipe_ports_and_boundaries() -> None:
-    skel = MemoryPipeSkeleton(d=5, edgespec={"LEFT": "O", "RIGHT": "O", "TOP": "X", "BOTTOM": "Z"})
+    spec: dict[BoundarySide, EdgeSpecValue] = {
+        BoundarySide.LEFT: EdgeSpecValue.O,
+        BoundarySide.RIGHT: EdgeSpecValue.O,
+        BoundarySide.TOP: EdgeSpecValue.X,
+        BoundarySide.BOTTOM: EdgeSpecValue.Z,
+    }
+    skel = MemoryPipeSkeleton(d=5, edgespec=spec)
     block = skel.to_block(source=PatchCoordGlobal3D((0, 0, 0)), sink=PatchCoordGlobal3D((1, 0, 0))).materialize()
 
     # in/out are non-empty and equal to number of data in pipe template (d)

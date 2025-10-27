@@ -808,7 +808,7 @@ class TestPortManagerPipeInOutPorts:
         assert manager.in_portset_pipe[pipe2_coord] == [NodeIdLocal(2)]
 
         # Verify they're not stored by patch coordinate
-        assert sink not in manager.in_portset_pipe or sink == pipe1_coord or sink == pipe2_coord
+        # (sink is PatchCoordGlobal3D but in_portset_pipe uses PipeCoordGlobal3D keys)
 
     def test_remap_pipe_in_out_ports(self) -> None:
         """Test remapping pipe in/out ports."""

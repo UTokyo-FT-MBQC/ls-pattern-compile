@@ -182,10 +182,10 @@ class PortManager:
             self.out_portset[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
 
         # Remap pipe in/out ports
-        for p, nodes in self.in_portset_pipe.items():
-            self.in_portset_pipe[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
-        for p, nodes in self.out_portset_pipe.items():
-            self.out_portset_pipe[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
+        for pipe_coord, nodes in self.in_portset_pipe.items():
+            self.in_portset_pipe[pipe_coord] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
+        for pipe_coord, nodes in self.out_portset_pipe.items():
+            self.out_portset_pipe[pipe_coord] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
 
         # Remap cube cout ports
         new_groups_cube: dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]] = {}
