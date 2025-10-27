@@ -700,3 +700,206 @@ class TestPortManagerPipeCoutGroups:
         assert len(manager.cout_port_groups_pipe) == 2
         assert pipe1_coord in manager.cout_port_groups_pipe
         assert pipe2_coord in manager.cout_port_groups_pipe
+
+
+class TestPortManagerPipeInOutPorts:
+    """Test pipe input/output port management functionality."""
+
+    def test_add_in_ports_pipe_basic(self) -> None:
+        """Test adding input ports to a pipe."""
+        manager = PortManager()
+        source = PatchCoordGlobal3D((0, 0, 0))
+        sink = PatchCoordGlobal3D((1, 0, 0))
+        pipe_coord = PipeCoordGlobal3D((source, sink))
+        nodes = [NodeIdLocal(1), NodeIdLocal(2), NodeIdLocal(3)]
+
+        manager.add_in_ports_pipe(pipe_coord, nodes)
+
+        assert pipe_coord in manager.in_portset_pipe
+        assert manager.in_portset_pipe[pipe_coord] == nodes
+        assert set(manager.in_ports) == set(nodes)
+
+    def test_add_out_ports_pipe_basic(self) -> None:
+        """Test adding output ports to a pipe."""
+        manager = PortManager()
+        source = PatchCoordGlobal3D((0, 0, 0))
+        sink = PatchCoordGlobal3D((1, 0, 0))
+        pipe_coord = PipeCoordGlobal3D((source, sink))
+        nodes = [NodeIdLocal(4), NodeIdLocal(5)]
+
+        manager.add_out_ports_pipe(pipe_coord, nodes)
+
+        assert pipe_coord in manager.out_portset_pipe
+        assert manager.out_portset_pipe[pipe_coord] == nodes
+        assert set(manager.out_ports) == set(nodes)
+
+    def test_add_multiple_ports_same_pipe(self) -> None:
+        """Test adding multiple ports to the same pipe."""
+        manager = PortManager()
+        source = PatchCoordGlobal3D((0, 0, 0))
+        sink = PatchCoordGlobal3D((1, 0, 0))
+        pipe_coord = PipeCoordGlobal3D((source, sink))
+
+        manager.add_in_ports_pipe(pipe_coord, [NodeIdLocal(1)])
+        manager.add_in_ports_pipe(pipe_coord, [NodeIdLocal(2)])
+
+        assert manager.in_portset_pipe[pipe_coord] == [NodeIdLocal(1), NodeIdLocal(2)]
+        assert set(manager.in_ports) == {NodeIdLocal(1), NodeIdLocal(2)}
+
+    def test_add_ports_different_pipes(self) -> None:
+        """Test adding ports to different pipes."""
+        manager = PortManager()
+        pipe1_coord = PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 0)), PatchCoordGlobal3D((1, 0, 0))))
+        pipe2_coord = PipeCoordGlobal3D((PatchCoordGlobal3D((1, 0, 0)), PatchCoordGlobal3D((2, 0, 0))))
+
+        manager.add_in_ports_pipe(pipe1_coord, [NodeIdLocal(1)])
+        manager.add_in_ports_pipe(pipe2_coord, [NodeIdLocal(2)])
+
+        assert len(manager.in_portset_pipe) == 2
+        assert manager.in_portset_pipe[pipe1_coord] == [NodeIdLocal(1)]
+        assert manager.in_portset_pipe[pipe2_coord] == [NodeIdLocal(2)]
+        assert set(manager.in_ports) == {NodeIdLocal(1), NodeIdLocal(2)}
+
+    def test_cube_and_pipe_ports_separated(self) -> None:
+        """Test that cube and pipe in/out ports are properly separated."""
+        manager = PortManager()
+        cube_patch = PatchCoordGlobal3D((0, 0, 0))
+        source = PatchCoordGlobal3D((0, 0, 0))
+        sink = PatchCoordGlobal3D((1, 0, 0))
+        pipe_coord = PipeCoordGlobal3D((source, sink))
+
+        cube_in_nodes = [NodeIdLocal(10), NodeIdLocal(11)]
+        pipe_in_nodes = [NodeIdLocal(20), NodeIdLocal(21)]
+
+        manager.add_in_ports(cube_patch, cube_in_nodes)
+        manager.add_in_ports_pipe(pipe_coord, pipe_in_nodes)
+
+        # Verify cube ports
+        assert cube_patch in manager.in_portset
+        assert manager.in_portset[cube_patch] == cube_in_nodes
+        # Verify pipe ports
+        assert pipe_coord in manager.in_portset_pipe
+        assert manager.in_portset_pipe[pipe_coord] == pipe_in_nodes
+        # Verify both are in the flat list
+        assert set(manager.in_ports) == set(cube_in_nodes + pipe_in_nodes)
+
+    def test_pipe_ports_use_pipe_coord_not_patch_coord(self) -> None:
+        """Test that pipe ports are keyed by PipeCoordGlobal3D, not PatchCoordGlobal3D.
+
+        This is the key test for issue #74: ensuring pipe ports use PipeCoordGlobal3D
+        consistently, not the sink coordinate alone.
+        """
+        manager = PortManager()
+        source1 = PatchCoordGlobal3D((0, 0, 0))
+        sink = PatchCoordGlobal3D((1, 0, 0))
+        source2 = PatchCoordGlobal3D((2, 0, 0))
+
+        # Two different pipes with same sink
+        pipe1_coord = PipeCoordGlobal3D((source1, sink))
+        pipe2_coord = PipeCoordGlobal3D((source2, sink))
+
+        manager.add_in_ports_pipe(pipe1_coord, [NodeIdLocal(1)])
+        manager.add_in_ports_pipe(pipe2_coord, [NodeIdLocal(2)])
+
+        # Both pipes should be tracked separately, not overwriting at sink coordinate
+        assert pipe1_coord in manager.in_portset_pipe
+        assert pipe2_coord in manager.in_portset_pipe
+        assert manager.in_portset_pipe[pipe1_coord] == [NodeIdLocal(1)]
+        assert manager.in_portset_pipe[pipe2_coord] == [NodeIdLocal(2)]
+
+        # Verify they're not stored by patch coordinate
+        assert sink not in manager.in_portset_pipe or sink == pipe1_coord or sink == pipe2_coord
+
+    def test_remap_pipe_in_out_ports(self) -> None:
+        """Test remapping pipe in/out ports."""
+        manager = PortManager()
+        source = PatchCoordGlobal3D((0, 0, 0))
+        sink = PatchCoordGlobal3D((1, 0, 0))
+        pipe_coord = PipeCoordGlobal3D((source, sink))
+
+        manager.add_in_ports_pipe(pipe_coord, [NodeIdLocal(1), NodeIdLocal(2)])
+        manager.add_out_ports_pipe(pipe_coord, [NodeIdLocal(3), NodeIdLocal(4)])
+
+        node_map = {1: 10, 2: 20, 3: 30, 4: 40}
+        manager.remap_ports(node_map)
+
+        assert manager.in_portset_pipe[pipe_coord] == [NodeIdLocal(10), NodeIdLocal(20)]
+        assert manager.out_portset_pipe[pipe_coord] == [NodeIdLocal(30), NodeIdLocal(40)]
+        assert set(manager.in_ports) == {NodeIdLocal(10), NodeIdLocal(20)}
+        assert set(manager.out_ports) == {NodeIdLocal(30), NodeIdLocal(40)}
+
+    def test_copy_includes_pipe_in_out_ports(self) -> None:
+        """Test that copy includes pipe in/out ports."""
+        manager = PortManager()
+        source = PatchCoordGlobal3D((0, 0, 0))
+        sink = PatchCoordGlobal3D((1, 0, 0))
+        pipe_coord = PipeCoordGlobal3D((source, sink))
+
+        manager.add_in_ports_pipe(pipe_coord, [NodeIdLocal(1)])
+        manager.add_out_ports_pipe(pipe_coord, [NodeIdLocal(2)])
+
+        copied = manager.copy()
+
+        # Modify original
+        manager.add_in_ports_pipe(pipe_coord, [NodeIdLocal(3)])
+
+        # Copied should be unchanged
+        assert len(copied.in_portset_pipe[pipe_coord]) == 1
+        assert copied.in_portset_pipe[pipe_coord] == [NodeIdLocal(1)]
+        assert copied.out_portset_pipe[pipe_coord] == [NodeIdLocal(2)]
+
+    def test_merge_pipe_in_out_ports(self) -> None:
+        """Test merge with pipe in/out ports."""
+        pm1 = PortManager()
+        pm2 = PortManager()
+
+        source1 = PatchCoordGlobal3D((0, 0, 0))
+        sink1 = PatchCoordGlobal3D((1, 0, 0))
+        pipe1_coord = PipeCoordGlobal3D((source1, sink1))
+
+        source2 = PatchCoordGlobal3D((1, 0, 0))
+        sink2 = PatchCoordGlobal3D((2, 0, 0))
+        pipe2_coord = PipeCoordGlobal3D((source2, sink2))
+
+        pm1.add_in_ports_pipe(pipe1_coord, [NodeIdLocal(1)])
+        pm1.add_out_ports_pipe(pipe1_coord, [NodeIdLocal(2)])
+
+        pm2.add_in_ports_pipe(pipe2_coord, [NodeIdLocal(10)])
+        pm2.add_out_ports_pipe(pipe2_coord, [NodeIdLocal(20)])
+
+        # Identity mapping (no remapping)
+        node_map: dict[int, int] = {}
+        merged = pm1.merge(pm2, node_map, node_map)
+
+        # Both pipes should be merged
+        assert pipe1_coord in merged.in_portset_pipe
+        assert pipe2_coord in merged.in_portset_pipe
+        assert pipe1_coord in merged.out_portset_pipe
+        assert pipe2_coord in merged.out_portset_pipe
+
+    def test_add_empty_in_ports_pipe(self) -> None:
+        """Test adding empty in_ports_pipe list."""
+        manager = PortManager()
+        source = PatchCoordGlobal3D((0, 0, 0))
+        sink = PatchCoordGlobal3D((1, 0, 0))
+        pipe_coord = PipeCoordGlobal3D((source, sink))
+
+        manager.add_in_ports_pipe(pipe_coord, [])
+
+        # Empty list should not create an entry
+        assert pipe_coord not in manager.in_portset_pipe
+        assert manager.in_ports == []
+
+    def test_add_in_ports_pipe_with_none_values(self) -> None:
+        """Test that None values are filtered from pipe in_ports."""
+        manager = PortManager()
+        source = PatchCoordGlobal3D((0, 0, 0))
+        sink = PatchCoordGlobal3D((1, 0, 0))
+        pipe_coord = PipeCoordGlobal3D((source, sink))
+        nodes_with_none: list[NodeIdLocal | None] = [NodeIdLocal(1), None, NodeIdLocal(2)]
+
+        manager.add_in_ports_pipe(pipe_coord, nodes_with_none)  # type: ignore[arg-type]
+
+        expected = [NodeIdLocal(1), NodeIdLocal(2)]
+        assert manager.in_portset_pipe[pipe_coord] == expected
+        assert set(manager.in_ports) == set(expected)
