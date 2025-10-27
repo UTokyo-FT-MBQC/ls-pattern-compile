@@ -3,7 +3,15 @@ from __future__ import annotations
 from operator import itemgetter
 from typing import TYPE_CHECKING
 
-from lspattern.consts.consts import ANCILLA_X_PARITY, ANCILLA_Z_PARITY, DATA_PARITIES, PIPEDIRECTION, NodeRole
+from lspattern.consts.consts import (
+    ANCILLA_X_PARITY,
+    ANCILLA_Z_PARITY,
+    DATA_PARITIES,
+    PIPEDIRECTION,
+    NodeRole,
+    EdgeSpecValue,
+    BoundarySide,
+)
 from lspattern.mytype import (
     PatchCoordGlobal3D,
     QubitGroupIdLocal,
@@ -13,12 +21,54 @@ from lspattern.mytype import (
 if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
 
-def to_edgespec(espec_str: str):
-    assert len(espec_str) == 4, "Edge spec string must be length 4"
-    
-    
 
-def get_direction(source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> PIPEDIRECTION:
+def to_edgespec(espec_str: str) -> dict[BoundarySide, EdgeSpecValue]:
+    """Decode a four-character edge specification into boundary assignments.
+
+    The string is interpreted in left, right, top, bottom order and accepts
+    the characters ``O``, ``X``, or ``Z`` in any case. Each character maps to
+    the corresponding ``EdgeSpecValue`` enumerator.
+
+    Args:
+        espec_str: Four-character boundary description string.
+
+    Returns:
+        Dictionary mapping each ``BoundarySide`` to its ``EdgeSpecValue``.
+
+    Raises:
+        AssertionError: If ``espec_str`` is not exactly four characters long.
+        ValueError: If an unsupported character is provided.
+    """
+    assert len(espec_str) == 4, "Edge spec string must have length 4"
+
+    espec_values: list[EdgeSpecValue] = []
+
+    for char in espec_str:
+        char = char.upper()
+        match char:
+            case "O":
+                espec_values.append(EdgeSpecValue.O)
+            case "X":
+                espec_values.append(EdgeSpecValue.X)
+            case "Z":
+                espec_values.append(EdgeSpecValue.Z)
+            case _:
+                msg = f"Invalid edge spec character: {char}"
+                raise ValueError(msg)
+
+    # left, right, top, bottom
+    ret = {
+        BoundarySide.LEFT: espec_values[0],
+        BoundarySide.RIGHT: espec_values[1],
+        BoundarySide.TOP: espec_values[2],
+        BoundarySide.BOTTOM: espec_values[3],
+    }
+
+    return ret
+
+def get_direction(
+    source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D
+) -> PIPEDIRECTION:
     dx = sink[0] - source[0]
     dy = sink[1] - source[1]
     dz = sink[2] - source[2]
@@ -49,7 +99,10 @@ def sort_xy(points: AbstractSet[tuple[int, int]]) -> list[tuple[int, int]]:
 def is_allowed_pair(
     u: QubitGroupIdLocal | TilingId | None,
     v: QubitGroupIdLocal | TilingId | None,
-    allowed_pairs: (AbstractSet[tuple[QubitGroupIdLocal, QubitGroupIdLocal]] | AbstractSet[tuple[TilingId, TilingId]]),
+    allowed_pairs: (
+        AbstractSet[tuple[QubitGroupIdLocal, QubitGroupIdLocal]]
+        | AbstractSet[tuple[TilingId, TilingId]]
+    ),
 ) -> bool:
     """Return True if an (unordered) pair is allowed.
 
