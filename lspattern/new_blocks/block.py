@@ -6,6 +6,8 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from graphqomb.graphstate import GraphState
 
     from lspattern.new_blocks.mytype import Coord2D, Coord3D
@@ -49,17 +51,19 @@ class RHGBlock(ABC):
         ...
 
     @abstractmethod
-    def materialize(self, graph: GraphState) -> tuple[GraphState, dict[Coord3D, int]]:
+    def materialize(self, graph: GraphState, node_map: Mapping[Coord3D, int]) -> tuple[GraphState, dict[Coord3D, int]]:
         """Materialize the block into the given graph.
 
         Parameters
         ----------
         graph : GraphState
             The graph to materialize the block into.
+        node_map : dict[Coord3D, int]
+            A mapping from local coordinates to node IDs.
 
         Returns
         -------
         tuple[GraphState, dict[Coord3D, int]]
-            A tuple containing the updated graph and a mapping from local coordinates to node IDs.
+            A tuple containing the updated graph and an updatedmapping from local coordinates to node IDs.
         """
         ...
