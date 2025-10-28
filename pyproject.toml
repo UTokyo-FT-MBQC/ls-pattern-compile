@@ -58,9 +58,7 @@ lspattern = "lspattern"
 target-version = "py313"
 line-length = 120
 extend-exclude = [
-  # T48: exclude non-library content from lint scope
   "examples/**",
-  "tests/**",
 ]
 
 [tool.ruff.lint]
@@ -124,6 +122,7 @@ docstring-code-format = true
   "D103",
   "D104",
   "D400",
+  "PLR6301"
 ]
 "examples/*.py" = [
   "T201", # print

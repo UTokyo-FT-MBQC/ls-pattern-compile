@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import Literal
 
-import pytest
-
 from lspattern.blocks.cubes.measure import MeasureXSkeleton, MeasureZSkeleton
 
 

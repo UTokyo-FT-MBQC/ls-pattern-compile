@@ -50,7 +50,7 @@ class TestRemapGraphNodes:
 
         # Identity mapping
         nmap = {NodeIdLocal(n1): NodeIdLocal(n1), NodeIdLocal(n2): NodeIdLocal(n2)}
-        created, gdst = remap_graph_nodes(gsrc, nmap)
+        created, _ = remap_graph_nodes(gsrc, nmap)
 
         assert n1 in created
         assert n2 in created
@@ -70,7 +70,6 @@ class TestRemapGraphNodes:
             NodeIdLocal(n3): NodeIdLocal(200),
         }
 
-        import pytest
         with pytest.raises(KeyError, match="Node 100 is already created"):
             remap_graph_nodes(gsrc, nmap)
 
@@ -82,7 +81,7 @@ class TestRemapGraphNodes:
 
         # Only map n1, n2 uses default (self)
         nmap = {NodeIdLocal(n1): NodeIdLocal(10)}
-        created, gdst = remap_graph_nodes(gsrc, nmap)
+        created, _ = remap_graph_nodes(gsrc, nmap)
 
         assert 10 in created
         assert n2 in created  # n2 maps to itself
@@ -344,6 +343,5 @@ class TestGraphUtilsEdgeCases:
             NodeIdLocal(n3): NodeIdLocal(42),
         }
 
-        import pytest
         with pytest.raises(KeyError, match="Node 42 is already created"):
             create_remapped_graphstate(gsrc, nmap)
