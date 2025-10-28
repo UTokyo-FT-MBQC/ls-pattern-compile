@@ -35,8 +35,10 @@ def test_fingerprint_roundtrip(tmp_path: Path) -> None:
     reg2 = FingerprintRegistry(reg_path)
     reg2.load()
     ok, err = reg2.verify(fp)
-    assert ok and err is None
+    assert ok
+    assert err is None
 
     # sanity check on file content
     data = json.loads(reg_path.read_text())
-    assert "toy" in data and "sha256" in data["toy"]
+    assert "toy" in data
+    assert "sha256" in data["toy"]
