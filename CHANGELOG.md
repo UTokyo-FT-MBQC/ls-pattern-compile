@@ -48,6 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `test_ports.py` → `test_port_manager.py`
     - `test_seams.py` → `test_seam_generator.py`
   - Translated all Japanese comments in test files to English
+  - Translated snapshot testing guide from Japanese to English
+    - `tests/snapshotの手引き.md` → `tests/snapshot_testing_guide.md`
 - Expanded CI test matrix to cover Python 3.10, 3.11, 3.12, and 3.13 ([#61](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/61))
 - Unified `x_parity` and `z_parity` parameters into single `parity` parameter in `compile_canvas()`
   - Updated `lspattern.compile.compile_canvas()` function signature to match graphqomb's unified `parity_check_group` API
