@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
 from lspattern.blocks.pipes.memory import MemoryPipeSkeleton
+from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D
 
 if TYPE_CHECKING:
@@ -21,7 +22,12 @@ def _summarize_block(block: RHGBlock) -> tuple[int, int, int, int]:
 
 def test_representative_blocks_counts() -> None:
     # InitPlusCube d=3 spec=A
-    cube_spec_a: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
+    cube_spec_a: dict[BoundarySide, EdgeSpecValue] = {
+        BoundarySide.LEFT: EdgeSpecValue.X,
+        BoundarySide.RIGHT: EdgeSpecValue.X,
+        BoundarySide.TOP: EdgeSpecValue.Z,
+        BoundarySide.BOTTOM: EdgeSpecValue.Z,
+    }
     init_cube = InitPlusCubeSkeleton(d=3, edgespec=cube_spec_a).to_block()
     _, i_out, i_zm, i_zp = _summarize_block(init_cube)
     # For Init-type blocks, out contains all data indices, in depends on template (empty allowed)
@@ -30,7 +36,12 @@ def test_representative_blocks_counts() -> None:
     assert i_zp == 9
 
     # MemoryCube d=3 spec=B
-    cube_spec_b: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "Z", "RIGHT": "Z", "TOP": "X", "BOTTOM": "X"}
+    cube_spec_b: dict[BoundarySide, EdgeSpecValue] = {
+        BoundarySide.LEFT: EdgeSpecValue.Z,
+        BoundarySide.RIGHT: EdgeSpecValue.Z,
+        BoundarySide.TOP: EdgeSpecValue.X,
+        BoundarySide.BOTTOM: EdgeSpecValue.X,
+    }
     mem_cube = MemoryCubeSkeleton(d=3, edgespec=cube_spec_b).to_block()
     m_in, m_out, m_zm, m_zp = _summarize_block(mem_cube)
     assert m_in == 9
@@ -39,7 +50,12 @@ def test_representative_blocks_counts() -> None:
     assert m_zp == 9
 
     # InitPlusPipe d=3 spec=H1 RIGHT
-    pipe_spec_h1: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "Z", "TOP": "O", "BOTTOM": "O"}
+    pipe_spec_h1: dict[BoundarySide, EdgeSpecValue] = {
+        BoundarySide.LEFT: EdgeSpecValue.X,
+        BoundarySide.RIGHT: EdgeSpecValue.Z,
+        BoundarySide.TOP: EdgeSpecValue.O,
+        BoundarySide.BOTTOM: EdgeSpecValue.O,
+    }
     init_pipe_h = InitPlusPipeSkeleton(d=3, edgespec=pipe_spec_h1).to_block(
         source=PatchCoordGlobal3D((0, 0, 0)), sink=PatchCoordGlobal3D((1, 0, 0))
     )
@@ -49,7 +65,12 @@ def test_representative_blocks_counts() -> None:
     assert pi_zp == 3
 
     # MemoryPipe d=3 spec=V2 TOP
-    pipe_spec_b2: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "O", "TOP": "Z", "BOTTOM": "X"}
+    pipe_spec_b2: dict[BoundarySide, EdgeSpecValue] = {
+        BoundarySide.LEFT: EdgeSpecValue.O,
+        BoundarySide.RIGHT: EdgeSpecValue.O,
+        BoundarySide.TOP: EdgeSpecValue.Z,
+        BoundarySide.BOTTOM: EdgeSpecValue.X,
+    }
     mem_pipe_v = MemoryPipeSkeleton(d=3, edgespec=pipe_spec_b2).to_block(
         source=PatchCoordGlobal3D((0, 0, 0)), sink=PatchCoordGlobal3D((0, 1, 0))
     )

@@ -140,7 +140,7 @@ markers = "slow: mark test as slow"
 [tool.mypy]
 strict = true
 ignore_missing_imports = true
-files = ["lspattern"]
+files = ["lspattern", "tests"]
 
 [tool.pyright]
 include = ["lspattern"]

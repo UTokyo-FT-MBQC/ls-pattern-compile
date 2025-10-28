@@ -2,10 +2,20 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from lspattern.canvas.seams import SeamGenerator
 from lspattern.mytype import (
+    NodeIdLocal,
+    PatchCoordGlobal3D,
+    PipeCoordGlobal3D,
+    PhysCoordGlobal3D,
     QubitGroupIdGlobal,
 )
+
+if TYPE_CHECKING:
+    from lspattern.blocks.cubes.base import RHGCube
+    from lspattern.blocks.pipes.base import RHGPipe
 
 
 class TestSeamGeneratorBasic:
@@ -13,11 +23,11 @@ class TestSeamGeneratorBasic:
 
     def test_initialization(self) -> None:
         """Test SeamGenerator initializes correctly."""
-        cubes = {}
-        pipes = {}
-        node2coord = {}
-        coord2node = {}
-        allowed_pairs = set()
+        cubes: dict[PatchCoordGlobal3D, "RHGCube"] = {}
+        pipes: dict[PipeCoordGlobal3D, "RHGPipe"] = {}
+        node2coord: dict[NodeIdLocal, PhysCoordGlobal3D] = {}
+        coord2node: dict[PhysCoordGlobal3D, NodeIdLocal] = {}
+        allowed_pairs: set[tuple[QubitGroupIdGlobal, QubitGroupIdGlobal]] = set()
 
         generator = SeamGenerator(
             cubes=cubes,
@@ -107,7 +117,7 @@ class TestSeamGeneratorShouldConnectNodes:
         )
 
         cube_xy_all = {(0, 0), (1, 0)}
-        measure_pipe_xy = set()
+        measure_pipe_xy: set[tuple[int, int]] = set()
         xy_u = (0, 0)
         xy_v = (1, 0)
         gid_u = QubitGroupIdGlobal(0)
@@ -127,7 +137,7 @@ class TestSeamGeneratorShouldConnectNodes:
         )
 
         cube_xy_all = {(0, 0)}
-        measure_pipe_xy = set()
+        measure_pipe_xy: set[tuple[int, int]] = set()
         xy_u = (2, 0)  # Not in cube
         xy_v = (3, 0)  # Not in cube
         gid_u = QubitGroupIdGlobal(0)
@@ -149,7 +159,7 @@ class TestSeamGeneratorShouldConnectNodes:
         )
 
         cube_xy_all = {(0, 0)}
-        measure_pipe_xy = set()
+        measure_pipe_xy: set[tuple[int, int]] = set()
         xy_u = (0, 0)  # In cube
         xy_v = (1, 0)  # Not in cube (pipe)
         gid_u = QubitGroupIdGlobal(0)
@@ -170,7 +180,7 @@ class TestSeamGeneratorShouldConnectNodes:
         )
 
         cube_xy_all = {(0, 0)}
-        measure_pipe_xy = set()
+        measure_pipe_xy: set[tuple[int, int]] = set()
         xy_u = (0, 0)  # In cube
         xy_v = (1, 0)  # Not in cube (pipe)
         gid_u = QubitGroupIdGlobal(0)

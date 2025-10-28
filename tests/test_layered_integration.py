@@ -10,13 +10,17 @@ This module tests:
 
 from __future__ import annotations
 
+from typing import cast
+
+from graphqomb.graphstate import GraphState
 from lspattern.blocks.cubes.layered import (
     LayeredInitPlusCubeSkeleton,
     LayeredInitZeroCubeSkeleton,
     LayeredMemoryCubeSkeleton,
+    LayeredRHGCube,
 )
 from lspattern.blocks.cubes.measure import MeasureXSkeleton
-from lspattern.canvas import RHGCanvasSkeleton
+from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D
 
@@ -42,11 +46,12 @@ def test_layered_blocks_full_canvas_compilation() -> None:
 
     # Materialize and compile
     canvas = skeleton.to_canvas()
-    compiled_canvas = canvas.compile()
+    compiled_canvas: CompiledRHGCanvas = canvas.compile()
 
     # Check that compilation succeeded
-    assert compiled_canvas.global_graph is not None
-    assert len(compiled_canvas.global_graph.physical_nodes) > 0
+    global_graph = compiled_canvas.global_graph
+    assert global_graph is not None
+    assert len(global_graph.physical_nodes) > 0
 
     # Check that temporal layers are created
     assert len(compiled_canvas.layers) > 0
@@ -110,17 +115,19 @@ def test_layered_blocks_parity_accumulation() -> None:
     skeleton.add_cube(PatchCoordGlobal3D((0, 0, 1)), measure_skeleton)
 
     canvas = skeleton.to_canvas()
-    compiled_canvas = canvas.compile()
+    compiled_canvas: CompiledRHGCanvas = canvas.compile()
 
     # Check that parity checks are populated
     assert len(compiled_canvas.parity.checks) > 0
 
     # Verify that parity checks contain valid node IDs
+    global_graph = compiled_canvas.global_graph
+    assert global_graph is not None
     for z_dict in compiled_canvas.parity.checks.values():
         for node_set in z_dict.values():
             assert len(node_set) > 0
             for node_id in node_set:
-                assert int(node_id) in compiled_canvas.global_graph.physical_nodes
+                assert int(node_id) in global_graph.physical_nodes
 
 
 def test_layered_blocks_flow_accumulation() -> None:
@@ -142,16 +149,18 @@ def test_layered_blocks_flow_accumulation() -> None:
     skeleton.add_cube(PatchCoordGlobal3D((0, 0, 1)), measure_skeleton)
 
     canvas = skeleton.to_canvas()
-    compiled_canvas = canvas.compile()
+    compiled_canvas: CompiledRHGCanvas = canvas.compile()
 
     # Check that flow is populated
     assert len(compiled_canvas.flow.flow) > 0
 
     # Verify that flow entries reference valid nodes
+    global_graph = compiled_canvas.global_graph
+    assert global_graph is not None
     for src, dsts in compiled_canvas.flow.flow.items():
-        assert int(src) in compiled_canvas.global_graph.physical_nodes
+        assert int(src) in global_graph.physical_nodes
         for dst in dsts:
-            assert int(dst) in compiled_canvas.global_graph.physical_nodes
+            assert int(dst) in global_graph.physical_nodes
 
 
 def test_layered_blocks_temporal_layer_integration() -> None:
@@ -177,7 +186,7 @@ def test_layered_blocks_temporal_layer_integration() -> None:
     skeleton.add_cube(PatchCoordGlobal3D((0, 0, 2)), measure_skeleton)
 
     canvas = skeleton.to_canvas()
-    compiled_canvas = canvas.compile()
+    compiled_canvas: CompiledRHGCanvas = canvas.compile()
 
     # Check that multiple temporal layers are created
     assert len(compiled_canvas.layers) >= 3
@@ -215,11 +224,12 @@ def test_layered_blocks_multiple_patches() -> None:
     skeleton.add_cube(PatchCoordGlobal3D((1, 0, 1)), measure_skeleton2)
 
     canvas = skeleton.to_canvas()
-    compiled_canvas = canvas.compile()
+    compiled_canvas: CompiledRHGCanvas = canvas.compile()
 
     # Check that all cubes are included
-    assert compiled_canvas.global_graph is not None
-    assert len(compiled_canvas.global_graph.physical_nodes) > 0
+    global_graph = compiled_canvas.global_graph
+    assert global_graph is not None
+    assert len(global_graph.physical_nodes) > 0
 
     # Schedule should cover all nodes
     assert len(compiled_canvas.schedule.schedule) > 0
@@ -247,7 +257,7 @@ def test_layered_blocks_detector_correctness() -> None:
     skeleton.add_cube(PatchCoordGlobal3D((0, 0, 2)), measure_skeleton)
 
     canvas = skeleton.to_canvas()
-    compiled_canvas = canvas.compile()
+    compiled_canvas: CompiledRHGCanvas = canvas.compile()
 
     # Check that parity checks are present
     assert len(compiled_canvas.parity.checks) > 0
@@ -280,12 +290,13 @@ def test_layered_init_zero_integration() -> None:
     skeleton.add_cube(PatchCoordGlobal3D((0, 0, 1)), measure_skeleton)
 
     canvas = skeleton.to_canvas()
-    compiled_canvas = canvas.compile()
+    compiled_canvas: CompiledRHGCanvas = canvas.compile()
 
     # Check compilation succeeds
-    assert compiled_canvas.global_graph is not None
-    assert len(compiled_canvas.global_graph.physical_nodes) > 0
+    global_graph = compiled_canvas.global_graph
+    assert global_graph is not None
+    assert len(global_graph.physical_nodes) > 0
 
     # InitZero should have thinner first layer
-    init_zero_cube = canvas.cubes_[PatchCoordGlobal3D((0, 0, 0))]
+    init_zero_cube = cast(LayeredRHGCube, canvas.cubes_[PatchCoordGlobal3D((0, 0, 0))])
     assert init_zero_cube.unit_layers[0].__class__.__name__ == "InitZeroUnitLayer"

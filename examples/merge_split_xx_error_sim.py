@@ -22,7 +22,9 @@ from lspattern.blocks.pipes.measure import MeasureZPipeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
 from lspattern.consts import BoundarySide, EdgeSpecValue
-from lspattern.mytype import PatchCoordGlobal3D
+from typing import cast
+
+from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D
 
 
 def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
@@ -198,15 +200,16 @@ def create_circuit(d: int, noise: float) -> stim.Circuit:
 
     # Set logical observables - use the first output patch only
     cout_portmap = compiled_canvas.cout_portset_cube
-    coord2logical_group = {
+    coord2logical_group: dict[int, set[PatchCoordGlobal3D]] = {
         0: {PatchCoordGlobal3D((0, 0, 4))},  # First output patch
     }
-    logical_observables = {}
-    for i, group in coord2logical_group.items():
-        nodes = []
-        for coord in group:
-            if coord in cout_portmap:
-                nodes.extend(cout_portmap[coord])
+    logical_observables: dict[int, set[NodeIdLocal]] = {}
+    for i, coord_group in coord2logical_group.items():
+        nodes: list[NodeIdLocal] = []
+        for coord in coord_group:
+            patch_nodes = cout_portmap.get(coord)
+            if patch_nodes:
+                nodes.extend(patch_nodes)
         logical_observables[i] = set(nodes)
 
     stim_str = stim_compile(

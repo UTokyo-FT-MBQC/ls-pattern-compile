@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, cast
 
 import pytest
 
@@ -11,7 +11,8 @@ from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.memory import MemoryPipeSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
-from lspattern.mytype import PatchCoordGlobal3D, PhysCoordGlobal3D
+from lspattern.consts import BoundarySide, EdgeSpecValue
+from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D
 
 
 def _build_compiled_canvas_mockup() -> CompiledRHGCanvas:
@@ -19,10 +20,30 @@ def _build_compiled_canvas_mockup() -> CompiledRHGCanvas:
     d = 3
     canvass = RHGCanvasSkeleton("Memory X")
 
-    edgespec: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
-    edgespec1: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "O", "TOP": "Z", "BOTTOM": "Z"}
-    edgespec2: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
-    edgespec_trimmed: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "O", "RIGHT": "O", "TOP": "Z", "BOTTOM": "Z"}
+    edgespec: dict[BoundarySide, EdgeSpecValue] = {
+        BoundarySide.LEFT: EdgeSpecValue.X,
+        BoundarySide.RIGHT: EdgeSpecValue.X,
+        BoundarySide.TOP: EdgeSpecValue.Z,
+        BoundarySide.BOTTOM: EdgeSpecValue.Z,
+    }
+    edgespec1: dict[BoundarySide, EdgeSpecValue] = {
+        BoundarySide.LEFT: EdgeSpecValue.X,
+        BoundarySide.RIGHT: EdgeSpecValue.O,
+        BoundarySide.TOP: EdgeSpecValue.Z,
+        BoundarySide.BOTTOM: EdgeSpecValue.Z,
+    }
+    edgespec2: dict[BoundarySide, EdgeSpecValue] = {
+        BoundarySide.LEFT: EdgeSpecValue.O,
+        BoundarySide.RIGHT: EdgeSpecValue.X,
+        BoundarySide.TOP: EdgeSpecValue.Z,
+        BoundarySide.BOTTOM: EdgeSpecValue.Z,
+    }
+    edgespec_trimmed: dict[BoundarySide, EdgeSpecValue] = {
+        BoundarySide.LEFT: EdgeSpecValue.O,
+        BoundarySide.RIGHT: EdgeSpecValue.O,
+        BoundarySide.TOP: EdgeSpecValue.Z,
+        BoundarySide.BOTTOM: EdgeSpecValue.Z,
+    }
 
     blocks = [
         (PatchCoordGlobal3D((0, 0, 0)), InitPlusCubeSkeleton(d=d, edgespec=edgespec)),
@@ -114,6 +135,13 @@ def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:  # noqa:
                     outputs[_coord_key(c)] = int(lidx)
 
     # Portsets mapped to coords per patch
+    def _portset_to_ints(portset: dict[PatchCoordGlobal3D, list[NodeIdLocal]]) -> dict[tuple[int, int, int], list[int]]:
+        converted: dict[tuple[int, int, int], list[int]] = {}
+        for pos, nodes in (portset or {}).items():
+            px, py, pz = cast(tuple[int, int, int], pos)
+            converted[(int(px), int(py), int(pz))] = [int(n) for n in nodes]
+        return converted
+
     def _ports_to_coords(portset: dict[tuple[int, int, int], list[int]]) -> dict[str, list[str]]:
         snap: dict[str, list[str]] = {}
         for pos, nodes in (portset or {}).items():
@@ -126,9 +154,9 @@ def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:  # noqa:
             snap[key] = sorted(lst)
         return snap
 
-    in_ports = _ports_to_coords(cg.in_portset)
-    out_ports = _ports_to_coords(cg.out_portset)
-    cout_ports = _ports_to_coords(cg.cout_portset_cube)
+    in_ports = _ports_to_coords(_portset_to_ints(cg.in_portset))
+    out_ports = _ports_to_coords(_portset_to_ints(cg.out_portset))
+    cout_ports = _ports_to_coords(_portset_to_ints(cg.cout_portset_cube))
 
     return {
         "meta": {
@@ -152,7 +180,7 @@ def _load_expected_snapshot(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
     with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
+        return cast(dict[str, Any], json.load(f))
 
 
 def _save_snapshot(path: Path, data: dict[str, Any]) -> None:
