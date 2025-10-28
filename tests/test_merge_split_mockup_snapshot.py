@@ -138,8 +138,8 @@ def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:  # noqa:
     def _portset_to_ints(portset: dict[PatchCoordGlobal3D, list[NodeIdLocal]]) -> dict[tuple[int, int, int], list[int]]:
         converted: dict[tuple[int, int, int], list[int]] = {}
         for pos, nodes in (portset or {}).items():
-            px, py, pz = cast(tuple[int, int, int], pos)
-            converted[(int(px), int(py), int(pz))] = [int(n) for n in nodes]
+            px, py, pz = cast("tuple[int, int, int]", pos)
+            converted[int(px), int(py), int(pz)] = [int(n) for n in nodes]
         return converted
 
     def _ports_to_coords(portset: dict[tuple[int, int, int], list[int]]) -> dict[str, list[str]]:
@@ -180,7 +180,7 @@ def _load_expected_snapshot(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
     with path.open("r", encoding="utf-8") as f:
-        return cast(dict[str, Any], json.load(f))
+        return cast("dict[str, Any]", json.load(f))
 
 
 def _save_snapshot(path: Path, data: dict[str, Any]) -> None:

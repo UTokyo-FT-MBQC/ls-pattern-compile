@@ -8,8 +8,8 @@ from lspattern.canvas.seams import SeamGenerator
 from lspattern.mytype import (
     NodeIdLocal,
     PatchCoordGlobal3D,
-    PipeCoordGlobal3D,
     PhysCoordGlobal3D,
+    PipeCoordGlobal3D,
     QubitGroupIdGlobal,
 )
 
@@ -23,8 +23,8 @@ class TestSeamGeneratorBasic:
 
     def test_initialization(self) -> None:
         """Test SeamGenerator initializes correctly."""
-        cubes: dict[PatchCoordGlobal3D, "RHGCube"] = {}
-        pipes: dict[PipeCoordGlobal3D, "RHGPipe"] = {}
+        cubes: dict[PatchCoordGlobal3D, RHGCube] = {}
+        pipes: dict[PipeCoordGlobal3D, RHGPipe] = {}
         node2coord: dict[NodeIdLocal, PhysCoordGlobal3D] = {}
         coord2node: dict[PhysCoordGlobal3D, NodeIdLocal] = {}
         allowed_pairs: set[tuple[QubitGroupIdGlobal, QubitGroupIdGlobal]] = set()

@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from typing import cast
 
-from graphqomb.graphstate import GraphState
 from lspattern.blocks.cubes.layered import (
     LayeredInitPlusCubeSkeleton,
     LayeredInitZeroCubeSkeleton,
@@ -298,5 +297,5 @@ def test_layered_init_zero_integration() -> None:
     assert len(global_graph.physical_nodes) > 0
 
     # InitZero should have thinner first layer
-    init_zero_cube = cast(LayeredRHGCube, canvas.cubes_[PatchCoordGlobal3D((0, 0, 0))])
+    init_zero_cube = cast("LayeredRHGCube", canvas.cubes_[PatchCoordGlobal3D((0, 0, 0))])
     assert init_zero_cube.unit_layers[0].__class__.__name__ == "InitZeroUnitLayer"
