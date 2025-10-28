@@ -155,7 +155,7 @@ def test_T43_temporal_and_spatial_snapshot(update: bool) -> None:
     expected = _load_expected_snapshot(snap_path)
 
     if expected is None or update:
-        # 初回(または明示更新)にスナップショットを書き出す
+        # On first run (or explicit update) write out the snapshot
         _save_snapshot(snap_path, got)
         expected = got
 

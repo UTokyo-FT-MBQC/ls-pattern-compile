@@ -21,7 +21,7 @@ def test_T41_representative_blocks_counts() -> None:
     cube_spec_A: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
     init_cube = InitPlusCubeSkeleton(d=3, edgespec=cube_spec_A).to_block()
     i_in, i_out, i_zm, i_zp = _summarize_block(init_cube)
-    # Init系は out に data の全インデックス、inはテンプレート依存(空許容)
+    # For Init-type blocks, out contains all data indices, in depends on template (empty allowed)
     assert i_out == 9 and i_zm == 9 and i_zp == 9
 
     # MemoryCube d=3 spec=B
