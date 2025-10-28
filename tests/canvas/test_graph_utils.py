@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from graphqomb.graphstate import GraphState
-
 from graphqomb.common import Axis, AxisMeasBasis, Sign
+from graphqomb.graphstate import GraphState
 
 from lspattern.canvas.graph_utils import (
     create_remapped_graphstate,
@@ -111,8 +110,10 @@ class TestRemapMeasurementBases:
         basis_20 = gdst.meas_bases[created[20]]
         assert isinstance(basis_10, AxisMeasBasis)
         assert isinstance(basis_20, AxisMeasBasis)
-        assert basis_10.axis == Axis.Z and basis_10.sign == Sign.PLUS
-        assert basis_20.axis == Axis.X and basis_20.sign == Sign.PLUS
+        assert basis_10.axis == Axis.Z
+        assert basis_10.sign == Sign.PLUS
+        assert basis_20.axis == Axis.X
+        assert basis_20.sign == Sign.PLUS
 
     def test_remap_measurement_bases_partial(self) -> None:
         """Test remapping when only some nodes have measurement bases."""
