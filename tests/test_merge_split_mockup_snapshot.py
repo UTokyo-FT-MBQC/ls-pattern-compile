@@ -75,7 +75,7 @@ def _coord_key(c: tuple[int, int, int]) -> str:
     return f"{int(c[0])},{int(c[1])},{int(c[2])}"
 
 
-def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:
+def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:  # noqa: C901
     # Reverse coord2node for convenience
     coord2node = dict(cg.coord2node or {})
     node2coord = {int(nid): (int(x), int(y), int(z)) for (x, y, z), nid in coord2node.items()}
@@ -126,11 +126,11 @@ def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:
             snap[key] = sorted(lst)
         return snap
 
-    in_ports = _ports_to_coords(cg.in_portset)  # type: ignore
-    out_ports = _ports_to_coords(cg.out_portset)  # type: ignore
-    cout_ports = _ports_to_coords(cg.cout_portset_cube)  # type: ignore
+    in_ports = _ports_to_coords(cg.in_portset)
+    out_ports = _ports_to_coords(cg.out_portset)
+    cout_ports = _ports_to_coords(cg.cout_portset_cube)
 
-    snapshot = {
+    return {
         "meta": {
             "layers": len(getattr(cg, "layers", []) or []),
             "zlist": list(getattr(cg, "zlist", []) or []),
@@ -146,14 +146,13 @@ def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:
         "out_ports": dict(sorted(out_ports.items())),
         "cout_ports": dict(sorted(cout_ports.items())),
     }
-    return snapshot
 
 
 def _load_expected_snapshot(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
     with path.open("r", encoding="utf-8") as f:
-        return json.load(f)  # type: ignore
+        return json.load(f)
 
 
 def _save_snapshot(path: Path, data: dict[str, Any]) -> None:
