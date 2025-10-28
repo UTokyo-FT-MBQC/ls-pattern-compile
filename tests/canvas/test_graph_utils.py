@@ -50,7 +50,7 @@ class TestRemapGraphNodes:
 
         # Identity mapping
         nmap = {NodeIdLocal(n1): NodeIdLocal(n1), NodeIdLocal(n2): NodeIdLocal(n2)}
-        created, gdst = remap_graph_nodes(gsrc, nmap)
+        created, _ = remap_graph_nodes(gsrc, nmap)
 
         assert n1 in created
         assert n2 in created
@@ -81,7 +81,7 @@ class TestRemapGraphNodes:
 
         # Only map n1, n2 uses default (self)
         nmap = {NodeIdLocal(n1): NodeIdLocal(10)}
-        created, gdst = remap_graph_nodes(gsrc, nmap)
+        created, _ = remap_graph_nodes(gsrc, nmap)
 
         assert 10 in created
         assert n2 in created  # n2 maps to itself
