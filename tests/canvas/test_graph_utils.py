@@ -5,6 +5,8 @@ from __future__ import annotations
 import pytest
 from graphqomb.graphstate import GraphState
 
+from graphqomb.common import Axis, AxisMeasBasis, Sign
+
 from lspattern.canvas.graph_utils import (
     create_remapped_graphstate,
     remap_graph_edges,
@@ -96,8 +98,8 @@ class TestRemapMeasurementBases:
         gsrc = GraphState()
         n1 = gsrc.add_physical_node()
         n2 = gsrc.add_physical_node()
-        gsrc.assign_meas_basis(n1, (0, 0, 1))  # Z basis
-        gsrc.assign_meas_basis(n2, (1, 0, 0))  # X basis
+        gsrc.assign_meas_basis(n1, AxisMeasBasis(Axis.Z, Sign.PLUS))  # Z basis
+        gsrc.assign_meas_basis(n2, AxisMeasBasis(Axis.X, Sign.PLUS))  # X basis
 
         gdst = GraphState()
         created = {10: gdst.add_physical_node(), 20: gdst.add_physical_node()}
@@ -105,15 +107,19 @@ class TestRemapMeasurementBases:
 
         remap_measurement_bases(gsrc, gdst, nmap, created)
 
-        assert gdst.meas_bases[created[10]] == (0, 0, 1)
-        assert gdst.meas_bases[created[20]] == (1, 0, 0)
+        basis_10 = gdst.meas_bases[created[10]]
+        basis_20 = gdst.meas_bases[created[20]]
+        assert isinstance(basis_10, AxisMeasBasis)
+        assert isinstance(basis_20, AxisMeasBasis)
+        assert basis_10.axis == Axis.Z and basis_10.sign == Sign.PLUS
+        assert basis_20.axis == Axis.X and basis_20.sign == Sign.PLUS
 
     def test_remap_measurement_bases_partial(self) -> None:
         """Test remapping when only some nodes have measurement bases."""
         gsrc = GraphState()
         n1 = gsrc.add_physical_node()
         n2 = gsrc.add_physical_node()
-        gsrc.assign_meas_basis(n1, (0, 0, 1))  # Only n1 has measurement basis
+        gsrc.assign_meas_basis(n1, AxisMeasBasis(Axis.Z, Sign.PLUS))  # Only n1 has measurement basis
 
         gdst = GraphState()
         created = {10: gdst.add_physical_node(), 20: gdst.add_physical_node()}
@@ -251,8 +257,8 @@ class TestCreateRemappedGraphState:
         gsrc = GraphState()
         n1 = gsrc.add_physical_node()
         n2 = gsrc.add_physical_node()
-        gsrc.assign_meas_basis(n1, (0, 0, 1))
-        gsrc.assign_meas_basis(n2, (1, 0, 0))
+        gsrc.assign_meas_basis(n1, AxisMeasBasis(Axis.Z, Sign.PLUS))
+        gsrc.assign_meas_basis(n2, AxisMeasBasis(Axis.X, Sign.PLUS))
 
         nmap = {NodeIdLocal(n1): NodeIdLocal(10), NodeIdLocal(n2): NodeIdLocal(20)}
         result = create_remapped_graphstate(gsrc, nmap)
@@ -268,8 +274,8 @@ class TestCreateRemappedGraphState:
         n3 = gsrc.add_physical_node()
         gsrc.add_physical_edge(n1, n2)
         gsrc.add_physical_edge(n2, n3)
-        gsrc.assign_meas_basis(n1, (0, 0, 1))
-        gsrc.assign_meas_basis(n3, (1, 0, 0))
+        gsrc.assign_meas_basis(n1, AxisMeasBasis(Axis.Z, Sign.PLUS))
+        gsrc.assign_meas_basis(n3, AxisMeasBasis(Axis.X, Sign.PLUS))
 
         nmap = {
             NodeIdLocal(n1): NodeIdLocal(100),
