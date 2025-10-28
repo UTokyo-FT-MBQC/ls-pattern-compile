@@ -10,12 +10,15 @@ This module tests:
 
 from __future__ import annotations
 
-from lspattern.blocks.cubes.layered import LayeredInitPlusCubeSkeleton, LayeredMemoryCubeSkeleton
+from lspattern.blocks.cubes.layered import (
+    LayeredInitPlusCubeSkeleton,
+    LayeredInitZeroCubeSkeleton,
+    LayeredMemoryCubeSkeleton,
+)
 from lspattern.blocks.cubes.measure import MeasureXSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D
-from lspattern.blocks.cubes.layered import LayeredInitZeroCubeSkeleton
 
 
 def test_layered_blocks_full_canvas_compilation() -> None:

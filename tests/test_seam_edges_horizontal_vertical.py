@@ -14,12 +14,12 @@ def _cross_region_edge_count(layer: Any) -> int:
     pipe_xy: set[tuple[int, int]] = set()
     for blk in layer.cubes_.values():
         t = blk.template
-        for L in (t.data_coords, t.x_coords, t.z_coords):
-            cube_xy.update((int(x), int(y)) for x, y in L or [])
+        for coords in (t.data_coords, t.x_coords, t.z_coords):
+            cube_xy.update((int(x), int(y)) for x, y in coords or [])
     for pipe in layer.pipes_.values():
         t = pipe.template
-        for L in (t.data_coords, t.x_coords, t.z_coords):
-            pipe_xy.update((int(x), int(y)) for x, y in L or [])
+        for coords in (t.data_coords, t.x_coords, t.z_coords):
+            pipe_xy.update((int(x), int(y)) for x, y in coords or [])
 
     g = layer.local_graph
     n2c = layer.node2coord
@@ -31,14 +31,12 @@ def _cross_region_edge_count(layer: Any) -> int:
             continue
         xu, yu = int(cu[0]), int(cu[1])
         xv, yv = int(cv[0]), int(cv[1])
-        if ((xu, yu) in cube_xy and (xv, yv) in pipe_xy) or (
-            (xv, yv) in cube_xy and (xu, yu) in pipe_xy
-        ):
+        if ((xu, yu) in cube_xy and (xv, yv) in pipe_xy) or ((xv, yv) in cube_xy and (xu, yu) in pipe_xy):
             cnt += 1
     return cnt
 
 
-def test_T37_horizontal_seam_edges_present() -> None:
+def test_horizontal_seam_edges_present() -> None:
     d = 3
     edgespec_cube: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
     edgespec_pipe_h: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "Z", "TOP": "O", "BOTTOM": "O"}
@@ -53,7 +51,7 @@ def test_T37_horizontal_seam_edges_present() -> None:
     assert _cross_region_edge_count(layer) > 0
 
 
-def test_T37_vertical_seam_edges_present() -> None:
+def test_vertical_seam_edges_present() -> None:
     d = 3
     edgespec_cube: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
     edgespec_pipe_v: dict[str, Literal["X", "Z", "O"]] = {"TOP": "X", "BOTTOM": "Z", "LEFT": "O", "RIGHT": "O"}

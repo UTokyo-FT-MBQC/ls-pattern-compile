@@ -14,7 +14,7 @@ from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.mytype import PatchCoordGlobal3D
 
 
-def _build_compiled_canvas_T43() -> CompiledRHGCanvas:
+def _build_compiled_canvas() -> CompiledRHGCanvas:
     """Replicate examples/visualize_T43.ipynb without modification."""
     d = 3
     canvass = RHGCanvasSkeleton("Memory X")
@@ -52,7 +52,7 @@ def _coord_key(c: tuple[int, int, int]) -> str:
     return f"{int(c[0])},{int(c[1])},{int(c[2])}"
 
 
-def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:
+def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:  # noqa: C901
     # Reverse coord2node for convenience
     coord2node = dict(cg.coord2node or {})
     node2coord = {int(nid): (int(x), int(y), int(z)) for (x, y, z), nid in coord2node.items()}
@@ -105,15 +105,21 @@ def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:
         return snap
 
     # Convert portsets to correct format
-    in_portset_conv: dict[tuple[int, int, int], list[int]] = {(k[0], k[1], k[2]): [int(v) for v in lst] for k, lst in cg.in_portset.items()}
-    out_portset_conv: dict[tuple[int, int, int], list[int]] = {(k[0], k[1], k[2]): [int(v) for v in lst] for k, lst in cg.out_portset.items()}
-    cout_portset_conv: dict[tuple[int, int, int], list[int]] = {(k[0], k[1], k[2]): [int(v) for v in lst] for k, lst in cg.cout_portset_cube.items()}
+    in_portset_conv: dict[tuple[int, int, int], list[int]] = {
+        (k[0], k[1], k[2]): [int(v) for v in lst] for k, lst in cg.in_portset.items()
+    }
+    out_portset_conv: dict[tuple[int, int, int], list[int]] = {
+        (k[0], k[1], k[2]): [int(v) for v in lst] for k, lst in cg.out_portset.items()
+    }
+    cout_portset_conv: dict[tuple[int, int, int], list[int]] = {
+        (k[0], k[1], k[2]): [int(v) for v in lst] for k, lst in cg.cout_portset_cube.items()
+    }
 
     in_ports = _ports_to_coords(in_portset_conv)
     out_ports = _ports_to_coords(out_portset_conv)
     cout_ports = _ports_to_coords(cout_portset_conv)
 
-    snapshot = {
+    return {
         "meta": {
             "layers": len(getattr(cg, "layers", []) or []),
             "zlist": list(getattr(cg, "zlist", []) or []),
@@ -129,7 +135,6 @@ def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:
         "out_ports": dict(sorted(out_ports.items())),
         "cout_ports": dict(sorted(cout_ports.items())),
     }
-    return snapshot
 
 
 def _load_expected_snapshot(path: Path) -> dict[str, Any] | None:
@@ -147,8 +152,8 @@ def _save_snapshot(path: Path, data: dict[str, Any]) -> None:
 
 
 @pytest.mark.parametrize("update", [bool(int(os.environ.get("UPDATE_SNAPSHOTS", "0")))])
-def test_T43_temporal_and_spatial_snapshot(update: bool) -> None:
-    compiled = _build_compiled_canvas_T43()
+def test_temporal_and_spatial_snapshot(update: bool) -> None:
+    compiled = _build_compiled_canvas()
     got = _snapshot_compiled_canvas(compiled)
 
     snap_path = Path(__file__).parent / "snapshots" / "T43_compiled_canvas.json"
