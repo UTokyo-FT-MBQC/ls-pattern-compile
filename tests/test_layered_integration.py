@@ -15,6 +15,7 @@ from lspattern.blocks.cubes.measure import MeasureXSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D
+from lspattern.blocks.cubes.layered import LayeredInitZeroCubeSkeleton
 
 
 def test_layered_blocks_full_canvas_compilation() -> None:
@@ -112,8 +113,8 @@ def test_layered_blocks_parity_accumulation() -> None:
     assert len(compiled_canvas.parity.checks) > 0
 
     # Verify that parity checks contain valid node IDs
-    for coord, z_dict in compiled_canvas.parity.checks.items():
-        for z, node_set in z_dict.items():
+    for z_dict in compiled_canvas.parity.checks.values():
+        for node_set in z_dict.values():
             assert len(node_set) > 0
             for node_id in node_set:
                 assert int(node_id) in compiled_canvas.global_graph.physical_nodes
@@ -249,16 +250,15 @@ def test_layered_blocks_detector_correctness() -> None:
     assert len(compiled_canvas.parity.checks) > 0
 
     # Verify structure of parity checks
-    for coord, z_dict in compiled_canvas.parity.checks.items():
+    for z_dict in compiled_canvas.parity.checks.values():
         assert isinstance(z_dict, dict)
-        for z, node_set in z_dict.items():
+        for node_set in z_dict.values():
             assert isinstance(node_set, set)
             assert len(node_set) > 0
 
 
 def test_layered_init_zero_integration() -> None:
     """Test LayeredInitZeroCube integration in canvas."""
-    from lspattern.blocks.cubes.layered import LayeredInitZeroCubeSkeleton
 
     d = 3
     edgespec = {

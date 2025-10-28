@@ -182,8 +182,8 @@ def test_memory_unit_layer_parity_construction() -> None:
     assert len(layer_data.parity.dangling_parity) > 0
 
     # Verify that parity checks contain node IDs that exist in the graph
-    for coord, z_dict in layer_data.parity.checks.items():
-        for z, node_set in z_dict.items():
+    for z_dict in layer_data.parity.checks.values():
+        for node_set in z_dict.values():
             for node_id in node_set:
                 assert int(node_id) in layer_data.node2role
 
@@ -305,7 +305,7 @@ def test_measure_x_parity_construction() -> None:
     layer_data = measure_layer.build_layer(graph, z_offset, template)
 
     # Verify that parity checks contain node IDs that exist in the graph
-    for coord, z_dict in layer_data.parity.checks.items():
+    for z_dict in layer_data.parity.checks.values():
         for z, node_set in z_dict.items():
             assert z == z_offset  # All checks should be at z_offset
             for node_id in node_set:
@@ -331,7 +331,7 @@ def test_measure_z_parity_construction() -> None:
     layer_data = measure_layer.build_layer(graph, z_offset, template)
 
     # Verify that parity checks contain node IDs that exist in the graph
-    for coord, z_dict in layer_data.parity.checks.items():
+    for z_dict in layer_data.parity.checks.values():
         for z, node_set in z_dict.items():
             assert z == z_offset  # All checks should be at z_offset
             for node_id in node_set:
