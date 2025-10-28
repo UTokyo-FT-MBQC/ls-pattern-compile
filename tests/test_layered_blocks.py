@@ -17,12 +17,14 @@ from lspattern.blocks.cubes.layered import (
     LayeredInitPlusCubeSkeleton,
     LayeredInitZeroCubeSkeleton,
     LayeredMemoryCubeSkeleton,
+    LayeredRHGCube,
 )
 from lspattern.blocks.layers.empty import EmptyUnitLayer
 from lspattern.blocks.layers.memory import MemoryUnitLayer
 from lspattern.blocks.pipes.layered import LayeredInitPlusPipeSkeleton, LayeredMemoryPipeSkeleton
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D
+from lspattern.tiling.template import RotatedPlanarCubeTemplate
 
 
 def test_layered_memory_cube_various_d_values() -> None:
@@ -111,8 +113,6 @@ def test_layered_init_zero_cube_initialization() -> None:
 def test_empty_layer_handling_consecutive() -> None:
     """Test multiple consecutive empty layers are handled correctly."""
     # This test creates a custom LayeredRHGCube with empty layers
-    from lspattern.blocks.cubes.layered import LayeredRHGCube
-    from lspattern.tiling.template import RotatedPlanarCubeTemplate
 
     d = 5
     edgespec = {
@@ -158,8 +158,6 @@ def test_empty_layer_handling_consecutive() -> None:
 
 def test_empty_layer_at_beginning() -> None:
     """Test empty layer at the beginning of the sequence."""
-    from lspattern.blocks.cubes.layered import LayeredRHGCube
-    from lspattern.tiling.template import RotatedPlanarCubeTemplate
 
     d = 3
     edgespec = {
@@ -182,8 +180,6 @@ def test_empty_layer_at_beginning() -> None:
 
 def test_empty_layer_at_end() -> None:
     """Test empty layer at the end of the sequence."""
-    from lspattern.blocks.cubes.layered import LayeredRHGCube
-    from lspattern.tiling.template import RotatedPlanarCubeTemplate
 
     d = 3
     edgespec = {
@@ -350,8 +346,6 @@ def test_maximum_d_value() -> None:
 
 def test_all_empty_layers() -> None:
     """Test edge case with all empty layers."""
-    from lspattern.blocks.cubes.layered import LayeredRHGCube
-    from lspattern.tiling.template import RotatedPlanarCubeTemplate
 
     d = 3
     edgespec = {
