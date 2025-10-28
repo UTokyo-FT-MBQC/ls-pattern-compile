@@ -143,5 +143,5 @@ ignore_missing_imports = true
 files = ["lspattern", "tests"]
 
 [tool.pyright]
-include = ["lspattern"]
+include = ["lspattern", "tests"]
 reportMissingImports = false
