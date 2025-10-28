@@ -9,7 +9,6 @@ from lspattern.testing.fingerprints import CircuitFingerprint, FingerprintRegist
 
 
 def test_memory_zero_compile_and_metadata(fingerprint_registry: FingerprintRegistry) -> None:
-
     d = 3
     circuit = create_circuit(d=d, noise=0.0, init_type=InitializationState.ZERO)
 
@@ -25,7 +24,6 @@ def test_memory_zero_compile_and_metadata(fingerprint_registry: FingerprintRegis
 
 @pytest.mark.slow
 def test_memory_zero_dem() -> None:
-
     d = 3
     noise = 1e-2
     circuit = create_circuit(d=d, noise=noise, init_type=InitializationState.ZERO)
