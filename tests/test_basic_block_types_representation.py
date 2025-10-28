@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Literal
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
@@ -8,8 +8,11 @@ from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
 from lspattern.blocks.pipes.memory import MemoryPipeSkeleton
 from lspattern.mytype import PatchCoordGlobal3D
 
+if TYPE_CHECKING:
+    from lspattern.blocks.base import RHGBlock
 
-def _summarize_block(block: Any) -> tuple[int, int, int, int]:
+
+def _summarize_block(block: RHGBlock) -> tuple[int, int, int, int]:
     b = block.materialize()
     minus = b.get_boundary_nodes(face="z-")
     plus = b.get_boundary_nodes(face="z+")

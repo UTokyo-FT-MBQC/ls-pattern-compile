@@ -1,14 +1,17 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Literal
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.mytype import PatchCoordGlobal3D
 
+if TYPE_CHECKING:
+    from lspattern.canvas.layer import TemporalLayer
 
-def _cross_region_edge_count(layer: Any) -> int:
+
+def _cross_region_edge_count(layer: TemporalLayer) -> int:
     # Count edges across cube↔pipe XY regions using layer's compiled artifacts
     cube_xy: set[tuple[int, int]] = set()
     pipe_xy: set[tuple[int, int]] = set()
