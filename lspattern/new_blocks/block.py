@@ -11,9 +11,22 @@ if TYPE_CHECKING:
     from graphqomb.graphstate import GraphState
 
     from lspattern.new_blocks.mytype import Coord2D, Coord3D
+    from lspattern.new_blocks.unit_layer import UnitLayer
 
 
 class RHGBlock(ABC):
+    @property
+    @abstractmethod
+    def global_pos(self) -> Coord3D:
+        """Get the global position of the block.
+
+        Returns
+        -------
+        Coord3D
+            The global (x, y, z) position of the block.
+        """
+        ...
+
     @property
     @abstractmethod
     def in_ports(self) -> set[Coord2D]:
@@ -47,6 +60,18 @@ class RHGBlock(ABC):
         -------
         set[Coord3D]
             A set of classical output port coordinates.
+        """
+        ...
+
+    @property
+    @abstractmethod
+    def unit_layers(self) -> list[UnitLayer]:
+        """Get the unit layers comprising the block.
+
+        Returns
+        -------
+        list[UnitLayer]
+            A list of unit layers in the block.
         """
         ...
 
