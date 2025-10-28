@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
+from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D
 
 if TYPE_CHECKING:
@@ -41,8 +42,18 @@ def _cross_region_edge_count(layer: TemporalLayer) -> int:
 
 def test_horizontal_seam_edges_present() -> None:
     d = 3
-    edgespec_cube: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
-    edgespec_pipe_h: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "Z", "TOP": "O", "BOTTOM": "O"}
+    edgespec_cube: dict[BoundarySide, EdgeSpecValue] = {
+        BoundarySide.LEFT: EdgeSpecValue.X,
+        BoundarySide.RIGHT: EdgeSpecValue.X,
+        BoundarySide.TOP: EdgeSpecValue.Z,
+        BoundarySide.BOTTOM: EdgeSpecValue.Z,
+    }
+    edgespec_pipe_h: dict[BoundarySide, EdgeSpecValue] = {
+        BoundarySide.LEFT: EdgeSpecValue.X,
+        BoundarySide.RIGHT: EdgeSpecValue.Z,
+        BoundarySide.TOP: EdgeSpecValue.O,
+        BoundarySide.BOTTOM: EdgeSpecValue.O,
+    }
 
     sk = RHGCanvasSkeleton("T37 horiz")
     a = PatchCoordGlobal3D((0, 0, 0))
@@ -56,8 +67,18 @@ def test_horizontal_seam_edges_present() -> None:
 
 def test_vertical_seam_edges_present() -> None:
     d = 3
-    edgespec_cube: dict[str, Literal["X", "Z", "O"]] = {"LEFT": "X", "RIGHT": "X", "TOP": "Z", "BOTTOM": "Z"}
-    edgespec_pipe_v: dict[str, Literal["X", "Z", "O"]] = {"TOP": "X", "BOTTOM": "Z", "LEFT": "O", "RIGHT": "O"}
+    edgespec_cube: dict[BoundarySide, EdgeSpecValue] = {
+        BoundarySide.LEFT: EdgeSpecValue.X,
+        BoundarySide.RIGHT: EdgeSpecValue.X,
+        BoundarySide.TOP: EdgeSpecValue.Z,
+        BoundarySide.BOTTOM: EdgeSpecValue.Z,
+    }
+    edgespec_pipe_v: dict[BoundarySide, EdgeSpecValue] = {
+        BoundarySide.TOP: EdgeSpecValue.X,
+        BoundarySide.BOTTOM: EdgeSpecValue.Z,
+        BoundarySide.LEFT: EdgeSpecValue.O,
+        BoundarySide.RIGHT: EdgeSpecValue.O,
+    }
 
     sk = RHGCanvasSkeleton("T37 vert")
     a = PatchCoordGlobal3D((0, 0, 0))

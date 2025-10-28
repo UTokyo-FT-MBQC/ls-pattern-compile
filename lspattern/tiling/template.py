@@ -15,6 +15,10 @@ from lspattern.mytype import (
 from lspattern.tiling.base import Tiling
 from lspattern.utils import sort_xy
 
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+    from matplotlib.figure import Figure
+
 
 def calculate_qindex_base_cube(patch_coord: tuple[int, int], d: int) -> int:
     """Calculate the starting q_index for data qubits in a cube patch.
@@ -131,8 +135,6 @@ def _calculate_pipe_boundary_qindex(source_patch: tuple[int, int], sink_patch: t
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-
-    from matplotlib.axes import Axes
 
 
 @dataclass(kw_only=True)
@@ -339,9 +341,12 @@ class ScalableTemplate(Tiling):
         xs = [(coord[0], coord[1]) for coord in (self.x_coords or [])]
         zs = [(coord[0], coord[1]) for coord in (self.z_coords or [])]
 
-        created_fig = None
+        created_fig: Figure | None = None
         if ax is None:
             created_fig, ax = plt.subplots(figsize=(6, 6))
+        if ax is None:
+            msg = "ax should not be None here"
+            raise ValueError(msg)
 
         def unpack(coords: list[tuple[int, int]]) -> tuple[list[int], list[int]]:
             if not coords:
