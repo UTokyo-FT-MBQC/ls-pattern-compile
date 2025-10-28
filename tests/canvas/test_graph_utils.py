@@ -70,7 +70,6 @@ class TestRemapGraphNodes:
             NodeIdLocal(n3): NodeIdLocal(200),
         }
 
-        import pytest
         with pytest.raises(KeyError, match="Node 100 is already created"):
             remap_graph_nodes(gsrc, nmap)
 
@@ -344,6 +343,5 @@ class TestGraphUtilsEdgeCases:
             NodeIdLocal(n3): NodeIdLocal(42),
         }
 
-        import pytest
         with pytest.raises(KeyError, match="Node 42 is already created"):
             create_remapped_graphstate(gsrc, nmap)

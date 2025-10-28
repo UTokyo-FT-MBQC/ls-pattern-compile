@@ -15,13 +15,11 @@ def _cross_region_edge_count(layer: Any) -> int:
     for blk in layer.cubes_.values():
         t = blk.template
         for L in (t.data_coords, t.x_coords, t.z_coords):
-            for x, y in L or []:
-                cube_xy.add((int(x), int(y)))
+            cube_xy.update((int(x), int(y)) for x, y in L or [])
     for pipe in layer.pipes_.values():
         t = pipe.template
         for L in (t.data_coords, t.x_coords, t.z_coords):
-            for x, y in L or []:
-                pipe_xy.add((int(x), int(y)))
+            pipe_xy.update((int(x), int(y)) for x, y in L or [])
 
     g = layer.local_graph
     n2c = layer.node2coord

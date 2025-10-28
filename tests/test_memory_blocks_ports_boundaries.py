@@ -1,4 +1,3 @@
-import os
 from typing import Literal
 
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton

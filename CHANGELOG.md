@@ -33,6 +33,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `test_multiple_pipes_different_coords`: Multiple pipe management
 
 ### Changed
+- Refactored test file naming and documentation for improved clarity
+  - Removed `Txx_` prefixes from test file names for better semantic naming
+  - Renamed root-level test files to reflect their actual testing purpose:
+    - `test_T37_seam_edges_same_z.py` → `test_seam_edges_horizontal_vertical.py`
+    - `test_T39_memory.py` → `test_memory_blocks_ports_boundaries.py`
+    - `test_T41_blocks_basic.py` → `test_basic_block_types_representation.py`
+    - `test_T43_compile_smoke.py` → `test_canvas_compilation_smoke.py`
+    - `test_mockup.py` → `test_merge_split_mockup_snapshot.py`
+    - `test_temporal_and_spatial.py` → `test_canvas_snapshot_temporal_spatial.py`
+  - Renamed canvas subdirectory test files to match tested class names:
+    - `test_composition.py` → `test_graph_composer.py`
+    - `test_coordinates.py` → `test_coordinate_mapper.py`
+    - `test_ports.py` → `test_port_manager.py`
+    - `test_seams.py` → `test_seam_generator.py`
+  - Translated all Japanese comments in test files to English
 - Expanded CI test matrix to cover Python 3.10, 3.11, 3.12, and 3.13 ([#61](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/61))
 - Unified `x_parity` and `z_parity` parameters into single `parity` parameter in `compile_canvas()`
   - Updated `lspattern.compile.compile_canvas()` function signature to match graphqomb's unified `parity_check_group` API
