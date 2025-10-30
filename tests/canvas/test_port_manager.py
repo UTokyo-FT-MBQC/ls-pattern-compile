@@ -869,7 +869,7 @@ class TestPortManagerPipeInOutPorts:
 
         # Identity mapping (no remapping)
         node_map: dict[int, int] = {}
-        merged = pm1.merge(pm2, node_map, node_map)
+        merged = pm1.merge(pm2, node_map, node_map, in_ports_from="both")
 
         # Both pipes should be merged
         assert pipe1_coord in merged.in_portset_pipe

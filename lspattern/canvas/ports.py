@@ -381,11 +381,20 @@ class PortManager:
         for pos, nodes in other_remapped.out_portset.items():
             merged.add_out_ports(pos, nodes)
 
-        # Merge pipe in_ports from both
-        for pipe_coord, nodes in self_remapped.in_portset_pipe.items():
-            merged.add_in_ports_pipe(pipe_coord, nodes)
-        for pipe_coord, nodes in other_remapped.in_portset_pipe.items():
-            merged.add_in_ports_pipe(pipe_coord, nodes)
+        # Merge pipe in_ports based on strategy
+        if in_ports_from == "other":
+            for pipe_coord, nodes in other_remapped.in_portset_pipe.items():
+                merged.add_in_ports_pipe(pipe_coord, nodes)
+        elif in_ports_from == "self":
+            for pipe_coord, nodes in self_remapped.in_portset_pipe.items():
+                merged.add_in_ports_pipe(pipe_coord, nodes)
+        elif in_ports_from == "both":
+            for pipe_coord, nodes in self_remapped.in_portset_pipe.items():
+                merged.add_in_ports_pipe(pipe_coord, nodes)
+            for pipe_coord, nodes in other_remapped.in_portset_pipe.items():
+                merged.add_in_ports_pipe(pipe_coord, nodes)
+        else:
+            msg = f"Invalid in_ports_from: {in_ports_from}. Must be 'self', 'other', or 'both'."
 
         # Merge pipe out_ports from both
         for pipe_coord, nodes in self_remapped.out_portset_pipe.items():
