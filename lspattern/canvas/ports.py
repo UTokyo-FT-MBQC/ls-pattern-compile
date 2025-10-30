@@ -395,6 +395,7 @@ class PortManager:
                 merged.add_in_ports_pipe(pipe_coord, nodes)
         else:
             msg = f"Invalid in_ports_from: {in_ports_from}. Must be 'self', 'other', or 'both'."
+            raise ValueError(msg)
 
         # Merge pipe out_ports from both
         for pipe_coord, nodes in self_remapped.out_portset_pipe.items():
