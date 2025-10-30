@@ -8,7 +8,7 @@ from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D
 
 
-def test_T43_compile_two_layers_smoke() -> None:
+def test_compile_two_layers_smoke() -> None:
     edgespec: dict[BoundarySide, EdgeSpecValue] = {
         BoundarySide.LEFT: EdgeSpecValue.X,
         BoundarySide.RIGHT: EdgeSpecValue.X,

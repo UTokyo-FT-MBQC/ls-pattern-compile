@@ -33,6 +33,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `test_multiple_pipes_different_coords`: Multiple pipe management
 
 ### Changed
+- Refactored test file naming and documentation for improved clarity
+  - Removed `Txx_` prefixes from test file names for better semantic naming
+  - Renamed root-level test files to reflect their actual testing purpose:
+    - `test_T37_seam_edges_same_z.py` → `test_seam_edges_horizontal_vertical.py`
+    - `test_T39_memory.py` → `test_memory_blocks_ports_boundaries.py`
+    - `test_T41_blocks_basic.py` → `test_basic_block_types_representation.py`
+    - `test_T43_compile_smoke.py` → `test_canvas_compilation_smoke.py`
+    - `test_mockup.py` → `test_merge_split_mockup_snapshot.py`
+    - `test_temporal_and_spatial.py` → `test_canvas_snapshot_temporal_spatial.py`
+  - Renamed canvas subdirectory test files to match tested class names:
+    - `test_composition.py` → `test_graph_composer.py`
+    - `test_coordinates.py` → `test_coordinate_mapper.py`
+    - `test_ports.py` → `test_port_manager.py`
+    - `test_seams.py` → `test_seam_generator.py`
+  - Translated all Japanese comments in test files to English
+  - Translated snapshot testing guide from Japanese to English
+    - `tests/snapshotの手引き.md` → `tests/snapshot_testing_guide.md`
+- Tightened typing across tests and visualization helpers to satisfy strict `mypy`/`pyright` runs
+  - Swapped ad-hoc edge spec dictionaries for `BoundarySide`/`EdgeSpecValue` enums in block tests
+  - Standardized seam generator fixtures and layered-block lookups on `NodeIdLocal`/`PhysCoordGlobal3D`
+  - Replaced tuple literals with `AxisMeasBasis` in graph utils tests to align with `GraphState.assign_meas_basis`
+  - Added optional `Axes` guards in Matplotlib-based visualizers to silence optional-member checks
+  - Converted logical observable gathering in merge/split examples to use typed port maps
 - Expanded CI test matrix to cover Python 3.10, 3.11, 3.12, and 3.13 ([#61](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/61))
 - Unified `x_parity` and `z_parity` parameters into single `parity` parameter in `compile_canvas()`
   - Updated `lspattern.compile.compile_canvas()` function signature to match graphqomb's unified `parity_check_group` API
@@ -73,6 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed redundant methods from internal APIs for cleaner codebase
 - Switched to install `graphqomb` from PyPI server
 - Switch from `DIRECTION3D` to `DIRECTION2D`
+
 ### Fixed
 - Fixed pipe port management to use `PipeCoordGlobal3D` consistently ([#74](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/74))
   - Added `in_portset_pipe` and `out_portset_pipe` dictionaries using `PipeCoordGlobal3D` keys

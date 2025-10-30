@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from lspattern.canvas.seams import SeamGenerator
 from lspattern.mytype import (
     NodeIdLocal,
     PatchCoordGlobal3D,
-    PipeCoordGlobal3D,
     PhysCoordGlobal3D,
+    PipeCoordGlobal3D,
     QubitGroupIdGlobal,
 )
 

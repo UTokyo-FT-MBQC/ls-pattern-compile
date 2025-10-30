@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import stim
 
 from lspattern.testing.fingerprints import CircuitFingerprint, FingerprintRegistry
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _toy_circuit() -> stim.Circuit:
@@ -35,8 +38,10 @@ def test_fingerprint_roundtrip(tmp_path: Path) -> None:
     reg2 = FingerprintRegistry(reg_path)
     reg2.load()
     ok, err = reg2.verify(fp)
-    assert ok and err is None
+    assert ok
+    assert err is None
 
     # sanity check on file content
     data = json.loads(reg_path.read_text())
-    assert "toy" in data and "sha256" in data["toy"]
+    assert "toy" in data
+    assert "sha256" in data["toy"]

@@ -1,7 +1,5 @@
 """Tests for ParityAccumulator ignore_dangling functionality."""
 
-import pytest
-
 from lspattern.accumulator import ParityAccumulator
 from lspattern.mytype import NodeIdLocal, PhysCoordLocal2D
 

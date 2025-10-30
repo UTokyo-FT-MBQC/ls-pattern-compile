@@ -1,7 +1,7 @@
 """Merge and Split error rate simulation with noise probability sweep."""
 
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,7 +21,7 @@ from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_canvas
 from lspattern.consts import BoundarySide, EdgeSpecValue
-from lspattern.mytype import PatchCoordGlobal3D, PipeCoordGlobal3D
+from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PipeCoordGlobal3D
 
 
 def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
@@ -173,25 +173,29 @@ def create_circuit(d: int, noise: float) -> stim.Circuit:
     # Set logical observables
     cout_portmap = compiled_canvas.cout_portset_cube
     cout_portmap_pipe = compiled_canvas.cout_portset_pipe
-    coord2logical_group = {
+
+    def _gather_nodes_for_coords(
+        patch_map: dict[PatchCoordGlobal3D, list[NodeIdLocal]],
+        pipe_map: dict[PipeCoordGlobal3D, list[NodeIdLocal]],
+        coords: set[PatchCoordGlobal3D | PipeCoordGlobal3D],
+    ) -> set[NodeIdLocal]:
+        collected: set[NodeIdLocal] = set()
+        for coord in coords:
+            if pipe_nodes := pipe_map.get(cast(PipeCoordGlobal3D, coord)):
+                collected.update(pipe_nodes)
+                continue
+            if patch_nodes := patch_map.get(cast(PatchCoordGlobal3D, coord)):
+                collected.update(patch_nodes)
+        return collected
+
+    coord2logical_group: dict[int, set[PatchCoordGlobal3D | PipeCoordGlobal3D]] = {
         0: {PatchCoordGlobal3D((0, 0, 4))},  # First output patch
         1: {PatchCoordGlobal3D((1, 0, 4))},  # Second output patch
         2: {PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 2)), PatchCoordGlobal3D((1, 0, 2))))},  # InitPlus pipe
     }
-    logical_observables = {}
-    for i, group in coord2logical_group.items():
-        nodes = []
-        for coord in group:
-            # PipeCoordGlobal3D is a 2-tuple of PatchCoordGlobal3D (nested tuples)
-            # PatchCoordGlobal3D is a 3-tuple of ints
-            if isinstance(coord, tuple) and len(coord) == 2 and all(isinstance(c, tuple) for c in coord):
-                # This is a PipeCoordGlobal3D
-                if coord in cout_portmap_pipe:
-                    nodes.extend(cout_portmap_pipe[coord])
-            elif coord in cout_portmap:
-                # This is a PatchCoordGlobal3D
-                nodes.extend(cout_portmap[coord])
-        logical_observables[i] = set(nodes)
+    logical_observables: dict[int, set[NodeIdLocal]] = {}
+    for i, coord_group in coord2logical_group.items():
+        logical_observables[i] = _gather_nodes_for_coords(cout_portmap, cout_portmap_pipe, coord_group)
 
     stim_str = stim_compile(
         pattern,
@@ -255,7 +259,7 @@ if __name__ == "__main__":
                 results.append((0.0, 0.0))
         return results
 
-    def analyze_correlations(stats: sinter.TaskStats, n_obs: int = 3) -> dict:
+    def analyze_correlations(stats: sinter.TaskStats, n_obs: int = 3) -> dict[str, Any]:
         """Analyze correlations between observables.
 
         Returns
@@ -264,7 +268,7 @@ if __name__ == "__main__":
             Dictionary containing correlation analysis results.
         """
         # Extract error patterns
-        error_patterns = {}
+        error_patterns: dict[str, int] = {}
         for key, count in stats.custom_counts.items():
             if not key.startswith("obs_mistake_mask="):
                 continue
@@ -278,7 +282,7 @@ if __name__ == "__main__":
 
         # Build error matrices for each observable pair
         corr_matrix = np.zeros((n_obs, n_obs))
-        joint_probs = {}
+        joint_probs: dict[tuple[int, int], dict[str, float]] = {}
 
         for i in range(n_obs):
             for j in range(n_obs):
@@ -318,17 +322,17 @@ if __name__ == "__main__":
                         corr_matrix[i, j] = 0.0
 
                 joint_probs[(i, j)] = {
-                    'both_error': both_error / total_shots,
-                    'i_error': p_i,
-                    'j_error': p_j,
-                    'conditional_j_given_i': both_error / i_error if i_error > 0 else 0.0,
+                    "both_error": both_error / total_shots,
+                    "i_error": p_i,
+                    "j_error": p_j,
+                    "conditional_j_given_i": both_error / i_error if i_error > 0 else 0.0,
                 }
 
         return {
-            'correlation_matrix': corr_matrix,
-            'joint_probabilities': joint_probs,
-            'error_patterns': error_patterns,
-            'total_shots': total_shots,
+            "correlation_matrix": corr_matrix,
+            "joint_probabilities": joint_probs,
+            "error_patterns": error_patterns,
+            "total_shots": total_shots,
         }
 
     # Analyze error patterns and correlations for all cases

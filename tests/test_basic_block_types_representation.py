@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import TYPE_CHECKING
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
@@ -9,60 +9,73 @@ from lspattern.blocks.pipes.memory import MemoryPipeSkeleton
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D
 
+if TYPE_CHECKING:
+    from lspattern.blocks.base import RHGBlock
 
-def _summarize_block(block: Any) -> tuple[int, int, int, int]:
+
+def _summarize_block(block: RHGBlock) -> tuple[int, int, int, int]:
     b = block.materialize()
     minus = b.get_boundary_nodes(face="z-")
     plus = b.get_boundary_nodes(face="z+")
     return len(b.in_ports), len(b.out_ports), len(minus["data"]), len(plus["data"])
 
 
-def test_T41_representative_blocks_counts() -> None:
+def test_representative_blocks_counts() -> None:
     # InitPlusCube d=3 spec=A
-    cube_spec_A: dict[BoundarySide, EdgeSpecValue] = {
+    cube_spec_a: dict[BoundarySide, EdgeSpecValue] = {
         BoundarySide.LEFT: EdgeSpecValue.X,
         BoundarySide.RIGHT: EdgeSpecValue.X,
         BoundarySide.TOP: EdgeSpecValue.Z,
         BoundarySide.BOTTOM: EdgeSpecValue.Z,
     }
-    init_cube = InitPlusCubeSkeleton(d=3, edgespec=cube_spec_A).to_block()
-    i_in, i_out, i_zm, i_zp = _summarize_block(init_cube)
-    # Init系は out に data の全インデックス、inはテンプレート依存(空許容)
-    assert i_out == 9 and i_zm == 9 and i_zp == 9
+    init_cube = InitPlusCubeSkeleton(d=3, edgespec=cube_spec_a).to_block()
+    _, i_out, i_zm, i_zp = _summarize_block(init_cube)
+    # For Init-type blocks, out contains all data indices, in depends on template (empty allowed)
+    assert i_out == 9
+    assert i_zm == 9
+    assert i_zp == 9
 
     # MemoryCube d=3 spec=B
-    cube_spec_B: dict[BoundarySide, EdgeSpecValue] = {
+    cube_spec_b: dict[BoundarySide, EdgeSpecValue] = {
         BoundarySide.LEFT: EdgeSpecValue.Z,
         BoundarySide.RIGHT: EdgeSpecValue.Z,
         BoundarySide.TOP: EdgeSpecValue.X,
         BoundarySide.BOTTOM: EdgeSpecValue.X,
     }
-    mem_cube = MemoryCubeSkeleton(d=3, edgespec=cube_spec_B).to_block()
+    mem_cube = MemoryCubeSkeleton(d=3, edgespec=cube_spec_b).to_block()
     m_in, m_out, m_zm, m_zp = _summarize_block(mem_cube)
-    assert m_in == 9 and m_out == 9 and m_zm == 9 and m_zp == 9
+    assert m_in == 9
+    assert m_out == 9
+    assert m_zm == 9
+    assert m_zp == 9
 
     # InitPlusPipe d=3 spec=H1 RIGHT
-    pipe_spec_H1: dict[BoundarySide, EdgeSpecValue] = {
+    pipe_spec_h1: dict[BoundarySide, EdgeSpecValue] = {
         BoundarySide.LEFT: EdgeSpecValue.X,
         BoundarySide.RIGHT: EdgeSpecValue.Z,
         BoundarySide.TOP: EdgeSpecValue.O,
         BoundarySide.BOTTOM: EdgeSpecValue.O,
     }
-    init_pipe_h = InitPlusPipeSkeleton(d=3, edgespec=pipe_spec_H1).to_block(
+    init_pipe_h = InitPlusPipeSkeleton(d=3, edgespec=pipe_spec_h1).to_block(
         source=PatchCoordGlobal3D((0, 0, 0)), sink=PatchCoordGlobal3D((1, 0, 0))
     )
-    pi_in, pi_out, pi_zm, pi_zp = _summarize_block(init_pipe_h)
-    assert pi_out == 3 and pi_zm == 3 and pi_zp == 3
+    _, pi_out, pi_zm, pi_zp = _summarize_block(init_pipe_h)
+    assert pi_out == 3
+    assert pi_zm == 3
+    assert pi_zp == 3
 
     # MemoryPipe d=3 spec=V2 TOP
-    pipe_spec_V2: dict[BoundarySide, EdgeSpecValue] = {
+    pipe_spec_b2: dict[BoundarySide, EdgeSpecValue] = {
         BoundarySide.LEFT: EdgeSpecValue.O,
         BoundarySide.RIGHT: EdgeSpecValue.O,
         BoundarySide.TOP: EdgeSpecValue.Z,
         BoundarySide.BOTTOM: EdgeSpecValue.X,
     }
-    mem_pipe_v = MemoryPipeSkeleton(d=3, edgespec=pipe_spec_V2).to_block(
+    mem_pipe_v = MemoryPipeSkeleton(d=3, edgespec=pipe_spec_b2).to_block(
         source=PatchCoordGlobal3D((0, 0, 0)), sink=PatchCoordGlobal3D((0, 1, 0))
     )
     pm_in, pm_out, pm_zm, pm_zp = _summarize_block(mem_pipe_v)
-    assert pm_in == 3 and pm_out == 3 and pm_zm == 3 and pm_zp == 3
+    assert pm_in == 3
+    assert pm_out == 3
+    assert pm_zm == 3
+    assert pm_zp == 3

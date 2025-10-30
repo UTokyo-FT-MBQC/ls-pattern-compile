@@ -17,12 +17,14 @@ from lspattern.blocks.cubes.layered import (
     LayeredInitPlusCubeSkeleton,
     LayeredInitZeroCubeSkeleton,
     LayeredMemoryCubeSkeleton,
+    LayeredRHGCube,
 )
 from lspattern.blocks.layers.empty import EmptyUnitLayer
 from lspattern.blocks.layers.memory import MemoryUnitLayer
 from lspattern.blocks.pipes.layered import LayeredInitPlusPipeSkeleton, LayeredMemoryPipeSkeleton
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D
+from lspattern.tiling.template import RotatedPlanarCubeTemplate
 
 
 def test_layered_memory_cube_various_d_values() -> None:
@@ -111,8 +113,6 @@ def test_layered_init_zero_cube_initialization() -> None:
 def test_empty_layer_handling_consecutive() -> None:
     """Test multiple consecutive empty layers are handled correctly."""
     # This test creates a custom LayeredRHGCube with empty layers
-    from lspattern.blocks.cubes.layered import LayeredRHGCube
-    from lspattern.tiling.template import RotatedPlanarCubeTemplate
 
     d = 5
     edgespec = {
@@ -148,9 +148,11 @@ def test_empty_layer_handling_consecutive() -> None:
 
     # Verify no cross-empty-layer connections
     for src, dsts in cube.flow.flow.items():
-        src_z = cube.node2coord.get(NodeIdLocal(int(src)), PhysCoordGlobal3D((0, 0, -1)))[2]
+        src_coord = cube.node2coord.get(NodeIdLocal(int(src)), PhysCoordGlobal3D((-1, -1, -1)))
+        src_z = src_coord[2]
         for dst in dsts:
-            dst_z = cube.node2coord.get(NodeIdLocal(int(dst)), PhysCoordGlobal3D((0, 0, -1)))[2]
+            dst_coord = cube.node2coord.get(NodeIdLocal(int(dst)), PhysCoordGlobal3D((-1, -1, -1)))
+            dst_z = dst_coord[2]
             # Assert that connections are only to adjacent z-layers (diff of 1)
             # or within the same UnitLayer (diff of 1)
             assert abs(dst_z - src_z) == 1, f"Invalid flow: z={src_z} -> z={dst_z}"
@@ -158,8 +160,6 @@ def test_empty_layer_handling_consecutive() -> None:
 
 def test_empty_layer_at_beginning() -> None:
     """Test empty layer at the beginning of the sequence."""
-    from lspattern.blocks.cubes.layered import LayeredRHGCube
-    from lspattern.tiling.template import RotatedPlanarCubeTemplate
 
     d = 3
     edgespec = {
@@ -182,8 +182,6 @@ def test_empty_layer_at_beginning() -> None:
 
 def test_empty_layer_at_end() -> None:
     """Test empty layer at the end of the sequence."""
-    from lspattern.blocks.cubes.layered import LayeredRHGCube
-    from lspattern.tiling.template import RotatedPlanarCubeTemplate
 
     d = 3
     edgespec = {
@@ -350,8 +348,6 @@ def test_maximum_d_value() -> None:
 
 def test_all_empty_layers() -> None:
     """Test edge case with all empty layers."""
-    from lspattern.blocks.cubes.layered import LayeredRHGCube
-    from lspattern.tiling.template import RotatedPlanarCubeTemplate
 
     d = 3
     edgespec = {

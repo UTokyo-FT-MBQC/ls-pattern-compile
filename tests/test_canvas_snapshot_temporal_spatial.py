@@ -7,15 +7,15 @@ from typing import Any
 
 import pytest
 
-from lspattern.blocks.pipes.memory import MemoryPipeSkeleton
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
+from lspattern.blocks.pipes.memory import MemoryPipeSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D
 
 
-def _build_compiled_canvas_T43() -> CompiledRHGCanvas:
+def _build_compiled_canvas() -> CompiledRHGCanvas:
     """Replicate examples/visualize_T43.ipynb without modification."""
     d = 3
     canvass = RHGCanvasSkeleton("Memory X")
@@ -63,14 +63,14 @@ def _coord_key(c: tuple[int, int, int]) -> str:
     return f"{int(c[0])},{int(c[1])},{int(c[2])}"
 
 
-def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:
+def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:  # noqa: C901
     # Reverse coord2node for convenience
     coord2node = dict(cg.coord2node or {})
     node2coord = {int(nid): (int(x), int(y), int(z)) for (x, y, z), nid in coord2node.items()}
     g = getattr(cg, "global_graph", None)
 
     # Nodes as sorted coordinate triples
-    coords_sorted = sorted([(int(x), int(y), int(z)) for (x, y, z) in coord2node.keys()])
+    coords_sorted = sorted([(int(x), int(y), int(z)) for (x, y, z) in coord2node])
 
     # Edges mapped to coordinates, sorted deterministically
     edges_coords: list[list[int]] = []
@@ -91,12 +91,12 @@ def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:
     inputs = {}
     outputs = {}
     if g is not None:
-        if hasattr(g, "input_node_indices") and getattr(g, "input_node_indices"):
+        if hasattr(g, "input_node_indices") and g.input_node_indices:
             for nid, lidx in g.input_node_indices.items():
                 c = node2coord.get(int(nid))
                 if c is not None:
                     inputs[_coord_key(c)] = int(lidx)
-        if hasattr(g, "output_node_indices") and getattr(g, "output_node_indices"):
+        if hasattr(g, "output_node_indices") and g.output_node_indices:
             for nid, lidx in g.output_node_indices.items():
                 c = node2coord.get(int(nid))
                 if c is not None:
@@ -116,15 +116,21 @@ def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:
         return snap
 
     # Convert portsets to correct format
-    in_portset_conv: dict[tuple[int, int, int], list[int]] = {(k[0], k[1], k[2]): [int(v) for v in lst] for k, lst in cg.in_portset.items()}
-    out_portset_conv: dict[tuple[int, int, int], list[int]] = {(k[0], k[1], k[2]): [int(v) for v in lst] for k, lst in cg.out_portset.items()}
-    cout_portset_conv: dict[tuple[int, int, int], list[int]] = {(k[0], k[1], k[2]): [int(v) for v in lst] for k, lst in cg.cout_portset_cube.items()}
+    in_portset_conv: dict[tuple[int, int, int], list[int]] = {
+        (k[0], k[1], k[2]): [int(v) for v in lst] for k, lst in cg.in_portset.items()
+    }
+    out_portset_conv: dict[tuple[int, int, int], list[int]] = {
+        (k[0], k[1], k[2]): [int(v) for v in lst] for k, lst in cg.out_portset.items()
+    }
+    cout_portset_conv: dict[tuple[int, int, int], list[int]] = {
+        (k[0], k[1], k[2]): [int(v) for v in lst] for k, lst in cg.cout_portset_cube.items()
+    }
 
     in_ports = _ports_to_coords(in_portset_conv)
     out_ports = _ports_to_coords(out_portset_conv)
     cout_ports = _ports_to_coords(cout_portset_conv)
 
-    snapshot = {
+    return {
         "meta": {
             "layers": len(getattr(cg, "layers", []) or []),
             "zlist": list(getattr(cg, "zlist", []) or []),
@@ -140,7 +146,6 @@ def _snapshot_compiled_canvas(cg: CompiledRHGCanvas) -> dict[str, Any]:
         "out_ports": dict(sorted(out_ports.items())),
         "cout_ports": dict(sorted(cout_ports.items())),
     }
-    return snapshot
 
 
 def _load_expected_snapshot(path: Path) -> dict[str, Any] | None:
@@ -158,15 +163,15 @@ def _save_snapshot(path: Path, data: dict[str, Any]) -> None:
 
 
 @pytest.mark.parametrize("update", [bool(int(os.environ.get("UPDATE_SNAPSHOTS", "0")))])
-def test_T43_temporal_and_spatial_snapshot(update: bool) -> None:
-    compiled = _build_compiled_canvas_T43()
+def test_temporal_and_spatial_snapshot(update: bool) -> None:
+    compiled = _build_compiled_canvas()
     got = _snapshot_compiled_canvas(compiled)
 
     snap_path = Path(__file__).parent / "snapshots" / "T43_compiled_canvas.json"
     expected = _load_expected_snapshot(snap_path)
 
     if expected is None or update:
-        # 初回(または明示更新)にスナップショットを書き出す
+        # On first run (or explicit update) write out the snapshot
         _save_snapshot(snap_path, got)
         expected = got
 

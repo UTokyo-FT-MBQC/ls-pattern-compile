@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import pytest
-
 from lspattern.blocks.cubes.measure import MeasureXSkeleton, MeasureZSkeleton
 from lspattern.consts import BoundarySide, EdgeSpecValue
+from lspattern.mytype import NodeIdLocal
 
 
 def test_measure_blocks_single_layer_optimization() -> None:
@@ -86,8 +85,8 @@ def test_measure_blocks_no_temporal_edges() -> None:
     temporal_edges = 0
     for edge in materialized_x.local_graph.physical_edges:
         node1, node2 = edge
-        coord1 = materialized_x.node2coord[node1]
-        coord2 = materialized_x.node2coord[node2]
+        coord1 = materialized_x.node2coord[NodeIdLocal(int(node1))]
+        coord2 = materialized_x.node2coord[NodeIdLocal(int(node2))]
         if coord1[2] != coord2[2]:  # Different z-coordinates means temporal edge
             temporal_edges += 1
 

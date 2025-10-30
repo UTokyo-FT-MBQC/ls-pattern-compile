@@ -65,6 +65,9 @@ def visualize_temporal_layer(  # noqa: C901
             msg = "Axes object has no associated figure"
             raise ValueError(msg)
         fig = fig_temp  # type: ignore[assignment]  # matplotlib typing is imprecise
+    if ax is None:
+        msg = "ax should not be None here"
+        raise ValueError(msg)
     ax.set_box_aspect((1, 1, 1))  # type: ignore[arg-type]
     # 軸とグリッドの表示制御(デフォルトON)
     if show_axes:

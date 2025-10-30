@@ -58,6 +58,9 @@ def visualize_compiled_canvas(  # noqa: C901
         temp_fig = ax.get_figure()
         # mypy doesn't understand matplotlib's Figure hierarchy properly
         fig = temp_fig  # type: ignore[assignment]
+    if ax is None:
+        msg = "ax should not be None here"
+        raise ValueError(msg)
 
     # 軸とグリッド
     ax.set_box_aspect([1, 1, 1])  # type: ignore[arg-type]  # matplotlib 3D axis expects list

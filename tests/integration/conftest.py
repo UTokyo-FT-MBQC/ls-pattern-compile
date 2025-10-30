@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture(scope="session")
-def fingerprint_registry() -> Generator[FingerprintRegistry, None, None]:
+def fingerprint_registry() -> Generator[FingerprintRegistry]:
     """Load the golden fingerprint registry for integration tests.
 
     If UPDATE_FINGERPRINTS=1 is set, enables auto-update mode and saves

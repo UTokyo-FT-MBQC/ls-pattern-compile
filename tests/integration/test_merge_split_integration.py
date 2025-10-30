@@ -8,7 +8,6 @@ from lspattern.testing.fingerprints import CircuitFingerprint, FingerprintRegist
 
 
 def test_merge_split_compile_and_metadata(fingerprint_registry: FingerprintRegistry) -> None:
-
     d = 3
     circuit = create_circuit(d=d, noise=0.0)
 
@@ -24,7 +23,6 @@ def test_merge_split_compile_and_metadata(fingerprint_registry: FingerprintRegis
 
 @pytest.mark.slow
 def test_merge_split_dem() -> None:
-
     d = 3
     noise = 1e-2
     circuit = create_circuit(d=d, noise=noise)

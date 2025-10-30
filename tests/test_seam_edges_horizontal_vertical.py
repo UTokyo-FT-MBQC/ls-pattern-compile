@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeSkeleton
 from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
@@ -8,21 +8,22 @@ from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D
 
+if TYPE_CHECKING:
+    from lspattern.canvas.layer import TemporalLayer
 
-def _cross_region_edge_count(layer: Any) -> int:
+
+def _cross_region_edge_count(layer: TemporalLayer) -> int:
     # Count edges across cube↔pipe XY regions using layer's compiled artifacts
     cube_xy: set[tuple[int, int]] = set()
     pipe_xy: set[tuple[int, int]] = set()
     for blk in layer.cubes_.values():
         t = blk.template
-        for L in (t.data_coords, t.x_coords, t.z_coords):
-            for x, y in L or []:
-                cube_xy.add((int(x), int(y)))
+        for coords in (t.data_coords, t.x_coords, t.z_coords):
+            cube_xy.update((int(x), int(y)) for x, y in coords or [])
     for pipe in layer.pipes_.values():
         t = pipe.template
-        for L in (t.data_coords, t.x_coords, t.z_coords):
-            for x, y in L or []:
-                pipe_xy.add((int(x), int(y)))
+        for coords in (t.data_coords, t.x_coords, t.z_coords):
+            pipe_xy.update((int(x), int(y)) for x, y in coords or [])
 
     g = layer.local_graph
     n2c = layer.node2coord
@@ -34,14 +35,12 @@ def _cross_region_edge_count(layer: Any) -> int:
             continue
         xu, yu = int(cu[0]), int(cu[1])
         xv, yv = int(cv[0]), int(cv[1])
-        if ((xu, yu) in cube_xy and (xv, yv) in pipe_xy) or (
-            (xv, yv) in cube_xy and (xu, yu) in pipe_xy
-        ):
+        if ((xu, yu) in cube_xy and (xv, yv) in pipe_xy) or ((xv, yv) in cube_xy and (xu, yu) in pipe_xy):
             cnt += 1
     return cnt
 
 
-def test_T37_horizontal_seam_edges_present() -> None:
+def test_horizontal_seam_edges_present() -> None:
     d = 3
     edgespec_cube: dict[BoundarySide, EdgeSpecValue] = {
         BoundarySide.LEFT: EdgeSpecValue.X,
@@ -66,7 +65,7 @@ def test_T37_horizontal_seam_edges_present() -> None:
     assert _cross_region_edge_count(layer) > 0
 
 
-def test_T37_vertical_seam_edges_present() -> None:
+def test_vertical_seam_edges_present() -> None:
     d = 3
     edgespec_cube: dict[BoundarySide, EdgeSpecValue] = {
         BoundarySide.LEFT: EdgeSpecValue.X,
