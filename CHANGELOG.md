@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## Version [0.0.4] - 2025-10-31
+
 ### Added
 - CI status badges (pytest, type checking, ruff) to README.md
 - Complete logical error rate simulation for merge and split operations ([#19](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/19))
@@ -98,6 +102,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switch from `DIRECTION3D` to `DIRECTION2D`
 
 ### Fixed
+- Fixed pipe port management to use `PipeCoordGlobal3D` consistently ([#74](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/74))
+  - Added `in_portset_pipe` and `out_portset_pipe` dictionaries using `PipeCoordGlobal3D` keys
+  - Added `add_in_ports_pipe()` and `add_out_ports_pipe()` methods to `PortManager`
+  - Updated `GraphComposer.process_pipe_ports()` to use pipe-specific methods instead of converting to `PatchCoordGlobal3D`
+  - All pipe ports (in/out/cout) now consistently use `PipeCoordGlobal3D` coordinate system
+  - Enables proper retrieval of all ports associated with a specific pipe
+  - Resolves ambiguity when multiple pipes share the same sink coordinate
+  - Added 11 comprehensive unit tests for pipe in/out port management to `tests/canvas/test_ports.py`
 - Fixed critical duplicated node remapping bug in `CompiledRHGCanvas` ([#19](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/19))
   - Eliminated duplicate calls to `_remap_graph_nodes()` that caused incorrect node ID mappings
   - Resolved issue where `node_map_global` was being remapped twice during compilation
