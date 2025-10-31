@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Unified API that internally handles scheduler setup, parity extraction, pattern compilation, and logical observable resolution
   - Supports both PatchCoordGlobal3D and PipeCoordGlobal3D for logical observable coordinates
   - Reduces boilerplate code from ~30-40 lines to ~3-5 lines in example files
-  - Updated all example files (`memory_error_sim.py`, `plus_initialization.py`, `zero_initialization.py`, `merge_split_error_sim.py`) to use the new API
+  - Updated all example files to use the new API
 
 ---
 
