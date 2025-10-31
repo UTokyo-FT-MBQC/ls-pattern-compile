@@ -287,20 +287,24 @@ pyright                  # Type checking with pyright
 
 If you use ls-pattern-compile in your research, please cite:
 
-### BibTeX
+### BibLaTeX
 ```bibtex
 @software{lspattern2025,
-  title = {ls-pattern-compile: MBQC Lattice Surgery Compiler},
-  author = {{Masato Fukushima, Shinichi Inoue, and Daichi Sasaki}},
-  year = {2025},
-  url = {https://github.com/UTokyo-FT-MBQC/ls-pattern-compile},
-  version = {0.0.4}
+  author       = {Fukushima, Masato and Inoue, Shinichi and Sasaki, Daichi},
+  title        = {ls-pattern-compile: MBQC Lattice Surgery Compiler},
+  version      = {0.0.4},
+  date         = {2025},
+  url          = {https://github.com/UTokyo-FT-MBQC/ls-pattern-compile},
+  organization = {UTokyo FT-MBQC},
+  urldate      = {2025-10-31}
 }
 ```
 
 ### APA
 ```
-UTokyo FT-MBQC Team. (2025). ls-pattern-compile: MBQC Lattice Surgery Compiler (Version 0.0.4) [Computer software]. https://github.com/UTokyo-FT-MBQC/ls-pattern-compile
+Fukushima, M., Inoue, S., & Sasaki, D. (2025).
+ls-pattern-compile: MBQC lattice surgery compiler (Version 0.0.4) [Computer software].
+GitHub. https://github.com/UTokyo-FT-MBQC/ls-pattern-compile
 ```
 
 ## Related Projects
