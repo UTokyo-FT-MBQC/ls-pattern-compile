@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 def compile_canvas(
     graph: BaseGraphState,
-    xflow: Mapping[int, AbstractSet[int]],
+    flow: Mapping[int, AbstractSet[int]],
     parity: Sequence[AbstractSet[int]] | None = None,
     scheduler: Scheduler | None = None,
 ) -> Pattern:
@@ -29,14 +29,13 @@ def compile_canvas(
 
     Parameters
     ----------
-    graph : Any
+    graph : BaseGraphState
         A `GraphState` (or compatible) instance produced by the canvas.
-    xflow : dict[int, set[int]] | None
-        Optional X-flow mapping (node -> correction target nodes).
-        Pass `None` to let the backend derive it if supported.
-    parity : list[set[int]] | None
+    flow : collections.abc.Mapping[int, collections.abc.Set[int]] | None
+        flow mapping (node -> correction target nodes).
+    parity : collections.abc.Sequence[collections.abc.Set[int]] | None
         Optional list of parity check groups (GLOBAL node-id sets).
-    scheduler : Any | None
+    scheduler : Scheduler | None
         Optional measurement scheduler. If `None`, backend default is used.
 
     Returns
@@ -46,7 +45,7 @@ def compile_canvas(
     """
     return qompile(
         graph=graph,
-        xflow=xflow,
+        xflow=flow,
         parity_check_group=parity,
         scheduler=scheduler,
     )
@@ -54,10 +53,10 @@ def compile_canvas(
 
 def compile_to_stim(
     compiled_canvas: CompiledRHGCanvas,
-    logical_observable_coords: Mapping[str | int, Sequence[PatchCoordGlobal3D | PipeCoordGlobal3D]],
+    logical_observable_coords: Mapping[int, Sequence[PatchCoordGlobal3D | PipeCoordGlobal3D]],
     *,
-    after_clifford_depolarization: float = 0.0,
-    before_measure_flip_probability: float = 0.0,
+    p_depol_after_clifford: float = 0.0,
+    p_before_meas_flip: float = 0.0,
 ) -> stim.Circuit:
     """
     Compile a CompiledRHGCanvas to a stim.Circuit.
@@ -75,9 +74,9 @@ def compile_to_stim(
         Each coordinate can be either:
         - PatchCoordGlobal3D: for cube-based observables
         - PipeCoordGlobal3D: for pipe-based observables
-    after_clifford_depolarization : float
+    p_depol_after_clifford : float
         Depolarization noise rate after Clifford gates (default: 0.0).
-    before_measure_flip_probability : float
+    p_before_meas_flip : float
         Measurement bit-flip error rate (default: 0.0).
 
     Returns
@@ -97,7 +96,7 @@ def compile_to_stim(
     >>> circuit = compile_to_stim(
     ...     compiled_canvas,
     ...     logical_observable_coords={0: [PatchCoordGlobal3D((0, 0, 2))]},
-    ...     before_measure_flip_probability=0.001,
+    ...     p_before_meas_flip=0.001,
     ... )
     """
     # 1. Validate global_graph
@@ -150,7 +149,7 @@ def compile_to_stim(
     cout_portmap_cube = compiled_canvas.cout_portset_cube
     cout_portmap_pipe = compiled_canvas.cout_portset_pipe
 
-    logical_observables: dict[str | int, set[int]] = {}
+    logical_observables: dict[int, set[int]] = {}
     for key, coords in logical_observable_coords.items():
         observable_nodes: set[int] = set()
         for coord in coords:
@@ -160,7 +159,7 @@ def compile_to_stim(
             # Check if coord is a pipe coordinate (nested tuple structure)
             if isinstance(coord, tuple) and len(coord) == 2 and isinstance(coord[0], tuple):
                 # It's a PipeCoordGlobal3D
-                pipe_coord = cast(PipeCoordGlobal3D, coord)  # type: ignore[redundant-cast]
+                pipe_coord = cast("PipeCoordGlobal3D", coord)  # type: ignore[redundant-cast]
                 if pipe_coord in cout_portmap_pipe:
                     observable_nodes.update(int(n) for n in cout_portmap_pipe[pipe_coord])
                 else:
@@ -168,7 +167,7 @@ def compile_to_stim(
                     raise KeyError(msg)
             else:
                 # It's a PatchCoordGlobal3D
-                patch_coord = cast(PatchCoordGlobal3D, coord)  # type: ignore[redundant-cast]
+                patch_coord = cast("PatchCoordGlobal3D", coord)  # type: ignore[redundant-cast]
                 if patch_coord in cout_portmap_cube:
                     observable_nodes.update(int(n) for n in cout_portmap_cube[patch_coord])
                 else:
@@ -180,9 +179,9 @@ def compile_to_stim(
     # Note: stim_compile expects int keys, but we allow str | int for flexibility
     stim_str = stim_compile(
         pattern,
-        cast(Mapping[int, AbstractSet[int]], logical_observables),
-        p_depol_after_clifford=after_clifford_depolarization,
-        p_before_meas_flip=before_measure_flip_probability,
+        logical_observables=logical_observables,
+        p_depol_after_clifford=p_depol_after_clifford,
+        p_before_meas_flip=p_before_meas_flip,
     )
 
     return stim.Circuit(stim_str)
