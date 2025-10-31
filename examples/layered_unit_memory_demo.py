@@ -10,15 +10,11 @@ UnitLayer sequences.
 import pathlib
 
 import pymatching
-import stim
-from graphqomb.pattern import Pattern, print_pattern
-from graphqomb.scheduler import Scheduler
-from graphqomb.stim_compiler import stim_compile
 
 from lspattern.blocks.cubes.layered import LayeredInitPlusCubeSkeleton
 from lspattern.blocks.cubes.measure import MeasureXSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
-from lspattern.compile import compile_canvas
+from lspattern.compile import compile_to_stim
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D
 from lspattern.visualizers import visualize_compiled_canvas_plotly
@@ -73,91 +69,10 @@ fig.show()
 print(f"\nVisualization saved to {output_path}")
 
 # %%
-# Generate pattern from compiled canvas
-if compiled_canvas.global_graph is None:
-    raise ValueError("Global graph is None")
-
-xflow = {}
-for src, dsts in compiled_canvas.flow.flow.items():
-    xflow[int(src)] = {int(dst) for dst in dsts}
-
-parity = []
-for group_dict in compiled_canvas.parity.checks.values():
-    for group in group_dict.values():
-        parity.append({int(node) for node in group})
-
-print(f"\nX flow has {len(xflow)} entries")
-print(f"Parity has {len(parity)} checks")
-
-output_indices = compiled_canvas.global_graph.output_node_indices or {}
-print(f"Output qubits: {output_indices}")
-
-# Create scheduler
-scheduler = Scheduler(compiled_canvas.global_graph, xflow=xflow)
-
-# Set up timing based on compiled_canvas.schedule
-compact_schedule = compiled_canvas.schedule.compact()
-
-# Initialize prepare_time and measure_time dictionaries
-prep_time = {}
-meas_time = {}
-
-# Set input nodes to have preparation at time 0
-input_nodes = set(compiled_canvas.global_graph.input_node_indices.keys())
-for node in compiled_canvas.global_graph.physical_nodes:
-    if node not in input_nodes:
-        prep_time[node] = 0  # Non-input nodes prepared at time 0
-
-# Set measurement times based on schedule
-output_nodes = set(output_indices.keys())
-for node in compiled_canvas.global_graph.physical_nodes:
-    if node not in output_nodes:
-        # Find when this node is scheduled for measurement
-        meas_time[node] = 1  # Default measurement time
-        for time_slot, nodes in compact_schedule.schedule.items():
-            if node in nodes:
-                meas_time[node] = time_slot + 1  # Shift by 1 to account for preparation at time 0
-                break
-
-# Configure scheduler with manual timing
-scheduler.manual_schedule(prepare_time=prep_time, measure_time=meas_time)
-
-pattern = compile_canvas(
-    compiled_canvas.global_graph,
-    xflow=xflow,
-    parity=parity,
-    scheduler=scheduler,
-)
-print("\nPattern compilation successful")
-print_pattern(pattern)
-
-# Set logical observables
-cout_portmap = compiled_canvas.cout_portset_cube
-coord2logical_group = {0: PatchCoordGlobal3D((0, 0, 1))}  # MeasureX cube is at position (0, 0, d)
-logical_observables = {i: cout_portmap[coord] for i, coord in coord2logical_group.items()}
-print(f"\nUsing logical observables: {logical_observables}")
-
-print("\n" + "="*80)
-print(f"Demo completed: [InitPlusUnitLayer *1, MemoryUnitLayer*{d-1}, MeasureX *1]")
-print(f"Total temporal layers: {len(compiled_canvas.layers)}")
-print(f"Total qubits: {getattr(compiled_canvas.global_graph, 'num_qubits', 'unknown')}")
-print("="*80)
-
-# %%
-# Circuit creation
-def create_circuit(pattern: Pattern, noise: float) -> stim.Circuit:
-    print(f"Using logical observables: {logical_observables}")
-    stim_str = stim_compile(
-        pattern,
-        logical_observables,
-        p_depol_after_clifford=0,
-        p_before_meas_flip=noise,
-    )
-    return stim.Circuit(stim_str)
-
-
 noise = 0.001
-circuit = create_circuit(pattern, noise)
+circuit = compile_to_stim(
+    compiled_canvas, logical_observable_coords={0: [PatchCoordGlobal3D((0, 0, 1))]}, p_before_meas_flip=noise,
+)
 print(f"\nnum_qubits: {circuit.num_qubits}")
 print(circuit)
 
