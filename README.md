@@ -49,7 +49,7 @@ Here's a minimal example demonstrating the basic workflow:
 from lspattern.blocks.cubes.initialize import InitZeroCubeThinLayerSkeleton
 from lspattern.blocks.cubes.measure import MeasureZSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
-from lspattern.compile import compile_canvas
+from lspattern.compile import compile_to_stim
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D
 
@@ -81,18 +81,16 @@ canvas_skeleton.add_cube(
 canvas = canvas_skeleton.to_canvas()
 compiled_canvas = canvas.compile()
 
-# Extract graph state and metadata
-graph = compiled_canvas.global_graph
-xflow = {int(src): {int(dst) for dst in dsts}
-         for src, dsts in compiled_canvas.flow.flow.items()}
-parity = [
-    {int(node) for node in group}
-    for group_dict in compiled_canvas.parity.checks.values()
-    for group in group_dict.values()
-]
+# Compile to Stim circuit with the unified API
+# This internally handles flow extraction, scheduler setup, parity extraction,
+# pattern compilation, and logical observable resolution
+circuit = compile_to_stim(
+    compiled_canvas,
+    logical_observable_coords={0: [PatchCoordGlobal3D((0, 0, 1))]},
+    p_before_meas_flip=0.001  # Optional: add measurement noise
+)
 
-# Compile to MBQC pattern
-pattern = compile_canvas(graph, xflow=xflow, parity=parity)
+print(f"Circuit has {circuit.num_qubits} qubits and {circuit.num_detectors} detectors")
 ```
 
 > Enums such as `BoundarySide` and `EdgeSpecValue` inherit from `str`, so legacy string literals still work, but using the enum constants enables static analysis and IDE completion.
@@ -179,29 +177,51 @@ parity = [
 schedule = compiled_canvas.schedule.compact()
 ```
 
-### 4. Generate MBQC Pattern and Simulate
+### 4. Compile to Stim Circuit and Simulate
 
 ```python
-from lspattern.compile import compile_canvas
-from graphqomb.scheduler import Scheduler
-from graphqomb.stim_compiler import stim_compile
-import stim
 import pymatching
+from lspattern.compile import compile_to_stim
+from lspattern.mytype import PatchCoordGlobal3D
 
-# Create pattern
-pattern = compile_canvas(graph, xflow=xflow, parity=parity)
-
-# Compile to Stim circuit
-stim_str = stim_compile(
-    pattern,
-    logical_observables={0: output_node_set},
-    before_measure_flip_probability=0.001  # noise model
+# Compile to Stim circuit using the unified API
+# This internally handles flow extraction, scheduler setup, parity extraction,
+# pattern compilation, and logical observable resolution
+circuit = compile_to_stim(
+    compiled_canvas,
+    logical_observable_coords={
+        0: [PatchCoordGlobal3D((0, 0, 2))],  # Output patch coordinates
+    },
+    p_before_meas_flip=0.001,  # Measurement noise
+    p_depol_after_clifford=0.001,  # Depolarizing channel
 )
-circuit = stim.Circuit(stim_str)
 
 # Generate detector error model and decode
-dem = circuit.detector_error_model()
+dem = circuit.detector_error_model(decompose_errors=True)
 matching = pymatching.Matching.from_detector_error_model(dem)
+
+# Simulate error correction
+num_shots = 10000
+sampler = circuit.compile_detector_sampler()
+detection_events, observable_flips = sampler.sample(num_shots, separate_observables=True)
+predicted_flips = matching.decode_batch(detection_events)
+num_errors = (observable_flips != predicted_flips).sum()
+logical_error_rate = num_errors / num_shots
+print(f"Logical error rate: {logical_error_rate:.4f}")
+```
+
+For advanced usage, you can still extract compilation metadata manually:
+
+```python
+# Extract graph state and metadata
+graph = compiled_canvas.global_graph
+xflow = {int(src): {int(dst) for dst in dsts}
+         for src, dsts in compiled_canvas.flow.flow.items()}
+parity = [
+    {int(node) for node in group}
+    for group_dict in compiled_canvas.parity.checks.values()
+    for group in group_dict.values()
+]
 ```
 
 ### 5. Visualize
