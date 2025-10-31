@@ -177,37 +177,61 @@ parity = [
 schedule = compiled_canvas.schedule.compact()
 ```
 
-### 4. Compile to Stim Circuit and Simulate
+### 4. Compile to Stim Circuit and Simulate with Sinter
+
+Use Sinter for large-scale error rate evaluation:
 
 ```python
-import pymatching
+import stim
+import sinter
+import matplotlib.pyplot as plt
 from lspattern.compile import compile_to_stim
 from lspattern.mytype import PatchCoordGlobal3D
 
-# Compile to Stim circuit using the unified API
-# This internally handles flow extraction, scheduler setup, parity extraction,
-# pattern compilation, and logical observable resolution
-circuit = compile_to_stim(
-    compiled_canvas,
-    logical_observable_coords={
-        0: [PatchCoordGlobal3D((0, 0, 2))],  # Output patch coordinates
-    },
-    p_before_meas_flip=0.001,  # Measurement noise
-    p_depol_after_clifford=0.001,  # Depolarizing channel
+def create_circuit(d: int, noise: float) -> stim.Circuit:
+    """Create circuit for given distance and noise level."""
+    # ... (build canvas_skeleton with blocks and pipes)
+    compiled_canvas = canvas_skeleton.to_canvas().compile()
+
+    return compile_to_stim(
+        compiled_canvas,
+        logical_observable_coords={
+            0: [PatchCoordGlobal3D((0, 0, 2))],  # Output patch coordinates
+        },
+        p_before_meas_flip=noise,
+    )
+
+# Create tasks for different distances and noise levels
+tasks = [
+    sinter.Task(
+        circuit=create_circuit(d, noise),
+        json_metadata={"d": d, "p": noise},
+    )
+    for d in [3, 5, 7]
+    for noise in [1e-3, 5e-3, 1e-2]
+]
+
+# Collect statistics with pymatching decoder
+stats = sinter.collect(
+    num_workers=8,
+    tasks=tasks,
+    decoders=["pymatching"],
+    max_shots=100_000,
+    max_errors=1_000,
 )
 
-# Generate detector error model and decode
-dem = circuit.detector_error_model(decompose_errors=True)
-matching = pymatching.Matching.from_detector_error_model(dem)
-
-# Simulate error correction
-num_shots = 10000
-sampler = circuit.compile_detector_sampler()
-detection_events, observable_flips = sampler.sample(num_shots, separate_observables=True)
-predicted_flips = matching.decode_batch(detection_events)
-num_errors = (observable_flips != predicted_flips).sum()
-logical_error_rate = num_errors / num_shots
-print(f"Logical error rate: {logical_error_rate:.4f}")
+# Plot error rates
+fig, ax = plt.subplots()
+sinter.plot_error_rate(
+    ax=ax,
+    stats=stats,
+    x_func=lambda s: s.json_metadata["p"],
+    group_func=lambda s: f"d={s.json_metadata['d']}",
+)
+ax.loglog()
+ax.set_xlabel("Physical Error Rate")
+ax.set_ylabel("Logical Error Rate")
+plt.show()
 ```
 
 For advanced usage, you can still extract compilation metadata manually:
@@ -215,7 +239,7 @@ For advanced usage, you can still extract compilation metadata manually:
 ```python
 # Extract graph state and metadata
 graph = compiled_canvas.global_graph
-xflow = {int(src): {int(dst) for dst in dsts}
+flow = {int(src): {int(dst) for dst in dsts}
          for src, dsts in compiled_canvas.flow.flow.items()}
 parity = [
     {int(node) for node in group}
