@@ -140,7 +140,7 @@ def compile_to_stim(  # noqa: C901
     # 5. Compile pattern
     pattern = compile_canvas(
         compiled_canvas.global_graph,
-        xflow=xflow,
+        flow=xflow,
         parity=parity,
         scheduler=scheduler,
     )
