@@ -17,6 +17,8 @@ if TYPE_CHECKING:
     from lspattern.canvas.compiled import CompiledRHGCanvas
     from lspattern.mytype import PatchCoordGlobal3D, PipeCoordGlobal3D
 
+NUM_PIPE_ELEMENTS = 2
+
 
 def compile_canvas(
     graph: BaseGraphState,
@@ -157,7 +159,7 @@ def compile_to_stim(  # noqa: C901
             # PipeCoordGlobal3D is a tuple of two PatchCoordGlobal3D
             # PatchCoordGlobal3D is a tuple of three ints
             # Check if coord is a pipe coordinate (nested tuple structure)
-            if isinstance(coord, tuple) and len(coord) == 2 and isinstance(coord[0], tuple):
+            if isinstance(coord, tuple) and len(coord) == NUM_PIPE_ELEMENTS and isinstance(coord[0], tuple):
                 # It's a PipeCoordGlobal3D
                 pipe_coord = cast("PipeCoordGlobal3D", coord)  # type: ignore[redundant-cast]
                 if pipe_coord in cout_portmap_pipe:
@@ -167,7 +169,7 @@ def compile_to_stim(  # noqa: C901
                     raise KeyError(msg)
             else:
                 # It's a PatchCoordGlobal3D
-                patch_coord = cast("PatchCoordGlobal3D", coord)  # type: ignore[redundant-cast]
+                patch_coord = cast("PatchCoordGlobal3D", coord)
                 if patch_coord in cout_portmap_cube:
                     observable_nodes.update(int(n) for n in cout_portmap_cube[patch_coord])
                 else:
