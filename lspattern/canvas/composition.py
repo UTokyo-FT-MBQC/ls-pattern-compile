@@ -192,15 +192,12 @@ class GraphComposer:
         node_map2 : Mapping[int, int]
             Node mapping from local to global node IDs.
         """
-        source, sink = pipe_coord
         if pipe.in_ports:
-            patch_pos = PatchCoordGlobal3D(source)
             mapped_nodes = [NodeIdLocal(node_map2[n]) for n in pipe.in_ports if n in node_map2]
-            self.port_manager.add_in_ports(patch_pos, mapped_nodes)
+            self.port_manager.add_in_ports_pipe(pipe_coord, mapped_nodes)
         if pipe.out_ports:
-            patch_pos = PatchCoordGlobal3D(sink)
             mapped_nodes = [NodeIdLocal(node_map2[n]) for n in pipe.out_ports if n in node_map2]
-            self.port_manager.add_out_ports(patch_pos, mapped_nodes)
+            self.port_manager.add_out_ports_pipe(pipe_coord, mapped_nodes)
         if pipe.cout_ports:
             for group in pipe.cout_ports:
                 mapped_group: list[NodeIdLocal] = []

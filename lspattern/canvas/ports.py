@@ -26,9 +26,13 @@ class PortManager:
     Attributes
     ----------
     in_portset : dict[PatchCoordGlobal3D, list[NodeIdLocal]]
-        Input ports organized by patch coordinate
+        Input ports for cubes organized by patch coordinate
     out_portset : dict[PatchCoordGlobal3D, list[NodeIdLocal]]
-        Output ports organized by patch coordinate
+        Output ports for cubes organized by patch coordinate
+    in_portset_pipe : dict[PipeCoordGlobal3D, list[NodeIdLocal]]
+        Input ports for pipes organized by pipe coordinate
+    out_portset_pipe : dict[PipeCoordGlobal3D, list[NodeIdLocal]]
+        Output ports for pipes organized by pipe coordinate
     cout_portset_cube : dict[PatchCoordGlobal3D, list[NodeIdLocal]]
         Cout (ancilla output) ports for cubes organized by patch coordinate (flat list)
     cout_portset_pipe : dict[PipeCoordGlobal3D, list[NodeIdLocal]]
@@ -42,15 +46,20 @@ class PortManager:
     cout_group_lookup_pipe : dict[NodeIdLocal, tuple[PipeCoordGlobal3D, int]]
         Reverse index from node id to (pipe coord, group index)
     in_ports : list[NodeIdLocal]
-        Flattened list of all input ports
+        Flattened list of all input ports (from both cubes and pipes)
     out_ports : list[NodeIdLocal]
-        Flattened list of all output ports
+        Flattened list of all output ports (from both cubes and pipes)
     """
 
     def __init__(self) -> None:
         """Initialize empty port manager."""
+        # Cube in/out ports
         self.in_portset: dict[PatchCoordGlobal3D, list[NodeIdLocal]] = {}
         self.out_portset: dict[PatchCoordGlobal3D, list[NodeIdLocal]] = {}
+
+        # Pipe in/out ports
+        self.in_portset_pipe: dict[PipeCoordGlobal3D, list[NodeIdLocal]] = {}
+        self.out_portset_pipe: dict[PipeCoordGlobal3D, list[NodeIdLocal]] = {}
 
         # Cube cout ports
         self.cout_portset_cube: dict[PatchCoordGlobal3D, list[NodeIdLocal]] = {}
@@ -163,14 +172,20 @@ class PortManager:
 
         Notes
         -----
-        This method remaps in_portset, out_portset, in_ports, out_ports,
-        and cout-related structures using the provided node mapping.
+        This method remaps in_portset, out_portset, in_portset_pipe, out_portset_pipe,
+        in_ports, out_ports, and cout-related structures using the provided node mapping.
         """
-        # Remap in/out ports
+        # Remap cube in/out ports
         for p, nodes in self.in_portset.items():
             self.in_portset[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
         for p, nodes in self.out_portset.items():
             self.out_portset[p] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
+
+        # Remap pipe in/out ports
+        for pipe_coord, nodes in self.in_portset_pipe.items():
+            self.in_portset_pipe[pipe_coord] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
+        for pipe_coord, nodes in self.out_portset_pipe.items():
+            self.out_portset_pipe[pipe_coord] = [NodeIdLocal(node_map.get(n, n)) for n in nodes]
 
         # Remap cube cout ports
         new_groups_cube: dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]] = {}
@@ -231,6 +246,40 @@ class PortManager:
         if not valid_nodes:
             return
         self.out_portset.setdefault(patch_pos, []).extend(valid_nodes)
+        self.out_ports.extend(valid_nodes)
+
+    def add_in_ports_pipe(self, pipe_coord: PipeCoordGlobal3D, nodes: Sequence[NodeIdLocal]) -> None:
+        """Add input ports for a pipe.
+
+        Parameters
+        ----------
+        pipe_coord : PipeCoordGlobal3D
+            The pipe coordinate (source, sink)
+        nodes : list[NodeIdLocal]
+            List of node IDs to add as input ports
+        """
+        # Filter out None values for consistency with register_cout_group
+        valid_nodes = [NodeIdLocal(int(n)) for n in nodes if n is not None]
+        if not valid_nodes:
+            return
+        self.in_portset_pipe.setdefault(pipe_coord, []).extend(valid_nodes)
+        self.in_ports.extend(valid_nodes)
+
+    def add_out_ports_pipe(self, pipe_coord: PipeCoordGlobal3D, nodes: Sequence[NodeIdLocal]) -> None:
+        """Add output ports for a pipe.
+
+        Parameters
+        ----------
+        pipe_coord : PipeCoordGlobal3D
+            The pipe coordinate (source, sink)
+        nodes : list[NodeIdLocal]
+            List of node IDs to add as output ports
+        """
+        # Filter out None values for consistency with register_cout_group
+        valid_nodes = [NodeIdLocal(int(n)) for n in nodes if n is not None]
+        if not valid_nodes:
+            return
+        self.out_portset_pipe.setdefault(pipe_coord, []).extend(valid_nodes)
         self.out_ports.extend(valid_nodes)
 
     def get_cout_group_by_node(
@@ -332,6 +381,28 @@ class PortManager:
         for pos, nodes in other_remapped.out_portset.items():
             merged.add_out_ports(pos, nodes)
 
+        # Merge pipe in_ports based on strategy
+        if in_ports_from == "other":
+            for pipe_coord, nodes in other_remapped.in_portset_pipe.items():
+                merged.add_in_ports_pipe(pipe_coord, nodes)
+        elif in_ports_from == "self":
+            for pipe_coord, nodes in self_remapped.in_portset_pipe.items():
+                merged.add_in_ports_pipe(pipe_coord, nodes)
+        elif in_ports_from == "both":
+            for pipe_coord, nodes in self_remapped.in_portset_pipe.items():
+                merged.add_in_ports_pipe(pipe_coord, nodes)
+            for pipe_coord, nodes in other_remapped.in_portset_pipe.items():
+                merged.add_in_ports_pipe(pipe_coord, nodes)
+        else:
+            msg = f"Invalid in_ports_from: {in_ports_from}. Must be 'self', 'other', or 'both'."
+            raise ValueError(msg)
+
+        # Merge pipe out_ports from both
+        for pipe_coord, nodes in self_remapped.out_portset_pipe.items():
+            merged.add_out_ports_pipe(pipe_coord, nodes)
+        for pipe_coord, nodes in other_remapped.out_portset_pipe.items():
+            merged.add_out_ports_pipe(pipe_coord, nodes)
+
         # Merge cout_port_groups_cube from both
         for pos, groups in self_remapped.cout_port_groups_cube.items():
             for group in groups:
@@ -364,9 +435,13 @@ class PortManager:
         to ensure they are properly copied.
         """
         new_manager = PortManager()
-        # Copy all port-related data structures
+        # Copy cube in/out ports
         new_manager.in_portset = {k: list(v) for k, v in self.in_portset.items()}
         new_manager.out_portset = {k: list(v) for k, v in self.out_portset.items()}
+
+        # Copy pipe in/out ports
+        new_manager.in_portset_pipe = {k: list(v) for k, v in self.in_portset_pipe.items()}
+        new_manager.out_portset_pipe = {k: list(v) for k, v in self.out_portset_pipe.items()}
 
         # Copy cube cout ports
         new_manager.cout_portset_cube = {k: list(v) for k, v in self.cout_portset_cube.items()}

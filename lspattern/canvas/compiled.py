@@ -87,6 +87,16 @@ class CompiledRHGCanvas:
         return self.port_manager.out_portset
 
     @property
+    def in_portset_pipe(self) -> dict[PipeCoordGlobal3D, list[NodeIdLocal]]:
+        """Get in_portset_pipe from port_manager."""
+        return self.port_manager.in_portset_pipe
+
+    @property
+    def out_portset_pipe(self) -> dict[PipeCoordGlobal3D, list[NodeIdLocal]]:
+        """Get out_portset_pipe from port_manager."""
+        return self.port_manager.out_portset_pipe
+
+    @property
     def cout_portset_cube(self) -> dict[PatchCoordGlobal3D, list[NodeIdLocal]]:
         """Get cout_portset_cube from port_manager."""
         return self.port_manager.cout_portset_cube
