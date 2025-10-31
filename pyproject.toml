@@ -129,8 +129,6 @@ docstring-code-format = true
   "D",
 ]
 
-
-
 [tool.pytest.ini_options]
 pythonpath = ["lspattern"]
 testpaths = ["tests"]

@@ -6,11 +6,6 @@ Merge and Split
 import pathlib
 
 import pymatching
-import stim
-from graphqomb.pattern import Pattern, print_pattern
-from graphqomb.scheduler import Scheduler
-from graphqomb.stim_compiler import stim_compile
-
 from lspattern.blocks.cubes.initialize import (
     InitZeroCubeThinLayerSkeleton,
 )
@@ -19,7 +14,7 @@ from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
 from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton
 from lspattern.blocks.cubes.measure import MeasureZSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
-from lspattern.compile import compile_canvas
+from lspattern.compile import compile_to_stim
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D, PipeCoordGlobal3D
 from lspattern.visualizers import visualize_compiled_canvas_plotly
@@ -183,91 +178,17 @@ print(f"Classical output ports (pipes): {cout_portmap_pipe}")
 
 
 # %%
-# Pattern generation
-# Create scheduler
-scheduler = Scheduler(compiled_canvas.global_graph, xflow=xflow)
-
-# Set up timing based on compiled_canvas.schedule
-compact_schedule = compiled_canvas.schedule.compact()
-print(f"Schedule has {len(compact_schedule.schedule)} time slots")
-
-# Initialize prepare_time and measure_time dictionaries
-prep_time = {}
-meas_time = {}
-
-# Set input nodes to have no preparation time (None)
-if compiled_canvas.global_graph is not None:
-    input_nodes = set(compiled_canvas.global_graph.input_node_indices.keys())
-    for node in compiled_canvas.global_graph.physical_nodes:
-        if node not in input_nodes:
-            prep_time[node] = 0  # Non-input nodes prepared at time 0
-
-    # Set measurement times based on schedule
-    output_indices = compiled_canvas.global_graph.output_node_indices or {}
-    output_nodes = set(output_indices.keys())
-    for node in compiled_canvas.global_graph.physical_nodes:
-        if node not in output_nodes:
-            # Find when this node is scheduled for measurement
-            meas_time[node] = 1  # Default measurement time
-            for time_slot, nodes in compact_schedule.schedule.items():
-                if node in nodes:
-                    meas_time[node] = (
-                        time_slot + 1
-                    )  # Shift by 1 to account for preparation at time 0
-                    break
-
-# Configure scheduler with manual timing
-scheduler.manual_schedule(prepare_time=prep_time, measure_time=meas_time)
-
-pattern = compile_canvas(
-    compiled_canvas.global_graph,
-    xflow=xflow,
-    parity=parity,
-    scheduler=scheduler,
-)
-print("Pattern compilation successful")
-print_pattern(pattern)
-
-# set logical observables
-coord2logical_group = {
-    0: {PatchCoordGlobal3D((0, 0, 4))}, # First output patch
-    1: {PatchCoordGlobal3D((1, 0, 4))},  # Second output patch
-    2: {PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 2)), PatchCoordGlobal3D((1, 0, 2))))},  # InitPlus pipe
-}
-logical_observables = {}
-for i, group in coord2logical_group.items():
-    nodes = []
-    for coord in group:
-        # PipeCoordGlobal3D is a 2-tuple of PatchCoordGlobal3D (nested tuples)
-        # PatchCoordGlobal3D is a 3-tuple of ints
-        if isinstance(coord, tuple) and len(coord) == 2 and all(isinstance(c, tuple) for c in coord):  # isinstance cannot be used with NewType
-            # This is a PipeCoordGlobal3D
-            nodes.extend(cout_portmap_pipe[coord])
-        elif isinstance(coord, tuple) and len(coord) == 3:
-            # This is a PatchCoordGlobal3D
-            nodes.extend(cout_portmap[coord])
-        else:
-            msg = f"Unknown coord type: {type(coord)}"
-            raise TypeError(msg)
-
-    logical_observables[i] = set(nodes)
-
-
-# %%
-# Circuit creation
-def create_circuit(pattern: Pattern, noise: float) -> stim.Circuit:
-    print(f"Using logical observables: {logical_observables}")
-    stim_str = stim_compile(
-        pattern,
-        logical_observables,
-        p_depol_after_clifford=0,
-        p_before_meas_flip=noise,
-    )
-    return stim.Circuit(stim_str)
-
-
+# Circuit creation using compile_to_stim
 noise = 0.001
-circuit = create_circuit(pattern, noise)
+circuit = compile_to_stim(
+    compiled_canvas,
+    logical_observable_coords={
+        0: [PatchCoordGlobal3D((0, 0, 4))],  # First output patch
+        1: [PatchCoordGlobal3D((1, 0, 4))],  # Second output patch
+        2: [PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 2)), PatchCoordGlobal3D((1, 0, 2))))],  # InitPlus pipe
+    },
+    p_before_meas_flip=noise,
+)
 print(f"num_qubits: {circuit.num_qubits}")
 # print(circuit)
 
