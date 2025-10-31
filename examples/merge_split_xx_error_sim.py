@@ -1,16 +1,10 @@
 """Merge and Split error rate simulation with noise probability sweep."""
 
 import os
-from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import sinter
 import stim
-from graphqomb.scheduler import Scheduler
-from graphqomb.stim_compiler import stim_compile
-
-if TYPE_CHECKING:
-    from lspattern.canvas import CompiledRHGCanvas
 
 from lspattern.blocks.cubes.initialize import (
     InitPlusCubeThinLayerSkeleton,
@@ -20,11 +14,9 @@ from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.initialize import InitZeroPipeSkeleton
 from lspattern.blocks.pipes.measure import MeasureZPipeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
-from lspattern.compile import compile_canvas
+from lspattern.compile import compile_to_stim
 from lspattern.consts import BoundarySide, EdgeSpecValue
-from typing import cast
-
-from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D
+from lspattern.mytype import PatchCoordGlobal3D
 
 
 def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
@@ -125,43 +117,6 @@ def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
     return canvass
 
 
-def _setup_scheduler(
-    compiled_canvas: "CompiledRHGCanvas",
-) -> tuple[Scheduler, dict[int, set[int]]]:
-    """Set up scheduler with timing information."""
-    if compiled_canvas.global_graph is None:
-        raise ValueError("Global graph is None")
-
-    xflow = {}
-    for src, dsts in compiled_canvas.flow.flow.items():
-        xflow[int(src)] = {int(dst) for dst in dsts}
-
-    scheduler = Scheduler(compiled_canvas.global_graph, xflow=xflow)
-    compact_schedule = compiled_canvas.schedule.compact()
-
-    prep_time = {}
-    meas_time = {}
-
-    if compiled_canvas.global_graph is not None:
-        input_nodes = set(compiled_canvas.global_graph.input_node_indices.keys())
-        for node in compiled_canvas.global_graph.physical_nodes:
-            if node not in input_nodes:
-                prep_time[node] = 0
-
-        output_indices = compiled_canvas.global_graph.output_node_indices or {}
-        output_nodes = set(output_indices.keys())
-        for node in compiled_canvas.global_graph.physical_nodes:
-            if node not in output_nodes:
-                meas_time[node] = 1
-                for time_slot, nodes in compact_schedule.schedule.items():
-                    if node in nodes:
-                        meas_time[node] = time_slot + 1
-                        break
-
-    scheduler.manual_schedule(prepare_time=prep_time, measure_time=meas_time)
-    return scheduler, xflow
-
-
 def create_circuit(d: int, noise: float) -> stim.Circuit:
     """Create merge and split circuit with specified parameters.
 
@@ -181,44 +136,14 @@ def create_circuit(d: int, noise: float) -> stim.Circuit:
     canvas = skeleton.to_canvas()
     compiled_canvas = canvas.compile()
 
-    scheduler, xflow = _setup_scheduler(compiled_canvas)
-
-    if compiled_canvas.global_graph is None:
-        raise ValueError("Global graph is None")
-
-    parity: list[set[int]] = []
-    for group_dict in compiled_canvas.parity.checks.values():
-        for group in group_dict.values():
-            parity.append({int(node) for node in group})
-
-    pattern = compile_canvas(
-        compiled_canvas.global_graph,
-        xflow=xflow,
-        parity=parity,
-        scheduler=scheduler,
-    )
-
-    # Set logical observables - use the first output patch only
-    cout_portmap = compiled_canvas.cout_portset_cube
-    coord2logical_group: dict[int, set[PatchCoordGlobal3D]] = {
-        0: {PatchCoordGlobal3D((0, 0, 4))},  # First output patch
-    }
-    logical_observables: dict[int, set[NodeIdLocal]] = {}
-    for i, coord_group in coord2logical_group.items():
-        nodes: list[NodeIdLocal] = []
-        for coord in coord_group:
-            patch_nodes = cout_portmap.get(coord)
-            if patch_nodes:
-                nodes.extend(patch_nodes)
-        logical_observables[i] = set(nodes)
-
-    stim_str = stim_compile(
-        pattern,
-        logical_observables,
-        p_depol_after_clifford=0,
+    # Compile to stim circuit using the new unified API
+    return compile_to_stim(
+        compiled_canvas,
+        logical_observable_coords={
+            0: [PatchCoordGlobal3D((0, 0, 4))],  # First output patch
+        },
         p_before_meas_flip=noise,
     )
-    return stim.Circuit(stim_str)
 
 
 if __name__ == "__main__":

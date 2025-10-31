@@ -1,17 +1,13 @@
 """Merge and Split error rate simulation with noise probability sweep."""
 
 import os
-from typing import TYPE_CHECKING, Any, cast
+
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
 import sinter
 import stim
-from graphqomb.scheduler import Scheduler
-from graphqomb.stim_compiler import stim_compile
-
-if TYPE_CHECKING:
-    from lspattern.canvas import CompiledRHGCanvas
 
 from lspattern.blocks.cubes.initialize import InitZeroCubeThinLayerSkeleton
 from lspattern.blocks.cubes.measure import MeasureZSkeleton
@@ -19,20 +15,45 @@ from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
 from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
-from lspattern.compile import compile_canvas
+from lspattern.compile import compile_to_stim
 from lspattern.consts import BoundarySide, EdgeSpecValue
-from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PipeCoordGlobal3D
+from lspattern.mytype import PatchCoordGlobal3D, PipeCoordGlobal3D
 
 
 def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
     """Create RHG canvas skeleton for merge and split operation."""
     canvass = RHGCanvasSkeleton("Merge and Split")
 
-    edgespec: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.X, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
-    edgespec1: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
-    edgespec2: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.X, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
-    edgespec_trimmed: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
-    edgespec_measure_trimmed: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.O, BoundarySide.BOTTOM: EdgeSpecValue.O}
+    edgespec: dict[BoundarySide, EdgeSpecValue] = {
+        BoundarySide.LEFT: EdgeSpecValue.X,
+        BoundarySide.RIGHT: EdgeSpecValue.X,
+        BoundarySide.TOP: EdgeSpecValue.Z,
+        BoundarySide.BOTTOM: EdgeSpecValue.Z,
+    }
+    edgespec1: dict[BoundarySide, EdgeSpecValue] = {
+        BoundarySide.LEFT: EdgeSpecValue.X,
+        BoundarySide.RIGHT: EdgeSpecValue.O,
+        BoundarySide.TOP: EdgeSpecValue.Z,
+        BoundarySide.BOTTOM: EdgeSpecValue.Z,
+    }
+    edgespec2: dict[BoundarySide, EdgeSpecValue] = {
+        BoundarySide.LEFT: EdgeSpecValue.O,
+        BoundarySide.RIGHT: EdgeSpecValue.X,
+        BoundarySide.TOP: EdgeSpecValue.Z,
+        BoundarySide.BOTTOM: EdgeSpecValue.Z,
+    }
+    edgespec_trimmed: dict[BoundarySide, EdgeSpecValue] = {
+        BoundarySide.LEFT: EdgeSpecValue.O,
+        BoundarySide.RIGHT: EdgeSpecValue.O,
+        BoundarySide.TOP: EdgeSpecValue.Z,
+        BoundarySide.BOTTOM: EdgeSpecValue.Z,
+    }
+    edgespec_measure_trimmed: dict[BoundarySide, EdgeSpecValue] = {
+        BoundarySide.LEFT: EdgeSpecValue.O,
+        BoundarySide.RIGHT: EdgeSpecValue.O,
+        BoundarySide.TOP: EdgeSpecValue.O,
+        BoundarySide.BOTTOM: EdgeSpecValue.O,
+    }
 
     blocks = [
         (
@@ -97,43 +118,6 @@ def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
     return canvass
 
 
-def _setup_scheduler(
-    compiled_canvas: "CompiledRHGCanvas",
-) -> tuple[Scheduler, dict[int, set[int]]]:
-    """Set up scheduler with timing information."""
-    if compiled_canvas.global_graph is None:
-        raise ValueError("Global graph is None")
-
-    xflow = {}
-    for src, dsts in compiled_canvas.flow.flow.items():
-        xflow[int(src)] = {int(dst) for dst in dsts}
-
-    scheduler = Scheduler(compiled_canvas.global_graph, xflow=xflow)
-    compact_schedule = compiled_canvas.schedule.compact()
-
-    prep_time = {}
-    meas_time = {}
-
-    if compiled_canvas.global_graph is not None:
-        input_nodes = set(compiled_canvas.global_graph.input_node_indices.keys())
-        for node in compiled_canvas.global_graph.physical_nodes:
-            if node not in input_nodes:
-                prep_time[node] = 0
-
-        output_indices = compiled_canvas.global_graph.output_node_indices or {}
-        output_nodes = set(output_indices.keys())
-        for node in compiled_canvas.global_graph.physical_nodes:
-            if node not in output_nodes:
-                meas_time[node] = 1
-                for time_slot, nodes in compact_schedule.schedule.items():
-                    if node in nodes:
-                        meas_time[node] = time_slot + 1
-                        break
-
-    scheduler.manual_schedule(prepare_time=prep_time, measure_time=meas_time)
-    return scheduler, xflow
-
-
 def create_circuit(d: int, noise: float) -> stim.Circuit:
     """Create merge and split circuit with specified parameters.
 
@@ -153,57 +137,17 @@ def create_circuit(d: int, noise: float) -> stim.Circuit:
     canvas = skeleton.to_canvas()
     compiled_canvas = canvas.compile()
 
-    scheduler, xflow = _setup_scheduler(compiled_canvas)
-
-    if compiled_canvas.global_graph is None:
-        raise ValueError("Global graph is None")
-
-    parity: list[set[int]] = []
-    for group_dict in compiled_canvas.parity.checks.values():
-        for group in group_dict.values():
-            parity.append({int(node) for node in group})
-
-    pattern = compile_canvas(
-        compiled_canvas.global_graph,
-        xflow=xflow,
-        parity=parity,
-        scheduler=scheduler,
-    )
-
-    # Set logical observables
-    cout_portmap = compiled_canvas.cout_portset_cube
-    cout_portmap_pipe = compiled_canvas.cout_portset_pipe
-
-    def _gather_nodes_for_coords(
-        patch_map: dict[PatchCoordGlobal3D, list[NodeIdLocal]],
-        pipe_map: dict[PipeCoordGlobal3D, list[NodeIdLocal]],
-        coords: set[PatchCoordGlobal3D | PipeCoordGlobal3D],
-    ) -> set[NodeIdLocal]:
-        collected: set[NodeIdLocal] = set()
-        for coord in coords:
-            if pipe_nodes := pipe_map.get(cast(PipeCoordGlobal3D, coord)):
-                collected.update(pipe_nodes)
-                continue
-            if patch_nodes := patch_map.get(cast(PatchCoordGlobal3D, coord)):
-                collected.update(patch_nodes)
-        return collected
-
-    coord2logical_group: dict[int, set[PatchCoordGlobal3D | PipeCoordGlobal3D]] = {
-        0: {PatchCoordGlobal3D((0, 0, 4))},  # First output patch
-        1: {PatchCoordGlobal3D((1, 0, 4))},  # Second output patch
-        2: {PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 2)), PatchCoordGlobal3D((1, 0, 2))))},  # InitPlus pipe
-    }
-    logical_observables: dict[int, set[NodeIdLocal]] = {}
-    for i, coord_group in coord2logical_group.items():
-        logical_observables[i] = _gather_nodes_for_coords(cout_portmap, cout_portmap_pipe, coord_group)
-
-    stim_str = stim_compile(
-        pattern,
-        logical_observables,
-        p_depol_after_clifford=0,
+    # Compile to stim circuit using the new unified API
+    # Note: Converting sets to lists for the API
+    return compile_to_stim(
+        compiled_canvas,
+        logical_observable_coords={
+            0: [PatchCoordGlobal3D((0, 0, 4))],  # First output patch
+            1: [PatchCoordGlobal3D((1, 0, 4))],  # Second output patch
+            2: [PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 2)), PatchCoordGlobal3D((1, 0, 2))))],  # InitPlus pipe
+        },
         p_before_meas_flip=noise,
     )
-    return stim.Circuit(stim_str)
 
 
 if __name__ == "__main__":
@@ -229,9 +173,7 @@ if __name__ == "__main__":
     )
 
     # Extract per-observable error rates with uncertainty
-    def extract_per_observable_error_rates(
-        stats: sinter.TaskStats, n_obs: int = 3
-    ) -> list[tuple[float, float]]:
+    def extract_per_observable_error_rates(stats: sinter.TaskStats, n_obs: int = 3) -> list[tuple[float, float]]:
         """Extract per-observable error rates and standard errors from custom_counts.
 
         Returns
@@ -293,8 +235,8 @@ if __name__ == "__main__":
                 neither_error = 0
 
                 for pattern, count in error_patterns.items():
-                    i_has_error = pattern[i] == 'E' if i < len(pattern) else False
-                    j_has_error = pattern[j] == 'E' if j < len(pattern) else False
+                    i_has_error = pattern[i] == "E" if i < len(pattern) else False
+                    j_has_error = pattern[j] == "E" if j < len(pattern) else False
 
                     if i_has_error and j_has_error:
                         both_error += count
@@ -353,8 +295,8 @@ if __name__ == "__main__":
         # Individual observable error rates
         print("\nIndividual Observable Error Rates:")
         for i in range(3):
-            p_i = corr_data['joint_probabilities'][(i, i)]['i_error']
-            print(f"  Observable {i}: {p_i:.6f} ({100*p_i:.3f}%)")
+            p_i = corr_data["joint_probabilities"][(i, i)]["i_error"]
+            print(f"  Observable {i}: {p_i:.6f} ({100 * p_i:.3f}%)")
 
         # Correlation matrix
         print("\nCorrelation Matrix (Pearson):")
@@ -369,20 +311,21 @@ if __name__ == "__main__":
         print("\nIndependence Test (ratio should be ~1.0 if independent):")
         for i in range(3):
             for j in range(i + 1, 3):
-                jp = corr_data['joint_probabilities'][(i, j)]
-                expected_both = jp['i_error'] * jp['j_error']
-                actual_both = jp['both_error']
+                jp = corr_data["joint_probabilities"][(i, j)]
+                expected_both = jp["i_error"] * jp["j_error"]
+                actual_both = jp["both_error"]
                 ratio = actual_both / expected_both if expected_both > 0 else 0
                 print(f"  P(Obs{i} ∩ Obs{j}) / [P(Obs{i}) × P(Obs{j})] = {ratio:.3f}")
 
         # Top error patterns
         print("\nTop Error Patterns (format: Obs0 Obs1 Obs2, E=Error, _=Correct):")
-        sorted_patterns = sorted(corr_data['error_patterns'].items(),
-                               key=lambda x: x[1], reverse=True)
+        sorted_patterns = sorted(corr_data["error_patterns"].items(), key=lambda x: x[1], reverse=True)
         for idx, (pattern, count) in enumerate(sorted_patterns[:15], 1):
-            percentage = 100 * count / corr_data['total_shots']
-            num_errors = pattern.count('E')
-            print(f"  {idx:2d}. {pattern:5s}: {count:7,} shots ({percentage:5.2f}%) - {num_errors} observable(s) with errors")
+            percentage = 100 * count / corr_data["total_shots"]
+            num_errors = pattern.count("E")
+            print(
+                f"  {idx:2d}. {pattern:5s}: {count:7,} shots ({percentage:5.2f}%) - {num_errors} observable(s) with errors"
+            )
 
     print("\n" + "=" * 80 + "\n")
 
@@ -438,7 +381,7 @@ if __name__ == "__main__":
         n_cols = min(3, n_plots)
         n_rows = (n_plots + n_cols - 1) // n_cols
 
-        fig2, axes2 = plt.subplots(n_rows, n_cols, figsize=(6*n_cols, 5*n_rows))
+        fig2, axes2 = plt.subplots(n_rows, n_cols, figsize=(6 * n_cols, 5 * n_rows))
         if n_plots == 1:
             axes2 = [axes2]
         else:
@@ -454,44 +397,44 @@ if __name__ == "__main__":
             ax = axes2[idx]
 
             # Get top error patterns
-            sorted_patterns = sorted(corr_data['error_patterns'].items(),
-                                   key=lambda x: x[1], reverse=True)
+            sorted_patterns = sorted(corr_data["error_patterns"].items(), key=lambda x: x[1], reverse=True)
             top_patterns = sorted_patterns[:10]  # Show top 10 patterns
 
             pattern_labels = [p[0] for p in top_patterns]
             pattern_counts = [p[1] for p in top_patterns]
-            pattern_percentages = [100 * c / corr_data['total_shots'] for c in pattern_counts]
+            pattern_percentages = [100 * c / corr_data["total_shots"] for c in pattern_counts]
 
             # Create bar plot
             bars = ax.bar(range(len(pattern_labels)), pattern_percentages)
             ax.set_xticks(range(len(pattern_labels)))
-            ax.set_xticklabels(pattern_labels, rotation=45, ha='right', fontsize=9)
-            ax.set_ylabel('Percentage of Shots (%)', fontsize=10)
-            ax.set_title(f'd={d_val}, p={p_val:.3f}\n(Total shots: {corr_data["total_shots"]:,})', fontsize=11)
-            ax.grid(axis='y', alpha=0.3)
+            ax.set_xticklabels(pattern_labels, rotation=45, ha="right", fontsize=9)
+            ax.set_ylabel("Percentage of Shots (%)", fontsize=10)
+            ax.set_title(f"d={d_val}, p={p_val:.3f}\n(Total shots: {corr_data['total_shots']:,})", fontsize=11)
+            ax.grid(axis="y", alpha=0.3)
 
             # Color bars based on number of errors
-            colors = ['green', 'yellow', 'orange', 'red']
+            colors = ["green", "yellow", "orange", "red"]
             for i, (bar, pattern) in enumerate(zip(bars, pattern_labels)):
-                num_errors = pattern.count('E')
+                num_errors = pattern.count("E")
                 bar.set_color(colors[min(num_errors, 3)])
 
         # Hide unused subplots
         for idx in range(len(available_stats), len(axes2)):
-            axes2[idx].axis('off')
+            axes2[idx].axis("off")
 
         # Add legend
         from matplotlib.patches import Patch
+
         legend_elements = [
-            Patch(facecolor='green', label='No errors (_____)'),
-            Patch(facecolor='yellow', label='1 error'),
-            Patch(facecolor='orange', label='2 errors'),
-            Patch(facecolor='red', label='3+ errors'),
+            Patch(facecolor="green", label="No errors (_____)"),
+            Patch(facecolor="yellow", label="1 error"),
+            Patch(facecolor="orange", label="2 errors"),
+            Patch(facecolor="red", label="3+ errors"),
         ]
         if len(available_stats) < len(axes2):
-            axes2[-1].legend(handles=legend_elements, loc='center', fontsize=12)
+            axes2[-1].legend(handles=legend_elements, loc="center", fontsize=12)
         else:
-            fig2.legend(handles=legend_elements, loc='upper right', fontsize=10)
+            fig2.legend(handles=legend_elements, loc="upper right", fontsize=10)
 
         fig2.suptitle(f"Error Pattern Distribution (p={ref_noise})", fontsize=14, y=0.995)
         fig2.tight_layout()

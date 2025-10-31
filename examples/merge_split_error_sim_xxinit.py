@@ -1,17 +1,10 @@
 """Merge and Split error rate simulation with noise probability sweep."""
 
 import os
-from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
-import numpy as np
 import sinter
 import stim
-from graphqomb.scheduler import Scheduler
-from graphqomb.stim_compiler import stim_compile
-
-if TYPE_CHECKING:
-    from lspattern.canvas import CompiledRHGCanvas
 
 from lspattern.blocks.cubes.initialize import InitPlusCubeThinLayerSkeleton
 from lspattern.blocks.cubes.measure import MeasureXSkeleton
@@ -19,7 +12,7 @@ from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
 from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
-from lspattern.compile import compile_canvas
+from lspattern.compile import compile_to_stim
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D, PipeCoordGlobal3D
 
@@ -97,43 +90,6 @@ def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
     return canvass
 
 
-def _setup_scheduler(
-    compiled_canvas: "CompiledRHGCanvas",
-) -> tuple[Scheduler, dict[int, set[int]]]:
-    """Set up scheduler with timing information."""
-    if compiled_canvas.global_graph is None:
-        raise ValueError("Global graph is None")
-
-    xflow = {}
-    for src, dsts in compiled_canvas.flow.flow.items():
-        xflow[int(src)] = {int(dst) for dst in dsts}
-
-    scheduler = Scheduler(compiled_canvas.global_graph, xflow=xflow)
-    compact_schedule = compiled_canvas.schedule.compact()
-
-    prep_time = {}
-    meas_time = {}
-
-    if compiled_canvas.global_graph is not None:
-        input_nodes = set(compiled_canvas.global_graph.input_node_indices.keys())
-        for node in compiled_canvas.global_graph.physical_nodes:
-            if node not in input_nodes:
-                prep_time[node] = 0
-
-        output_indices = compiled_canvas.global_graph.output_node_indices or {}
-        output_nodes = set(output_indices.keys())
-        for node in compiled_canvas.global_graph.physical_nodes:
-            if node not in output_nodes:
-                meas_time[node] = 1
-                for time_slot, nodes in compact_schedule.schedule.items():
-                    if node in nodes:
-                        meas_time[node] = time_slot + 1
-                        break
-
-    scheduler.manual_schedule(prepare_time=prep_time, measure_time=meas_time)
-    return scheduler, xflow
-
-
 def create_circuit(d: int, noise: float) -> stim.Circuit:
     """Create merge and split circuit with specified parameters.
 
@@ -153,51 +109,18 @@ def create_circuit(d: int, noise: float) -> stim.Circuit:
     canvas = skeleton.to_canvas()
     compiled_canvas = canvas.compile()
 
-    scheduler, xflow = _setup_scheduler(compiled_canvas)
-
-    if compiled_canvas.global_graph is None:
-        raise ValueError("Global graph is None")
-
-    parity: list[set[int]] = []
-    for group_dict in compiled_canvas.parity.checks.values():
-        for group in group_dict.values():
-            parity.append({int(node) for node in group})
-
-    pattern = compile_canvas(
-        compiled_canvas.global_graph,
-        xflow=xflow,
-        parity=parity,
-        scheduler=scheduler,
-    )
-
-    # Set logical observables
-    cout_portmap = compiled_canvas.cout_portset_cube
-    cout_portmap_pipe = compiled_canvas.cout_portset_pipe
-    coord2logical_group = {
-        0: {PatchCoordGlobal3D((0, 0, 4)), PatchCoordGlobal3D((1, 0, 4)), PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 3)), PatchCoordGlobal3D((1, 0, 3))))},  # X1X2 observable
-    }
-    logical_observables = {}
-    for i, group in coord2logical_group.items():
-        nodes = set()
-        for coord in group:
-            # PipeCoordGlobal3D is a 2-tuple of PatchCoordGlobal3D (nested tuples)
-            # PatchCoordGlobal3D is a 3-tuple of ints
-            if isinstance(coord, tuple) and len(coord) == 2 and all(isinstance(c, tuple) for c in coord):
-                # This is a PipeCoordGlobal3D
-                if coord in cout_portmap_pipe:
-                    nodes ^= set(cout_portmap_pipe[coord])
-            elif coord in cout_portmap:
-                # This is a PatchCoordGlobal3D
-                nodes ^= set(cout_portmap[coord])
-        logical_observables[i] = nodes
-
-    stim_str = stim_compile(
-        pattern,
-        logical_observables,
+    return compile_to_stim(
+        compiled_canvas,
+        logical_observable_coords={
+            0: [
+                PatchCoordGlobal3D((0, 0, 4)),
+                PatchCoordGlobal3D((1, 0, 4)),
+                PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 3)), PatchCoordGlobal3D((1, 0, 3)))),
+            ]
+        },
         p_depol_after_clifford=noise,
         p_before_meas_flip=noise,
     )
-    return stim.Circuit(stim_str)
 
 
 if __name__ == "__main__":
