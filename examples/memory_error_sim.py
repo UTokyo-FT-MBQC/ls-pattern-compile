@@ -77,7 +77,7 @@ def create_circuit(d: int, noise: float, init_type: InitializationState) -> stim
     return compile_to_stim(
         compiled_canvas,
         logical_observable_coords={0: [PatchCoordGlobal3D((0, 0, 2))]},
-        before_measure_flip_probability=noise,
+        p_before_meas_flip=noise,
     )
 
 

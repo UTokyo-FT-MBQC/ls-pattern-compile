@@ -128,11 +128,6 @@ docstring-code-format = true
   "T201", # print
   "D",
 ]
-"lspattern/compile.py" = [
-  "C901",    # complexity OK for unified API function
-]
-
-
 
 [tool.pytest.ini_options]
 pythonpath = ["lspattern"]

@@ -85,8 +85,8 @@ noise = 0.001
 circuit = compile_to_stim(
     compiled_canvas,
     logical_observable_coords={0: [PatchCoordGlobal3D((0, 0, 2))]},
-    after_clifford_depolarization=noise,
-    before_measure_flip_probability=noise,
+    p_depol_after_clifford=noise,
+    p_before_meas_flip=noise,
 )
 print(f"num_qubits: {circuit.num_qubits}")
 print(circuit)

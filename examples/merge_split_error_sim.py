@@ -144,7 +144,7 @@ def create_circuit(d: int, noise: float) -> stim.Circuit:
             1: [PatchCoordGlobal3D((1, 0, 4))],  # Second output patch
             2: [PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 2)), PatchCoordGlobal3D((1, 0, 2))))],  # InitPlus pipe
         },
-        before_measure_flip_probability=noise,
+        p_before_meas_flip=noise,
     )
 
 

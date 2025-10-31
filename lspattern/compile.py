@@ -51,7 +51,7 @@ def compile_canvas(
     )
 
 
-def compile_to_stim(
+def compile_to_stim(  # noqa: C901
     compiled_canvas: CompiledRHGCanvas,
     logical_observable_coords: Mapping[int, Sequence[PatchCoordGlobal3D | PipeCoordGlobal3D]],
     *,
