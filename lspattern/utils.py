@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 
 def to_edgespec(espec_str: str) -> dict[BoundarySide, EdgeSpecValue]:
-    """Decode a four-character edge specification into boundary assignments.
+    """Decode a four-character (LEFT, RIGHT, TOP, BOTTOM) edge specification into boundary assignments.
 
     The string is interpreted in left, right, top, bottom order and accepts
     the characters ``O``, ``X``, or ``Z`` in any case. Each character maps to

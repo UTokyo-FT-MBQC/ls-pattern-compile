@@ -6,89 +6,135 @@ Merge and Split
 import pathlib
 
 import pymatching
-import stim
-from graphqomb.pattern import Pattern, print_pattern
-from graphqomb.scheduler import Scheduler
-from graphqomb.stim_compiler import stim_compile
-
-from lspattern.blocks.cubes.initialize import InitPlusCubeThinLayerSkeleton
+from lspattern.blocks.cubes.initialize import (
+    InitZeroCubeThinLayerSkeleton, InitPlusCubeSkeleton
+)
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
-from lspattern.blocks.pipes.initialize import InitZeroPipeSkeleton
-from lspattern.blocks.cubes.measure import MeasureXSkeleton
-from lspattern.blocks.pipes.measure import MeasureZPipeSkeleton
+from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton, InitZeroPipeSkeleton, InitZeroPipeThinLayerSkeleton
+from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton, MeasureZPipeSkeleton
+from lspattern.blocks.cubes.measure import MeasureZSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
-from lspattern.compile import compile_canvas
+from lspattern.compile import compile_to_stim
 from lspattern.consts import BoundarySide, EdgeSpecValue
-from lspattern.mytype import PatchCoordGlobal3D
 from lspattern.utils import to_edgespec
+from lspattern.mytype import PatchCoordGlobal3D, PipeCoordGlobal3D
 from lspattern.visualizers import visualize_compiled_canvas_plotly
 
 # %%
 d = 3
 
+canvass = RHGCanvasSkeleton("CNOT")
 
-canvass = RHGCanvasSkeleton("Merge and Split XX")
-
-# Edge specifications are provided left, right, top, bottom.
 edgespec: dict[BoundarySide, EdgeSpecValue] = to_edgespec("ZZXX")
-edgespec1: dict[BoundarySide, EdgeSpecValue] = to_edgespec("ZOXX")
-edgespec2: dict[BoundarySide, EdgeSpecValue] = to_edgespec("OZXX")
-edgespec_trimmed: dict[BoundarySide, EdgeSpecValue] = to_edgespec("OOXX")
-edgespec_measure_trimmed: dict[BoundarySide, EdgeSpecValue] = to_edgespec("OOOO")
-
 blocks = [
+    # Clock 0 (init Zero)
     (
         PatchCoordGlobal3D((0, 0, 0)),
-        InitPlusCubeThinLayerSkeleton(d=d, edgespec=edgespec),
+        InitZeroCubeThinLayerSkeleton(d=d, edgespec=edgespec),
     ),
     (
-        PatchCoordGlobal3D((1, 0, 0)),
-        InitPlusCubeThinLayerSkeleton(d=d, edgespec=edgespec),
+        PatchCoordGlobal3D((1, 1, 0)),
+        InitZeroCubeThinLayerSkeleton(d=d, edgespec=edgespec),
     ),
+
+    # Clock 1 (Init Plus and Memory)
     (
         PatchCoordGlobal3D((0, 0, 1)),
         MemoryCubeSkeleton(d=d, edgespec=edgespec),
     ),
+      (
+        PatchCoordGlobal3D((0, 1, 1)),
+        InitPlusCubeSkeleton(d=d, edgespec=edgespec),
+    ),
     (
-        PatchCoordGlobal3D((1, 0, 1)),
+        PatchCoordGlobal3D((1, 1, 1)),
         MemoryCubeSkeleton(d=d, edgespec=edgespec),
     ),
+   
+    # Clock 2 (Merge ZZ)
     (
         PatchCoordGlobal3D((0, 0, 2)),
-        MemoryCubeSkeleton(d=d, edgespec=edgespec1),
+        MemoryCubeSkeleton(d=d, edgespec=to_edgespec("ZZOX")),
     ),
     (
-        PatchCoordGlobal3D((1, 0, 2)),
-        MemoryCubeSkeleton(d=d, edgespec=edgespec2),
+        PatchCoordGlobal3D((0, 1, 2)),
+        MemoryCubeSkeleton(d=d, edgespec=to_edgespec("ZZXO")),
     ),
+    (
+        PatchCoordGlobal3D((1, 1, 2)),
+        MemoryCubeSkeleton(d=d, edgespec=edgespec),
+    ),
+    # Clock 3 (Split and Merge XX)
     (
         PatchCoordGlobal3D((0, 0, 3)),
         MemoryCubeSkeleton(d=d, edgespec=edgespec),
     ),
     (
-        PatchCoordGlobal3D((1, 0, 3)),
+        PatchCoordGlobal3D((0, 1, 3)),
+        MemoryCubeSkeleton(d=d, edgespec=to_edgespec("ZOXX")),
+    ),
+    (
+        PatchCoordGlobal3D((1, 1, 3)),
+        MemoryCubeSkeleton(d=d, edgespec=to_edgespec("OZXX")),
+    ),
+    # Clock 4 (Split and Memory)
+    (
+        PatchCoordGlobal3D((0, 0, 4)),
         MemoryCubeSkeleton(d=d, edgespec=edgespec),
     ),
     (
-        PatchCoordGlobal3D((0, 0, 4)),
-        MeasureXSkeleton(d=d, edgespec=edgespec),
+        PatchCoordGlobal3D((0, 1, 4)),
+        MemoryCubeSkeleton(d=d, edgespec=edgespec),
     ),
     (
-        PatchCoordGlobal3D((1, 0, 4)),
-        MeasureXSkeleton(d=d, edgespec=edgespec),
+        PatchCoordGlobal3D((1, 1, 4)),
+        MemoryCubeSkeleton(d=d, edgespec=edgespec),
+    ),
+    # Clock 5 (Measure Z all)
+    (
+        PatchCoordGlobal3D((0, 0, 5)),
+        MeasureZSkeleton(d=d, edgespec=edgespec),
+    ),
+    (
+        PatchCoordGlobal3D((0, 1, 5)),
+        MeasureZSkeleton(d=d, edgespec=edgespec),
+    ),
+    (
+        PatchCoordGlobal3D((1, 1, 5)),
+        MeasureZSkeleton(d=d, edgespec=edgespec),
     ),
 ]
 pipes = [
+    # Clock 2 (Merge ZZ -> Split ZZ)
     (
         PatchCoordGlobal3D((0, 0, 2)),
-        PatchCoordGlobal3D((1, 0, 2)),
-        InitZeroPipeSkeleton(d=d, edgespec=edgespec_trimmed),
+        PatchCoordGlobal3D((0, 1, 2)),
+        InitPlusPipeSkeleton(d=d, edgespec=to_edgespec("ZZOO")),
     ),
+    # (
+    #     PatchCoordGlobal3D((0, 1, 2)),
+    #     PatchCoordGlobal3D((1, 1, 2)),
+    #     InitZeroPipeThinLayerSkeleton(d=d, edgespec=to_edgespec("OOXX")),
+    # ),
+    # Clock 3 (Split XX)
     (
         PatchCoordGlobal3D((0, 0, 3)),
-        PatchCoordGlobal3D((1, 0, 3)),
-        MeasureZPipeSkeleton(d=d, edgespec=edgespec_measure_trimmed),
+        PatchCoordGlobal3D((0, 1, 3)),
+        MeasureXPipeSkeleton(d=d, edgespec=to_edgespec("ZZOO")),
     ),
+    
+    (
+        PatchCoordGlobal3D((0, 1, 3)),
+        PatchCoordGlobal3D((1, 1, 3)),
+        InitZeroPipeSkeleton(d=d, edgespec=to_edgespec("OOXX")),
+    ),
+    # Clock 4 (Memory)
+    (
+        PatchCoordGlobal3D((0, 1, 4)),
+        PatchCoordGlobal3D((1, 1, 4)),
+        MeasureZPipeSkeleton(d=d, edgespec=to_edgespec("OOXX")),
+    ),
+  
 ]
 
 for block in blocks:
@@ -120,10 +166,7 @@ print(
 output_indices = compiled_canvas.global_graph.output_node_indices or {}  # type: ignore[union-attr]
 print(f"output qubits: {output_indices}")
 
-fig3d = visualize_compiled_canvas_plotly(
-    compiled_canvas,
-    show_edges=True,
-)
+fig3d = visualize_compiled_canvas_plotly(compiled_canvas, show_edges=True, hilight_nodes=[783])
 fig3d.show()
 
 # %%
@@ -181,87 +224,27 @@ for coord, group_dict in compiled_canvas.parity.checks.items():
 
 # classical outs
 cout_portmap = compiled_canvas.cout_portset_cube
+cout_portmap_pipe = compiled_canvas.cout_portset_pipe
 print(f"Classical output ports: {cout_portmap}")
+print(f"Classical output ports (pipes): {cout_portmap_pipe}")
 
 
 # %%
-# Pattern generation
-# Create scheduler
-scheduler = Scheduler(compiled_canvas.global_graph, xflow=xflow)
-
-# Set up timing based on compiled_canvas.schedule
-compact_schedule = compiled_canvas.schedule.compact()
-print(f"Schedule has {len(compact_schedule.schedule)} time slots")
-
-# Initialize prepare_time and measure_time dictionaries
-prep_time = {}
-meas_time = {}
-
-# Set input nodes to have no preparation time (None)
-if compiled_canvas.global_graph is not None:
-    input_nodes = set(compiled_canvas.global_graph.input_node_indices.keys())
-    for node in compiled_canvas.global_graph.physical_nodes:
-        if node not in input_nodes:
-            prep_time[node] = 0  # Non-input nodes prepared at time 0
-
-    # Set measurement times based on schedule
-    output_indices = compiled_canvas.global_graph.output_node_indices or {}
-    output_nodes = set(output_indices.keys())
-    for node in compiled_canvas.global_graph.physical_nodes:
-        if node not in output_nodes:
-            # Find when this node is scheduled for measurement
-            meas_time[node] = 1  # Default measurement time
-            for time_slot, nodes in compact_schedule.schedule.items():
-                if node in nodes:
-                    meas_time[node] = (
-                        time_slot + 1
-                    )  # Shift by 1 to account for preparation at time 0
-                    break
-
-# Configure scheduler with manual timing
-scheduler.manual_schedule(prepare_time=prep_time, measure_time=meas_time)
-
-pattern = compile_canvas(
-    compiled_canvas.global_graph,
-    xflow=xflow,
-    parity=parity,
-    scheduler=scheduler,
-)
-print("Pattern compilation successful")
-print_pattern(pattern)
-
-# set logical observables
-coord2logical_group = {
-    # 0: {PatchCoordGlobal3D((0, 0, 3)), PatchCoordGlobal3D((1, 0, 3))},  # First output patch
-    0: {PatchCoordGlobal3D((0, 0, 4))},
-    # 1: {PatchCoordGlobal3D((1, 0, 3))},  # Second output patch
-}
-logical_observables = {}
-for i, group in coord2logical_group.items():
-    nodes = []
-    for coord in group:
-        if coord in cout_portmap:
-            nodes.extend(cout_portmap[coord])
-    logical_observables[i] = set(nodes)
-
-
-# %%
-# Circuit creation
-def create_circuit(pattern: Pattern, noise: float) -> stim.Circuit:
-    print(f"Using logical observables: {logical_observables}")
-    stim_str = stim_compile(
-        pattern,
-        logical_observables,
-        p_depol_after_clifford=0,
-        p_before_meas_flip=noise,
-    )
-    return stim.Circuit(stim_str)
-
-
+# Circuit creation using compile_to_stim
 noise = 0.001
-circuit = create_circuit(pattern, noise)
+circuit = compile_to_stim(
+    compiled_canvas,
+    logical_observable_coords={
+        0: [PatchCoordGlobal3D((0, 0, 5))],  # First output patch
+        # 1: [PatchCoordGlobal3D((0, 1, 5))],  # Second output patch
+        # 2: [PatchCoordGlobal3D((1, 1, 5))],  # Third output patch
+        # 3: [PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 3)), PatchCoordGlobal3D((0, 1, 3))))],  # InitPlus pipe
+        # 4: [PipeCoordGlobal3D((PatchCoordGlobal3D((0, 1, 4)), PatchCoordGlobal3D((1, 1, 4))))],  # InitPlus pipe
+    },
+    p_before_meas_flip=noise,
+)
 print(f"num_qubits: {circuit.num_qubits}")
-# print(circuit)
+print(circuit)
 
 # %%
 # Error correction simulation
@@ -285,8 +268,8 @@ print(err)
 # Visualization export
 svg = dem.diagram(type="match-graph-svg")
 pathlib.Path("figures").mkdir(exist_ok=True)
-pathlib.Path("figures/merge_split_dem_xx.svg").write_text(str(svg), encoding="utf-8")
-print("SVG diagram saved to figures/merge_split_xx_dem.svg")
+pathlib.Path("figures/merge_split_dem.svg").write_text(str(svg), encoding="utf-8")
+print("SVG diagram saved to figures/merge_split_dem.svg")
 
 
 # %%
