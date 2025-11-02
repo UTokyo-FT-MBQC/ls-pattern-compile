@@ -37,20 +37,12 @@ def _build_compiled_canvas() -> CompiledRHGCanvas:
     }
 
     block_specs = {
-        PatchCoordGlobal3D((0, 0, 0)): InitPlusCubeThinLayerSkeleton(
-            d=d, edgespec=edgespec
-        ),
-        PatchCoordGlobal3D((1, 0, 0)): InitPlusCubeThinLayerSkeleton(
-            d=d, edgespec=edgespec
-        ),
+        PatchCoordGlobal3D((0, 0, 0)): InitPlusCubeThinLayerSkeleton(d=d, edgespec=edgespec),
+        PatchCoordGlobal3D((1, 0, 0)): InitPlusCubeThinLayerSkeleton(d=d, edgespec=edgespec),
         PatchCoordGlobal3D((0, 0, 1)): MemoryCubeSkeleton(d=d, edgespec=edgespec),
         PatchCoordGlobal3D((1, 0, 1)): MemoryCubeSkeleton(d=d, edgespec=edgespec),
-        PatchCoordGlobal3D((0, 0, 2)): MemoryCubeSkeleton(
-            d=d, edgespec=edgespec_left_open
-        ),
-        PatchCoordGlobal3D((1, 0, 2)): MemoryCubeSkeleton(
-            d=d, edgespec=edgespec_right_open
-        ),
+        PatchCoordGlobal3D((0, 0, 2)): MemoryCubeSkeleton(d=d, edgespec=edgespec_left_open),
+        PatchCoordGlobal3D((1, 0, 2)): MemoryCubeSkeleton(d=d, edgespec=edgespec_right_open),
         PatchCoordGlobal3D((0, 0, 3)): MemoryCubeSkeleton(d=d, edgespec=edgespec),
         PatchCoordGlobal3D((1, 0, 3)): MemoryCubeSkeleton(d=d, edgespec=edgespec),
         PatchCoordGlobal3D((0, 0, 4)): MeasureXSkeleton(d=d, edgespec=edgespec),
@@ -79,10 +71,7 @@ def test_init_zero_pipe_first_x_seam_is_paired() -> None:
     compiled = _build_compiled_canvas()
     seam_coord = PhysCoordLocal2D((5, 3))
 
-    seam_groups = [
-        {int(node) for node in group}
-        for group in compiled.parity.checks[seam_coord].values()
-    ]
+    seam_groups = [{int(node) for node in group} for group in compiled.parity.checks[seam_coord].values()]
 
     # The first detector should now be the paired {363, 375}.
     assert {363, 375} in seam_groups
@@ -93,10 +82,7 @@ def test_z_side_seam_remains_multi_layer_chain() -> None:
     compiled = _build_compiled_canvas()
     z_coord = PhysCoordLocal2D((5, 1))
 
-    seam_groups = [
-        {int(node) for node in group}
-        for group in compiled.parity.checks[z_coord].values()
-    ]
+    seam_groups = [{int(node) for node in group} for group in compiled.parity.checks[z_coord].values()]
 
     # Ensure Z side still reports its chained detectors involving node 368.
     assert any(368 in group for group in seam_groups)

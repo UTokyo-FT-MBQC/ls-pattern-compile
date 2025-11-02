@@ -1,7 +1,5 @@
 """Tests for ParityAccumulator ignore_dangling functionality."""
 
-import pytest
-
 from lspattern.accumulator import ParityAccumulator
 from lspattern.mytype import NodeIdLocal, PhysCoordLocal2D
 
@@ -9,7 +7,7 @@ from lspattern.mytype import NodeIdLocal, PhysCoordLocal2D
 class TestParityAccumulatorIgnoreDangling:
     """Test ignore_dangling functionality in ParityAccumulator."""
 
-    def test_ignore_dangling_attribute(self):
+    def test_ignore_dangling_attribute(self) -> None:
         """Test that ignore_dangling attribute is properly initialized."""
         accumulator = ParityAccumulator()
         assert accumulator.ignore_dangling == {}
@@ -19,7 +17,7 @@ class TestParityAccumulatorIgnoreDangling:
         accumulator = ParityAccumulator(ignore_dangling=ignore_data)
         assert accumulator.ignore_dangling == ignore_data
 
-    def test_remap_nodes_preserves_ignore_dangling(self):
+    def test_remap_nodes_preserves_ignore_dangling(self) -> None:
         """Test that remap_nodes preserves ignore_dangling information."""
         coord = PhysCoordLocal2D((0, 0))
         accumulator = ParityAccumulator(
@@ -35,7 +33,7 @@ class TestParityAccumulatorIgnoreDangling:
         assert remapped.checks == {coord: {0: {NodeIdLocal(10), NodeIdLocal(20)}}}
         assert remapped.dangling_parity == {coord: {NodeIdLocal(30)}}
 
-    def test_merge_with_ignore_dangling_true(self):
+    def test_merge_with_ignore_dangling_true(self) -> None:
         """Test merge_with when ignore_dangling is True (no connection between dangling and checks)."""
         coord = PhysCoordLocal2D((0, 0))
 
@@ -67,7 +65,7 @@ class TestParityAccumulatorIgnoreDangling:
         assert merged.dangling_parity == {coord: {NodeIdLocal(4)}}  # From second
         assert merged.ignore_dangling == {coord: True}  # Inherited from first
 
-    def test_merge_with_ignore_dangling_false(self):
+    def test_merge_with_ignore_dangling_false(self) -> None:
         """Test merge_with when ignore_dangling is False (normal connection behavior)."""
         coord = PhysCoordLocal2D((0, 0))
 
@@ -98,7 +96,7 @@ class TestParityAccumulatorIgnoreDangling:
         assert merged.dangling_parity == {coord: {NodeIdLocal(4)}}  # From second
         assert merged.ignore_dangling == {coord: False}  # Inherited from first
 
-    def test_merge_with_no_ignore_dangling_default_behavior(self):
+    def test_merge_with_no_ignore_dangling_default_behavior(self) -> None:
         """Test merge_with with default behavior when ignore_dangling is not set."""
         coord = PhysCoordLocal2D((0, 0))
 
@@ -128,7 +126,7 @@ class TestParityAccumulatorIgnoreDangling:
         assert merged.dangling_parity == {coord: {NodeIdLocal(4)}}  # From second
         assert merged.ignore_dangling == {}  # No ignore_dangling settings
 
-    def test_merge_parallel_ignore_dangling_inheritance(self):
+    def test_merge_parallel_ignore_dangling_inheritance(self) -> None:
         """Test merge_parallel properly inherits ignore_dangling from either accumulator."""
         coord1 = PhysCoordLocal2D((0, 0))
         coord2 = PhysCoordLocal2D((1, 1))
@@ -153,7 +151,7 @@ class TestParityAccumulatorIgnoreDangling:
         expected_ignore = {coord1: True, coord2: True}
         assert merged.ignore_dangling == expected_ignore
 
-    def test_merge_parallel_ignore_dangling_or_logic(self):
+    def test_merge_parallel_ignore_dangling_or_logic(self) -> None:
         """Test merge_parallel uses OR logic for ignore_dangling (if either is True, result is True)."""
         coord = PhysCoordLocal2D((0, 0))
 
@@ -178,7 +176,7 @@ class TestParityAccumulatorIgnoreDangling:
         merged_reverse = second.merge_parallel(first)
         assert merged_reverse.ignore_dangling == {coord: True}
 
-    def test_merge_with_inherit_ignore_dangling_from_other(self):
+    def test_merge_with_inherit_ignore_dangling_from_other(self) -> None:
         """Test that merge_with inherits ignore_dangling from other accumulator."""
         coord = PhysCoordLocal2D((0, 0))
 

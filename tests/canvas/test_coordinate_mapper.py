@@ -269,8 +269,8 @@ class TestFaceChecker:
         checker = CoordinateMapper.create_face_checker("x+", bounds, [0, 1, 2])
 
         assert checker((10, 5, 5)) is True  # depth 0
-        assert checker((9, 5, 5)) is True   # depth 1
-        assert checker((8, 5, 5)) is True   # depth 2
+        assert checker((9, 5, 5)) is True  # depth 1
+        assert checker((8, 5, 5)) is True  # depth 2
         assert checker((7, 5, 5)) is False  # depth 3
 
 
@@ -285,7 +285,7 @@ class TestClassifyNodesByRole:
         mapper.add_node(NodeIdLocal(3), PhysCoordGlobal3D((2, 0, 0)), "ancilla_z")
 
         # Checker that includes all coordinates
-        def always_true(c: tuple[int, int, int]) -> bool:
+        def always_true(c: tuple[int, int, int]) -> bool:  # noqa: ARG001
             return True
 
         result = mapper.classify_nodes_by_role(always_true)
@@ -320,7 +320,7 @@ class TestClassifyNodesByRole:
         mapper.add_node(NodeIdLocal(1), PhysCoordGlobal3D((0, 0, 0)))
         mapper.add_node(NodeIdLocal(2), PhysCoordGlobal3D((1, 0, 0)))
 
-        def always_true(c: tuple[int, int, int]) -> bool:
+        def always_true(c: tuple[int, int, int]) -> bool:  # noqa: ARG001
             return True
 
         result = mapper.classify_nodes_by_role(always_true)
@@ -333,7 +333,7 @@ class TestClassifyNodesByRole:
         """Test classification with no nodes."""
         mapper = CoordinateMapper()
 
-        def always_true(c: tuple[int, int, int]) -> bool:
+        def always_true(c: tuple[int, int, int]) -> bool:  # noqa: ARG001
             return True
 
         result = mapper.classify_nodes_by_role(always_true)

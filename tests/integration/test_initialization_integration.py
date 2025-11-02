@@ -9,7 +9,6 @@ from lspattern.testing.fingerprints import CircuitFingerprint, FingerprintRegist
 
 
 def test_initialization_plus_compile_and_metadata(fingerprint_registry: FingerprintRegistry) -> None:
-
     d = 3
     circuit = create_circuit(d=d, noise=0.0, init_type=InitializationState.PLUS)
 
@@ -25,7 +24,6 @@ def test_initialization_plus_compile_and_metadata(fingerprint_registry: Fingerpr
 
 @pytest.mark.slow
 def test_initialization_plus_dem() -> None:
-
     d = 3
     noise = 1e-2
     circuit = create_circuit(d=d, noise=noise, init_type=InitializationState.PLUS)

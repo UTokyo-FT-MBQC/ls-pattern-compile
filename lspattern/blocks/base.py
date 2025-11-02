@@ -17,7 +17,7 @@ from lspattern.accumulator import (
     ScheduleAccumulator,
 )
 from lspattern.consts import BoundarySide, EdgeSpecValue, NodeRole, Observable, TemporalBoundarySpecValue
-from lspattern.consts.consts import DIRECTIONS3D
+from lspattern.consts.consts import DIRECTIONS2D
 from lspattern.tiling.template import (
     RotatedPlanarCubeTemplate,
     ScalableTemplate,
@@ -306,9 +306,7 @@ class RHGBlock:
         """Add intra-slice spatial edges."""
         for cur in nodes_by_z.values():
             for (x, y), u in cur.items():
-                for dx, dy, dz in DIRECTIONS3D:
-                    if dz != 0:
-                        continue
+                for dx, dy in DIRECTIONS2D:
                     xy2 = (x + dx, y + dy)
                     v = cur.get(xy2)
                     if v is not None and v > u:

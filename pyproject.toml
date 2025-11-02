@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lspattern"
-version = "0.0.3"
+version = "0.0.4"
 description = "MBQC lattice-surgery compiler experiments (RHG blocks/pipes)"
 readme = "README.md"
 requires-python = ">=3.10, <3.14"
@@ -58,9 +58,7 @@ lspattern = "lspattern"
 target-version = "py313"
 line-length = 120
 extend-exclude = [
-  # T48: exclude non-library content from lint scope
   "examples/**",
-  "tests/**",
 ]
 
 [tool.ruff.lint]
@@ -124,13 +122,12 @@ docstring-code-format = true
   "D103",
   "D104",
   "D400",
+  "PLR6301"
 ]
 "examples/*.py" = [
   "T201", # print
   "D",
 ]
-
-
 
 [tool.pytest.ini_options]
 pythonpath = ["lspattern"]
@@ -141,8 +138,8 @@ markers = "slow: mark test as slow"
 [tool.mypy]
 strict = true
 ignore_missing_imports = true
-files = ["lspattern"]
+files = ["lspattern", "tests"]
 
 [tool.pyright]
-include = ["lspattern"]
+include = ["lspattern", "tests"]
 reportMissingImports = false

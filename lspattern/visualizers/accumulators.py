@@ -50,6 +50,9 @@ def visualize_parity_mpl(  # noqa: C901
         assert fig_maybe_subfig is not None  # noqa: S101
         # Get the root figure if this is a SubFigure
         fig = getattr(fig_maybe_subfig, "figure", None) or fig_maybe_subfig  # type: ignore[assignment]
+    if ax is None:
+        msg = "ax should not be None here"
+        raise ValueError(msg)
 
     with contextlib.suppress(Exception):
         ax.set_box_aspect((1, 1, 1))  # type: ignore[arg-type]
@@ -115,6 +118,9 @@ def visualize_flow_mpl(  # noqa: C901
         assert fig_maybe_subfig is not None  # noqa: S101
         # Get the root figure if this is a SubFigure
         fig = getattr(fig_maybe_subfig, "figure", None) or fig_maybe_subfig  # type: ignore[assignment]
+    if ax is None:
+        msg = "ax should not be None here"
+        raise ValueError(msg)
 
     with contextlib.suppress(Exception):
         ax.set_box_aspect((1, 1, 1))  # type: ignore[arg-type]
@@ -158,7 +164,7 @@ def visualize_flow_mpl(  # noqa: C901
     return ax
 
 
-def visualize_schedule_mpl(
+def visualize_schedule_mpl(  # noqa: C901
     layer: TemporalLayer,
     *,
     mode: VisualizationMode = VisualizationMode.HIST,
@@ -178,6 +184,9 @@ def visualize_schedule_mpl(
     else:
         fig = ax.get_figure()  # type: ignore[assignment]
         assert fig is not None  # noqa: S101
+    if ax is None:
+        msg = "ax should not be None here"
+        raise ValueError(msg)
 
     if mode == VisualizationMode.HIST:
         ts = sorted(sched.keys())
