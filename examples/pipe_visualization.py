@@ -15,6 +15,7 @@ from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import PatchCoordGlobal3D
 from lspattern.visualizers.plotly_temporallayer import visualize_temporal_layer_plotly
 from lspattern.visualizers.temporallayer import visualize_temporal_layer
+from lspattern.utils import to_edgespec
 
 MeasureXCubeSkeleton = InitPlusCubeSkeleton
 
@@ -22,9 +23,9 @@ MeasureXCubeSkeleton = InitPlusCubeSkeleton
 def build_horizontal():  # type: ignore[no-untyped-def]
     """Build horizontal pipe configuration."""
     d = 3
-    edgespec_cube1: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
-    edgespec_cube2: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.X, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
-    edgespec_pipe_h: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
+    edgespec_cube1: dict[BoundarySide, EdgeSpecValue] = to_edgespec("XOZZ")
+    edgespec_cube2: dict[BoundarySide, EdgeSpecValue] = to_edgespec("OXZZ")
+    edgespec_pipe_h: dict[BoundarySide, EdgeSpecValue] = to_edgespec("OOZZ")
     sk = RHGCanvasSkeleton("T26 horiz")
     a = PatchCoordGlobal3D((0, 0, 1))
     b = PatchCoordGlobal3D((1, 0, 1))
@@ -41,9 +42,9 @@ def build_horizontal():  # type: ignore[no-untyped-def]
 def build_vertical():  # type: ignore[no-untyped-def]
     """Build vertical pipe configuration."""
     d = 3
-    edgespec_cube1: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.X, BoundarySide.TOP: EdgeSpecValue.O, BoundarySide.BOTTOM: EdgeSpecValue.Z}
-    edgespec_cube2: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.X, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.O}
-    edgespec_pipe_v: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.X, BoundarySide.TOP: EdgeSpecValue.O, BoundarySide.BOTTOM: EdgeSpecValue.O}
+    edgespec_cube1: dict[BoundarySide, EdgeSpecValue] = to_edgespec("XXOZ")
+    edgespec_cube2: dict[BoundarySide, EdgeSpecValue] = to_edgespec("XXZO")
+    edgespec_pipe_v: dict[BoundarySide, EdgeSpecValue] = to_edgespec("XXOO")
     sk = RHGCanvasSkeleton("T26 vert")
     a = PatchCoordGlobal3D((0, 0, 0))
     b = PatchCoordGlobal3D((0, 1, 0))

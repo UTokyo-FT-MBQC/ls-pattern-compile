@@ -14,6 +14,7 @@ from lspattern.blocks.pipes.measure import MeasureZPipeSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.compile import compile_to_stim
 from lspattern.consts import BoundarySide, EdgeSpecValue
+from lspattern.utils import to_edgespec
 from lspattern.mytype import PatchCoordGlobal3D
 from lspattern.visualizers import visualize_compiled_canvas_plotly
 
@@ -23,36 +24,11 @@ d = 3
 
 canvass = RHGCanvasSkeleton("Merge and Split XX")
 
-edgespec: dict[BoundarySide, EdgeSpecValue] = {
-    BoundarySide.LEFT: EdgeSpecValue.Z,
-    BoundarySide.RIGHT: EdgeSpecValue.Z,
-    BoundarySide.TOP: EdgeSpecValue.X,
-    BoundarySide.BOTTOM: EdgeSpecValue.X,
-}
-edgespec1: dict[BoundarySide, EdgeSpecValue] = {
-    BoundarySide.LEFT: EdgeSpecValue.Z,
-    BoundarySide.RIGHT: EdgeSpecValue.O,
-    BoundarySide.TOP: EdgeSpecValue.X,
-    BoundarySide.BOTTOM: EdgeSpecValue.X,
-}
-edgespec2: dict[BoundarySide, EdgeSpecValue] = {
-    BoundarySide.LEFT: EdgeSpecValue.O,
-    BoundarySide.RIGHT: EdgeSpecValue.Z,
-    BoundarySide.TOP: EdgeSpecValue.X,
-    BoundarySide.BOTTOM: EdgeSpecValue.X,
-}
-edgespec_trimmed: dict[BoundarySide, EdgeSpecValue] = {
-    BoundarySide.LEFT: EdgeSpecValue.O,
-    BoundarySide.RIGHT: EdgeSpecValue.O,
-    BoundarySide.TOP: EdgeSpecValue.X,
-    BoundarySide.BOTTOM: EdgeSpecValue.X,
-}
-edgespec_measure_trimmed: dict[BoundarySide, EdgeSpecValue] = {
-    BoundarySide.LEFT: EdgeSpecValue.O,
-    BoundarySide.RIGHT: EdgeSpecValue.O,
-    BoundarySide.TOP: EdgeSpecValue.O,
-    BoundarySide.BOTTOM: EdgeSpecValue.O,
-}
+edgespec: dict[BoundarySide, EdgeSpecValue] = to_edgespec("ZZXX")
+edgespec1: dict[BoundarySide, EdgeSpecValue] = to_edgespec("ZOXX")
+edgespec2: dict[BoundarySide, EdgeSpecValue] = to_edgespec("OZXX")
+edgespec_trimmed: dict[BoundarySide, EdgeSpecValue] = to_edgespec("OOXX")
+edgespec_measure_trimmed: dict[BoundarySide, EdgeSpecValue] = to_edgespec("OOOO")
 blocks = [
     (
         PatchCoordGlobal3D((0, 0, 0)),
