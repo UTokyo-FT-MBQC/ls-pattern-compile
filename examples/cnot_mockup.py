@@ -12,7 +12,7 @@ from lspattern.blocks.cubes.initialize import (
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton, InitZeroPipeSkeleton, InitZeroPipeThinLayerSkeleton
 from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton, MeasureZPipeSkeleton
-from lspattern.blocks.cubes.measure import MeasureZSkeleton
+from lspattern.blocks.cubes.measure import MeasureZSkeleton, MeasureXSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.compile import compile_to_stim
 from lspattern.consts import BoundarySide, EdgeSpecValue
@@ -71,38 +71,34 @@ blocks = [
     ),
     (
         PatchCoordGlobal3D((0, 1, 3)),
-        MemoryCubeSkeleton(d=d, edgespec=to_edgespec("ZOXX")),
+        MemoryCubeSkeleton(d=d, edgespec=to_edgespec("ZZXX")),
     ),
     (
         PatchCoordGlobal3D((1, 1, 3)),
-        MemoryCubeSkeleton(d=d, edgespec=to_edgespec("OZXX")),
+        MemoryCubeSkeleton(d=d, edgespec=to_edgespec("ZZXX")),
     ),
     # Clock 4 (Split and Memory)
     (
         PatchCoordGlobal3D((0, 0, 4)),
-        MemoryCubeSkeleton(d=d, edgespec=edgespec),
+        MeasureZSkeleton(d=d, edgespec=edgespec),
     ),
     (
         PatchCoordGlobal3D((0, 1, 4)),
-        MemoryCubeSkeleton(d=d, edgespec=edgespec),
-    ),
+        MeasureZSkeleton(d=d, edgespec=edgespec),
+    ),  # This outcome is intrinsically random
     (
         PatchCoordGlobal3D((1, 1, 4)),
-        MemoryCubeSkeleton(d=d, edgespec=edgespec),
+        MeasureZSkeleton(d=d, edgespec=edgespec),
     ),
     # Clock 5 (Measure Z all)
-    (
-        PatchCoordGlobal3D((0, 0, 5)),
-        MeasureZSkeleton(d=d, edgespec=edgespec),
-    ),
-    (
-        PatchCoordGlobal3D((0, 1, 5)),
-        MeasureZSkeleton(d=d, edgespec=edgespec),
-    ),
-    (
-        PatchCoordGlobal3D((1, 1, 5)),
-        MeasureZSkeleton(d=d, edgespec=edgespec),
-    ),
+    # (
+    #     PatchCoordGlobal3D((0, 0, 5)),
+    #     MeasureZSkeleton(d=d, edgespec=edgespec),
+    # ),
+    # (
+    #     PatchCoordGlobal3D((1, 1, 5)),
+    #     MeasureZSkeleton(d=d, edgespec=edgespec),
+    # ),
 ]
 pipes = [
     # Clock 2 (Merge ZZ -> Split ZZ)
@@ -120,20 +116,20 @@ pipes = [
     (
         PatchCoordGlobal3D((0, 0, 3)),
         PatchCoordGlobal3D((0, 1, 3)),
-        MeasureXPipeSkeleton(d=d, edgespec=to_edgespec("ZZOO")),
+        MeasureXPipeSkeleton(d=d, edgespec=to_edgespec("OOOO")),
     ),
     
-    (
-        PatchCoordGlobal3D((0, 1, 3)),
-        PatchCoordGlobal3D((1, 1, 3)),
-        InitZeroPipeSkeleton(d=d, edgespec=to_edgespec("OOXX")),
-    ),
-    # Clock 4 (Memory)
-    (
-        PatchCoordGlobal3D((0, 1, 4)),
-        PatchCoordGlobal3D((1, 1, 4)),
-        MeasureZPipeSkeleton(d=d, edgespec=to_edgespec("OOXX")),
-    ),
+    # (
+    #     PatchCoordGlobal3D((0, 1, 3)),
+    #     PatchCoordGlobal3D((1, 1, 3)),
+    #     InitZeroPipeSkeleton(d=d, edgespec=to_edgespec("OOXX")),
+    # ),
+    # # Clock 4 (Memory)
+    # (
+    #     PatchCoordGlobal3D((0, 1, 4)),
+    #     PatchCoordGlobal3D((1, 1, 4)),
+    #     MeasureZPipeSkeleton(d=d, edgespec=to_edgespec("OOXX")),
+    # ),
   
 ]
 
@@ -166,7 +162,7 @@ print(
 output_indices = compiled_canvas.global_graph.output_node_indices or {}  # type: ignore[union-attr]
 print(f"output qubits: {output_indices}")
 
-fig3d = visualize_compiled_canvas_plotly(compiled_canvas, show_edges=True, hilight_nodes=[783])
+fig3d = visualize_compiled_canvas_plotly(compiled_canvas, show_edges=True, hilight_nodes=[106, 517, 523, 783, 785])
 fig3d.show()
 
 # %%
@@ -235,10 +231,10 @@ noise = 0.001
 circuit = compile_to_stim(
     compiled_canvas,
     logical_observable_coords={
-        0: [PatchCoordGlobal3D((0, 0, 5))],  # First output patch
-        # 1: [PatchCoordGlobal3D((0, 1, 5))],  # Second output patch
+        0: [PatchCoordGlobal3D((0, 0, 4))],  # First output patch
+        # 1: [PatchCoordGlobal3D((0, 1, 4))],  # Second output patch
         # 2: [PatchCoordGlobal3D((1, 1, 5))],  # Third output patch
-        # 3: [PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 3)), PatchCoordGlobal3D((0, 1, 3))))],  # InitPlus pipe
+        3: [PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 3)), PatchCoordGlobal3D((0, 1, 3))))],  # InitPlus pipe
         # 4: [PipeCoordGlobal3D((PatchCoordGlobal3D((0, 1, 4)), PatchCoordGlobal3D((1, 1, 4))))],  # InitPlus pipe
     },
     p_before_meas_flip=noise,
