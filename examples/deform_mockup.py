@@ -85,11 +85,10 @@ blocks = [
     (PatchCoordGlobal3D((1, 0, 2)), MemoryCubeSkeleton(d=d, edgespec=edgespec2)),
 
     # After extend, keep both alive at z=3 so we can perform the shrink (split) operation
-    (PatchCoordGlobal3D((0, 0, 3)), MemoryCubeSkeleton(d=d, edgespec=edgespec)),
+    (PatchCoordGlobal3D((0, 0, 3)), MeasureXSkeleton(d=d, edgespec=edgespec)),
     (PatchCoordGlobal3D((1, 0, 3)), MemoryCubeSkeleton(d=d, edgespec=edgespec)),
 
     # Finally, measure Z at the new location (1,0) on z=4
-    (PatchCoordGlobal3D((0, 0, 4)), MeasureXSkeleton(d=d, edgespec=edgespec)),
     (PatchCoordGlobal3D((1, 0, 4)), MeasureXSkeleton(d=d, edgespec=edgespec)),
 ]
 
@@ -244,7 +243,7 @@ print_pattern(pattern)
 
 # set logical observables
 coord2logical_group = {
-    0: {PatchCoordGlobal3D((1, 0, 4)), PatchCoordGlobal3D((0, 0, 4)), PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 3)), PatchCoordGlobal3D((1, 0, 3))))},  # Output patch, MeasureX patch + MeasureX pipe
+    0: {PatchCoordGlobal3D((1, 0, 4)), PatchCoordGlobal3D((0, 0, 3)), PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 3)), PatchCoordGlobal3D((1, 0, 3))))},  # Output patch, MeasureX patch + MeasureX pipe
 }
 logical_observables = {}
 for i, group in coord2logical_group.items():
