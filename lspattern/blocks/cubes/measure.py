@@ -217,7 +217,7 @@ class MeasureX(_MeasureBase):
                 node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z0)))
                 if node_id is not None:
                     node_group.add(node_id)
-            self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), {})[z0] = node_group
+            self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), {})[z0 + 1] = node_group
 
 
 class MeasureZ(_MeasureBase):
