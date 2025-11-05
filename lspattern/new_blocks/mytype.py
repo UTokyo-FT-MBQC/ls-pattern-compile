@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+import sys
 from typing import NamedTuple
 
-try:
+if sys.version_info >= (3, 11):
     from enum import StrEnum
-except ImportError:
+else:
     try:
         from typing_extensions import StrEnum
-    except ImportError as exc:  # pragma: no cover
-        message = "StrEnum requires Python 3.11 or typing_extensions."
-        raise ImportError(message) from exc
+    except (ImportError, AttributeError):
+        # Fallback for Python 3.10 without typing_extensions >= 4.2.0
+        from enum import Enum
+
+        class StrEnum(str, Enum):  # type: ignore[no-redef]
+            """StrEnum fallback for Python 3.10."""
 
 
 class Coord2D(NamedTuple):

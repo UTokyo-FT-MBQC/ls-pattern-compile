@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 from lspattern.new_blocks.accumulator import CoordFlowAccumulator, CoordScheduleAccumulator
@@ -12,11 +11,9 @@ from lspattern.new_blocks.layer_data import CoordBasedLayerData
 from lspattern.new_blocks.mytype import Coord3D, NodeRole
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
 
     from graphqomb.graphstate import GraphState
-else:
-    from collections.abc import Sequence
 
 
 class UnitLayer(ABC):
@@ -106,13 +103,40 @@ class MemoryUnitLayer(UnitLayer):
         - Layer ``z_offset`` (even): data + Z ancillas
         - Layer ``z_offset + 1`` (odd): data + X ancillas
         """
+        z1 = z_offset
+        z2 = z_offset + 1
+
+        coords_by_z, coord2role = MemoryUnitLayer._build_layers(z1, z2, data2d, x2d, z2d)
+        coords_z1 = coords_by_z[z1]
+        coords_z2 = coords_by_z[z2]
+
+        spatial_edges = MemoryUnitLayer._compute_spatial_edges(coords_z1, coords_z2)
+        temporal_edges = MemoryUnitLayer._compute_temporal_edges(coords_z1, coords_z2, z1)
+        coord_schedule = MemoryUnitLayer._build_schedule(coords_z1, coords_z2, coord2role, z1, z2)
+        coord_flow = MemoryUnitLayer._build_flow(temporal_edges)
+
+        return CoordBasedLayerData(
+            coords_by_z=coords_by_z,
+            coord2role=coord2role,
+            spatial_edges=spatial_edges,
+            temporal_edges=temporal_edges,
+            coord_schedule=coord_schedule,
+            coord_flow=coord_flow,
+        )
+
+    @staticmethod
+    def _build_layers(
+        z1: int,
+        z2: int,
+        data2d: Sequence[tuple[int, int]],
+        x2d: Sequence[tuple[int, int]],
+        z2d: Sequence[tuple[int, int]],
+    ) -> tuple[dict[int, set[Coord3D]], dict[Coord3D, NodeRole]]:
+        """Build coordinate sets and roles for both layers."""
         coords_by_z: dict[int, set[Coord3D]] = {}
         coord2role: dict[Coord3D, NodeRole] = {}
-        spatial_edges: set[tuple[Coord3D, Coord3D]] = set()
-        temporal_edges: set[tuple[Coord3D, Coord3D]] = set()
 
         # Layer 1: Z-check (even z)
-        z1 = z_offset
         coords_z1: set[Coord3D] = set()
         for x, y in data2d:
             coord = Coord3D(x, y, z1)
@@ -125,7 +149,6 @@ class MemoryUnitLayer(UnitLayer):
         coords_by_z[z1] = coords_z1
 
         # Layer 2: X-check (odd z)
-        z2 = z_offset + 1
         coords_z2: set[Coord3D] = set()
         for x, y in data2d:
             coord = Coord3D(x, y, z2)
@@ -137,39 +160,59 @@ class MemoryUnitLayer(UnitLayer):
             coord2role[coord] = NodeRole.ANCILLA_X
         coords_by_z[z2] = coords_z2
 
-        # Compute spatial edges within each layer (4-neighbour connectivity).
+        return coords_by_z, coord2role
+
+    @staticmethod
+    def _compute_spatial_edges(
+        coords_z1: set[Coord3D],
+        coords_z2: set[Coord3D],
+    ) -> set[tuple[Coord3D, Coord3D]]:
+        """Compute spatial edges within each layer."""
+        spatial_edges: set[tuple[Coord3D, Coord3D]] = set()
         for coords in (coords_z1, coords_z2):
             for coord in coords:
                 for neighbor in CoordTransform.get_neighbors_3d(coord, spatial_only=True):
                     if neighbor in coords and neighbor > coord:
                         spatial_edges.add((coord, neighbor))
+        return spatial_edges
 
-        # Compute temporal edges between matching data nodes.
+    @staticmethod
+    def _compute_temporal_edges(
+        coords_z1: set[Coord3D],
+        coords_z2: set[Coord3D],
+        z1: int,
+    ) -> set[tuple[Coord3D, Coord3D]]:
+        """Compute temporal edges between matching data nodes."""
+        temporal_edges: set[tuple[Coord3D, Coord3D]] = set()
         for coord_upper in coords_z2:
             coord_lower = Coord3D(coord_upper.x, coord_upper.y, z1)
             if coord_lower in coords_z1:
                 temporal_edges.add((coord_lower, coord_upper))
+        return temporal_edges
 
-        # Build schedule separating ancilla (even time) and data (odd time).
+    @staticmethod
+    def _build_schedule(
+        coords_z1: set[Coord3D],
+        coords_z2: set[Coord3D],
+        coord2role: dict[Coord3D, NodeRole],
+        z1: int,
+        z2: int,
+    ) -> dict[int, set[Coord3D]]:
+        """Build schedule separating ancilla (even time) and data (odd time)."""
         schedule_acc = CoordScheduleAccumulator()
         schedule_acc.add_at_time(2 * z1, {c for c in coords_z1 if coord2role[c] != NodeRole.DATA})
         schedule_acc.add_at_time(2 * z1 + 1, {c for c in coords_z1 if coord2role[c] == NodeRole.DATA})
         schedule_acc.add_at_time(2 * z2, {c for c in coords_z2 if coord2role[c] != NodeRole.DATA})
         schedule_acc.add_at_time(2 * z2 + 1, {c for c in coords_z2 if coord2role[c] == NodeRole.DATA})
+        return schedule_acc.schedule
 
-        # Build flow edges between temporal partners.
+    @staticmethod
+    def _build_flow(temporal_edges: set[tuple[Coord3D, Coord3D]]) -> dict[Coord3D, set[Coord3D]]:
+        """Build flow edges between temporal partners."""
         flow_acc = CoordFlowAccumulator()
         for coord_lower, coord_upper in temporal_edges:
             flow_acc.add_flow(coord_lower, coord_upper)
-
-        return CoordBasedLayerData(
-            coords_by_z=coords_by_z,
-            coord2role=coord2role,
-            spatial_edges=spatial_edges,
-            temporal_edges=temporal_edges,
-            coord_schedule=schedule_acc.schedule,
-            coord_flow=flow_acc.flow,
-        )
+        return flow_acc.flow
 
     def materialize(
         self,
@@ -177,4 +220,5 @@ class MemoryUnitLayer(UnitLayer):
         node_map: Mapping[Coord3D, int],
     ) -> tuple[GraphState, dict[Coord3D, int]]:
         """Materialize this layer into the given graph (not yet implemented)."""
-        raise NotImplementedError("Use build_metadata instead")
+        msg = "Use build_metadata instead"
+        raise NotImplementedError(msg)

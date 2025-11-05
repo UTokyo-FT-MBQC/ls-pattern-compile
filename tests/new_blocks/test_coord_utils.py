@@ -1,4 +1,3 @@
-import pytest
 
 from lspattern.new_blocks.coord_utils import CoordTransform
 from lspattern.new_blocks.mytype import Coord2D, Coord3D
