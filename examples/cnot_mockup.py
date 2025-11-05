@@ -7,10 +7,16 @@ import pathlib
 
 import pymatching
 from lspattern.blocks.cubes.initialize import (
-    InitZeroCubeThinLayerSkeleton, InitPlusCubeSkeleton
+    InitPlusCubeThinLayerSkeleton,
+    InitZeroCubeThinLayerSkeleton,
+    InitPlusCubeSkeleton,
 )
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
-from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton, InitZeroPipeSkeleton, InitZeroPipeThinLayerSkeleton
+from lspattern.blocks.pipes.initialize import (
+    InitPlusPipeSkeleton,
+    InitZeroPipeSkeleton,
+    InitZeroPipeThinLayerSkeleton,
+)
 from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton, MeasureZPipeSkeleton
 from lspattern.blocks.cubes.measure import MeasureZSkeleton, MeasureXSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
@@ -33,24 +39,26 @@ blocks = [
         InitZeroCubeThinLayerSkeleton(d=d, edgespec=edgespec),
     ),
     (
-        PatchCoordGlobal3D((1, 1, 0)),
-        InitZeroCubeThinLayerSkeleton(d=d, edgespec=edgespec),
+        PatchCoordGlobal3D((0, 1, 0)),
+        InitPlusCubeThinLayerSkeleton(d=d, edgespec=edgespec),
     ),
-
-    # Clock 1 (Init Plus and Memory)
+    (
+        PatchCoordGlobal3D((1, 1, 0)),
+        InitPlusCubeThinLayerSkeleton(d=d, edgespec=edgespec),
+    ),
+    # Clock 1 (Memory)
     (
         PatchCoordGlobal3D((0, 0, 1)),
         MemoryCubeSkeleton(d=d, edgespec=edgespec),
     ),
-      (
+    (
         PatchCoordGlobal3D((0, 1, 1)),
-        InitPlusCubeSkeleton(d=d, edgespec=edgespec),
+        MemoryCubeSkeleton(d=d, edgespec=edgespec),
     ),
     (
         PatchCoordGlobal3D((1, 1, 1)),
         MemoryCubeSkeleton(d=d, edgespec=edgespec),
     ),
-   
     # Clock 2 (Merge ZZ)
     (
         PatchCoordGlobal3D((0, 0, 2)),
@@ -71,34 +79,51 @@ blocks = [
     ),
     (
         PatchCoordGlobal3D((0, 1, 3)),
-        MemoryCubeSkeleton(d=d, edgespec=to_edgespec("ZZXX")),
+        MemoryCubeSkeleton(d=d, edgespec=edgespec),
     ),
     (
         PatchCoordGlobal3D((1, 1, 3)),
-        MemoryCubeSkeleton(d=d, edgespec=to_edgespec("ZZXX")),
+        MemoryCubeSkeleton(d=d, edgespec=edgespec),
     ),
     # Clock 4 (Split and Memory)
     (
         PatchCoordGlobal3D((0, 0, 4)),
-        MeasureZSkeleton(d=d, edgespec=edgespec),
+        MemoryCubeSkeleton(d=d, edgespec=edgespec),
     ),
     (
         PatchCoordGlobal3D((0, 1, 4)),
-        MeasureZSkeleton(d=d, edgespec=edgespec),
-    ),  # This outcome is intrinsically random
+        MemoryCubeSkeleton(d=d, edgespec=to_edgespec("ZOXX")),
+    ),
     (
         PatchCoordGlobal3D((1, 1, 4)),
+        MemoryCubeSkeleton(d=d, edgespec=to_edgespec("OZXX")),
+    ),
+    # Clock 5 (Memory)
+    (
+        PatchCoordGlobal3D((0, 0, 5)),
+        MemoryCubeSkeleton(d=d, edgespec=edgespec),
+    ),
+    (
+        PatchCoordGlobal3D((0, 1, 5)),
+        MemoryCubeSkeleton(d=d, edgespec=edgespec),
+    ),
+    (
+        PatchCoordGlobal3D((1, 1, 5)),
+        MemoryCubeSkeleton(d=d, edgespec=edgespec),
+    ),
+    # Clock 6 (Measure Z all)
+    (
+        PatchCoordGlobal3D((0, 0, 6)),
         MeasureZSkeleton(d=d, edgespec=edgespec),
     ),
-    # Clock 5 (Measure Z all)
-    # (
-    #     PatchCoordGlobal3D((0, 0, 5)),
-    #     MeasureZSkeleton(d=d, edgespec=edgespec),
-    # ),
-    # (
-    #     PatchCoordGlobal3D((1, 1, 5)),
-    #     MeasureZSkeleton(d=d, edgespec=edgespec),
-    # ),
+    (
+        PatchCoordGlobal3D((0, 1, 6)),
+        MeasureXSkeleton(d=d, edgespec=edgespec),
+    ),
+    (
+        PatchCoordGlobal3D((1, 1, 6)),
+        MeasureXSkeleton(d=d, edgespec=edgespec),
+    ),
 ]
 pipes = [
     # Clock 2 (Merge ZZ -> Split ZZ)
@@ -107,30 +132,24 @@ pipes = [
         PatchCoordGlobal3D((0, 1, 2)),
         InitPlusPipeSkeleton(d=d, edgespec=to_edgespec("ZZOO")),
     ),
-    # (
-    #     PatchCoordGlobal3D((0, 1, 2)),
-    #     PatchCoordGlobal3D((1, 1, 2)),
-    #     InitZeroPipeThinLayerSkeleton(d=d, edgespec=to_edgespec("OOXX")),
-    # ),
     # Clock 3 (Split XX)
     (
         PatchCoordGlobal3D((0, 0, 3)),
         PatchCoordGlobal3D((0, 1, 3)),
         MeasureXPipeSkeleton(d=d, edgespec=to_edgespec("OOOO")),
     ),
-    
-    # (
-    #     PatchCoordGlobal3D((0, 1, 3)),
-    #     PatchCoordGlobal3D((1, 1, 3)),
-    #     InitZeroPipeSkeleton(d=d, edgespec=to_edgespec("OOXX")),
-    # ),
-    # # Clock 4 (Memory)
-    # (
-    #     PatchCoordGlobal3D((0, 1, 4)),
-    #     PatchCoordGlobal3D((1, 1, 4)),
-    #     MeasureZPipeSkeleton(d=d, edgespec=to_edgespec("OOXX")),
-    # ),
-  
+    # Clock 4
+    (
+        PatchCoordGlobal3D((0, 1, 4)),
+        PatchCoordGlobal3D((1, 1, 4)),
+        InitZeroPipeSkeleton(d=d, edgespec=to_edgespec("OOXX")),
+    ),
+    # Clock 5
+    (
+        PatchCoordGlobal3D((0, 1, 5)),
+        PatchCoordGlobal3D((1, 1, 5)),
+        MeasureZPipeSkeleton(d=d, edgespec=to_edgespec("OOOO")),
+    ),
 ]
 
 for block in blocks:
@@ -162,7 +181,9 @@ print(
 output_indices = compiled_canvas.global_graph.output_node_indices or {}  # type: ignore[union-attr]
 print(f"output qubits: {output_indices}")
 
-fig3d = visualize_compiled_canvas_plotly(compiled_canvas, show_edges=True, hilight_nodes=[106, 517, 523, 783, 785])
+fig3d = visualize_compiled_canvas_plotly(
+    compiled_canvas, show_edges=True, hilight_nodes=[555]
+)
 fig3d.show()
 
 # %%
@@ -231,27 +252,32 @@ noise = 0.001
 circuit = compile_to_stim(
     compiled_canvas,
     logical_observable_coords={
-        0: [PatchCoordGlobal3D((0, 0, 4))],  # First output patch
-        # 1: [PatchCoordGlobal3D((0, 1, 4))],  # Second output patch
+        0: [
+            # PatchCoordGlobal3D((0, 1, 6)),
+            # PipeCoordGlobal3D(
+            #     (PatchCoordGlobal3D((0, 0, 3)), PatchCoordGlobal3D((1, 0, 3)))
+            # ),
+        ],
+        # 1: [PatchCoordGlobal3D((1, 1, 4))],  # Second output patch
         # 2: [PatchCoordGlobal3D((1, 1, 5))],  # Third output patch
-        3: [PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 3)), PatchCoordGlobal3D((0, 1, 3))))],  # InitPlus pipe
+        # 3: [PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 3)), PatchCoordGlobal3D((0, 1, 3))))],  # InitPlus pipe
         # 4: [PipeCoordGlobal3D((PatchCoordGlobal3D((0, 1, 4)), PatchCoordGlobal3D((1, 1, 4))))],  # InitPlus pipe
     },
     p_before_meas_flip=noise,
 )
 print(f"num_qubits: {circuit.num_qubits}")
-print(circuit)
+# print(circuit)
 
 # %%
 # Error correction simulation
 try:
     dem = circuit.detector_error_model(decompose_errors=True)
-    print(dem)
+    # print(dem)
 except ValueError as e:
     print(f"Error creating DEM with decompose_errors=True: {e}")
     print("Retrying without decompose_errors...")
     dem = circuit.detector_error_model(decompose_errors=False)
-    print(dem)
+    # print(dem)
 
 matching = pymatching.Matching.from_detector_error_model(dem)
 print(matching)
