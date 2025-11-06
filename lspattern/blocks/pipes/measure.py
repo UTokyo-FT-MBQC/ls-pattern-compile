@@ -223,6 +223,7 @@ class MeasureXPipe(_MeasurePipeBase):
 
         for z in range(height):
             for x, y in x2d:
+                print(f"Constructing X detector at {(x, y, z + z_offset)}")
                 node_group: set[NodeIdLocal] = set()
                 for dx, dy in DIRECTIONS2D:
                     node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z + z_offset)))

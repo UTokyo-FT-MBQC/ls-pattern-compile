@@ -42,10 +42,10 @@ blocks = [
         PatchCoordGlobal3D((0, 1, 0)),
         InitPlusCubeThinLayerSkeleton(d=d, edgespec=edgespec),
     ),
-    (
-        PatchCoordGlobal3D((1, 1, 0)),
-        InitPlusCubeThinLayerSkeleton(d=d, edgespec=edgespec),
-    ),
+    # (
+    #     PatchCoordGlobal3D((1, 1, 0)),
+    #     InitPlusCubeThinLayerSkeleton(d=d, edgespec=edgespec),
+    # ),
     # Clock 1 (Memory)
     (
         PatchCoordGlobal3D((0, 0, 1)),
@@ -55,10 +55,10 @@ blocks = [
         PatchCoordGlobal3D((0, 1, 1)),
         MemoryCubeSkeleton(d=d, edgespec=edgespec),
     ),
-    (
-        PatchCoordGlobal3D((1, 1, 1)),
-        MemoryCubeSkeleton(d=d, edgespec=edgespec),
-    ),
+    # (
+    #     PatchCoordGlobal3D((1, 1, 1)),
+    #     MemoryCubeSkeleton(d=d, edgespec=edgespec),
+    # ),
     # Clock 2 (Merge ZZ)
     (
         PatchCoordGlobal3D((0, 0, 2)),
@@ -68,62 +68,74 @@ blocks = [
         PatchCoordGlobal3D((0, 1, 2)),
         MemoryCubeSkeleton(d=d, edgespec=to_edgespec("ZZXO")),
     ),
-    (
-        PatchCoordGlobal3D((1, 1, 2)),
-        MemoryCubeSkeleton(d=d, edgespec=edgespec),
-    ),
-    # Clock 3 (Split and Merge XX)
+    # (
+    #     PatchCoordGlobal3D((1, 1, 2)),
+    #     MemoryCubeSkeleton(d=d, edgespec=edgespec),
+    # ),
     (
         PatchCoordGlobal3D((0, 0, 3)),
-        MemoryCubeSkeleton(d=d, edgespec=edgespec),
+        MeasureXSkeleton(d=d, edgespec=edgespec),
     ),
     (
         PatchCoordGlobal3D((0, 1, 3)),
-        MemoryCubeSkeleton(d=d, edgespec=edgespec),
-    ),
-    (
-        PatchCoordGlobal3D((1, 1, 3)),
-        MemoryCubeSkeleton(d=d, edgespec=edgespec),
-    ),
-    # Clock 4 (Split and Memory)
-    (
-        PatchCoordGlobal3D((0, 0, 4)),
-        MemoryCubeSkeleton(d=d, edgespec=edgespec),
-    ),
-    (
-        PatchCoordGlobal3D((0, 1, 4)),
-        MemoryCubeSkeleton(d=d, edgespec=to_edgespec("ZOXX")),
-    ),
-    (
-        PatchCoordGlobal3D((1, 1, 4)),
-        MemoryCubeSkeleton(d=d, edgespec=to_edgespec("OZXX")),
-    ),
-    # Clock 5 (Memory)
-    (
-        PatchCoordGlobal3D((0, 0, 5)),
-        MemoryCubeSkeleton(d=d, edgespec=edgespec),
-    ),
-    (
-        PatchCoordGlobal3D((0, 1, 5)),
-        MemoryCubeSkeleton(d=d, edgespec=edgespec),
-    ),
-    (
-        PatchCoordGlobal3D((1, 1, 5)),
-        MemoryCubeSkeleton(d=d, edgespec=edgespec),
-    ),
-    # Clock 6 (Measure Z all)
-    (
-        PatchCoordGlobal3D((0, 0, 6)),
-        MeasureZSkeleton(d=d, edgespec=edgespec),
-    ),
-    (
-        PatchCoordGlobal3D((0, 1, 6)),
         MeasureXSkeleton(d=d, edgespec=edgespec),
     ),
-    (
-        PatchCoordGlobal3D((1, 1, 6)),
-        MeasureXSkeleton(d=d, edgespec=edgespec),
-    ),
+    # (
+    #     PatchCoordGlobal3D((1, 1, 3)),
+    #     MeasureXSkeleton(d=d, edgespec=edgespec),
+    # )
+    # # Clock 3 (Split and Merge XX)
+    # (
+    #     PatchCoordGlobal3D((0, 0, 3)),
+    #     MemoryCubeSkeleton(d=d, edgespec=edgespec),
+    # ),
+    # (
+    #     PatchCoordGlobal3D((0, 1, 3)),
+    #     MemoryCubeSkeleton(d=d, edgespec=edgespec),
+    # ),
+    # (
+    #     PatchCoordGlobal3D((1, 1, 3)),
+    #     MemoryCubeSkeleton(d=d, edgespec=edgespec),
+    # ),
+    # # Clock 4 (Split and Memory)
+    # (
+    #     PatchCoordGlobal3D((0, 0, 4)),
+    #     MemoryCubeSkeleton(d=d, edgespec=edgespec),
+    # ),
+    # (
+    #     PatchCoordGlobal3D((0, 1, 4)),
+    #     MemoryCubeSkeleton(d=d, edgespec=to_edgespec("ZOXX")),
+    # ),
+    # (
+    #     PatchCoordGlobal3D((1, 1, 4)),
+    #     MemoryCubeSkeleton(d=d, edgespec=to_edgespec("OZXX")),
+    # ),
+    # # Clock 5 (Memory)
+    # (
+    #     PatchCoordGlobal3D((0, 0, 5)),
+    #     MemoryCubeSkeleton(d=d, edgespec=edgespec),
+    # ),
+    # (
+    #     PatchCoordGlobal3D((0, 1, 5)),
+    #     MemoryCubeSkeleton(d=d, edgespec=edgespec),
+    # ),
+    # (
+    #     PatchCoordGlobal3D((1, 1, 5)),
+    #     MemoryCubeSkeleton(d=d, edgespec=edgespec),
+    # ),
+    # # Clock 6 (Measure Z all)
+    # (
+    #     PatchCoordGlobal3D((0, 0, 6)),
+    #     MeasureZSkeleton(d=d, edgespec=edgespec),
+    # ),
+    # (
+    #     PatchCoordGlobal3D((0, 1, 6)),
+    #     MeasureXSkeleton(d=d, edgespec=edgespec),
+    # ),
+    # (
+    #     PatchCoordGlobal3D((1, 1, 6)),
+    #     MeasureXSkeleton(d=d, edgespec=edgespec),
+    # ),
 ]
 pipes = [
     # Clock 2 (Merge ZZ -> Split ZZ)
@@ -132,24 +144,24 @@ pipes = [
         PatchCoordGlobal3D((0, 1, 2)),
         InitPlusPipeSkeleton(d=d, edgespec=to_edgespec("ZZOO")),
     ),
-    # Clock 3 (Split XX)
+    # # Clock 3 (Split XX)
     (
         PatchCoordGlobal3D((0, 0, 3)),
         PatchCoordGlobal3D((0, 1, 3)),
         MeasureXPipeSkeleton(d=d, edgespec=to_edgespec("OOOO")),
     ),
-    # Clock 4
-    (
-        PatchCoordGlobal3D((0, 1, 4)),
-        PatchCoordGlobal3D((1, 1, 4)),
-        InitZeroPipeSkeleton(d=d, edgespec=to_edgespec("OOXX")),
-    ),
-    # Clock 5
-    (
-        PatchCoordGlobal3D((0, 1, 5)),
-        PatchCoordGlobal3D((1, 1, 5)),
-        MeasureZPipeSkeleton(d=d, edgespec=to_edgespec("OOOO")),
-    ),
+    # # Clock 4
+    # (
+    #     PatchCoordGlobal3D((0, 1, 4)),
+    #     PatchCoordGlobal3D((1, 1, 4)),
+    #     InitZeroPipeSkeleton(d=d, edgespec=to_edgespec("OOXX")),
+    # ),
+    # # Clock 5
+    # (
+    #     PatchCoordGlobal3D((0, 1, 5)),
+    #     PatchCoordGlobal3D((1, 1, 5)),
+    #     MeasureZPipeSkeleton(d=d, edgespec=to_edgespec("OOOO")),
+    # ),
 ]
 
 for block in blocks:
@@ -165,6 +177,10 @@ nnodes = (
     if compiled_canvas.global_graph
     else 0
 )
+included = 390 in compiled_canvas.global_graph.physical_nodes
+print(f"Node 390 included: {included}")
+included = 393 in compiled_canvas.global_graph.physical_nodes
+print(f"Node 393 included: {included}")
 nedges = (
     len(getattr(compiled_canvas.global_graph, "physical_edges", []) or [])
     if compiled_canvas.global_graph
@@ -182,7 +198,7 @@ output_indices = compiled_canvas.global_graph.output_node_indices or {}  # type:
 print(f"output qubits: {output_indices}")
 
 fig3d = visualize_compiled_canvas_plotly(
-    compiled_canvas, show_edges=True, hilight_nodes=[555]
+    compiled_canvas, show_edges=True
 )
 fig3d.show()
 
