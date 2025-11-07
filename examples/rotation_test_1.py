@@ -29,39 +29,59 @@ canvass = RHGCanvasSkeleton("Merge and Split")
 edgespec: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.X, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
 edgespec_inv: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.Z, BoundarySide.RIGHT: EdgeSpecValue.Z, BoundarySide.TOP: EdgeSpecValue.X, BoundarySide.BOTTOM: EdgeSpecValue.X}
 
-edgespec1: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
-edgespec2: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.Z, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.X}
-edgespec2_init: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.Z, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.X}
-edgespec2_meas: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.Z, BoundarySide.RIGHT: EdgeSpecValue.Z, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.X}
+edgespec_LEFT0: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.X, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
+edgespec_RIGHT0: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
 
-edgespec_trimmed1: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
-edgespec_measure_trimmed: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.O, BoundarySide.BOTTOM: EdgeSpecValue.O}
+edgespec_LEFT0_BOTTOMX: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.X, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.X}
+
+edgespec_LEFT0_BOTTOMX_RIGHTZ: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.Z, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.X}
+
+edgespec_meas2: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.Z, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.X}
+
+edgespec_pipe: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
+edgespec_pipe_measure: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.O, BoundarySide.BOTTOM: EdgeSpecValue.O}
 
 blocks = [
 
-    (PatchCoordGlobal3D((0, 0, 0)), InitZeroCubeThinLayerSkeleton(d=d, edgespec=edgespec)),
+    (PatchCoordGlobal3D((0, 0, 0)), InitPlusCubeThinLayerSkeleton(d=d, edgespec=edgespec)),
     
     (PatchCoordGlobal3D((0, 0, 1)), MemoryCubeSkeleton(d=d, edgespec=edgespec)),
-    (PatchCoordGlobal3D((1, 0, 1)), InitZeroCubeThinLayerSkeleton(d=d, edgespec=edgespec2_init)),
+    (PatchCoordGlobal3D((1, 0, 1)), InitPlusCubeThinLayerSkeleton(d=d, edgespec=edgespec)),
     
-    (PatchCoordGlobal3D((0, 0, 2)), MemoryCubeSkeleton(d=d, edgespec=edgespec1)),
-    (PatchCoordGlobal3D((1, 0, 2)), MemoryCubeSkeleton(d=d, edgespec=edgespec2)),
+    (PatchCoordGlobal3D((0, 0, 2)), MemoryCubeSkeleton(d=d, edgespec=edgespec_RIGHT0)),
+    (PatchCoordGlobal3D((1, 0, 2)), MemoryCubeSkeleton(d=d, edgespec=edgespec_LEFT0)),
     
-    (PatchCoordGlobal3D((0, 0, 3)), MeasureZSkeleton(d=d, edgespec=edgespec)),
-    (PatchCoordGlobal3D((1, 0, 3)), MeasureZSkeleton(d=d, edgespec=edgespec2_meas, disable_cout=True)),
+    (PatchCoordGlobal3D((0, 0, 3)), MemoryCubeSkeleton(d=d, edgespec=edgespec_RIGHT0)),
+    (PatchCoordGlobal3D((1, 0, 3)), MemoryCubeSkeleton(d=d, edgespec=edgespec_LEFT0_BOTTOMX)),
+    
+    (PatchCoordGlobal3D((0, 0, 4)), MemoryCubeSkeleton(d=d, edgespec=edgespec_RIGHT0)),
+    (PatchCoordGlobal3D((1, 0, 4)), MemoryCubeSkeleton(d=d, edgespec=edgespec_LEFT0_BOTTOMX_RIGHTZ)),
+    
+    (PatchCoordGlobal3D((0, 0, 5)), MeasureXSkeleton(d=d, edgespec=edgespec)),
+    (PatchCoordGlobal3D((1, 0, 5)), MeasureXSkeleton(d=d, edgespec=edgespec_meas2, disable_cout=True)),
 ]
 
 pipes = [
     (
         PatchCoordGlobal3D((0, 0, 2)),
         PatchCoordGlobal3D((1, 0, 2)),
-        InitPlusPipeSkeleton(d=d, edgespec=edgespec_trimmed1),
+        InitPlusPipeSkeleton(d=d, edgespec=edgespec_pipe),
     ),
     (
         PatchCoordGlobal3D((0, 0, 3)),
         PatchCoordGlobal3D((1, 0, 3)),
-        MeasureZPipeSkeleton(d=d, edgespec=edgespec_measure_trimmed),
+        MemoryPipeSkeleton(d=d, edgespec=edgespec_pipe),
     ),
+    (
+        PatchCoordGlobal3D((0, 0, 4)),
+        PatchCoordGlobal3D((1, 0, 4)),
+        MemoryPipeSkeleton(d=d, edgespec=edgespec_pipe),
+    ),
+    (
+        PatchCoordGlobal3D((0, 0, 5)),
+        PatchCoordGlobal3D((1, 0, 5)),
+        MeasureXPipeSkeleton(d=d, edgespec=edgespec_pipe_measure),
+    )
 ]
 
 for block in blocks:
@@ -160,7 +180,7 @@ print(f"Classical output ports (pipes): {cout_portmap_pipe}")
 # Circuit creation using compile_to_stim
 noise = 0.001
 coord2logical_group = {
-    0: {PatchCoordGlobal3D((1, 0, 4)), PatchCoordGlobal3D((0, 0, 3)), PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 3)), PatchCoordGlobal3D((1, 0, 3))))},
+    0: {PatchCoordGlobal3D((0, 0, 5)), PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 5)), PatchCoordGlobal3D((1, 0, 5))))}
 }
 logical_observables = {}
 for i, group in coord2logical_group.items():
@@ -178,7 +198,7 @@ for i, group in coord2logical_group.items():
             msg = f"Unknown coord type: {type(coord)}"
             raise TypeError(msg)
 
-    logical_observables[i] = set(nodes)
+    logical_observables[i] = set(nodes).union({697})
     
 circuit = compile_to_stim(
     compiled_canvas,
