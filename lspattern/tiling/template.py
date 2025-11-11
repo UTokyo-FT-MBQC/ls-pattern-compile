@@ -53,9 +53,7 @@ def calculate_qindex_base_cube(patch_coord: tuple[int, int], d: int) -> int:
     return patch_index * max_qubits_per_grid_position
 
 
-def calculate_qindex_base_pipe(
-    patch_coord: tuple[int, int], sink_patch: tuple[int, int], d: int
-) -> int:
+def calculate_qindex_base_pipe(patch_coord: tuple[int, int], sink_patch: tuple[int, int], d: int) -> int:
     """Calculate the starting q_index for data qubits in a pipe patch.
 
     Pipes use boundary-based indexing to ensure that pipes sharing the same
@@ -78,9 +76,7 @@ def calculate_qindex_base_pipe(
     return _calculate_pipe_boundary_qindex(patch_coord, sink_patch, d)
 
 
-def _calculate_pipe_boundary_qindex(
-    source_patch: tuple[int, int], sink_patch: tuple[int, int], d: int
-) -> int:
+def _calculate_pipe_boundary_qindex(source_patch: tuple[int, int], sink_patch: tuple[int, int], d: int) -> int:
     """Calculate qindex for a pipe based on the boundary between source and sink patches.
 
     This ensures that pipes sharing the same physical data qubits get the same qindex.
@@ -197,24 +193,15 @@ class ScalableTemplate(Tiling):
 
         # If data_indices have been explicitly set, use them (legacy compatibility)
         if self.data_indices and len(self.data_indices) == len(sorted_coords):
-            return {
-                TilingCoord2D(coor): self.data_indices[i]
-                for i, coor in enumerate(sorted_coords)
-            }
+            return {TilingCoord2D(coor): self.data_indices[i] for i, coor in enumerate(sorted_coords)}
 
         # If patch coordinate is provided, use it to calculate consistent q_indices
         if patch_coord is not None:
             base_qindex = calculate_qindex_base_cube(patch_coord, self.d)
-            return {
-                TilingCoord2D(coor): QubitIndexLocal(base_qindex + i)
-                for i, coor in enumerate(sorted_coords)
-            }
+            return {TilingCoord2D(coor): QubitIndexLocal(base_qindex + i) for i, coor in enumerate(sorted_coords)}
 
         # Otherwise, generate default indices starting from 0 (fallback for backward compatibility)
-        return {
-            TilingCoord2D(coor): QubitIndexLocal(i)
-            for i, coor in enumerate(sorted_coords)
-        }
+        return {TilingCoord2D(coor): QubitIndexLocal(i) for i, coor in enumerate(sorted_coords)}
 
     def get_data_indices_pipe(
         self,
@@ -240,32 +227,20 @@ class ScalableTemplate(Tiling):
 
         # If data_indices have been explicitly set, use them (legacy compatibility)
         if self.data_indices and len(self.data_indices) == len(sorted_coords):
-            return {
-                TilingCoord2D(coor): self.data_indices[i]
-                for i, coor in enumerate(sorted_coords)
-            }
+            return {TilingCoord2D(coor): self.data_indices[i] for i, coor in enumerate(sorted_coords)}
 
         # Calculate base qindex for pipes using boundary-based indexing
         base_qindex = calculate_qindex_base_pipe(patch_coord, sink_patch, self.d)
-        return {
-            TilingCoord2D(coor): QubitIndexLocal(base_qindex + i)
-            for i, coor in enumerate(sorted_coords)
-        }
+        return {TilingCoord2D(coor): QubitIndexLocal(base_qindex + i) for i, coor in enumerate(sorted_coords)}
 
     # ---- Coordinate and index shifting APIs ---------------------------------
     def _shift_lists_inplace(self, dx: int, dy: int) -> None:
         if self.data_coords:
-            self.data_coords = [
-                TilingCoord2D((x + dx, y + dy)) for (x, y) in self.data_coords
-            ]
+            self.data_coords = [TilingCoord2D((x + dx, y + dy)) for (x, y) in self.data_coords]
         if self.x_coords:
-            self.x_coords = [
-                TilingCoord2D((x + dx, y + dy)) for (x, y) in self.x_coords
-            ]
+            self.x_coords = [TilingCoord2D((x + dx, y + dy)) for (x, y) in self.x_coords]
         if self.z_coords:
-            self.z_coords = [
-                TilingCoord2D((x + dx, y + dy)) for (x, y) in self.z_coords
-            ]
+            self.z_coords = [TilingCoord2D((x + dx, y + dy)) for (x, y) in self.z_coords]
 
     def shift_coords(
         self,
@@ -354,9 +329,9 @@ class ScalableTemplate(Tiling):
         self.x_coords = [p for p in (self.x_coords or []) if p[axis] != target]
         self.z_coords = [p for p in (self.z_coords or []) if p[axis] != target]
 
-    def visualize_tiling(
+    def visualize_tiling(  # noqa: C901
         self, ax: Axes | None = None, show: bool = True, title_suffix: str | None = None
-    ) -> None:  # noqa: C901
+    ) -> None:
         """Visualize the tiling using matplotlib.
 
         - data qubits: white-filled circles with black edge
@@ -455,26 +430,21 @@ class RotatedPlanarCubeTemplate(ScalableTemplate):
         data_coords = {(2 * i, 2 * j) for i in range(d) for j in range(d)}
 
         # pop elements if up = right, up = left, down = right, down = left
-        if (self._spec(BoundarySide.UP), self._spec(BoundarySide.RIGHT)) in {
-            ("X", "X"),
-            ("Z", "Z"),
-        }:
+        left, right, top, bottom = (
+            self._spec(BoundarySide.LEFT),
+            self._spec(BoundarySide.RIGHT),
+            self._spec(BoundarySide.TOP),
+            self._spec(BoundarySide.BOTTOM),
+        )
+
+        if (top, right) == (EdgeSpecValue.Z, EdgeSpecValue.Z):
             data_coords.remove((2 * d - 2, 2 * d - 2))
-        if (self._spec(BoundarySide.UP), self._spec(BoundarySide.LEFT)) in {
-            ("X", "X"),
-            ("Z", "Z"),
-        }:
-            data_coords.remove((0, 2 * d - 2))
-        if (self._spec(BoundarySide.DOWN), self._spec(BoundarySide.RIGHT)) in {
-            ("X", "X"),
-            ("Z", "Z"),
-        }:
-            data_coords.remove((2 * d - 2, 0))
-        if (self._spec(BoundarySide.DOWN), self._spec(BoundarySide.LEFT)) in {
-            ("X", "X"),
-            ("Z", "Z"),
-        }:
+        if (bottom, left) == (EdgeSpecValue.Z, EdgeSpecValue.Z):
             data_coords.remove((0, 0))
+        if (top, left) == (EdgeSpecValue.X, EdgeSpecValue.X):
+            data_coords.remove((0, 2 * d - 2))
+        if (bottom, right) == (EdgeSpecValue.X, EdgeSpecValue.X):
+            data_coords.remove((2 * d - 2, 0))
 
         # Bulk checks (odd-odd), two interleaving lattices per type
         for x0, y0 in ((1, 3), (3, 1)):
@@ -533,9 +503,7 @@ class RotatedPlanarCubeTemplate(ScalableTemplate):
 # --- Spatial merge helper APIs (Trim -> Merge -> Unify) ---------------------
 
 
-def _offset_coords(
-    coords: Sequence[TilingCoord2D] | None, dx: int, dy: int
-) -> list[TilingCoord2D]:
+def _offset_coords(coords: Sequence[TilingCoord2D] | None, dx: int, dy: int) -> list[TilingCoord2D]:
     if not coords:
         return []
     return [TilingCoord2D((x + dx, y + dy)) for (x, y) in coords]
@@ -653,12 +621,10 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         z_coords: set[tuple[int, int]] = set()
 
         is_x_dir = (
-            self._spec(BoundarySide.LEFT) == EdgeSpecValue.O
-            and self._spec(BoundarySide.RIGHT) == EdgeSpecValue.O
+            self._spec(BoundarySide.LEFT) == EdgeSpecValue.O and self._spec(BoundarySide.RIGHT) == EdgeSpecValue.O
         )
         is_y_dir = (
-            self._spec(BoundarySide.TOP) == EdgeSpecValue.O
-            and self._spec(BoundarySide.BOTTOM) == EdgeSpecValue.O
+            self._spec(BoundarySide.TOP) == EdgeSpecValue.O and self._spec(BoundarySide.BOTTOM) == EdgeSpecValue.O
         )
 
         if is_x_dir:
@@ -707,10 +673,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                 case _:
                     pass
 
-        elif (
-            self._spec(BoundarySide.UP) == EdgeSpecValue.O
-            or self._spec(BoundarySide.DOWN) == EdgeSpecValue.O
-        ):
+        elif self._spec(BoundarySide.UP) == EdgeSpecValue.O or self._spec(BoundarySide.DOWN) == EdgeSpecValue.O:
             msg = "Temporal pipe not supported yet"
             raise NotImplementedError(msg)
         else:
@@ -765,17 +728,11 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
 
         if inplace:
             if self.data_coords:
-                self.data_coords = [
-                    TilingCoord2D((x + dx, y + dy)) for (x, y) in self.data_coords
-                ]
+                self.data_coords = [TilingCoord2D((x + dx, y + dy)) for (x, y) in self.data_coords]
             if self.x_coords:
-                self.x_coords = [
-                    TilingCoord2D((x + dx, y + dy)) for (x, y) in self.x_coords
-                ]
+                self.x_coords = [TilingCoord2D((x + dx, y + dy)) for (x, y) in self.x_coords]
             if self.z_coords:
-                self.z_coords = [
-                    TilingCoord2D((x + dx, y + dy)) for (x, y) in self.z_coords
-                ]
+                self.z_coords = [TilingCoord2D((x + dx, y + dy)) for (x, y) in self.z_coords]
             return self
         t = offset_tiling(self, dx, dy)
         new = RotatedPlanarPipetemplate(d=self.d, edgespec=self.edgespec)

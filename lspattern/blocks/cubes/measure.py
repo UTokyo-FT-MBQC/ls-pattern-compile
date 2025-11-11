@@ -110,7 +110,7 @@
 
 #         return g, node2coord, coord2node, node2role
 
-#     def _assign_nodes_by_timeslice(  # noqa: PLR6301
+#     def _assign_nodes_by_timeslice(
 #         self,
 #         g: GraphState,
 #         data2d: Sequence[tuple[int, int]],
@@ -147,7 +147,7 @@
 
 #         return nodes_by_z
 
-#     def _assign_meas_bases(self, g: GraphState, meas_basis: MeasBasis) -> None:  # noqa: PLR6301
+#     def _assign_meas_bases(self, g: GraphState, meas_basis: MeasBasis) -> None:
 #         """Assign measurement basis for non-output nodes."""
 #         for node in g.physical_nodes:
 #             g.assign_meas_basis(node, meas_basis)
@@ -174,7 +174,7 @@
 #         # no out_ports for measurement blocks
 #         super().set_out_ports(patch_coord)
 
-#     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
+#     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
 #         z_pos = self.source[2] * (2 * self.d)
 
 #         if self.edgespec is None:
@@ -234,7 +234,7 @@
 #         # no out_ports for measurement blocks
 #         super().set_out_ports(patch_coord)
 
-#     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
+#     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
 #         z_pos = self.source[2] * (2 * self.d)
 
 #         if self.edgespec is None:
@@ -349,6 +349,7 @@ from lspattern.tiling.template import ScalableTemplate
 
 if TYPE_CHECKING:
     from collections.abc import MutableMapping, Sequence
+
     from lspattern.canvas import RHGCanvas
 
 
