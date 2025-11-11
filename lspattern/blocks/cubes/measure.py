@@ -8,7 +8,15 @@
 
 # from lspattern.blocks.base import compute_logical_op_direction
 # from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
-# from lspattern.consts import DIRECTIONS2D, BoundarySide, EdgeSpecValue, NodeRole, Observable, TemporalBoundarySpecValue
+# from lspattern.consts import (
+#     DIRECTIONS2D,
+#     BoundarySide,
+#     EdgeSpecValue,
+#     NodeRole,
+#     Observable,
+#     TemporalBoundarySpecValue,
+# )
+
 # from lspattern.mytype import (
 #     NodeIdLocal,
 #     PatchCoordGlobal3D,
@@ -39,8 +47,12 @@
 #     def __init__(self, logical: int, basis: Axis, **kwargs: object) -> None:
 #         # Extract specific arguments for the parent dataclass
 #         d = cast("int", kwargs.pop("d", 3))
-#         edge_spec = cast("dict[BoundarySide, EdgeSpecValue] | None", kwargs.pop("edge_spec", None))
-#         source = cast("PatchCoordGlobal3D", kwargs.pop("source", PatchCoordGlobal3D((0, 0, 0))))
+#         edge_spec = cast(
+#             "dict[BoundarySide, EdgeSpecValue] | None", kwargs.pop("edge_spec", None)
+#         )
+#         source = cast(
+#             "PatchCoordGlobal3D", kwargs.pop("source", PatchCoordGlobal3D((0, 0, 0)))
+#         )
 #         sink = cast("PatchCoordGlobal3D | None", kwargs.pop("sink", None))
 #         template = cast(
 #             "ScalableTemplate",
@@ -62,7 +74,9 @@
 #             cout_ports=cout_ports,
 #         )
 #         self.logical = logical
-#         self.meas_basis = AxisMeasBasis(basis, Sign.PLUS)  # is it actually override the base class's meas_basis?
+#         self.meas_basis = AxisMeasBasis(
+#             basis, Sign.PLUS
+#         )  # is it actually override the base class's meas_basis?
 
 #     def emit(self, canvas: RHGCanvas) -> None:
 #         # This detailed implementation is out of scope for this milestone.
@@ -98,7 +112,9 @@
 #         node2role: dict[int, str] = {}
 
 #         # Assign nodes for single time slice only
-#         nodes_by_z = self._assign_nodes_by_timeslice(g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role)
+#         nodes_by_z = self._assign_nodes_by_timeslice(
+#             g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role
+#         )
 
 #         self._assign_meas_bases(g, self.meas_basis)
 
@@ -110,7 +126,7 @@
 
 #         return g, node2coord, coord2node, node2role
 
-#     def _assign_nodes_by_timeslice(  # noqa: PLR6301
+#     def _assign_nodes_by_timeslice(
 #         self,
 #         g: GraphState,
 #         data2d: Sequence[tuple[int, int]],
@@ -147,7 +163,7 @@
 
 #         return nodes_by_z
 
-#     def _assign_meas_bases(self, g: GraphState, meas_basis: MeasBasis) -> None:  # noqa: PLR6301
+#     def _assign_meas_bases(self, g: GraphState, meas_basis: MeasBasis) -> None:
 #         """Assign measurement basis for non-output nodes."""
 #         for node in g.physical_nodes:
 #             g.assign_meas_basis(node, meas_basis)
@@ -174,7 +190,7 @@
 #         # no out_ports for measurement blocks
 #         super().set_out_ports(patch_coord)
 
-#     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
+#     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
 #         z_pos = self.source[2] * (2 * self.d)
 
 #         if self.edgespec is None:
@@ -234,7 +250,7 @@
 #         # no out_ports for measurement blocks
 #         super().set_out_ports(patch_coord)
 
-#     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
+#     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
 #         z_pos = self.source[2] * (2 * self.d)
 
 #         if self.edgespec is None:
@@ -337,7 +353,14 @@ from graphqomb.graphstate import GraphState
 
 from lspattern.blocks.base import compute_logical_op_direction
 from lspattern.blocks.cubes.base import RHGCube, RHGCubeSkeleton
-from lspattern.consts import DIRECTIONS2D, BoundarySide, EdgeSpecValue, NodeRole, Observable, TemporalBoundarySpecValue
+from lspattern.consts import (
+    DIRECTIONS2D,
+    BoundarySide,
+    EdgeSpecValue,
+    NodeRole,
+    Observable,
+    TemporalBoundarySpecValue,
+)
 from lspattern.mytype import (
     NodeIdLocal,
     PatchCoordGlobal3D,
@@ -349,6 +372,7 @@ from lspattern.tiling.template import ScalableTemplate
 
 if TYPE_CHECKING:
     from collections.abc import MutableMapping, Sequence
+
     from lspattern.canvas import RHGCanvas
 
 
@@ -463,7 +487,9 @@ class _MeasureBase(RHGCube):
             nodes_by_z[t] = cur
         return nodes_by_z
 
-    def _assign_meas_bases(self, g: GraphState, meas_basis: MeasBasis) -> None:  # noqa: PLR6301
+    def _assign_meas_bases(  # noqa: PLR6301
+        self, g: GraphState, meas_basis: MeasBasis
+    ) -> None:
         """Assign measurement basis for non-output nodes."""
         for node in g.physical_nodes:
             g.assign_meas_basis(node, meas_basis)
@@ -490,7 +516,10 @@ class MeasureX(_MeasureBase):
         # no out_ports for measurement blocks
         super().set_out_ports(patch_coord)
 
-    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
+    def set_cout_ports(
+        self,
+        patch_coord: tuple[int, int] | None = None,  # noqa: ARG002
+    ) -> None:
         # NEW: honor disable_cout
         if getattr(self, "disable_cout", False):
             self.cout_ports = []
@@ -553,7 +582,10 @@ class MeasureZ(_MeasureBase):
         # no out_ports for measurement blocks
         super().set_out_ports(patch_coord)
 
-    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
+    def set_cout_ports(
+        self,
+        patch_coord: tuple[int, int] | None = None,  # noqa: ARG002
+    ) -> None:
         # NEW: honor disable_cout
         if getattr(self, "disable_cout", False):
             self.cout_ports = []
@@ -614,7 +646,12 @@ class MeasureXSkeleton(RHGCubeSkeleton):
     def to_block(self) -> MeasureX:
         """Materialize to a MeasureX (template evaluated, no local graph yet)."""
         # Apply spatial open-boundary trimming if specified
-        for direction in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
+        for direction in (
+            BoundarySide.LEFT,
+            BoundarySide.RIGHT,
+            BoundarySide.TOP,
+            BoundarySide.BOTTOM,
+        ):
             if self.edgespec.get(direction, EdgeSpecValue.O) == EdgeSpecValue.O:
                 self.trim_spatial_boundary(direction)
         # Evaluate template coordinates
@@ -643,7 +680,12 @@ class MeasureZSkeleton(RHGCubeSkeleton):
     def to_block(self) -> MeasureZ:
         """Materialize to a MeasureZ (template evaluated, no local graph yet)."""
         # Apply spatial open-boundary trimming if specified
-        for direction in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
+        for direction in (
+            BoundarySide.LEFT,
+            BoundarySide.RIGHT,
+            BoundarySide.TOP,
+            BoundarySide.BOTTOM,
+        ):
             if self.edgespec.get(direction, EdgeSpecValue.O) == EdgeSpecValue.O:
                 self.trim_spatial_boundary(direction)
         # Evaluate template coordinates
