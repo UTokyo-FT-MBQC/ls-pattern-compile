@@ -1,0 +1,13 @@
+name: MemoryUnit_RotatedSurfaceCode
+description: This patch layout specifies a Rotated Surface Code memory layout
+
+params:
+  layout: rotated_surface_code # required
+  code_distance: 5 # This can be optional by specifying block level
+  boundary: # This can be optional by specifying block level
+    left: X
+    right: X
+    top: Z
+    bottom: Z
+
+  logical_observables: null # optional
