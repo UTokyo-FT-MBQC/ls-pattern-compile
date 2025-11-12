@@ -1,4 +1,3 @@
-
 from graphqomb.graphstate import GraphState
 
 from lspattern.new_blocks.block import RHGCube

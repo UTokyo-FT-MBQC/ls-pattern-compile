@@ -1,4 +1,3 @@
-
 from lspattern.new_blocks.mytype import Coord3D, NodeRole
 from lspattern.new_blocks.unit_layer import MemoryUnitLayer
 

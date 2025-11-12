@@ -1,4 +1,3 @@
-
 from lspattern.new_blocks.coord_utils import CoordTransform
 from lspattern.new_blocks.mytype import Coord2D, Coord3D
 
@@ -20,17 +19,13 @@ def test_get_neighbors_2d():
 
 
 def test_get_neighbors_3d_spatial_only():
-    neighbors = CoordTransform.get_neighbors_3d(
-        Coord3D(0, 0, 0), spatial_only=True
-    )
+    neighbors = CoordTransform.get_neighbors_3d(Coord3D(0, 0, 0), spatial_only=True)
     assert len(neighbors) == 4  # only spatial (x, y)
     assert Coord3D(0, 0, 1) not in neighbors  # no temporal
 
 
 def test_get_neighbors_3d_with_temporal():
-    neighbors = CoordTransform.get_neighbors_3d(
-        Coord3D(0, 0, 0), spatial_only=False
-    )
+    neighbors = CoordTransform.get_neighbors_3d(Coord3D(0, 0, 0), spatial_only=False)
     assert len(neighbors) == 6  # spatial + temporal
     assert Coord3D(0, 0, 1) in neighbors
     assert Coord3D(0, 0, -1) in neighbors
