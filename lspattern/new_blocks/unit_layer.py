@@ -11,9 +11,7 @@ from lspattern.new_blocks.layer_data import CoordBasedLayerData
 from lspattern.new_blocks.mytype import Coord3D, NodeRole
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
-
-    from graphqomb.graphstate import GraphState
+    from collections.abc import Sequence
 
 
 class UnitLayer(ABC):
@@ -56,24 +54,6 @@ class UnitLayer(ABC):
         -------
         CoordBasedLayerData
             Layer metadata including coordinates, roles, edges, schedule, flow.
-        """
-        ...
-
-    @abstractmethod
-    def materialize(self, graph: GraphState, node_map: Mapping[Coord3D, int]) -> tuple[GraphState, dict[Coord3D, int]]:
-        """Materialize the unit layer into the given graph.
-
-        Parameters
-        ----------
-        graph : GraphState
-            The graph to materialize the unit layer into.
-        node_map : Mapping[Coord3D, int]
-            Existing coordinate-to-node mapping.
-
-        Returns
-        -------
-        tuple[GraphState, dict[Coord3D, int]]
-            Updated graph and coordinate-to-node mapping.
         """
         ...
 
@@ -171,7 +151,7 @@ class MemoryUnitLayer(UnitLayer):
         spatial_edges: set[tuple[Coord3D, Coord3D]] = set()
         for coords in (coords_z1, coords_z2):
             for coord in coords:
-                for neighbor in CoordTransform.get_neighbors_3d(coord, spatial_only=True):
+                for neighbor in CoordTransform.neighbors_3d(coord, spatial_only=True):
                     if neighbor in coords and neighbor > coord:
                         spatial_edges.add((coord, neighbor))
         return spatial_edges
@@ -213,12 +193,3 @@ class MemoryUnitLayer(UnitLayer):
         for coord_lower, coord_upper in temporal_edges:
             flow_acc.add_flow(coord_lower, coord_upper)
         return flow_acc.flow
-
-    def materialize(
-        self,
-        graph: GraphState,
-        node_map: Mapping[Coord3D, int],
-    ) -> tuple[GraphState, dict[Coord3D, int]]:
-        """Materialize this layer into the given graph (not yet implemented)."""
-        msg = "Use build_metadata instead"
-        raise NotImplementedError(msg)

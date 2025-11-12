@@ -26,18 +26,18 @@ class CoordTransform:
         return {Coord3D(x + dx, y + dy, z + dz) for x, y, z in coords}
 
     @staticmethod
-    def get_neighbors_2d(coord: Coord2D) -> set[Coord2D]:
+    def neighbors_2d(coord: Coord2D) -> set[Coord2D]:
         """Return 4-connected (NESW) neighbors for a 2D coordinate."""
         x, y = coord
         return {
-            Coord2D(x + 1, y),
-            Coord2D(x - 1, y),
-            Coord2D(x, y + 1),
-            Coord2D(x, y - 1),
+            Coord2D(x + 1, y + 1),  # top-right
+            Coord2D(x - 1, y + 1),  # top-left
+            Coord2D(x + 1, y - 1),  # bottom-right
+            Coord2D(x - 1, y - 1),  # bottom-left
         }
 
     @staticmethod
-    def get_neighbors_3d(
+    def neighbors_3d(
         coord: Coord3D,
         spatial_only: bool = False,
     ) -> set[Coord3D]:
