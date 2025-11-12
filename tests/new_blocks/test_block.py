@@ -4,13 +4,13 @@ from lspattern.new_blocks.block import RHGCube
 from lspattern.new_blocks.mytype import Coord3D
 
 
-def test_rhg_cube_initialization():
+def test_rhg_cube_initialization() -> None:
     cube = RHGCube(_global_pos=Coord3D(0, 0, 0), d=3)
     assert len(cube.unit_layers) == 3  # d=3 means 3 unit layers
     assert cube.global_pos == Coord3D(0, 0, 0)
 
 
-def test_rhg_cube_prepare():
+def test_rhg_cube_prepare() -> None:
     cube = RHGCube(_global_pos=Coord3D(0, 0, 0), d=2)
 
     data2d = [(0, 0), (0, 2), (2, 0), (2, 2)]
@@ -24,7 +24,7 @@ def test_rhg_cube_prepare():
     assert len(cube.coord_schedule.schedule) > 0
 
 
-def test_rhg_cube_materialize():
+def test_rhg_cube_materialize() -> None:
     cube = RHGCube(_global_pos=Coord3D(0, 0, 0), d=2)
 
     data2d = [(0, 0), (0, 2), (2, 0), (2, 2)]

@@ -2,7 +2,7 @@ from lspattern.new_blocks.mytype import Coord3D, NodeRole
 from lspattern.new_blocks.unit_layer import MemoryUnitLayer
 
 
-def test_memory_unit_layer_basic():
+def test_memory_unit_layer_basic() -> None:
     layer = MemoryUnitLayer(Coord3D(0, 0, 0))
 
     # Simple 3x3 data patch

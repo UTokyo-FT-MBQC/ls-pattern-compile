@@ -5,7 +5,8 @@ from __future__ import annotations
 import sys
 from typing import NamedTuple
 
-if sys.version_info >= (3, 11):
+# TODO: Remove fallback once Python 3.11+ is required
+if sys.version_info >= (3, 11):  # noqa: UP036
     from enum import StrEnum
 else:
     try:
@@ -14,7 +15,7 @@ else:
         # Fallback for Python 3.10 without typing_extensions >= 4.2.0
         from enum import Enum
 
-        class StrEnum(str, Enum):  # type: ignore[no-redef]
+        class StrEnum(str, Enum):  # type: ignore[no-redef]  # noqa: UP042
             """StrEnum fallback for Python 3.10."""
 
 

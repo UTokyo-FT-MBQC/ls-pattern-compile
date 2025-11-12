@@ -90,7 +90,7 @@ class MemoryUnitLayer(UnitLayer):
         """Return the global (x, y, z) position of the unit layer."""
         return self._global_pos
 
-    def build_metadata(
+    def build_metadata(  # noqa: PLR6301
         self,
         z_offset: int,
         data2d: Sequence[tuple[int, int]],
