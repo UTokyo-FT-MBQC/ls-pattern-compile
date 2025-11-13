@@ -40,9 +40,7 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
     - 入力/出力ノードは赤ダイヤで強調。
     """
 
-    print(cgraph.coord2node)
     node2coord = _reverse_coord2node(cgraph.coord2node or {})
-    print(node2coord)
     g = cgraph.global_graph
 
     # main scatter: color by z
@@ -53,8 +51,6 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
         zs.append(z)
         texts.append(f"Node {nid}")
 
-    print(xs, ys, zs)
-    print(sorted(texts))
     fig = go.Figure()
     if xs:
         fig.add_trace(
@@ -191,15 +187,9 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
             base.update({"visible": False})
         return base
 
-    scene["xaxis"] = _axis_cfg(
-        scene.get("xaxis") if isinstance(scene.get("xaxis"), dict) else None
-    )
-    scene["yaxis"] = _axis_cfg(
-        scene.get("yaxis") if isinstance(scene.get("yaxis"), dict) else None
-    )
-    scene["zaxis"] = _axis_cfg(
-        scene.get("zaxis") if isinstance(scene.get("zaxis"), dict) else None
-    )
+    scene["xaxis"] = _axis_cfg(scene.get("xaxis") if isinstance(scene.get("xaxis"), dict) else None)
+    scene["yaxis"] = _axis_cfg(scene.get("yaxis") if isinstance(scene.get("yaxis"), dict) else None)
+    scene["zaxis"] = _axis_cfg(scene.get("zaxis") if isinstance(scene.get("zaxis"), dict) else None)
 
     fig.update_layout(
         title=f"Compiled RHG Canvas (layers={len(getattr(cgraph, 'layers', []))})",

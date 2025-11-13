@@ -70,9 +70,7 @@ def to_edgespec(espec_str: str) -> dict[BoundarySide, EdgeSpecValue]:
     }
 
 
-def get_direction(
-    source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D
-) -> PIPEDIRECTION:
+def get_direction(source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> PIPEDIRECTION:
     dx = sink[0] - source[0]
     dy = sink[1] - source[1]
     dz = sink[2] - source[2]
@@ -103,10 +101,7 @@ def sort_xy(points: AbstractSet[tuple[int, int]]) -> list[tuple[int, int]]:
 def is_allowed_pair(
     u: QubitGroupIdLocal | TilingId | None,
     v: QubitGroupIdLocal | TilingId | None,
-    allowed_pairs: (
-        AbstractSet[tuple[QubitGroupIdLocal, QubitGroupIdLocal]]
-        | AbstractSet[tuple[TilingId, TilingId]]
-    ),
+    allowed_pairs: (AbstractSet[tuple[QubitGroupIdLocal, QubitGroupIdLocal]] | AbstractSet[tuple[TilingId, TilingId]]),
 ) -> bool:
     """Return True if an (unordered) pair is allowed.
 

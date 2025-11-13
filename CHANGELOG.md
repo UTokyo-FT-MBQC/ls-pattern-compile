@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Reduces boilerplate code from ~30-40 lines to ~3-5 lines in example files
   - Updated all example files to use the new API
 
+### Fixed
+- Resolved duplicate/missing entries in `CompiledRHGCanvas.coord2node` by remapping node IDs before merging layers and by ignoring conflicting coordinate claims, ensuring global graphs stay consistent across compositions. Added regression coverage in `tests/test_coord2node_integrity.py`.
+
 ---
 
 ## Version [0.0.4] - 2025-10-31
