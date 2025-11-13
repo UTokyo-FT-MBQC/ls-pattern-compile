@@ -1,0 +1,16 @@
+name: MemoryBlock
+description: This block represents a memory block
+
+params:
+  layout: rotated_surface_code # required
+  code_distance: 5 # This can be overridden by layer config
+  boundary: # This can be overridden by layer config
+    left: X
+    right: X
+    top: Z
+    bottom: Z
+
+  layers: # list of layers in this block
+    - type: MemoryUnit
+      params:
+        num_layers: 5
