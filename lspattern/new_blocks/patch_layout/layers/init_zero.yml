@@ -1,5 +1,5 @@
-name: CustomUnit
-description: This patch layout specifies a Custom unit layer
+name: InitZeroUnit
+description: This patch layout specifies an init zero unit layer
 
 params:
   layout: rotated_surface_code # required
@@ -13,14 +13,10 @@ params:
 
   layers:  # layer configurations
     - layer1:
-      basis: [[X, X, X],
-       [Z, X, X],
-       [Z, Z, X]] # layer 1, advanced custom design
-      ancilla: true # can be omitted, defaults to true
+      basis: null # layer 1, no qubit preparation
+      ancilla: false # no ancilla qubits prepared
       init: false # can be omitted, defaults to false
     - layer2:
-      basis: [[X, X, X],
-       [X, X, X],
-       [X, X, X]] # layer 2, transversally X basis
+      basis: X # layer 2, transversally X basis, can be omitted, defaults to X
       ancilla: true
-      init: false
+      init: true # layer 2 as an init layer

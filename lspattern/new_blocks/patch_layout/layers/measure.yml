@@ -11,5 +11,11 @@ params:
 
   logical_observables: TB # top to bottom logical observable for X measurement
 
-  measure_map: null # custom measurement design map, optional
-  ancilla: false # if true, ancilla qubits are generated for this layer
+  layers:  # layer configurations
+    - layer1:
+      basis: X # layer 1, transversally X basis, can be omitted, defaults to X
+      ancilla: false # measure layer does not need ancilla qubits
+    - layer2:
+      basis: null # layer 2, no qubit after measurement
+      ancilla: false
+      init: false # can be omitted, defaults to false

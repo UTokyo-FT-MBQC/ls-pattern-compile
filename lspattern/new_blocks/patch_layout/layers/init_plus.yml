@@ -1,5 +1,5 @@
-name: CustomUnit
-description: This patch layout specifies a Custom unit layer
+name: InitPlusUnit
+description: This patch layout specifies an init plus unit layer
 
 params:
   layout: rotated_surface_code # required
@@ -13,14 +13,10 @@ params:
 
   layers:  # layer configurations
     - layer1:
-      basis: [[X, X, X],
-       [Z, X, X],
-       [Z, Z, X]] # layer 1, advanced custom design
+      basis: X # layer 1, transversally X basis, can be omitted, defaults to X
       ancilla: true # can be omitted, defaults to true
-      init: false # can be omitted, defaults to false
+      init: true
     - layer2:
-      basis: [[X, X, X],
-       [X, X, X],
-       [X, X, X]] # layer 2, transversally X basis
+      basis: X # layer 2, transversally X basis, can be omitted, defaults to X
       ancilla: true
-      init: false
+      init: false # can be omitted, defaults to false
