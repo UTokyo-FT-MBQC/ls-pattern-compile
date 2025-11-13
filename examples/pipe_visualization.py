@@ -64,7 +64,7 @@ print(len(layer_h.node2coord))
 print(layer_h.node2coord)
 # assert no duplicate values in the layer_h.node2coord
 assert len(layer_h.node2coord) == len(set(layer_h.node2coord.values()))
-out_png = pathlib.Path("./").resolve().with_name("fig_T26_horiz.png")
+out_png = pathlib.Path("./examples/figures").resolve().with_name("fig_T26_horiz.png")
 visualize_temporal_layer(layer_h, save_path=str(out_png), show=False, show_axes=True, show_grid=True)
 print("Saved:", out_png)
 
@@ -75,7 +75,7 @@ fig1.show()
 # %%
 # Matplotlib 可視化(垂直)
 layer_v = build_vertical()  # type: ignore[no-untyped-call]
-out_png2 = pathlib.Path(".").resolve().with_name("fig_T26_vert.png")
+out_png2 = pathlib.Path("./examples/figures").resolve().with_name("fig_T26_vert.png")
 visualize_temporal_layer(layer_v, save_path=str(out_png2), show=False, show_axes=True, show_grid=True)
 print("Saved:", out_png2)
 

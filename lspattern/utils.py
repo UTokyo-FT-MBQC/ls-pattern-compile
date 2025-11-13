@@ -8,9 +8,9 @@ from lspattern.consts.consts import (
     ANCILLA_Z_PARITY,
     DATA_PARITIES,
     PIPEDIRECTION,
-    NodeRole,
-    EdgeSpecValue,
     BoundarySide,
+    EdgeSpecValue,
+    NodeRole,
 )
 from lspattern.mytype import (
     PatchCoordGlobal3D,
@@ -20,6 +20,9 @@ from lspattern.mytype import (
 
 if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
+
+
+EDGE_SPEC_LENGTH = 4
 
 
 def to_edgespec(espec_str: str) -> dict[BoundarySide, EdgeSpecValue]:
@@ -36,15 +39,17 @@ def to_edgespec(espec_str: str) -> dict[BoundarySide, EdgeSpecValue]:
         Dictionary mapping each ``BoundarySide`` to its ``EdgeSpecValue``.
 
     Raises:
-        AssertionError: If ``espec_str`` is not exactly four characters long.
-        ValueError: If an unsupported character is provided.
+        ValueError: If ``espec_str`` is not exactly four characters long or an unsupported
+            character is provided.
     """
-    assert len(espec_str) == 4, "Edge spec string must have length 4"
+    if len(espec_str) != EDGE_SPEC_LENGTH:
+        msg = "Edge spec string must have length 4"
+        raise ValueError(msg)
 
     espec_values: list[EdgeSpecValue] = []
 
-    for char in espec_str:
-        char = char.upper()
+    for raw_char in espec_str:
+        char = raw_char.upper()
         match char:
             case "O":
                 espec_values.append(EdgeSpecValue.O)
@@ -57,18 +62,15 @@ def to_edgespec(espec_str: str) -> dict[BoundarySide, EdgeSpecValue]:
                 raise ValueError(msg)
 
     # left, right, top, bottom
-    ret = {
+    return {
         BoundarySide.LEFT: espec_values[0],
         BoundarySide.RIGHT: espec_values[1],
         BoundarySide.TOP: espec_values[2],
         BoundarySide.BOTTOM: espec_values[3],
     }
 
-    return ret
 
-def get_direction(
-    source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D
-) -> PIPEDIRECTION:
+def get_direction(source: PatchCoordGlobal3D, sink: PatchCoordGlobal3D) -> PIPEDIRECTION:
     dx = sink[0] - source[0]
     dy = sink[1] - source[1]
     dz = sink[2] - source[2]
@@ -99,10 +101,7 @@ def sort_xy(points: AbstractSet[tuple[int, int]]) -> list[tuple[int, int]]:
 def is_allowed_pair(
     u: QubitGroupIdLocal | TilingId | None,
     v: QubitGroupIdLocal | TilingId | None,
-    allowed_pairs: (
-        AbstractSet[tuple[QubitGroupIdLocal, QubitGroupIdLocal]]
-        | AbstractSet[tuple[TilingId, TilingId]]
-    ),
+    allowed_pairs: (AbstractSet[tuple[QubitGroupIdLocal, QubitGroupIdLocal]] | AbstractSet[tuple[TilingId, TilingId]]),
 ) -> bool:
     """Return True if an (unordered) pair is allowed.
 
