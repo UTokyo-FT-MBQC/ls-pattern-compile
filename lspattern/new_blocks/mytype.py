@@ -38,6 +38,15 @@ class NodeRole(StrEnum):
     ANCILLA_Z = "ANCILLA_Z"
 
 
+class DIRECTION2D(StrEnum):
+    """Direction in 2D lattice."""
+
+    LEFT = "LEFT"
+    RIGHT = "RIGHT"
+    TOP = "TOP"
+    BOTTOM = "BOTTOM"
+
+
 QubitGroupId = int
 NodeId = int
 
