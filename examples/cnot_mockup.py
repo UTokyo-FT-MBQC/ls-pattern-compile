@@ -197,6 +197,9 @@ print(
 output_indices = compiled_canvas.global_graph.output_node_indices or {}  # type: ignore[union-attr]
 print(f"output qubits: {output_indices}")
 
+# I found a bug in compiled_canvas.coord2node and global_graph.physical_nodes
+# The global graph seems correct. Check the behavior of coord2node and try to fix the problem
+# The coord2node has missing/duplicate nodes Why?
 fig3d = visualize_compiled_canvas_plotly(
     compiled_canvas, show_edges=True
 )

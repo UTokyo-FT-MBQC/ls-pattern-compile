@@ -11,7 +11,9 @@ if TYPE_CHECKING:
     from lspattern.mytype import PhysCoordGlobal3D
 
 
-def _reverse_coord2node(coord2node: Mapping[PhysCoordGlobal3D, int]) -> dict[int, tuple[int, int, int]]:
+def _reverse_coord2node(
+    coord2node: Mapping[PhysCoordGlobal3D, int],
+) -> dict[int, tuple[int, int, int]]:
     node2coord: dict[int, tuple[int, int, int]] = {}
     for coord, nid in coord2node.items():
         node2coord[int(nid)] = (int(coord[0]), int(coord[1]), int(coord[2]))
@@ -37,7 +39,10 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
     - エッジは任意で描画。
     - 入力/出力ノードは赤ダイヤで強調。
     """
+
+    print(cgraph.coord2node)
     node2coord = _reverse_coord2node(cgraph.coord2node or {})
+    print(node2coord)
     g = cgraph.global_graph
 
     # main scatter: color by z
@@ -48,6 +53,8 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
         zs.append(z)
         texts.append(f"Node {nid}")
 
+    print(xs, ys, zs)
+    print(sorted(texts))
     fig = go.Figure()
     if xs:
         fig.add_trace(
@@ -115,7 +122,12 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
                 y=yin,
                 z=zin,
                 mode="markers",
-                marker={"size": 8, "color": color, "line": {"color": "darkred", "width": 2}, "symbol": "diamond"},
+                marker={
+                    "size": 8,
+                    "color": color,
+                    "line": {"color": "darkred", "width": 2},
+                    "symbol": "diamond",
+                },
                 name=name,
             )
         )
@@ -179,9 +191,15 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
             base.update({"visible": False})
         return base
 
-    scene["xaxis"] = _axis_cfg(scene.get("xaxis") if isinstance(scene.get("xaxis"), dict) else None)
-    scene["yaxis"] = _axis_cfg(scene.get("yaxis") if isinstance(scene.get("yaxis"), dict) else None)
-    scene["zaxis"] = _axis_cfg(scene.get("zaxis") if isinstance(scene.get("zaxis"), dict) else None)
+    scene["xaxis"] = _axis_cfg(
+        scene.get("xaxis") if isinstance(scene.get("xaxis"), dict) else None
+    )
+    scene["yaxis"] = _axis_cfg(
+        scene.get("yaxis") if isinstance(scene.get("yaxis"), dict) else None
+    )
+    scene["zaxis"] = _axis_cfg(
+        scene.get("zaxis") if isinstance(scene.get("zaxis"), dict) else None
+    )
 
     fig.update_layout(
         title=f"Compiled RHG Canvas (layers={len(getattr(cgraph, 'layers', []))})",

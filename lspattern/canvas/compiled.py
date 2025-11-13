@@ -12,7 +12,11 @@ from typing import TYPE_CHECKING
 
 from graphqomb.graphstate import GraphState, compose
 
-from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
+from lspattern.accumulator import (
+    FlowAccumulator,
+    ParityAccumulator,
+    ScheduleAccumulator,
+)
 from lspattern.canvas.graph_utils import create_remapped_graphstate
 from lspattern.canvas.layer import TemporalLayer
 from lspattern.canvas.ports import PortManager
@@ -107,7 +111,9 @@ class CompiledRHGCanvas:
         return self.port_manager.cout_portset_pipe
 
     @property
-    def cout_port_groups_cube(self) -> dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]]:
+    def cout_port_groups_cube(
+        self,
+    ) -> dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]]:
         """Get cout_port_groups_cube from port_manager."""
         return self.port_manager.cout_port_groups_cube
 
@@ -117,12 +123,16 @@ class CompiledRHGCanvas:
         return self.port_manager.cout_port_groups_pipe
 
     @property
-    def cout_group_lookup_cube(self) -> dict[NodeIdLocal, tuple[PatchCoordGlobal3D, int]]:
+    def cout_group_lookup_cube(
+        self,
+    ) -> dict[NodeIdLocal, tuple[PatchCoordGlobal3D, int]]:
         """Get cout_group_lookup_cube from port_manager."""
         return self.port_manager.cout_group_lookup_cube
 
     @property
-    def cout_group_lookup_pipe(self) -> dict[NodeIdLocal, tuple[PipeCoordGlobal3D, int]]:
+    def cout_group_lookup_pipe(
+        self,
+    ) -> dict[NodeIdLocal, tuple[PipeCoordGlobal3D, int]]:
         """Get cout_group_lookup_pipe from port_manager."""
         return self.port_manager.cout_group_lookup_pipe
 
@@ -205,7 +215,9 @@ class CompiledRHGCanvas:
     #     pass
 
     @staticmethod
-    def _remap_layer(layer: TemporalLayer, node_map: Mapping[NodeIdLocal, NodeIdLocal]) -> TemporalLayer:
+    def _remap_layer(
+        layer: TemporalLayer, node_map: Mapping[NodeIdLocal, NodeIdLocal]
+    ) -> TemporalLayer:
         """Remap a single temporal layer."""
         # Create a copy of the layer and remap its node mappings
         remapped_layer = TemporalLayer(layer.z)
@@ -215,13 +227,17 @@ class CompiledRHGCanvas:
 
         # Remap layer's coordinate mapper
         remapped_layer.coord_mapper = layer.coord_mapper.copy()
-        remapped_layer.coord_mapper.remap_nodes({int(k): int(v) for k, v in node_map.items()})
+        remapped_layer.coord_mapper.remap_nodes(
+            {int(k): int(v) for k, v in node_map.items()}
+        )
 
         # Remap portsets (including in_ports, out_ports, cout_ports via PortManager)
         CompiledRHGCanvas._remap_layer_portsets(layer, remapped_layer, node_map)
 
         # Copy other attributes
-        remapped_layer.local_graph = layer.local_graph  # GraphState will be remapped separately
+        remapped_layer.local_graph = (
+            layer.local_graph
+        )  # GraphState will be remapped separately
 
         # Remap accumulators to use new node IDs
         remapped_layer.schedule = layer.schedule.remap_nodes(
@@ -239,18 +255,26 @@ class CompiledRHGCanvas:
 
     @staticmethod
     def _remap_layer_portsets(
-        layer: TemporalLayer, remapped_layer: TemporalLayer, node_map: Mapping[NodeIdLocal, NodeIdLocal]
+        layer: TemporalLayer,
+        remapped_layer: TemporalLayer,
+        node_map: Mapping[NodeIdLocal, NodeIdLocal],
     ) -> None:
         """Remap portsets for a layer."""
         # Copy and remap the port_manager
         remapped_layer.port_manager = layer.port_manager.copy()
-        remapped_layer.port_manager.remap_ports({int(k): int(v) for k, v in node_map.items()})
+        remapped_layer.port_manager.remap_ports(
+            {int(k): int(v) for k, v in node_map.items()}
+        )
 
     # TODO: this could be made more efficient by avoiding deep copies
-    def remap_nodes(self, node_map: Mapping[NodeIdLocal, NodeIdLocal]) -> CompiledRHGCanvas:
+    def remap_nodes(
+        self, node_map: Mapping[NodeIdLocal, NodeIdLocal]
+    ) -> CompiledRHGCanvas:
         """Remap nodes according to the given node mapping."""
         # Deep copy and remap each layer
-        remapped_layers = [CompiledRHGCanvas._remap_layer(layer, node_map) for layer in self.layers]
+        remapped_layers = [
+            CompiledRHGCanvas._remap_layer(layer, node_map) for layer in self.layers
+        ]
 
         # Copy and remap port_manager
         remapped_port_manager = self.port_manager.copy()
@@ -259,11 +283,15 @@ class CompiledRHGCanvas:
         new_cgraph = CompiledRHGCanvas(
             layers=remapped_layers,
             global_graph=(
-                create_remapped_graphstate(self.global_graph, dict(node_map)) if self.global_graph is not None else None
+                create_remapped_graphstate(self.global_graph, dict(node_map))
+                if self.global_graph is not None
+                else None
             ),
             coord2node={},
             port_manager=remapped_port_manager,
-            schedule=self.schedule.remap_nodes({NodeIdGlobal(k): NodeIdGlobal(v) for k, v in node_map.items()}),
+            schedule=self.schedule.remap_nodes(
+                {NodeIdGlobal(k): NodeIdGlobal(v) for k, v in node_map.items()}
+            ),
             flow=self.flow.remap_nodes(dict(node_map)),
             parity=self.parity.remap_nodes(dict(node_map)),
             cubes_=self.cubes_.copy(),
@@ -345,7 +373,9 @@ def _create_first_layer_canvas(next_layer: TemporalLayer) -> CompiledRHGCanvas:
     )
 
 
-def _remap_layer_mappings(next_layer: TemporalLayer, node_map2: Mapping[int, int]) -> None:
+def _remap_layer_mappings(
+    next_layer: TemporalLayer, node_map2: Mapping[int, int]
+) -> None:
     """Remap next layer mappings."""
     next_layer.coord_mapper.remap_nodes(node_map2)
 
@@ -358,15 +388,23 @@ def _remap_layer_mappings(next_layer: TemporalLayer, node_map2: Mapping[int, int
     next_layer.parity = next_layer.parity.remap_nodes(local_node_map)
 
 
-def _build_merged_coord2node(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> dict[PhysCoordGlobal3D, int]:
+def _build_merged_coord2node(
+    cgraph: CompiledRHGCanvas, next_layer: TemporalLayer
+) -> dict[PhysCoordGlobal3D, int]:
     """Build merged coordinate to node mapping."""
+    # assert cgraph and next_layer does not have overlapping coords
+    # overlap = set(cgraph.coord2node.keys()) & set(next_layer.coord2node.keys())
+    # if overlap:
+        # raise ValueError(f"Overlapping coordinates found: {overlap}")
     return {
         **cgraph.coord2node,
         **next_layer.coord2node,
     }
 
 
-def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> CompiledRHGCanvas:
+def add_temporal_layer(
+    cgraph: CompiledRHGCanvas, next_layer: TemporalLayer
+) -> CompiledRHGCanvas:
     """Compose the compiled canvas with the next temporal layer.
 
     Parameters
@@ -386,11 +424,15 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> 
         return _create_first_layer_canvas(next_layer)
 
     # Compose graphs and remap
-    new_graph, node_map1, node_map2 = compose(cgraph.global_graph, next_layer.local_graph)  # pyright: ignore[reportArgumentType]
+    new_graph, node_map1, node_map2 = compose(
+        cgraph.global_graph, next_layer.local_graph
+    )  # pyright: ignore[reportArgumentType]
 
     # Only remap if node mapping actually changes node IDs
     if any(k != v for k, v in node_map1.items()):
-        cgraph = cgraph.remap_nodes({NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map1.items()})
+        cgraph = cgraph.remap_nodes(
+            {NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map1.items()}
+        )
 
     _remap_layer_mappings(next_layer, node_map2)
 
@@ -398,7 +440,9 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> 
     new_coord2node = _build_merged_coord2node(cgraph, next_layer)
     # cgraph is already remapped with node_map1 at line 386, so pass empty map to avoid double remapping
     # TODO: should simplify the logic for better clarity
-    merged_port_manager = cgraph.port_manager.merge(next_layer.port_manager, {}, node_map2)
+    merged_port_manager = cgraph.port_manager.merge(
+        next_layer.port_manager, {}, node_map2
+    )
 
     new_layers = [*cgraph.layers, next_layer]
 
@@ -407,7 +451,9 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> 
     # remap to global node IDs
     last_nodes_remapped = {NodeIdGlobal(node_map2[int(n)]) for n in last_nodes}
     cgraph_filtered_schedule = cgraph.schedule.exclude_nodes(last_nodes_remapped)
-    new_schedule = cgraph_filtered_schedule.compose_sequential(next_layer.schedule, exclude_nodes=None)
+    new_schedule = cgraph_filtered_schedule.compose_sequential(
+        next_layer.schedule, exclude_nodes=None
+    )
     merged_flow = cgraph.flow.merge_with(next_layer.flow)
     new_parity = cgraph.parity.merge_with(next_layer.parity)
 
