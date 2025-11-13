@@ -15,6 +15,7 @@ params:
     - layer1:
       basis: X # layer 1, transversally X basis, can be omitted, defaults to X
       ancilla: false # measure layer does not need ancilla qubits
+      init: false # can be omitted, defaults to false
     - layer2:
       basis: null # layer 2, no qubit after measurement
       ancilla: false

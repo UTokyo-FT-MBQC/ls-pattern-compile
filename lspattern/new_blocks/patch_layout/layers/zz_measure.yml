@@ -1,0 +1,17 @@
+name: ZZMeasureUnit
+description: This patch layout specifies a ZZ measurement unit layer
+
+params:
+  layout: rotated_surface_code
+
+  logical_observables: Z # Z ancila measurement will be collected
+
+  layers:  # layer configurations
+    - layer1:
+      basis: X # layer 1, transversally X basis, can be omitted, defaults to X
+      ancilla: true # layer 1 needs ancilla qubits for ZZ measurement
+      init: true # layer 1 as an init layer
+    - layer2:
+      basis: X # layer 2, transversally X basis, can be omitted, defaults to X
+      ancilla: true
+      init: false # can be omitted, defaults to false
