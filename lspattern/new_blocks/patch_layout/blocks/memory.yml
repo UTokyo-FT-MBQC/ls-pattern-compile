@@ -3,7 +3,7 @@ description: This block represents a memory block
 
 params:
   layout: rotated_surface_code # required
-  code_distance: 5 # This can be overridden by layer config
+  code_distance: 3 # This can be overridden by layer config
   boundary: # This can be overridden by layer config
     left: X
     right: X
@@ -13,4 +13,4 @@ params:
   layers: # list of layers in this block
     - type: MemoryUnit
       params:
-        num_layers: 5
+        num_layers: 3
