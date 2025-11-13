@@ -207,35 +207,27 @@ def rotated_surface_code_pipe_layout(  # noqa: C901
             x = offset_pos.x + i
             y_top = offset_pos.y - 1
             y_bottom = offset_pos.y + 2 * code_distance - 1
-            if boundary[BoundarySide.TOP] == EdgeSpecValue.X:
-                if (x + y_top) % 4 == 0:
-                    x_ancilla_coords.add((x, y_top, offset_pos.z))
-            if boundary[BoundarySide.TOP] == EdgeSpecValue.Z:
-                if (x + y_top) % 4 == 2:
-                    z_ancilla_coords.add((x, y_top, offset_pos.z))
-            if boundary[BoundarySide.BOTTOM] == EdgeSpecValue.X:
-                if (x + y_bottom) % 4 == 0:
-                    x_ancilla_coords.add((x, y_bottom, offset_pos.z))
-            if boundary[BoundarySide.BOTTOM] == EdgeSpecValue.Z:
-                if (x + y_bottom) % 4 == 2:
-                    z_ancilla_coords.add((x, y_bottom, offset_pos.z))
+            if boundary[BoundarySide.TOP] == EdgeSpecValue.X and (x + y_top) % 4 == 0:
+                x_ancilla_coords.add((x, y_top, offset_pos.z))
+            if boundary[BoundarySide.TOP] == EdgeSpecValue.Z and (x + y_top) % 4 == 2:  # noqa: PLR2004
+                z_ancilla_coords.add((x, y_top, offset_pos.z))
+            if boundary[BoundarySide.BOTTOM] == EdgeSpecValue.X and (x + y_bottom) % 4 == 0:
+                x_ancilla_coords.add((x, y_bottom, offset_pos.z))
+            if boundary[BoundarySide.BOTTOM] == EdgeSpecValue.Z and (x + y_bottom) % 4 == 2:  # noqa: PLR2004
+                z_ancilla_coords.add((x, y_bottom, offset_pos.z))
 
         else:  # pipe_dir == AxisDirection2D.V:
             x_left = offset_pos.x - 1
             x_right = offset_pos.x + 2 * code_distance - 1
             y = offset_pos.y + i
-            if boundary[BoundarySide.LEFT] == EdgeSpecValue.X:
-                if (x_left + y) % 4 == 0:
-                    x_ancilla_coords.add((x_left, y, offset_pos.z))
-            if boundary[BoundarySide.LEFT] == EdgeSpecValue.Z:
-                if (x_left + y) % 4 == 2:
-                    z_ancilla_coords.add((x_left, y, offset_pos.z))
-            if boundary[BoundarySide.RIGHT] == EdgeSpecValue.X:
-                if (x_right + y) % 4 == 0:
-                    x_ancilla_coords.add((x_right, y, offset_pos.z))
-            if boundary[BoundarySide.RIGHT] == EdgeSpecValue.Z:
-                if (x_right + y) % 4 == 2:
-                    z_ancilla_coords.add((x_right, y, offset_pos.z))
+            if boundary[BoundarySide.LEFT] == EdgeSpecValue.X and (x_left + y) % 4 == 0:
+                x_ancilla_coords.add((x_left, y, offset_pos.z))
+            if boundary[BoundarySide.LEFT] == EdgeSpecValue.Z and (x_left + y) % 4 == 2:  # noqa: PLR2004
+                z_ancilla_coords.add((x_left, y, offset_pos.z))
+            if boundary[BoundarySide.RIGHT] == EdgeSpecValue.X and (x_right + y) % 4 == 0:
+                x_ancilla_coords.add((x_right, y, offset_pos.z))
+            if boundary[BoundarySide.RIGHT] == EdgeSpecValue.Z and (x_right + y) % 4 == 2:  # noqa: PLR2004
+                z_ancilla_coords.add((x_right, y, offset_pos.z))
 
     return data_coords, x_ancilla_coords, z_ancilla_coords
 
