@@ -47,6 +47,13 @@ class DIRECTION2D(StrEnum):
     BOTTOM = "BOTTOM"
 
 
+class AxisDIRECTION2D(StrEnum):
+    """Axis direction in 2D lattice."""
+
+    H = "HORIZONTAL"
+    V = "VERTICAL"
+
+
 QubitGroupId = int
 NodeId = int
 
