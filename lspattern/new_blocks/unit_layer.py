@@ -3,14 +3,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
 
-from lspattern.new_blocks.accumulator import CoordFlowAccumulator, CoordScheduleAccumulator
 from lspattern.new_blocks.layer_data import CoordBasedLayerData
-from lspattern.new_blocks.mytype import Coord3D, NodeRole
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
+from lspattern.new_blocks.mytype import Coord3D
 
 
 class UnitLayer(ABC):

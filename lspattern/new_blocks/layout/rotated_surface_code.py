@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from lspattern.new_blocks.mytype import Coord3D
 from lspattern.consts import BoundarySide, EdgeSpecValue
+from lspattern.new_blocks.mytype import Coord3D
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
