@@ -19,12 +19,3 @@ class CoordBasedLayerData:
     temporal_edges: set[tuple[Coord3D, Coord3D]]
     coord_schedule: dict[int, set[Coord3D]]
     coord_flow: dict[Coord3D, set[Coord3D]]
-
-
-@dataclass
-class SeamEdgeCandidate:
-    """Seam edge candidate (coordinate-based)."""
-
-    coord: Coord3D
-    gid1: QubitGroupId
-    gid2: QubitGroupId
