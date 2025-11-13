@@ -8,7 +8,7 @@ temporal layers.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from graphqomb.graphstate import GraphState, compose
 
@@ -391,15 +391,23 @@ def _remap_layer_mappings(
 def _build_merged_coord2node(
     cgraph: CompiledRHGCanvas, next_layer: TemporalLayer
 ) -> dict[PhysCoordGlobal3D, int]:
-    """Build merged coordinate to node mapping."""
-    # assert cgraph and next_layer does not have overlapping coords
-    # overlap = set(cgraph.coord2node.keys()) & set(next_layer.coord2node.keys())
-    # if overlap:
-        # raise ValueError(f"Overlapping coordinates found: {overlap}")
-    return {
-        **cgraph.coord2node,
-        **next_layer.coord2node,
-    }
+    """Build merged coordinate to node mapping without duplicate node ids."""
+
+    merged: dict[PhysCoordGlobal3D, int] = dict(cgraph.coord2node)
+    node2coord = {node_id: coord for coord, node_id in merged.items()}
+
+    for node_id, coord in next_layer.node2coord.items():
+        # Avoid overriding an existing node mapped to the same coordinate with a different id.
+        current_node = merged.get(coord)
+        if current_node is not None and current_node != node_id:
+            continue
+        existing_coord = node2coord.get(node_id)
+        if existing_coord is not None and existing_coord != coord:
+            merged.pop(existing_coord, None)
+        merged[coord] = node_id
+        node2coord[node_id] = coord
+
+    return merged
 
 
 def add_temporal_layer(
@@ -423,10 +431,14 @@ def add_temporal_layer(
     if cgraph.global_graph is None:
         return _create_first_layer_canvas(next_layer)
 
+    if next_layer.local_graph is None:
+        msg = "Temporal layer missing local graph during composition"
+        raise ValueError(msg)
+
     # Compose graphs and remap
-    new_graph, node_map1, node_map2 = compose(
-        cgraph.global_graph, next_layer.local_graph
-    )  # pyright: ignore[reportArgumentType]
+    global_graph = cast("GraphState", cgraph.global_graph)
+    local_graph = next_layer.local_graph
+    new_graph, node_map1, node_map2 = compose(global_graph, local_graph)
 
     # Only remap if node mapping actually changes node IDs
     if any(k != v for k, v in node_map1.items()):
