@@ -15,7 +15,7 @@ from lspattern.new_blocks.accumulator import (
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from lspattern.new_blocks.mytype import Coord2D, Coord3D
+    from lspattern.new_blocks.mytype import Coord3D
     from lspattern.new_blocks.unit_layer import UnitLayer
 
 
@@ -34,30 +34,6 @@ class RHGBlock(ABC):
 
     @property
     @abstractmethod
-    def in_ports(self) -> set[Coord2D]:
-        """Get the input ports of the block.
-
-        Returns
-        -------
-        set[Coord2D]
-            A set of input port coordinates.
-        """
-        ...
-
-    @property
-    @abstractmethod
-    def out_ports(self) -> set[Coord2D]:
-        """Get the output ports of the block.
-
-        Returns
-        -------
-        set[Coord2D]
-            A set of output port coordinates.
-        """
-        ...
-
-    @property
-    @abstractmethod
     def cout_ports(self) -> set[Coord3D]:
         """Get the classical output ports of the block.
 
@@ -65,18 +41,6 @@ class RHGBlock(ABC):
         -------
         set[Coord3D]
             A set of classical output port coordinates.
-        """
-        ...
-
-    @property
-    @abstractmethod
-    def unit_layers(self) -> list[UnitLayer]:
-        """Get the unit layers comprising the block.
-
-        Returns
-        -------
-        list[UnitLayer]
-            A list of unit layers in the block.
         """
         ...
 
@@ -91,24 +55,12 @@ class RHGCube(RHGBlock):
     coord_schedule: CoordScheduleAccumulator = field(default_factory=CoordScheduleAccumulator)
     coord_flow: CoordFlowAccumulator = field(default_factory=CoordFlowAccumulator)
     coord_parity: CoordParityAccumulator = field(default_factory=CoordParityAccumulator)
-    _in_ports: set[Coord2D] = field(default_factory=set)
-    _out_ports: set[Coord2D] = field(default_factory=set)
     _cout_ports: set[Coord3D] = field(default_factory=set)
 
     @property
     def global_pos(self) -> Coord3D:
         """Return the global origin coordinate of the cube."""
         return self._global_pos
-
-    @property
-    def in_ports(self) -> set[Coord2D]:
-        """Return the set of 2D coordinates used as input ports."""
-        return self._in_ports
-
-    @property
-    def out_ports(self) -> set[Coord2D]:
-        """Return the set of 2D coordinates used as output ports."""
-        return self._out_ports
 
     @property
     def cout_ports(self) -> set[Coord3D]:
