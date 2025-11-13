@@ -2,7 +2,7 @@ name: CustomUnit
 description: This patch layout specifies a Custom unit layer
 
 params:
-  layout: rotated_surface_code # required
+  layout: rotated_surface_code
   boundary: # If specified, this overrides block level boundary
     left: X
     right: X

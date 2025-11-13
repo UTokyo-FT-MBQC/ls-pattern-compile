@@ -2,7 +2,7 @@ name: InitZeroUnit
 description: This patch layout specifies an init zero unit layer
 
 params:
-  layout: rotated_surface_code # required
+  layout: rotated_surface_code
   boundary: # If specified, this overrides block level boundary
     left: X
     right: X
