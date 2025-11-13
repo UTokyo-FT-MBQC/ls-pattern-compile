@@ -1,0 +1,20 @@
+name: CustomUnit
+description: This patch layout specifies a Custom unit layer
+
+params:
+  layout: rotated_surface_code # required
+  boundary: # If specified, this overrides block level boundary
+    left: X
+    right: X
+    top: Z
+    bottom: Z
+
+  logical_observables: null # optional
+
+  measure_map: # custom measurement design map, optional
+    - [[Z, Z, Z],
+       [Z, Z, Z],
+       [Z, Z, Z]] # layer 1
+    - [[X, X, X],
+       [X, X, X],
+       [X, X, X]] # layer 2
