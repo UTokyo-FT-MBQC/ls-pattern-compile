@@ -9,16 +9,11 @@ import pymatching
 from lspattern.blocks.cubes.initialize import (
     InitPlusCubeThinLayerSkeleton,
     InitZeroCubeThinLayerSkeleton,
-    InitPlusCubeSkeleton,
 )
 from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
-from lspattern.blocks.pipes.initialize import (
-    InitPlusPipeSkeleton,
-    InitZeroPipeSkeleton,
-    InitZeroPipeThinLayerSkeleton,
-)
-from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton, MeasureZPipeSkeleton
-from lspattern.blocks.cubes.measure import MeasureZSkeleton, MeasureXSkeleton
+from lspattern.blocks.pipes.initialize import InitPlusPipeSkeleton
+from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton
+from lspattern.blocks.cubes.measure import MeasureXSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.compile import compile_to_stim
 from lspattern.consts import BoundarySide, EdgeSpecValue

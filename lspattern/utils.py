@@ -32,15 +32,21 @@ def to_edgespec(espec_str: str) -> dict[BoundarySide, EdgeSpecValue]:
     the characters ``O``, ``X``, or ``Z`` in any case. Each character maps to
     the corresponding ``EdgeSpecValue`` enumerator.
 
-    Args:
-        espec_str: Four-character boundary description string.
+    Parameters
+    ----------
+    espec_str : str
+        Four-character boundary description string.
 
-    Returns:
+    Returns
+    -------
+    dict[BoundarySide, EdgeSpecValue]
         Dictionary mapping each ``BoundarySide`` to its ``EdgeSpecValue``.
 
-    Raises:
-        ValueError: If ``espec_str`` is not exactly four characters long or an unsupported
-            character is provided.
+    Raises
+    ------
+    ValueError
+        If ``espec_str`` is not exactly four characters long or an unsupported
+        character is provided.
     """
     if len(espec_str) != EDGE_SPEC_LENGTH:
         msg = "Edge spec string must have length 4"

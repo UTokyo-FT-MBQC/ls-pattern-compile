@@ -191,7 +191,7 @@ circuit = compile_to_stim(
     p_before_meas_flip=noise,
 )
 print(f"num_qubits: {circuit.num_qubits}")
-print(circuit)
+# print(circuit)
 
 # %%
 # Error correction simulation
