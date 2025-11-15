@@ -423,7 +423,6 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> 
         cgraph = cgraph.remap_nodes({NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map1.items()})
 
     _remap_layer_mappings(next_layer, node_map2)
-
     # Build merged mappings
     new_coord2node = _build_merged_coord2node(cgraph, next_layer)
     # cgraph is already remapped with node_map1 at line 386, so pass empty map to avoid double remapping
@@ -440,7 +439,6 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> 
     new_schedule = cgraph_filtered_schedule.compose_sequential(next_layer.schedule, exclude_nodes=None)
     merged_flow = cgraph.flow.merge_with(next_layer.flow)
     new_parity = cgraph.parity.merge_with(next_layer.parity)
-
     # TODO: should add boundary checks?
 
     return CompiledRHGCanvas(
