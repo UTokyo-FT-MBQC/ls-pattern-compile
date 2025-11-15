@@ -21,32 +21,33 @@ def _reverse_coord2node(
     return node2coord
 
 
-def visualize_compiled_canvas_plotly(  # noqa: C901
+def visualize_cgraph_xparity(  # noqa: C901
     cgraph: CompiledRHGCanvas,
     *,
     show_edges: bool = True,
-    input_nodes: Iterable[int] | None = None,
-    output_nodes: Iterable[int] | None = None,
     hilight_nodes: Iterable[int] | None = None,
     width: int = 800,
     height: int = 600,
-    reverse_axes: bool = False,
     show_axes: bool = True,
     show_grid: bool = True,
     show_xparity: bool = True,
 ) -> go.Figure:
-    """CompiledRHGCanvas 可視化(Plotly 3D)。
+    """CompiledRHGCanvas 可視化(Plotly 3D)。"""
 
-    - ノードは z ごとに色分け(z 値をカラーに反映)。
-    - エッジは任意で描画。
-    - 入力/出力ノードは赤ダイヤで強調。
-    """
+    raw_node2coord = cgraph.node2coord or {}
+    node2coord: dict[int, tuple[int, int, int]] = {
+        int(nid): (int(coord[0]), int(coord[1]), int(coord[2]))
+        for nid, coord in raw_node2coord.items()
+    }
+    if not node2coord:
+        node2coord = _reverse_coord2node(cgraph.coord2node or {})
 
-    node2coord = _reverse_coord2node(cgraph.coord2node or {})
     g = cgraph.global_graph
 
-    # main scatter: color by z
-    xs, ys, zs, texts = [], [], [], []
+    xs: list[int] = []
+    ys: list[int] = []
+    zs: list[int] = []
+    texts: list[str] = []
     for nid, (x, y, z) in node2coord.items():
         xs.append(x)
         ys.append(y)
@@ -63,11 +64,11 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
                 mode="markers",
                 marker={
                     "size": 4,
-                    "color": zs,  # color by z
+                    "color": zs,
                     "colorscale": "Viridis",
                     "colorbar": {"title": "z"},
                     "line": {"color": "black", "width": 0.5},
-                    "opacity": 0.95,
+                    "opacity": 0.9,
                 },
                 name="Nodes",
                 text=texts,
@@ -75,15 +76,14 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
             )
         )
 
-    # edges
     if show_edges and g is not None and hasattr(g, "physical_edges"):
         edge_x: list[float | None] = []
         edge_y: list[float | None] = []
         edge_z: list[float | None] = []
         for u, v in g.physical_edges:
-            if u in node2coord and v in node2coord:
-                x1, y1, z1 = node2coord[u]
-                x2, y2, z2 = node2coord[v]
+            if int(u) in node2coord and int(v) in node2coord:
+                x1, y1, z1 = node2coord[int(u)]
+                x2, y2, z2 = node2coord[int(v)]
                 edge_x.extend([float(x1), float(x2), None])
                 edge_y.extend([float(y1), float(y2), None])
                 edge_z.extend([float(z1), float(z2), None])
@@ -100,38 +100,6 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
                     hoverinfo="none",
                 )
             )
-
-    # inputs/outputs
-    if input_nodes is None and g is not None and hasattr(g, "input_node_indices"):
-        input_nodes = list(g.input_node_indices.keys())
-    if output_nodes is None and g is not None and hasattr(g, "output_node_indices"):
-        output_nodes = list(g.output_node_indices.keys())
-
-    def _add_marker(nodes: Iterable[int], name: str, color: str) -> None:
-        nodes = list(nodes or [])
-        if not nodes:
-            return
-        xin = [node2coord[n][0] for n in nodes if n in node2coord]
-        yin = [node2coord[n][1] for n in nodes if n in node2coord]
-        zin = [node2coord[n][2] for n in nodes if n in node2coord]
-        fig.add_trace(
-            go.Scatter3d(
-                x=xin,
-                y=yin,
-                z=zin,
-                mode="markers",
-                marker={
-                    "size": 8,
-                    "color": color,
-                    "line": {"color": "darkred", "width": 2},
-                    "symbol": "diamond",
-                },
-                name=name,
-            )
-        )
-
-    _add_marker(input_nodes or [], "Input", "white")
-    _add_marker(output_nodes or [], "Output", "red")
 
     if show_xparity and cgraph.parity is not None:
         checks = cgraph.parity.checks
@@ -157,9 +125,7 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
                     ]
                     if len(ordered) < 2:
                         continue
-                    ordered.sort(
-                        key=lambda item: (item[1][2], item[1][0], item[1][1], item[0])
-                    )
+                    ordered.sort(key=lambda item: (item[1][2], item[1][0], item[1][1], item[0]))
                     for idx in range(len(ordered) - 1):
                         start_id, start_coord = ordered[idx]
                         end_id, end_coord = ordered[idx + 1]
@@ -169,15 +135,9 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
                         if pair in seen_pairs:
                             continue
                         seen_pairs.add(pair)
-                        line_x.extend(
-                            [float(start_coord[0]), float(end_coord[0]), None]
-                        )
-                        line_y.extend(
-                            [float(start_coord[1]), float(end_coord[1]), None]
-                        )
-                        line_z.extend(
-                            [float(start_coord[2]), float(end_coord[2]), None]
-                        )
+                        line_x.extend([float(start_coord[0]), float(end_coord[0]), None])
+                        line_y.extend([float(start_coord[1]), float(end_coord[1]), None])
+                        line_z.extend([float(start_coord[2]), float(end_coord[2]), None])
                         label = f"X parity: {start_id} → {end_id}"
                         line_text.extend([label, label, None])
                         cone_x.append(float(end_coord[0]))
@@ -220,7 +180,6 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
                     )
                 )
 
-    # highlighted nodes (same shape as base scatter, colored red)
     if hilight_nodes:
         highlight = [int(n) for n in hilight_nodes if int(n) in node2coord]
         if highlight:
@@ -235,9 +194,9 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
                     z=hz,
                     mode="markers",
                     marker={
-                        "size": 4,
+                        "size": 5,
                         "color": "red",
-                        "line": {"color": "black", "width": 0.5},
+                        "line": {"color": "black", "width": 1},
                         "opacity": 0.95,
                     },
                     name="Highlight",
@@ -247,7 +206,6 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
                 )
             )
 
-    # layout
     scene: dict[str, Any] = {
         "xaxis_title": "X",
         "yaxis_title": "Y",
@@ -256,9 +214,6 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
         "aspectratio": {"x": 1.0, "y": 1.0, "z": 1.0},
         "camera": {"eye": {"x": 1.4, "y": 1.4, "z": 1.2}},
     }
-    if reverse_axes:
-        scene["xaxis"] = {"autorange": "reversed"}
-        scene["yaxis"] = {"autorange": "reversed"}
 
     def _axis_cfg(base: dict[str, Any] | None = None) -> dict[str, Any]:
         base = dict(base or {})
@@ -276,18 +231,12 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
             base.update({"visible": False})
         return base
 
-    scene["xaxis"] = _axis_cfg(
-        scene.get("xaxis") if isinstance(scene.get("xaxis"), dict) else None
-    )
-    scene["yaxis"] = _axis_cfg(
-        scene.get("yaxis") if isinstance(scene.get("yaxis"), dict) else None
-    )
-    scene["zaxis"] = _axis_cfg(
-        scene.get("zaxis") if isinstance(scene.get("zaxis"), dict) else None
-    )
+    scene["xaxis"] = _axis_cfg(scene.get("xaxis") if isinstance(scene.get("xaxis"), dict) else None)
+    scene["yaxis"] = _axis_cfg(scene.get("yaxis") if isinstance(scene.get("yaxis"), dict) else None)
+    scene["zaxis"] = _axis_cfg(scene.get("zaxis") if isinstance(scene.get("zaxis"), dict) else None)
 
     fig.update_layout(
-        title=f"Compiled RHG Canvas (layers={len(getattr(cgraph, 'layers', []))})",
+        title=f"Compiled RHG Canvas (layers={len(cgraph.layers)})",
         scene=scene,
         width=width,
         height=height,

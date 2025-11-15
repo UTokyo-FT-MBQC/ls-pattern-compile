@@ -35,7 +35,7 @@ class _InitPipeBase(RHGPipe):
         edge_spec = edgespec or {}
         super().__init__(d=d, edge_spec=edge_spec)
         self.direction = direction
-        self.template = RotatedPlanarPipetemplate(d=d, edgespec=edge_spec)
+        self.template = RotatedPlanarPipetemplate(d=d, edgespec=edge_spec, direction=direction)
 
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         """Initialization pipes do not consume logical inputs."""
@@ -136,7 +136,7 @@ class InitPlusPipe(_InitPipeBase):
         """
         z0 = int(self.source[2]) * (2 * int(self.d))  # Base z-offset per block
         ancilla_coords = self.template.z_coords if z0 % 2 == 0 else self.template.x_coords
-
+        print("Initplus pipe coords", self.template)
         cout_port_set = set()
         for x, y in ancilla_coords:
             node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z0)))

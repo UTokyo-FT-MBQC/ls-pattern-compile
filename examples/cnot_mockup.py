@@ -20,6 +20,7 @@ from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.utils import to_edgespec
 from lspattern.mytype import PatchCoordGlobal3D, PipeCoordGlobal3D
 from lspattern.visualizers import visualize_compiled_canvas_plotly
+from lspattern.visualizers.plotly_xflow import visualize_cgraph_xparity
 
 # %%
 d = 3
@@ -192,7 +193,9 @@ print(
 output_indices = compiled_canvas.global_graph.output_node_indices or {}  # type: ignore[union-attr]
 print(f"output qubits: {output_indices}")
 
-fig3d = visualize_compiled_canvas_plotly(compiled_canvas, show_edges=True)
+fig3d = visualize_compiled_canvas_plotly(
+    compiled_canvas, show_edges=True, hilight_nodes=[]
+)
 fig3d.show()
 
 # %%
@@ -228,9 +231,18 @@ if remaining_flows:
     print(f"  Unscheduled flows: {', '.join(remaining_flow_strs)}")
 
 print("X parity")
+# check and compare coord2node from compiled_canvas and parity.checks
+# nodeids: 375, 400, 401, 35
+print("Parity.checks", compiled_canvas.parity.checks[(-1, 9)])
+# Raise Warning if they don't match
 for coord, group_list in compiled_canvas.parity.checks.items():
     print(f"  {coord}: {group_list}")
 
+# Results
+# (-1, 3): {6: {50}, 8: {50, 76}, 10: {76, 102}, 12: {102, 206}, 14: {206, 231}, 16: {256, 231}}
+# Warning: Node 400 in parity group at (-1, 9) has coord (2, 6, 18) in coord2node map.
+# Warning: Node 401 in parity group at (-1, 9) has coord (4, 6, 18) in coord2node map.
+#   (-1, 9): {19: {400, 401}}
 # Print detailed flow information for visualization
 print("\nDetailed Flow Information:")
 print(f"Total flow edges: {sum(len(dsts) for dsts in xflow.values())}")
@@ -267,7 +279,7 @@ circuit = compile_to_stim(
             #     (PatchCoordGlobal3D((0, 0, 3)), PatchCoordGlobal3D((1, 0, 3)))
             # ),
         ],
-        # 1: [PatchCoordGlobal3D((1, 1, 4))],  # Second output patch
+        1: [PatchCoordGlobal3D((0, 0, 3))],  # Second output patch
         # 2: [PatchCoordGlobal3D((1, 1, 5))],  # Third output patch
         # 3: [PipeCoordGlobal3D((PatchCoordGlobal3D((0, 0, 3)), PatchCoordGlobal3D((0, 1, 3))))],  # InitPlus pipe
         # 4: [PipeCoordGlobal3D((PatchCoordGlobal3D((0, 1, 4)), PatchCoordGlobal3D((1, 1, 4))))],  # InitPlus pipe

@@ -62,7 +62,7 @@ class MemoryPipe(RHGPipe):
         # RHGPipe(dataclass) の自動 __init__ は使用せず、明示的に初期化
         super().__init__(d=d, edge_spec=edgespec or {})
         self.direction = direction
-        self.template = RotatedPlanarPipetemplate(d=d, edgespec=edgespec or {})
+        self.template = RotatedPlanarPipetemplate(d=d, edgespec=edgespec or {}, direction=direction)
 
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         # Pipe: data の全インデックスを in とする(z- 側相当)
