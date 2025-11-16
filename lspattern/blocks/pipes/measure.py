@@ -41,18 +41,12 @@ class _MeasurePipeBase(RHGPipe):
         edge_spec = edgespec or {}
         super().__init__(d=d, edge_spec=edge_spec)
         self.direction = direction
-        self.template = RotatedPlanarPipetemplate(
-            d=d, edgespec=edge_spec, direction=direction
-        )
+        self.template = RotatedPlanarPipetemplate(d=d, edgespec=edge_spec, direction=direction)
         self.meas_basis = AxisMeasBasis(basis, Sign.PLUS)
 
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         """Set input ports from template data indices."""
-        if (
-            patch_coord is not None
-            and self.source is not None
-            and self.sink is not None
-        ):
+        if patch_coord is not None and self.source is not None and self.sink is not None:
             source_2d = (self.source[0], self.source[1])
             sink_2d = (self.sink[0], self.sink[1])
             idx_map = self.template.get_data_indices_pipe(source_2d, sink_2d)
@@ -68,9 +62,7 @@ class _MeasurePipeBase(RHGPipe):
         """Measurement pipes do not have classical output ports."""
         return super().set_cout_ports(patch_coord)
 
-    def _assign_meas_bases(
-        self, g: GraphState, meas_basis: object
-    ) -> None:  # noqa: ARG002
+    def _assign_meas_bases(self, g: GraphState, meas_basis: object) -> None:  # noqa: ARG002
         """Assign measurement basis to all nodes."""
         for node in g.physical_nodes:
             g.assign_meas_basis(node, self.meas_basis)
@@ -103,9 +95,7 @@ class _MeasurePipeBase(RHGPipe):
         node2role: dict[int, str] = {}
 
         # Assign nodes for single time slice only
-        nodes_by_z = self._assign_nodes_by_timeslice(
-            g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role
-        )
+        nodes_by_z = self._assign_nodes_by_timeslice(g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role)
 
         self._assign_meas_bases(g, self.meas_basis)
 
@@ -221,14 +211,10 @@ class MeasureXPipe(_MeasurePipeBase):
         super().__init__(d, edgespec, direction, Axis.X)
 
     # TODO: This is a temporal patch so more appropriate cout port handling must be implemented
-    def set_cout_ports(
-        self, patch_coord: tuple[int, int] | None = None
-    ) -> None:  # noqa: ARG002
+    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
         data2d = list(self.template.data_coords or [])
         target = data2d[0]  # Assuming single data qubit for measurement pipe
-        node = self.coord2node.get(
-            PhysCoordGlobal3D((target[0], target[1], self.source[2] * 2 * self.d))
-        )
+        node = self.coord2node.get(PhysCoordGlobal3D((target[0], target[1], self.source[2] * 2 * self.d)))
         if node is None:
             msg = f"Data node not found at expected coordinate for cout port: {target}"
             raise ValueError(msg)
@@ -247,16 +233,14 @@ class MeasureXPipe(_MeasurePipeBase):
             for x, y in x2d:
                 node_group: set[NodeIdLocal] = set()
                 for dx, dy in DIRECTIONS2D:
-                    node_id = self.coord2node.get(
-                        PhysCoordGlobal3D((x + dx, y + dy, z + z_offset))
-                    )
+                    node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z + z_offset)))
                     if node_id is not None:
                         node_group.add(node_id)
+                # TODO: FIXME: When blocks follow, z_offset + 1 is needed, but for 1x2 rectangular block measurement, z_offset + 0 must be used or it won't work correctly. This bug needs to be fixed in the future, but for now we leave it as-is since rectangular block measurements don't appear.  # noqa: E501
                 if node_group:
-                    print(f"X meas detector at {(x, y, z + z_offset)}: {node_group}")
-                    self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), {})[
-                        z + z_offset
-                    ] = node_group  # To group with neighboring X ancilla
+                    self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), {})[z + z_offset + 1] = (
+                        node_group  # To group with neighboring X ancilla
+                    )
 
 
 class MeasureZPipe(_MeasurePipeBase):
@@ -271,14 +255,10 @@ class MeasureZPipe(_MeasurePipeBase):
         super().__init__(d, edgespec, direction, Axis.Z)
 
     # TODO: This is a temporal patch so more appropriate cout port handling must be implemented
-    def set_cout_ports(
-        self, patch_coord: tuple[int, int] | None = None
-    ) -> None:  # noqa: ARG002
+    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
         data2d = list(self.template.data_coords or [])
         target = data2d[0]  # Assuming single data qubit for measurement pipe
-        node = self.coord2node.get(
-            PhysCoordGlobal3D((target[0], target[1], self.source[2] * 2 * self.d))
-        )
+        node = self.coord2node.get(PhysCoordGlobal3D((target[0], target[1], self.source[2] * 2 * self.d)))
         if node is None:
             msg = f"Data node not found at expected coordinate for cout port: {target}"
             raise ValueError(msg)
@@ -295,12 +275,8 @@ class MeasureZPipe(_MeasurePipeBase):
             for x, y in z2d:
                 node_group: set[NodeIdLocal] = set()
                 for dx, dy in DIRECTIONS2D:
-                    node_id = self.coord2node.get(
-                        PhysCoordGlobal3D((x + dx, y + dy, z + z_offset))
-                    )
+                    node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z + z_offset)))
                     if node_id is not None:
                         node_group.add(node_id)
                 if node_group:
-                    self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), {})[
-                        z + z_offset
-                    ] = node_group
+                    self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), {})[z + z_offset] = node_group

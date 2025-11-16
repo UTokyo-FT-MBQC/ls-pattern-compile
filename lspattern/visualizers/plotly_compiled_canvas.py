@@ -11,6 +11,9 @@ if TYPE_CHECKING:
     from lspattern.canvas import CompiledRHGCanvas
     from lspattern.mytype import PhysCoordGlobal3D
 
+# Minimum number of nodes required to visualize parity connections
+_MIN_PARITY_NODES = 2
+
 
 def _reverse_coord2node(
     coord2node: Mapping[PhysCoordGlobal3D, int],
@@ -35,11 +38,11 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
     show_grid: bool = True,
     show_xparity: bool = True,
 ) -> go.Figure:
-    """CompiledRHGCanvas 可視化(Plotly 3D)。
+    """CompiledRHGCanvas visualization (Plotly 3D).
 
-    - ノードは z ごとに色分け(z 値をカラーに反映)。
-    - エッジは任意で描画。
-    - 入力/出力ノードは赤ダイヤで強調。
+    - Nodes are colored by z (z value is reflected in color).
+    - Edges are drawn optionally.
+    - Input/output nodes are highlighted with red diamonds.
     """
 
     node2coord = _reverse_coord2node(cgraph.coord2node or {})
@@ -150,16 +153,10 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
 
             for groups in checks.values():
                 for nodes in groups.values():
-                    ordered = [
-                        (node_id, node2coord[node_id])
-                        for n in nodes
-                        if (node_id := int(n)) in node2coord
-                    ]
-                    if len(ordered) < 2:
+                    ordered = [(node_id, node2coord[node_id]) for n in nodes if (node_id := int(n)) in node2coord]
+                    if len(ordered) < _MIN_PARITY_NODES:
                         continue
-                    ordered.sort(
-                        key=lambda item: (item[1][2], item[1][0], item[1][1], item[0])
-                    )
+                    ordered.sort(key=lambda item: (item[1][2], item[1][0], item[1][1], item[0]))
                     for idx in range(len(ordered) - 1):
                         start_id, start_coord = ordered[idx]
                         end_id, end_coord = ordered[idx + 1]
@@ -169,15 +166,9 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
                         if pair in seen_pairs:
                             continue
                         seen_pairs.add(pair)
-                        line_x.extend(
-                            [float(start_coord[0]), float(end_coord[0]), None]
-                        )
-                        line_y.extend(
-                            [float(start_coord[1]), float(end_coord[1]), None]
-                        )
-                        line_z.extend(
-                            [float(start_coord[2]), float(end_coord[2]), None]
-                        )
+                        line_x.extend([float(start_coord[0]), float(end_coord[0]), None])
+                        line_y.extend([float(start_coord[1]), float(end_coord[1]), None])
+                        line_z.extend([float(start_coord[2]), float(end_coord[2]), None])
                         label = f"X parity: {start_id} → {end_id}"
                         line_text.extend([label, label, None])
                         cone_x.append(float(end_coord[0]))
@@ -276,15 +267,9 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
             base.update({"visible": False})
         return base
 
-    scene["xaxis"] = _axis_cfg(
-        scene.get("xaxis") if isinstance(scene.get("xaxis"), dict) else None
-    )
-    scene["yaxis"] = _axis_cfg(
-        scene.get("yaxis") if isinstance(scene.get("yaxis"), dict) else None
-    )
-    scene["zaxis"] = _axis_cfg(
-        scene.get("zaxis") if isinstance(scene.get("zaxis"), dict) else None
-    )
+    scene["xaxis"] = _axis_cfg(scene.get("xaxis") if isinstance(scene.get("xaxis"), dict) else None)
+    scene["yaxis"] = _axis_cfg(scene.get("yaxis") if isinstance(scene.get("yaxis"), dict) else None)
+    scene["zaxis"] = _axis_cfg(scene.get("zaxis") if isinstance(scene.get("zaxis"), dict) else None)
 
     fig.update_layout(
         title=f"Compiled RHG Canvas (layers={len(getattr(cgraph, 'layers', []))})",

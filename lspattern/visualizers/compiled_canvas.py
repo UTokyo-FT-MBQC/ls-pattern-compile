@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 def _reverse_coord2node(coord2node: Mapping[PhysCoordGlobal3D, int]) -> dict[int, tuple[int, int, int]]:
-    """Return node->coord map from coord->node (CompiledRHGCanvas形式)。"""
+    """Return node->coord map from coord->node (CompiledRHGCanvas format)."""
     node2coord: dict[int, tuple[int, int, int]] = {}
     for coord, nid in coord2node.items():
         node2coord[int(nid)] = (int(coord[0]), int(coord[1]), int(coord[2]))
@@ -39,12 +39,12 @@ def visualize_compiled_canvas(  # noqa: C901
     input_nodes: Iterable[int] | None = None,
     output_nodes: Iterable[int] | None = None,
 ) -> Figure:
-    """CompiledRHGCanvas 可視化(Matplotlib 3D)。
+    """CompiledRHGCanvas visualization (Matplotlib 3D).
 
-    - CompiledRHGCanvas の `coord2node` を用いてノードを散布表示。
-    - `global_graph.physical_edges` があればエッジも描画。
-    - 入力/出力ノードは赤ダイヤで強調(指定が無い場合は GraphState の property を使用)。
-    - 役割情報は global には保持しないため、色は z ごとの色分け(color_by_z=True)で表現。
+    - Displays nodes as scatter plot using CompiledRHGCanvas's `coord2node`.
+    - Draws edges if `global_graph.physical_edges` is available.
+    - Input/output nodes are highlighted with red diamonds (uses GraphState properties if not specified).
+    - Role information is not stored globally, so color is represented by z-based coloring (color_by_z=True).
     """
     node2coord = _reverse_coord2node(cgraph.coord2node or {})
 
@@ -62,7 +62,7 @@ def visualize_compiled_canvas(  # noqa: C901
         msg = "ax should not be None here"
         raise ValueError(msg)
 
-    # 軸とグリッド
+    # Axes and grid
     ax.set_box_aspect([1, 1, 1])  # type: ignore[arg-type]  # matplotlib 3D axis expects list
     ax.grid(bool(show_grid))
     if show_axes:
@@ -103,7 +103,7 @@ def visualize_compiled_canvas(  # noqa: C901
                 label=f"z={z}",
             )
 
-    # エッジ描画
+    # Draw edges
     graph = cgraph.global_graph
     if show_edges and graph is not None and hasattr(graph, "physical_edges"):
         for u, v in graph.physical_edges:
@@ -112,7 +112,7 @@ def visualize_compiled_canvas(  # noqa: C901
                 x2, y2, z2 = node2coord[v]
                 ax.plot([x1, x2], [y1, y2], [z1, z2], c="gray", linewidth=1, alpha=0.5)
 
-    # 入力/出力ノードを強調(赤ダイヤ)
+    # Highlight input/output nodes (red diamonds)
     if input_nodes is None and graph is not None and hasattr(graph, "input_node_indices"):
         try:
             input_nodes = list(graph.input_node_indices.keys())
@@ -146,14 +146,14 @@ def visualize_compiled_canvas(  # noqa: C901
     _scatter_marker(input_nodes or [], "Input", "white")
     _scatter_marker(output_nodes or [], "Output", "red")
 
-    # 注釈
+    # Annotations
     if annotate:
         for nid, (x, y, z) in node2coord.items():
             ax.text(x, y, z, str(nid), fontsize=6)  # type: ignore[arg-type]
 
     ax.legend(loc="best")
 
-    # 保存/表示
+    # Save/display
     if save_path:
         p = pathlib.Path(save_path)
         p.parent.mkdir(parents=True, exist_ok=True)
