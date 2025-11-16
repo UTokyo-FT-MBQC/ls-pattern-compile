@@ -605,7 +605,6 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
         data_coords: set[tuple[int, int]] = set()
         x_coords: set[tuple[int, int]] = set()
         z_coords: set[tuple[int, int]] = set()
-        # print("Direction!", self.direction)
         if self.direction in {PIPEDIRECTION.RIGHT, PIPEDIRECTION.LEFT}:
             # Pipe along Y (vertical), x fixed at 0
             data_coords.update((0, y) for y in range(0, 2 * d, 2))

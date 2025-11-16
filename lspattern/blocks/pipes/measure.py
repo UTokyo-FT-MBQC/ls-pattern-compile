@@ -218,14 +218,12 @@ class MeasureXPipe(_MeasurePipeBase):
         if node is None:
             msg = f"Data node not found at expected coordinate for cout port: {target}"
             raise ValueError(msg)
-        print("MeasureX pipe coords", self.template)
         self.cout_ports = [{node}]
         # self.cout_ports = []  # cout ports not necessary
 
     def _construct_detectors(self) -> None:
         """Construct X-stabilizer detectors for X measurement."""
         x2d = self.template.x_coords
-        print("template info", self.template)
         z_offset = self.source[2] * (2 * self.d)
         height = max({coord[2] for coord in self.coord2node}, default=0) - z_offset + 1
 
