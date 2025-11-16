@@ -263,7 +263,7 @@ class InitZeroPipe(_InitPipeBase):
     """Zero-state initialization pipe with standard RHG depth."""
 
     def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
-        """Set classical outport for init plus
+        """Set classical outport for init zero
 
         Parameters
         ----------
