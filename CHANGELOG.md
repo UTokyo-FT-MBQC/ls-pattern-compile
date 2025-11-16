@@ -13,9 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Supports both PatchCoordGlobal3D and PipeCoordGlobal3D for logical observable coordinates
   - Reduces boilerplate code from ~30-40 lines to ~3-5 lines in example files
   - Updated all example files to use the new API
-- **CNOT gate implementation and error simulation** ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
-  - New example `examples/cnot_mockup.py`: Complete CNOT gate implementation using lattice surgery with ZZ-merge (control-target) followed by XX-merge (target-ancilla)
-  - New example `examples/cnot_error_sim.py`: CNOT logical error rate simulation with noise probability sweeps
+- Added `to_edgespec()` utility function for standardized edge specification conversion and manipulation.
+- Enhanced Plotly visualization with X-parity highlighting for improved logical observable analysis.
+- Added new CNOT error simulation examples demonstrating error propagation and logical error rate analysis.
+
+### Fixed
+- Resolved duplicate/missing entries in `CompiledRHGCanvas.coord2node` by remapping node IDs before merging layers and by ignoring conflicting coordinate claims, ensuring global graphs stay consistent across compositions. Added regression coverage in `tests/test_coord2node_integrity.py`.
+- Fixed pipe direction detection bug (OOOO edgespec ambiguity) to ensure correct edge orientation and connectivity in global graph construction.
   - Integration tests in `tests/integration/test_cnot_integration.py` with circuit fingerprint verification
   - Regression tests in `tests/test_coord2node_integrity.py` to prevent coord2node mapping bugs
 - **Utility function for edge specification** ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
