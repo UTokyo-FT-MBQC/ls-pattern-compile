@@ -10,6 +10,7 @@ from lspattern.blocks.layers import EmptyUnitLayer, InitPlusUnitLayer, MeasureXU
 from lspattern.blocks.unit_layer import UnitLayer
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.consts import BoundarySide, EdgeSpecValue, TemporalBoundarySpecValue
+from lspattern.utils import to_edgespec
 from lspattern.mytype import PatchCoordGlobal3D
 from lspattern.visualizers import visualize_compiled_canvas_plotly
 
@@ -82,12 +83,7 @@ d = 3
 skeleton = RHGCanvasSkeleton(name=f"MeasureAndInitCube Demo (d={d})")
 
 # Define edge specification
-edgespec: dict[BoundarySide, EdgeSpecValue] = {
-    BoundarySide.TOP: EdgeSpecValue.X,
-    BoundarySide.BOTTOM: EdgeSpecValue.X,
-    BoundarySide.LEFT: EdgeSpecValue.Z,
-    BoundarySide.RIGHT: EdgeSpecValue.Z,
-}
+edgespec: dict[BoundarySide, EdgeSpecValue] = to_edgespec("ZZXX")
 
 # Add MeasureAndInitCube at position (0, 0, 0)
 measure_init_skeleton = MeasureAndInitCubeSkeleton(d=d, edgespec=edgespec)

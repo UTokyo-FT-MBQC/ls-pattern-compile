@@ -14,18 +14,14 @@ from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_to_stim
 from lspattern.consts import BoundarySide, EdgeSpecValue, InitializationState
+from lspattern.utils import to_edgespec
 from lspattern.mytype import PatchCoordGlobal3D
 
 
 def _create_skeleton(d: int, init_type: InitializationState) -> RHGCanvasSkeleton:
     """Create RHG canvas skeleton with specified parameters."""
     skeleton = RHGCanvasSkeleton(name=f"RHG Memory Circuit d={d}, init={init_type.value}")
-    edgespec: dict[BoundarySide, EdgeSpecValue] = {
-        BoundarySide.TOP: EdgeSpecValue.X,
-        BoundarySide.BOTTOM: EdgeSpecValue.X,
-        BoundarySide.LEFT: EdgeSpecValue.Z,
-        BoundarySide.RIGHT: EdgeSpecValue.Z,
-    }
+    edgespec: dict[BoundarySide, EdgeSpecValue] = to_edgespec("ZZXX")
 
     # Add initialization cube at the beginning based on init_type
     init_skeleton: RHGCubeSkeleton
