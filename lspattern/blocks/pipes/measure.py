@@ -219,7 +219,6 @@ class MeasureXPipe(_MeasurePipeBase):
             msg = f"Data node not found at expected coordinate for cout port: {target}"
             raise ValueError(msg)
         self.cout_ports = [{node}]
-        # self.cout_ports = []  # cout ports not necessary
 
     def _construct_detectors(self) -> None:
         """Construct X-stabilizer detectors for X measurement."""
