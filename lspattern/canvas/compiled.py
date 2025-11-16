@@ -371,7 +371,7 @@ def _remap_layer_mappings(next_layer: TemporalLayer, node_map2: Mapping[int, int
 
 
 def _build_merged_coord2node(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> dict[PhysCoordGlobal3D, int]:
-    """Build merged coordinate to node mapping without duplicate node ids."""
+    """Build merged coordinate to node mapping."""
 
     return {
         **cgraph.coord2node,
@@ -414,7 +414,7 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> 
     _remap_layer_mappings(next_layer, node_map2)
     # Build merged mappings
     new_coord2node = _build_merged_coord2node(cgraph, next_layer)
-    # cgraph is already remapped with node_map1 at line 386, so pass empty map to avoid double remapping
+    # cgraph is already remapped with node_map1 at line 412, so pass empty map to avoid double remapping
     # TODO: should simplify the logic for better clarity
     merged_port_manager = cgraph.port_manager.merge(next_layer.port_manager, {}, node_map2)
 
