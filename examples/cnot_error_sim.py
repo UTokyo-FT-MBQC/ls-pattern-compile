@@ -203,7 +203,8 @@ if __name__ == "__main__":
             json_metadata={"d": d, "r": 1, "p": noise, "circuit_type": "cnot"},
         )
         for d in [3, 5, 7]
-        for noise in [1e-4, 1e-3, 1e-2, 2e-2, 3e-2, 4e-2, 5e-2, 1e-1]
+        # Finer sampling is needed to see threshold behavior
+        for noise in [1e-2, 2e-2, 3e-2, 4e-2, 5e-2, 1e-1]
     ]
 
     # Collect statistics
