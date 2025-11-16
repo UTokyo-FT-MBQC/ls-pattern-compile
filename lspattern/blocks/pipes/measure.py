@@ -8,7 +8,13 @@ from graphqomb.graphstate import GraphState
 
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
 from lspattern.consts import DIRECTIONS2D, NodeRole, TemporalBoundarySpecValue
-from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D, PhysCoordLocal2D, SpatialEdgeSpec
+from lspattern.mytype import (
+    NodeIdLocal,
+    PatchCoordGlobal3D,
+    PhysCoordGlobal3D,
+    PhysCoordLocal2D,
+    SpatialEdgeSpec,
+)
 from lspattern.tiling.template import RotatedPlanarPipetemplate
 from lspattern.utils import get_direction
 
@@ -35,7 +41,7 @@ class _MeasurePipeBase(RHGPipe):
         edge_spec = edgespec or {}
         super().__init__(d=d, edge_spec=edge_spec)
         self.direction = direction
-        self.template = RotatedPlanarPipetemplate(d=d, edgespec=edge_spec)
+        self.template = RotatedPlanarPipetemplate(d=d, edgespec=edge_spec, direction=direction)
         self.meas_basis = AxisMeasBasis(basis, Sign.PLUS)
 
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
@@ -217,7 +223,6 @@ class MeasureXPipe(_MeasurePipeBase):
     def _construct_detectors(self) -> None:
         """Construct X-stabilizer detectors for X measurement."""
         x2d = self.template.x_coords
-
         z_offset = self.source[2] * (2 * self.d)
         height = max({coord[2] for coord in self.coord2node}, default=0) - z_offset + 1
 
@@ -228,6 +233,7 @@ class MeasureXPipe(_MeasurePipeBase):
                     node_id = self.coord2node.get(PhysCoordGlobal3D((x + dx, y + dy, z + z_offset)))
                     if node_id is not None:
                         node_group.add(node_id)
+                # TODO: FIXME: When blocks follow, z_offset + 1 is needed, but for 1x2 rectangular block measurement, z_offset + 0 must be used or it won't work correctly. This bug needs to be fixed in the future, but for now we leave it as-is since rectangular block measurements don't appear.  # noqa: E501
                 if node_group:
                     self.parity.checks.setdefault(PhysCoordLocal2D((x, y)), {})[z + z_offset + 1] = (
                         node_group  # To group with neighboring X ancilla

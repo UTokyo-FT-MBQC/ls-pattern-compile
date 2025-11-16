@@ -69,14 +69,14 @@ def visualize_temporal_layer(  # noqa: C901
         msg = "ax should not be None here"
         raise ValueError(msg)
     ax.set_box_aspect((1, 1, 1))  # type: ignore[arg-type]
-    # 軸とグリッドの表示制御(デフォルトON)
+    # Axis and grid display control (default ON)
     if show_axes:
         ax.set_axis_on()
     else:
         ax.set_axis_off()
     ax.grid(bool(show_grid))
 
-    # 役割ベースでグルーピングして凡例を表示(z 偶奇による分岐は行わない)
+    # Group by role and display legend (no branching based on z parity)
     roles: dict[int, str] = {int(k): v for k, v in (layer.node2role or {}).items()}
     groups: dict[str, dict[str, list[int]]] = {
         NodeRole.DATA: {"x": [], "y": [], "z": []},

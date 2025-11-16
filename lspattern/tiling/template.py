@@ -329,7 +329,9 @@ class ScalableTemplate(Tiling):
         self.x_coords = [p for p in (self.x_coords or []) if p[axis] != target]
         self.z_coords = [p for p in (self.z_coords or []) if p[axis] != target]
 
-    def visualize_tiling(self, ax: Axes | None = None, show: bool = True, title_suffix: str | None = None) -> None:  # noqa: C901
+    def visualize_tiling(  # noqa: C901
+        self, ax: Axes | None = None, show: bool = True, title_suffix: str | None = None
+    ) -> None:
         """Visualize the tiling using matplotlib.
 
         - data qubits: white-filled circles with black edge
@@ -594,21 +596,16 @@ def merge_pair_spatial(
     )
 
 
+@dataclass(kw_only=True)
 class RotatedPlanarPipetemplate(ScalableTemplate):
+    direction: PIPEDIRECTION
+
     def to_tiling(self) -> dict[str, list[tuple[int, int]]]:  # noqa: C901
         d = self.d
         data_coords: set[tuple[int, int]] = set()
         x_coords: set[tuple[int, int]] = set()
         z_coords: set[tuple[int, int]] = set()
-
-        is_x_dir = (
-            self._spec(BoundarySide.LEFT) == EdgeSpecValue.O and self._spec(BoundarySide.RIGHT) == EdgeSpecValue.O
-        )
-        is_y_dir = (
-            self._spec(BoundarySide.TOP) == EdgeSpecValue.O and self._spec(BoundarySide.BOTTOM) == EdgeSpecValue.O
-        )
-
-        if is_x_dir:
+        if self.direction in {PIPEDIRECTION.RIGHT, PIPEDIRECTION.LEFT}:
             # Pipe along Y (vertical), x fixed at 0
             data_coords.update((0, y) for y in range(0, 2 * d, 2))
             for n in range(d - 1):
@@ -631,7 +628,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                 case _:
                     pass
 
-        elif is_y_dir:
+        elif self.direction in {PIPEDIRECTION.TOP, PIPEDIRECTION.BOTTOM}:
             # Pipe along X (horizontal), y fixed at 0
             data_coords.update((x, 0) for x in range(0, 2 * d, 2))
             for n in range(d - 1):
@@ -653,12 +650,8 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                     z_coords.add((2 * d - 1, -1))
                 case _:
                     pass
-
-        elif self._spec(BoundarySide.UP) == EdgeSpecValue.O or self._spec(BoundarySide.DOWN) == EdgeSpecValue.O:
-            msg = "Temporal pipe not supported yet"
-            raise NotImplementedError(msg)
         else:
-            msg = "This pipe has no connection boundary (EdgeSpec)"
+            msg = f"Unknown pipe direction. Got: {self.direction}"
             raise ValueError(msg)
 
         result = {
@@ -716,7 +709,7 @@ class RotatedPlanarPipetemplate(ScalableTemplate):
                 self.z_coords = [TilingCoord2D((x + dx, y + dy)) for (x, y) in self.z_coords]
             return self
         t = offset_tiling(self, dx, dy)
-        new = RotatedPlanarPipetemplate(d=self.d, edgespec=self.edgespec)
+        new = RotatedPlanarPipetemplate(d=self.d, edgespec=self.edgespec, direction=self.direction)
         new.data_coords = t.data_coords
         new.x_coords = t.x_coords
         new.z_coords = t.z_coords

@@ -173,7 +173,7 @@ class LayeredMemoryPipe(LayeredRHGPipe):
         """
         super().__init__(d=d, edge_spec=edgespec or {})
         self.direction = direction
-        self.template = RotatedPlanarPipetemplate(d=d, edgespec=edgespec or {})
+        self.template = RotatedPlanarPipetemplate(d=d, edgespec=edgespec or {}, direction=direction)
         self.unit_layers = unit_layers
 
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
@@ -293,7 +293,7 @@ class LayeredInitPlusPipe(LayeredRHGPipe):
         """
         super().__init__(d=d, edge_spec=edgespec or {})
         self.direction = direction
-        self.template = RotatedPlanarPipetemplate(d=d, edgespec=edgespec or {})
+        self.template = RotatedPlanarPipetemplate(d=d, edgespec=edgespec or {}, direction=direction)
         self.unit_layers = unit_layers
 
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:

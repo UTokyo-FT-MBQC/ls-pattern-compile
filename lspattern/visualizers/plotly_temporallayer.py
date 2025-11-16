@@ -78,7 +78,7 @@ def visualize_temporal_layer_plotly(  # noqa: C901
     # Build groups
     groups: dict[NodeRole, dict[str, list[int]]] = {k: {"x": [], "y": [], "z": [], "nodes": []} for k in color_map}
 
-    # 役割は優先して TemporalLayer.node2role から取得(引数未指定時)
+    # Role is obtained from TemporalLayer.node2role with priority (when argument is not specified)
     if node_roles is None:
         node_roles = layer.node2role or None
     # Convert NodeIdLocal keys to int keys for compatibility
@@ -206,7 +206,7 @@ def visualize_temporal_layer_plotly(  # noqa: C901
         )
 
     # Layout
-    # 軸とレイアウト
+    # Axes and layout
     # Always fix aspect ratio to 1:1:1 regardless of cube/pipe/data ranges
     scene: dict[str, object] = {
         "xaxis_title": "X",
@@ -220,7 +220,7 @@ def visualize_temporal_layer_plotly(  # noqa: C901
         scene["xaxis"] = {"autorange": "reversed"}
         scene["yaxis"] = {"autorange": "reversed"}
 
-    # 軸の見た目制御
+    # Axis appearance control
     def _axis_cfg(base: dict[str, object] | None = None) -> dict[str, object]:
         base = dict(base or {})
         if show_axes:

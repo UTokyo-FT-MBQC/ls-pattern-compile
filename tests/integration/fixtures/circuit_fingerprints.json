@@ -1,4 +1,10 @@
 {
+  "cnot_d3": {
+    "num_detectors": 394,
+    "num_observables": 2,
+    "num_qubits": 1323,
+    "sha256": "a96c93d6fa6e07cdd9fc69941034c7d4389e4b60d008e6abb57ee0e9f107d79f"
+  },
   "initialization_plus_d3": {
     "num_detectors": 32,
     "num_observables": 1,
