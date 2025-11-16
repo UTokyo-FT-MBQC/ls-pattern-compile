@@ -6,7 +6,13 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from lspattern.new_blocks.mytype import Coord3D, NodeRole, QubitGroupId
+    from lspattern.consts import NodeRole
+    from lspattern.new_blocks.accumulator import (
+        CoordFlowAccumulator,
+        CoordParityAccumulator,
+        CoordScheduleAccumulator,
+    )
+    from lspattern.new_blocks.mytype import Coord3D
 
 
 @dataclass
@@ -17,5 +23,6 @@ class CoordBasedLayerData:
     coord2role: dict[Coord3D, NodeRole]
     spatial_edges: set[tuple[Coord3D, Coord3D]]
     temporal_edges: set[tuple[Coord3D, Coord3D]]
-    coord_schedule: dict[int, set[Coord3D]]
-    coord_flow: dict[Coord3D, set[Coord3D]]
+    coord_schedule: CoordScheduleAccumulator
+    coord_flow: CoordFlowAccumulator
+    coord_parity: CoordParityAccumulator
