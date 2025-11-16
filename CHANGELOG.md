@@ -49,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed z-offset calculation bug in pipe initialization (off-by-one error) ensuring correct temporal layer alignment ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
 - Fixed pipe direction inference bug where edge spec ambiguity caused incorrect pipe orientation ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
 
+### Fixed
+- Resolved duplicate/missing entries in `CompiledRHGCanvas.coord2node` by remapping node IDs before merging layers and by ignoring conflicting coordinate claims, ensuring global graphs stay consistent across compositions. Added regression coverage in `tests/test_coord2node_integrity.py`.
+
 ---
 
 ## Version [0.0.4] - 2025-10-31
