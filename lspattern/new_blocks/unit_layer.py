@@ -53,6 +53,7 @@ class UnitLayer:
         self,
         code_distance: int,
         global_pos: Coord3D,
+        z_offset: int,
     ) -> CoordBasedLayerData:
         """Build coordinate-based metadata from YAML configuration.
 
@@ -66,13 +67,15 @@ class UnitLayer:
             Code distance for the surface code.
         global_pos : Coord3D
             Global (x, y, z) position offset for this unit layer.
+        z_offset : int
+            Z-offset for the layer inside the block
 
         Returns
         -------
         CoordBasedLayerData
             Coordinate-based layer data with coordinates, edges, and accumulators.
         """
-        # Get base layout at z=0 (will shift to global_pos.z later)
+
         base_data, base_x_ancilla, base_z_ancilla = rotated_surface_code_layout(
             code_distance=code_distance,
             global_pos=Coord3D(global_pos.x, global_pos.y, 0),
@@ -84,11 +87,7 @@ class UnitLayer:
 
         # Build two layers
         for height in (0, 1):
-            z = global_pos.z + height
-
-            # Shift base coordinates to correct z-layer
-            # Note: rotated_surface_code_layout returns Coord3D, so access via .x, .y, .z
-            data_coords = {Coord3D(c[0], c[1], z) for c in base_data}
+            z = global_pos.z + z_offset + height
 
             if height == 0:
                 # Even layer: Data + Z-check ancillas
@@ -150,27 +149,6 @@ class UnitLayer:
             coord_flow=coord_flow,
             coord_parity=coord_parity,
         )
-
-
-class CustomUnitLayer:
-    """Custom unit layer defined by user-provided metadata."""
-
-    def __init__(self, global_pos: Coord3D, layer_data: CoordBasedLayerData) -> None:
-        """Initialize the custom unit layer with its global offset and metadata."""
-        self._global_pos = global_pos
-        self._layer_data = layer_data
-
-    @property
-    def global_pos(self) -> Coord3D:
-        """Return the global (x, y, z) position of the unit layer."""
-        return self._global_pos
-
-    def build_metadata(
-        self,
-        z_offset: int,  # noqa: ARG002
-    ) -> CoordBasedLayerData:
-        """Return the pre-defined coordinate-based metadata for this custom unit layer."""
-        return self._layer_data
 
 
 def load_unit_layer_from_yaml(yaml_path: str | Path) -> UnitLayer:
