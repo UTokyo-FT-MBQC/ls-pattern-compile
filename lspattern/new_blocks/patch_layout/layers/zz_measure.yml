@@ -2,8 +2,6 @@ name: ZZMeasureUnit
 description: This patch layout specifies a ZZ measurement unit layer
 
 params:
-  layout: rotated_surface_code
-
   logical_observables: Z # Z ancila measurement will be collected
 
   layers:  # layer configurations

@@ -2,13 +2,6 @@ name: InitPlusUnit
 description: This patch layout specifies an init plus unit layer
 
 params:
-  layout: rotated_surface_code
-  boundary: # If specified, this overrides block level boundary
-    left: X
-    right: X
-    top: Z
-    bottom: Z
-
   logical_observables: null # can be omitted, defaults to null
 
   layers:  # layer configurations

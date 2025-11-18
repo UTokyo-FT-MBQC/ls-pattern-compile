@@ -3,12 +3,6 @@ description: This patch layout specifies a X measurement unit layer
 
 params:
   layout: rotated_surface_code
-  boundary: # This can be optional by specifying block level
-    left: X
-    right: X
-    top: Z
-    bottom: Z
-
   logical_observables: TB # top to bottom logical observable for X measurement
 
   layers:  # layer configurations
