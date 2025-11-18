@@ -1,5 +1,5 @@
-name: InitZeroUnit
-description: This patch layout specifies an init zero unit layer
+name: EmptyUnit
+description: This patch layout specifies an empty unit layer
 
 logical_observables: null # can be omitted, defaults to null
 
@@ -8,5 +8,5 @@ layers:  # layer configurations
     basis: null # layer 1, no qubit preparation
     ancilla: false # no ancilla qubits prepared
   - layer2:
-    basis: X # layer 2, transversally X basis, can be omitted, defaults to X
-    ancilla: true
+    basis: null # layer 2, no qubit preparation
+    ancilla: false

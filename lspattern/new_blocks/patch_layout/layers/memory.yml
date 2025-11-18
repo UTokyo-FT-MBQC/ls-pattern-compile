@@ -1,13 +1,12 @@
 name: MemoryUnit
 description: This patch layout specifies a memory unit layer
 
-params: # everything will be defaulted, no need to specify anything
-  logical_observables: null # can be omitted, defaults to null
+logical_observables: null # can be omitted, defaults to null
 
-  layers:  # layer configurations
-    - layer1:
-      basis: X # layer 1, transversally X basis, can be omitted, defaults to X
-      ancilla: true # can be omitted, defaults to true
-    - layer2:
-      basis: X # layer 2, transversally X basis, can be omitted, defaults to X
-      ancilla: true
+layers:  # layer configurations
+  - layer1:
+    basis: X # layer 1, transversally X basis, can be omitted, defaults to X
+    ancilla: true # can be omitted, defaults to true
+  - layer2:
+    basis: X # layer 2, transversally X basis, can be omitted, defaults to X
+    ancilla: true
