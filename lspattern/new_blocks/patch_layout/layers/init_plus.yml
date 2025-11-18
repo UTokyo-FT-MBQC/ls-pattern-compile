@@ -15,8 +15,6 @@ params:
     - layer1:
       basis: X # layer 1, transversally X basis, can be omitted, defaults to X
       ancilla: true # can be omitted, defaults to true
-      init: true
     - layer2:
       basis: X # layer 2, transversally X basis, can be omitted, defaults to X
       ancilla: true
-      init: false # can be omitted, defaults to false

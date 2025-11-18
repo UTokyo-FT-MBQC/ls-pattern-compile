@@ -17,10 +17,8 @@ params:
        [Z, X, X],
        [Z, Z, X]] # layer 1, advanced custom design
       ancilla: true # can be omitted, defaults to true
-      init: false # can be omitted, defaults to false
     - layer2:
       basis: [[X, X, X],
        [X, X, X],
        [X, X, X]] # layer 2, transversally X basis
       ancilla: true
-      init: false
