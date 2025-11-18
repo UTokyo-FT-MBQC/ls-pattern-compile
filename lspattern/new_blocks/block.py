@@ -83,3 +83,49 @@ class RHGCube(RHGBlock):
             The sequence of unit layers comprising the block.
         """
         raise NotImplementedError
+
+
+@dataclass
+class RHGPipe(RHGBlock):
+    """Concrete implementation of an RHG pipe block."""
+
+    source_pos: Coord3D
+    target_pos: Coord3D
+    d: int
+    coord2role: dict[Coord3D, str] = field(default_factory=dict)
+    coord_schedule: CoordScheduleAccumulator = field(default_factory=CoordScheduleAccumulator)
+    coord_flow: CoordFlowAccumulator = field(default_factory=CoordFlowAccumulator)
+    coord_parity: CoordParityAccumulator = field(default_factory=CoordParityAccumulator)
+    _cout_ports: set[Coord3D] = field(default_factory=set)
+
+    @property
+    def source_pos(self) -> Coord3D:
+        """Return the global origin coordinate of the cube."""
+        return self.source_pos
+
+    @property
+    def target_pos(self) -> Coord3D:
+        """Return the global target coordinate of the cube."""
+        return self.target_pos
+
+    @property
+    def cout_ports(self) -> set[Coord3D]:
+        """Return the set of 3D coordinates used as classical output ports."""
+        return self._cout_ports
+
+    @classmethod
+    def from_unitlayers(
+        cls,
+        global_pos: Coord3D,
+        unit_layers: Sequence[UnitLayer],
+    ) -> RHGCube:
+        """Populate coordinate metadata ahead of graph materialization.
+
+        Parameters
+        ----------
+        global_pos : Coord3D
+            The global (x, y, z) position of the block.
+        unit_layers : collections.abc.Sequence[UnitLayer]
+            The sequence of unit layers comprising the block.
+        """
+        raise NotImplementedError
