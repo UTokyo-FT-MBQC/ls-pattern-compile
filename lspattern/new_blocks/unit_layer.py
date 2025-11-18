@@ -47,3 +47,5 @@ class UnitLayer:
     layout_type: str
     boundary: dict[BoundarySide, EdgeSpecValue]
     layers_config: list[dict[str, Any]]
+
+    def
