@@ -7,10 +7,13 @@ that define patch layout layers for MBQC surface code patterns.
 
 from pathlib import Path
 from typing import NamedTuple
+from collections.abc import Sequence
 
 import yaml
 from graphqomb.common import Axis
 from pydantic import BaseModel, Field, field_validator
+
+from lspattern.consts import BoundarySide, EdgeSpecValue
 
 
 class LayerConfig(NamedTuple):
@@ -53,6 +56,21 @@ class PatchLayoutConfig(NamedTuple):
     description: str
     layer1: LayerConfig
     layer2: LayerConfig
+
+
+class BlockConfig(Sequence[PatchLayoutConfig]):
+    """Sequence of PatchLayoutConfig representing a block configuration."""
+
+    boundary: dict[BoundarySide, EdgeSpecValue]
+
+    def __init__(self, configs: Sequence[PatchLayoutConfig]) -> None:
+        self._configs = configs
+
+    def __getitem__(self, index: int) -> PatchLayoutConfig:
+        return self._configs[index]
+
+    def __len__(self) -> int:
+        return len(self._configs)
 
 
 # Pydantic models for YAML validation

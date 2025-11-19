@@ -11,6 +11,14 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 
+ANCILLA_EDGE = {
+    (1, 1),
+    (1, -1),
+    (-1, 1),
+    (-1, -1),
+}
+
+
 def rotated_surface_code_layout(  # noqa: C901
     code_distance: int,
     global_pos: Coord3D,

@@ -3,10 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any
-
-import yaml
 
 from lspattern.consts import BoundarySide, EdgeSpecValue, NodeRole
 from lspattern.new_blocks import coord_utils
@@ -46,6 +42,3 @@ class UnitLayer:
     description: str
     layout_type: str
     boundary: dict[BoundarySide, EdgeSpecValue]
-    layers_config: list[dict[str, Any]]
-
-    def
