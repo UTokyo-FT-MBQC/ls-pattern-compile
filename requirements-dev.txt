@@ -2,3 +2,4 @@ ruff
 mypy
 pyright
 pytest
+types-PyYAML

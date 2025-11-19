@@ -1,12 +1,9 @@
 name: InitPlusUnit
 description: This patch layout specifies an init plus unit layer
 
-logical_observables: null # can be omitted, defaults to null
-
-layers:  # layer configurations
-  - layer1:
-    basis: X # layer 1, transversally X basis, can be omitted, defaults to X
-    ancilla: true # can be omitted, defaults to true
-  - layer2:
-    basis: X # layer 2, transversally X basis, can be omitted, defaults to X
-    ancilla: true
+layer1:
+  basis: X # layer 1, transversally X basis, can be omitted, defaults to X
+  ancilla: true # can be omitted, defaults to true
+layer2:
+  basis: X # layer 2, transversally X basis, can be omitted, defaults to X
+  ancilla: true

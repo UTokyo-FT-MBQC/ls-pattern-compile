@@ -1,12 +1,9 @@
 name: MeasureXUnit
 description: This patch layout specifies a X measurement unit layer
 
-logical_observables: TB # top to bottom logical observable for X measurement
-
-layers:  # layer configurations
-  - layer1:
-    basis: X # layer 1, transversally X basis, can be omitted, defaults to X
-    ancilla: false # measure layer does not need ancilla qubits
-  - layer2:
-    basis: null # layer 2, no qubit after measurement
-    ancilla: false
+layer1:
+  basis: X # layer 1, transversally X basis, can be omitted, defaults to X
+  ancilla: false # measure layer does not need ancilla qubits
+layer2:
+  basis: null # layer 2, no qubit after measurement
+  ancilla: false
