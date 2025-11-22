@@ -1,6 +1,0 @@
-name: Rotated Surface Code Canvas
-description: Global config for rotated surface code based blocks
-
-params:
-  layout: rotated_surface_code # required
-  code_distance: 5 # required
