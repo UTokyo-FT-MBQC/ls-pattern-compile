@@ -1,15 +1,7 @@
 name: MemoryBlock
 description: This block represents a memory block
 
-boundary:
-  top: X
-  bottom: X
-  left: Z
-  right: Z
-
-logical_observables: null # can be omitted, defaults to null
-
 layers: # list of layers in this block
   - type: MemoryUnit
     params:
-      num_layers: 3
+      num_layers_from_distance: rest
