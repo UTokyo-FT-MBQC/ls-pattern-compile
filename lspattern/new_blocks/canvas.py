@@ -116,6 +116,10 @@ class Canvas:
     def pauli_axes(self) -> dict[Coord3D, Axis]:
         return dict(self.__pauli_axes)
 
+    @property
+    def parity_accumulator(self) -> CoordParityAccumulator:
+        return self.__parity
+
     def add_cube(self, global_pos: Coord3D, block_config: BlockConfig) -> None:
         data2d, ancilla_x2d, ancilla_z2d = rotated_surface_code_layout(self.config.d, global_pos, block_config.boundary)
 
