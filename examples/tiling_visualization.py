@@ -8,8 +8,12 @@ and pipes with different boundary conditions.
 """
 
 import matplotlib.pyplot as plt
-from lspattern.consts import BoundarySide, EdgeSpecValue
-from lspattern.tiling.template import RotatedPlanarCubeTemplate, RotatedPlanarPipetemplate
+from lspattern.tiling.template import (
+    RotatedPlanarCubeTemplate,
+    RotatedPlanarPipetemplate,
+)
+from lspattern.utils import to_edgespec
+
 
 # %%
 # Case: Rotated Planar Tiling (XXZZ)
@@ -18,12 +22,7 @@ print("Case: Rotated Planar Tiling (XXZZ)")
 print("=" * 60)
 
 d = 3
-edgespec_xxzz: dict[BoundarySide, EdgeSpecValue] = {
-    BoundarySide.LEFT: EdgeSpecValue.X,
-    BoundarySide.RIGHT: EdgeSpecValue.X,
-    BoundarySide.TOP: EdgeSpecValue.Z,
-    BoundarySide.BOTTOM: EdgeSpecValue.Z,
-}
+edgespec_xxzz = to_edgespec("XXZZ")
 
 tiling_xxzz = RotatedPlanarCubeTemplate(d=d, edgespec=edgespec_xxzz)
 tiling_xxzz.to_tiling()
@@ -48,12 +47,7 @@ print("\n" + "=" * 60)
 print("Case: Rotated Planar Tiling (ZZXX)")
 print("=" * 60)
 
-edgespec_zzxx: dict[BoundarySide, EdgeSpecValue] = {
-    BoundarySide.LEFT: EdgeSpecValue.Z,
-    BoundarySide.RIGHT: EdgeSpecValue.Z,
-    BoundarySide.TOP: EdgeSpecValue.X,
-    BoundarySide.BOTTOM: EdgeSpecValue.X,
-}
+edgespec_zzxx = to_edgespec("ZZXX")
 
 tiling_zzxx = RotatedPlanarCubeTemplate(d=d, edgespec=edgespec_zzxx)
 tiling_zzxx.to_tiling()
@@ -78,12 +72,7 @@ print("\n" + "=" * 60)
 print("Case: Rotated Planar Tiling (OOOO)")
 print("=" * 60)
 
-edgespec_oooo: dict[BoundarySide, EdgeSpecValue] = {
-    BoundarySide.LEFT: EdgeSpecValue.O,
-    BoundarySide.RIGHT: EdgeSpecValue.O,
-    BoundarySide.TOP: EdgeSpecValue.O,
-    BoundarySide.BOTTOM: EdgeSpecValue.O,
-}
+edgespec_oooo = to_edgespec("OOOO")
 
 tiling_oooo = RotatedPlanarCubeTemplate(d=d, edgespec=edgespec_oooo)
 tiling_oooo.to_tiling()
@@ -108,12 +97,7 @@ print("\n" + "=" * 60)
 print("Case: Rotated Planar Tiling (ZXZX) - Check corner trimming")
 print("=" * 60)
 
-edgespec_zxzx: dict[BoundarySide, EdgeSpecValue] = {
-    BoundarySide.LEFT: EdgeSpecValue.Z,
-    BoundarySide.RIGHT: EdgeSpecValue.X,
-    BoundarySide.TOP: EdgeSpecValue.Z,
-    BoundarySide.BOTTOM: EdgeSpecValue.X,
-}
+edgespec_zxzx = to_edgespec("ZXZX")
 
 tiling_zxzx = RotatedPlanarCubeTemplate(d=d, edgespec=edgespec_zxzx)
 tiling_zxzx.to_tiling()
@@ -139,12 +123,7 @@ print("\n" + "=" * 60)
 print("Case: Pipe tiling (OOXX) - Vertical")
 print("=" * 60)
 
-edgespec_ooxx: dict[BoundarySide, EdgeSpecValue] = {
-    BoundarySide.LEFT: EdgeSpecValue.O,
-    BoundarySide.RIGHT: EdgeSpecValue.O,
-    BoundarySide.TOP: EdgeSpecValue.X,
-    BoundarySide.BOTTOM: EdgeSpecValue.X,
-}
+edgespec_ooxx = to_edgespec("OOXX")
 
 tiling_pipe_ooxx = RotatedPlanarPipetemplate(d=d, edgespec=edgespec_ooxx)
 tiling_pipe_ooxx.to_tiling()
@@ -157,7 +136,9 @@ print(f"\nZ ancilla qubits (n={len(tiling_pipe_ooxx.z_coords)}):")
 print(tiling_pipe_ooxx.z_coords)
 
 fig, ax = plt.subplots(figsize=(8, 8))
-tiling_pipe_ooxx.visualize_tiling(ax=ax, show=False, title_suffix="Pipe OOXX (Vertical)")
+tiling_pipe_ooxx.visualize_tiling(
+    ax=ax, show=False, title_suffix="Pipe OOXX (Vertical)"
+)
 plt.tight_layout()
 plt.savefig("tiling_pipe_ooxx_vertical.png", dpi=150, bbox_inches="tight")
 print("\nFigure saved: tiling_pipe_ooxx_vertical.png")
@@ -169,12 +150,7 @@ print("\n" + "=" * 60)
 print("Case: Pipe tiling (ZZOO) - Horizontal")
 print("=" * 60)
 
-edgespec_zzoo: dict[BoundarySide, EdgeSpecValue] = {
-    BoundarySide.LEFT: EdgeSpecValue.Z,
-    BoundarySide.RIGHT: EdgeSpecValue.Z,
-    BoundarySide.TOP: EdgeSpecValue.O,
-    BoundarySide.BOTTOM: EdgeSpecValue.O,
-}
+edgespec_zzoo = to_edgespec("ZZOO")
 
 tiling_pipe_zzoo = RotatedPlanarPipetemplate(d=d, edgespec=edgespec_zzoo)
 tiling_pipe_zzoo.to_tiling()
@@ -187,7 +163,9 @@ print(f"\nZ ancilla qubits (n={len(tiling_pipe_zzoo.z_coords)}):")
 print(tiling_pipe_zzoo.z_coords)
 
 fig, ax = plt.subplots(figsize=(8, 8))
-tiling_pipe_zzoo.visualize_tiling(ax=ax, show=False, title_suffix="Pipe ZZOO (Horizontal)")
+tiling_pipe_zzoo.visualize_tiling(
+    ax=ax, show=False, title_suffix="Pipe ZZOO (Horizontal)"
+)
 plt.tight_layout()
 plt.savefig("tiling_pipe_zzoo_horizontal.png", dpi=150, bbox_inches="tight")
 print("\nFigure saved: tiling_pipe_zzoo_horizontal.png")
