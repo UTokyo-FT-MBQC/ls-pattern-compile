@@ -16,7 +16,13 @@ from lspattern.accumulator import (
     ParityAccumulator,
     ScheduleAccumulator,
 )
-from lspattern.consts import BoundarySide, EdgeSpecValue, NodeRole, Observable, TemporalBoundarySpecValue
+from lspattern.consts import (
+    BoundarySide,
+    EdgeSpecValue,
+    NodeRole,
+    Observable,
+    TemporalBoundarySpecValue,
+)
 from lspattern.consts.consts import DIRECTIONS2D
 from lspattern.tiling.template import (
     RotatedPlanarCubeTemplate,
@@ -91,6 +97,7 @@ class RHGBlock:
     name: ClassVar[str] = __qualname__
     d: int = 3
     edge_spec: SpatialEdgeSpec | None = field(default_factory=dict)
+    next_edgespec: SpatialEdgeSpec | None = field(default=None)
     # source
     source: PatchCoordGlobal3D = field(default_factory=lambda: PatchCoordGlobal3D((0, 0, 0)))
     sink: PatchCoordGlobal3D | None = None
@@ -133,7 +140,12 @@ class RHGBlock:
 
         # Trim spatial boundaries for explicitly open sides and precompute tiling
         es = edgespec or {}
-        for side in (BoundarySide.LEFT, BoundarySide.RIGHT, BoundarySide.TOP, BoundarySide.BOTTOM):
+        for side in (
+            BoundarySide.LEFT,
+            BoundarySide.RIGHT,
+            BoundarySide.TOP,
+            BoundarySide.BOTTOM,
+        ):
             if es.get(side) == EdgeSpecValue.O:
                 self.template.trim_spatial_boundary(side)
 
@@ -239,7 +251,9 @@ class RHGBlock:
         node2role: dict[int, str] = {}
 
         # Assign nodes for each time slice
-        nodes_by_z = self._assign_nodes_by_timeslice(g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role)
+        nodes_by_z = self._assign_nodes_by_timeslice(
+            g, data2d, x2d, z2d, max_t, z0, node2coord, coord2node, node2role, next_edgespec=self.next_edgespec
+        )
 
         self._construct_schedule(nodes_by_z, node2role)
 
@@ -261,6 +275,7 @@ class RHGBlock:
         node2coord: MutableMapping[int, tuple[int, int, int]],
         coord2node: MutableMapping[tuple[int, int, int], int],
         node2role: MutableMapping[int, str],
+        next_edgespec: SpatialEdgeSpec | None = None,
     ) -> dict[int, dict[tuple[int, int], int]]:
         """Assign nodes for each time slice."""
         nodes_by_z: dict[int, dict[tuple[int, int], int]] = {}
@@ -269,7 +284,50 @@ class RHGBlock:
             cur: dict[tuple[int, int], int] = {}
             if t_local == max_t and self.final_layer == TemporalBoundarySpecValue.O:
                 # add data node
-                for x, y in data2d:
+
+                # ----- TEMPORARY FIX -----
+                # Check the edgespec of the next layer to see if we really need to add all the physical nodes.
+                # Some data nodes need not be added.
+                # Use the same algorithm as in the RotatedPlanarCubeTemplate in template.py
+                # pop elements if up = right, up = left, down = right, down = left
+                rc = []
+                if next_edgespec:
+                    left, right, top, bottom = (
+                        next_edgespec[BoundarySide.LEFT],
+                        next_edgespec[BoundarySide.RIGHT],
+                        next_edgespec[BoundarySide.TOP],
+                        next_edgespec[BoundarySide.BOTTOM],
+                    )
+                    if (top, right) == (EdgeSpecValue.Z, EdgeSpecValue.Z):
+                        # remove (X, Y) = (max, max)
+                        rx = max(x for x, y in data2d)
+                        ry = max(y for x, y in data2d)
+                        rc.append((rx, ry))
+                    if (bottom, left) == (EdgeSpecValue.Z, EdgeSpecValue.Z):
+                        # remove (X, Y) = (min, min)
+                        rx = min(x for x, y in data2d)
+                        ry = min(y for x, y in data2d)
+                        rc.append((rx, ry))
+                    if (top, left) == (EdgeSpecValue.X, EdgeSpecValue.X):
+                        # remove (X, Y) = (min, max)
+                        rx = min(x for x, y in data2d)
+                        ry = max(y for x, y in data2d)
+                        rc.append((rx, ry))
+                    if (bottom, right) == (EdgeSpecValue.X, EdgeSpecValue.X):
+                        # remove (X, Y) = (max, min)
+                        rx = max(x for x, y in data2d)
+                        ry = min(y for x, y in data2d)
+                        rc.append((rx, ry))
+                    print(f"remove_coords: {rc}")
+                    data2df = [coord for coord in data2d if coord]  #  not in rc
+                    print(data2df)
+                    print(data2d)
+                    print("z", t)
+                    print("length", len(data2df), len(data2d))
+                else:
+                    data2df = data2d
+                # ----- TEMPORARY FIX END -----
+                for x, y in data2df:
                     n = g.add_physical_node()
                     node2coord[n] = (int(x), int(y), int(t))
                     coord2node[int(x), int(y), int(t)] = n
@@ -668,6 +726,7 @@ class RHGBlockSkeleton:
     name: ClassVar[str] = __qualname__
     d: int
     edgespec: SpatialEdgeSpec
+    next_edgespec: SpatialEdgeSpec | None = field(default=None)
     template: ScalableTemplate = field(init=False)
 
     def __post_init__(self) -> None:

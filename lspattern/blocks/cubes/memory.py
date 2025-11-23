@@ -21,11 +21,14 @@ class MemoryCubeSkeleton(RHGCubeSkeleton):
         # Evaluate template coordinates
         self.template.to_tiling()
 
+        print("aaa" * 10)
         block = MemoryCube(
             d=self.d,
             edge_spec=self.edgespec,
             template=self.template,
+            next_edgespec=self.next_edgespec,
         )
+        print("bbb" * 10)
         # Memory 系も最終層は開放(O): 次段へ受け渡し
         block.final_layer = TemporalBoundarySpecValue.O
         return block
