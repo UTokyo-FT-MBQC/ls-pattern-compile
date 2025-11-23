@@ -12,7 +12,7 @@ from lspattern.new_blocks.layout.rotated_surface_code import (
     rotated_surface_code_layout,
 )  # this will be dynamically loaded based on config
 from lspattern.new_blocks.loader import BlockConfig
-from lspattern.new_blocks.mytype import DIRECTION2D, Coord3D, NodeRole
+from lspattern.new_blocks.mytype import DIRECTION2D, Coord2D, Coord3D, NodeRole
 
 
 class Boundary(NamedTuple):
@@ -135,6 +135,18 @@ class Canvas:
                         self.__edges.add((Coord3D(x, y, z - 1), Coord3D(x, y, z)))
                         self.__flow.add_flow(Coord3D(x, y, z - 1), Coord3D(x, y, z))
 
+                # should construct parity check with data qubits
+                if not layer_cfg.layer1.ancilla:
+                    parity_offset = 1 if layer_cfg.layer1.basis == Axis.X else 0  # NOTE: only X and Z are allowed
+                    ancilla_2d = ancilla_z2d if layer_cfg.layer1.basis == Axis.Z else ancilla_x2d
+                    for x, y in ancilla_2d:
+                        data_collection: set[Coord3D] = set()
+                        for dx, dy in ANCILLA_EDGE:
+                            if Coord3D(x + dx, y + dy, z) in self.__nodes:
+                                data_collection.add(Coord3D(x + dx, y + dy, z))
+                        if data_collection:
+                            self.__parity.add_syndrome_measurement(Coord2D(x, y), z + parity_offset, data_collection)
+
             if layer_cfg.layer2.basis is not None:
                 for x, y in data2d:
                     self.__nodes.add(Coord3D(x, y, z + 1))
@@ -145,6 +157,21 @@ class Canvas:
                         self.__edges.add((Coord3D(x, y, z), Coord3D(x, y, z + 1)))
                         self.__flow.add_flow(Coord3D(x, y, z), Coord3D(x, y, z + 1))
 
+                # NOTE: Redundant in layer2?
+                # should construct parity check with data qubits
+                if not layer_cfg.layer2.ancilla:
+                    parity_offset = 0 if layer_cfg.layer2.basis == Axis.X else 1  # NOTE: only X and Z are allowed
+                    ancilla_2d = ancilla_z2d if layer_cfg.layer2.basis == Axis.Z else ancilla_x2d
+                    for x, y in ancilla_2d:
+                        data_collection = set()
+                        for dx, dy in ANCILLA_EDGE:
+                            if Coord3D(x + dx, y + dy, z + 1) in self.__nodes:
+                                data_collection.add(Coord3D(x + dx, y + dy, z + 1))
+                        if data_collection:
+                            self.__parity.add_syndrome_measurement(
+                                Coord2D(x, y), z + 1 + parity_offset, data_collection
+                            )
+
             if layer_cfg.layer1.ancilla:
                 for x, y in ancilla_z2d:
                     if layer_cfg.layer1.ancilla:
@@ -154,6 +181,7 @@ class Canvas:
                         for dx, dy in ANCILLA_EDGE:
                             if Coord3D(x + dx, y + dy, z) in self.__nodes:
                                 self.__edges.add((Coord3D(x, y, z), Coord3D(x + dx, y + dy, z)))
+                        self.__parity.add_syndrome_measurement(Coord2D(x, y), z, {Coord3D(x, y, z)})
 
             if layer_cfg.layer2.ancilla:
                 for x, y in ancilla_x2d:
@@ -163,6 +191,7 @@ class Canvas:
                     for dx, dy in ANCILLA_EDGE:
                         if Coord3D(x + dx, y + dy, z + 1) in self.__nodes:
                             self.__edges.add((Coord3D(x, y, z + 1), Coord3D(x + dx, y + dy, z + 1)))
+                    self.__parity.add_syndrome_measurement(Coord2D(x, y), z + 1, {Coord3D(x, y, z + 1)})
 
     def add_pipe(self, global_edge: tuple[Coord3D, Coord3D], block_config: BlockConfig) -> None:
         pass
