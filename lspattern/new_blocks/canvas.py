@@ -79,7 +79,7 @@ class Canvas:
         offset_z = global_pos.z * 2 * self.config.d
 
         # Build graph layer by layer
-        for layer_idx, layer_cfg in enumerate(block_config):
+        for layer_idx, layer_cfg in enumerate(block_config):  # noqa: PLR1702
             z = offset_z + layer_idx * 2
 
             if layer_cfg.layer1.basis is not None:
@@ -109,7 +109,8 @@ class Canvas:
                         self.__coord2role[Coord3D(x, y, z)] = NodeRole.ANCILLA_Z
                         self.__pauli_axes[Coord3D(x, y, z)] = Axis.X
                         for dx, dy in ANCILLA_EDGE:
-                            self.__edges.add((Coord3D(x, y, z), Coord3D(x + dx, y + dy, z)))
+                            if Coord3D(x + dx, y + dy, z) in self.__nodes:
+                                self.__edges.add((Coord3D(x, y, z), Coord3D(x + dx, y + dy, z)))
 
             if layer_cfg.layer2.ancilla:
                 for x, y in ancilla_x2d:
@@ -117,7 +118,8 @@ class Canvas:
                     self.__coord2role[Coord3D(x, y, z + 1)] = NodeRole.ANCILLA_X
                     self.__pauli_axes[Coord3D(x, y, z + 1)] = Axis.X
                     for dx, dy in ANCILLA_EDGE:
-                        self.__edges.add((Coord3D(x, y, z + 1), Coord3D(x + dx, y + dy, z + 1)))
+                        if Coord3D(x + dx, y + dy, z + 1) in self.__nodes:
+                            self.__edges.add((Coord3D(x, y, z + 1), Coord3D(x + dx, y + dy, z + 1)))
 
     def add_pipe(self, global_edge: tuple[Coord3D, Coord3D], block_config: BlockConfig) -> None:
         pass
