@@ -17,3 +17,5 @@ cube:
     block: MeasureXBlock
     boundary: XXZZ
     logical_observables: TB # top to bottom
+
+pipe: []

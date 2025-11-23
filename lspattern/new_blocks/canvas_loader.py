@@ -271,12 +271,42 @@ def load_canvas_spec(name: str | Path, *, extra_paths: Sequence[Path | str] = ()
             )
         )
 
+    raw_pipes = cfg.get("pipe")
+    if raw_pipes is None:
+        pipe_cfgs: list[dict[str, object]] = []
+    elif isinstance(raw_pipes, Sequence) and not isinstance(raw_pipes, (str, bytes)):
+        pipe_cfgs = list(raw_pipes)
+    else:
+        msg = f"Pipe spec must be a sequence, got: {type(raw_pipes)}"
+        raise TypeError(msg)
+
+    pipes: list[CanvasPipeSpec] = []
+    for pipe_cfg in pipe_cfgs:
+        if not isinstance(pipe_cfg, Mapping):
+            msg = f"Each pipe entry must be a mapping, got: {type(pipe_cfg)}"
+            raise TypeError(msg)
+        start = Coord3D(*pipe_cfg["start"])
+        end = Coord3D(*pipe_cfg["end"])
+        block = pipe_cfg["block"]
+        boundary = _parse_boundary(pipe_cfg.get("boundary"), _DEFAULT_BOUNDARY)
+        logical = _parse_logical_observable(pipe_cfg.get("logical_observables"))
+        pipes.append(
+            CanvasPipeSpec(
+                start=start,
+                end=end,
+                block=block,
+                boundary=boundary,
+                logical_observable=logical,
+            )
+        )
+
     return CanvasSpec(
         name=cfg["name"],
         description=cfg.get("description", ""),
         code_distance=int(cfg["code_distance"]),
         layout=cfg.get("layout", "rotated_surface_code"),
         cubes=cubes,
+        pipes=pipes,
     )
 
 
@@ -291,6 +321,15 @@ def build_canvas(spec: CanvasSpec, *, extra_paths: Sequence[Path | str] = ()) ->
             boundary_override=cube.boundary,
         )
         canvas.add_cube(cube.position, block_config)
+
+    for pipe in spec.pipes:
+        block_config = load_block_config_from_name(
+            pipe.block,
+            code_distance=spec.code_distance,
+            extra_paths=extra_paths,
+            boundary_override=pipe.boundary,
+        )
+        canvas.add_pipe((pipe.start, pipe.end), block_config)
 
     return canvas
 
