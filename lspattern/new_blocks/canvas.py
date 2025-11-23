@@ -1,16 +1,25 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import NamedTuple
 
 from graphqomb.common import Axis
 
+from lspattern.consts import EdgeSpecValue
 from lspattern.new_blocks.accumulator import CoordFlowAccumulator, CoordParityAccumulator, CoordScheduleAccumulator
 from lspattern.new_blocks.layout.rotated_surface_code import (
     ANCILLA_EDGE,
     rotated_surface_code_layout,
 )  # this will be dynamically loaded based on config
 from lspattern.new_blocks.loader import BlockConfig
-from lspattern.new_blocks.mytype import Coord3D, NodeRole
+from lspattern.new_blocks.mytype import DIRECTION2D, Coord3D, NodeRole
+
+
+class Boundary(NamedTuple):
+    top: EdgeSpecValue
+    bottom: EdgeSpecValue
+    left: EdgeSpecValue
+    right: EdgeSpecValue
 
 
 @dataclass
@@ -33,6 +42,42 @@ class CanvasConfig:
     description: str
     d: int
     tiling: str
+
+
+@dataclass
+class BoundaryGraph:
+    """Graph representing boundary conditions."""
+
+    boundary_map: dict[Coord3D, Boundary]
+
+    def add_boundary(self, coord: Coord3D, boundary: Boundary) -> None:
+        self.boundary_map[coord] = boundary
+
+    def check_bulk_init(self, coord: Coord3D) -> bool:
+        """Check if the coordinate is in the bulk for initialization."""
+        return Coord3D(coord.x, coord.y, coord.z - 1) not in self.boundary_map
+
+    def check_boundary_init(self, coord: Coord3D) -> set[DIRECTION2D]:
+        prev_boundary = self.boundary_map.get(Coord3D(coord.x, coord.y, coord.z - 1), None)
+        if prev_boundary is None:
+            msg = f"No boundary info for coordinate {Coord3D(coord.x, coord.y, coord.z - 1)}"
+            raise KeyError(msg)
+        current_boundary = self.boundary_map.get(coord, None)
+        if current_boundary is None:
+            msg = f"No boundary info for coordinate {coord}"
+            raise KeyError(msg)
+
+        # check boundary change for each direction
+        changed_directions: set[DIRECTION2D] = set()
+        if prev_boundary.top != current_boundary.top:
+            changed_directions.add(DIRECTION2D.TOP)
+        if prev_boundary.bottom != current_boundary.bottom:
+            changed_directions.add(DIRECTION2D.BOTTOM)
+        if prev_boundary.left != current_boundary.left:
+            changed_directions.add(DIRECTION2D.LEFT)
+        if prev_boundary.right != current_boundary.right:
+            changed_directions.add(DIRECTION2D.RIGHT)
+        return changed_directions
 
 
 class Canvas:
