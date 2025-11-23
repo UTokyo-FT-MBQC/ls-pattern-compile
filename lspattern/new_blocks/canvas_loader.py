@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from importlib import resources
 from importlib.abc import Traversable
 from pathlib import Path
-from typing import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 
 import yaml
 from graphqomb.common import Axis
@@ -143,7 +143,9 @@ def _parse_edge_spec(value: object) -> EdgeSpecValue:
     return EdgeSpecValue(str(value).upper())
 
 
-def _parse_boundary(spec: object | None, fallback: Mapping[BoundarySide, EdgeSpecValue]) -> dict[BoundarySide, EdgeSpecValue]:
+def _parse_boundary(
+    spec: object | None, fallback: Mapping[BoundarySide, EdgeSpecValue]
+) -> dict[BoundarySide, EdgeSpecValue]:
     if spec is None:
         return dict(fallback)
 

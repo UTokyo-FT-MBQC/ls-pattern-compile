@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-from typing import Iterable, Mapping
+from collections.abc import Iterable, Mapping
 
 import plotly.graph_objects as go
 
 from lspattern.new_blocks.canvas import Canvas
 from lspattern.new_blocks.mytype import Coord3D, NodeRole
-
-__all__ = ["visualize_canvas_plotly"]
 
 
 _COLOR_MAP: dict[NodeRole, dict[str, object]] = {
