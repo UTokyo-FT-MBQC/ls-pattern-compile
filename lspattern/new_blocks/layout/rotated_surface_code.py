@@ -85,10 +85,10 @@ def rotated_surface_code_layout(  # noqa: C901
             coord = (offset_pos.x + x, offset_pos.y - 1)
             z_ancilla_coords.add(coord)
         if boundary[BoundarySide.BOTTOM] in {EdgeSpecValue.X, EdgeSpecValue.O} and x % 4 == 3:  # noqa: PLR2004
-            coord = (offset_pos.x + x, offset_pos.y + 2 * (code_distance - 1))
+            coord = (offset_pos.x + x, offset_pos.y + 2 * code_distance - 1)
             x_ancilla_coords.add(coord)
         if boundary[BoundarySide.BOTTOM] in {EdgeSpecValue.Z, EdgeSpecValue.O} and x % 4 == 1:
-            coord = (offset_pos.x + x, offset_pos.y + 2 * (code_distance - 1))
+            coord = (offset_pos.x + x, offset_pos.y + 2 * code_distance - 1)
             z_ancilla_coords.add(coord)
 
     for y in range(1, 2 * (code_distance - 1)):
@@ -99,10 +99,10 @@ def rotated_surface_code_layout(  # noqa: C901
             coord = (offset_pos.x - 1, offset_pos.y + y)
             z_ancilla_coords.add(coord)
         if boundary[BoundarySide.RIGHT] in {EdgeSpecValue.X, EdgeSpecValue.O} and y % 4 == 3:  # noqa: PLR2004
-            coord = (offset_pos.x + 2 * (code_distance - 1), offset_pos.y + y)
+            coord = (offset_pos.x + 2 * code_distance - 1, offset_pos.y + y)
             x_ancilla_coords.add(coord)
         if boundary[BoundarySide.RIGHT] in {EdgeSpecValue.Z, EdgeSpecValue.O} and y % 4 == 1:
-            coord = (offset_pos.x + 2 * (code_distance - 1), offset_pos.y + y)
+            coord = (offset_pos.x + 2 * code_distance - 1, offset_pos.y + y)
             z_ancilla_coords.add(coord)
 
     # process corner ancilla qubits
@@ -178,12 +178,11 @@ def rotated_surface_code_pipe_layout(  # noqa: C901
         offset_y -= 2
     if pipe_offset_dir == DIRECTION2D.BOTTOM:
         offset_y += 2 * code_distance
-    offset_pos = Coord3D(offset_x, offset_y)
+    offset_pos = Coord2D(offset_x, offset_y)
 
-    data_coords: set[Coord3D] = set()
-    x_ancilla_coords: set[Coord3D] = set()
-    z_ancilla_coords: set[Coord3D] = set()
-
+    data_coords: set[Coord2D] = set()
+    x_ancilla_coords: set[Coord2D] = set()
+    z_ancilla_coords: set[Coord2D] = set()
     for l in range(2 * (code_distance - 1)):  # long line  # noqa: E741
         for s in range(-1, 2):  # short line
             if pipe_dir == AxisDIRECTION2D.H:
@@ -194,15 +193,15 @@ def rotated_surface_code_pipe_layout(  # noqa: C901
                 y = offset_pos.y + s
             if x % 2 == 0 and y % 2 == 0:
                 # Data qubit
-                coord = (x, y)
+                coord = Coord2D(x, y)
                 data_coords.add(coord)
             elif (x + y) % 4 == 0:
                 # X ancilla qubit
-                coord = (x, y)
+                coord = Coord2D(x, y)
                 x_ancilla_coords.add(coord)
             elif (x + y) % 4 == 2:  # noqa: PLR2004
                 # Z ancilla qubit
-                coord = (x, y)
+                coord = Coord2D(x, y)
                 z_ancilla_coords.add(coord)
 
     # process boundary coordinates
@@ -212,25 +211,25 @@ def rotated_surface_code_pipe_layout(  # noqa: C901
             y_top = offset_pos.y - 1
             y_bottom = offset_pos.y + 2 * code_distance - 1
             if boundary[BoundarySide.TOP] == EdgeSpecValue.X and (x + y_top) % 4 == 0:
-                x_ancilla_coords.add((x, y_top))
+                x_ancilla_coords.add(Coord2D(x, y_top))
             if boundary[BoundarySide.TOP] == EdgeSpecValue.Z and (x + y_top) % 4 == 2:  # noqa: PLR2004
-                z_ancilla_coords.add((x, y_top))
+                z_ancilla_coords.add(Coord2D(x, y_top))
             if boundary[BoundarySide.BOTTOM] == EdgeSpecValue.X and (x + y_bottom) % 4 == 0:
-                x_ancilla_coords.add((x, y_bottom))
+                x_ancilla_coords.add(Coord2D(x, y_bottom))
             if boundary[BoundarySide.BOTTOM] == EdgeSpecValue.Z and (x + y_bottom) % 4 == 2:  # noqa: PLR2004
-                z_ancilla_coords.add((x, y_bottom))
+                z_ancilla_coords.add(Coord2D(x, y_bottom))
         else:  # pipe_dir == AxisDIRECTION2D.V:
             x_left = offset_pos.x - 1
             x_right = offset_pos.x + 2 * code_distance - 1
             y = offset_pos.y + i
             if boundary[BoundarySide.LEFT] == EdgeSpecValue.X and (x_left + y) % 4 == 0:
-                x_ancilla_coords.add((x_left, y))
+                x_ancilla_coords.add(Coord2D(x_left, y))
             if boundary[BoundarySide.LEFT] == EdgeSpecValue.Z and (x_left + y) % 4 == 2:  # noqa: PLR2004
-                z_ancilla_coords.add((x_left, y))
+                z_ancilla_coords.add(Coord2D(x_left, y))
             if boundary[BoundarySide.RIGHT] == EdgeSpecValue.X and (x_right + y) % 4 == 0:
-                x_ancilla_coords.add((x_right, y))
+                x_ancilla_coords.add(Coord2D(x_right, y))
             if boundary[BoundarySide.RIGHT] == EdgeSpecValue.Z and (x_right + y) % 4 == 2:  # noqa: PLR2004
-                z_ancilla_coords.add((x_right, y))
+                z_ancilla_coords.add(Coord2D(x_right, y))
 
     return data_coords, x_ancilla_coords, z_ancilla_coords
 
