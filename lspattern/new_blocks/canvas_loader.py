@@ -49,12 +49,22 @@ class CanvasCubeSpec:
 
 
 @dataclass
+class CanvasPipeSpec:
+    start: Coord3D
+    end: Coord3D
+    block: str
+    boundary: dict[BoundarySide, EdgeSpecValue]
+    logical_observable: LogicalObservableSpec | None
+
+
+@dataclass
 class CanvasSpec:
     name: str
     description: str
     code_distance: int
     layout: str
     cubes: list[CanvasCubeSpec]
+    pipes: list[CanvasPipeSpec]
 
 
 def _snakeify(name: str) -> str:
