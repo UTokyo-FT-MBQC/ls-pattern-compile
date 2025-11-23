@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Resolved duplicate/missing entries in `CompiledRHGCanvas.coord2node` by remapping node IDs before merging layers and by ignoring conflicting coordinate claims, ensuring global graphs stay consistent across compositions. Added regression coverage in `tests/test_coord2node_integrity.py`.
+- Fixed a bug where corner nodes were incorrectly handled during graph composition, leading to missing or duplicated nodes at the corners of merged patterns. The issue was caused by improper coordinate mapping logic for corner cases and is now resolved by explicitly checking and remapping corner coordinates during the merge process. (cherry-picked from commit 33541fc)
 
 ---
 
