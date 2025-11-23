@@ -1,27 +1,91 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from typing import TYPE_CHECKING, TypedDict
 
 import plotly.graph_objects as go
 
-from lspattern.new_blocks.canvas import Canvas
 from lspattern.new_blocks.mytype import Coord3D, NodeRole
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
 
-_COLOR_MAP: dict[NodeRole, dict[str, object]] = {
+    from lspattern.new_blocks.canvas import Canvas
+
+
+class NodeStyleSpec(TypedDict):
+    """Style specification for node visualization.
+
+    Attributes
+    ----------
+    color : str
+        Fill color of the node marker.
+    line_color : str
+        Border color of the node marker.
+    size : int
+        Size of the node marker in pixels.
+    label : str
+        Display label for the node type in the legend.
+    """
+
+    color: str
+    line_color: str
+    size: int
+    label: str
+
+
+class NodeGroup(TypedDict):
+    """Grouped node data for visualization.
+
+    Attributes
+    ----------
+    x : list[int]
+        List of x coordinates.
+    y : list[int]
+        List of y coordinates.
+    z : list[int]
+        List of z coordinates.
+    coords : list[Coord3D]
+        List of Coord3D objects.
+    """
+
+    x: list[int]
+    y: list[int]
+    z: list[int]
+    coords: list[Coord3D]
+
+
+_COLOR_MAP: dict[NodeRole, NodeStyleSpec] = {
     NodeRole.DATA: {"color": "white", "line_color": "black", "size": 8, "label": "Data"},
     NodeRole.ANCILLA_X: {"color": "green", "line_color": "darkgreen", "size": 7, "label": "X ancilla"},
     NodeRole.ANCILLA_Z: {"color": "blue", "line_color": "darkblue", "size": 7, "label": "Z ancilla"},
 }
 
+# Constants for edge rendering
+_EDGE_SEPARATOR = float("nan")
+
 
 def _group_nodes(
     nodes: Iterable[Coord3D],
     coord2role: Mapping[Coord3D, NodeRole],
-) -> dict[NodeRole, dict[str, list[object]]]:
-    groups: dict[NodeRole, dict[str, list[object]]] = {
-        role: {"x": [], "y": [], "z": [], "coords": []} for role in _COLOR_MAP
-    }
+) -> dict[NodeRole, NodeGroup]:
+    """Group nodes by their role for separate visualization traces.
+
+    Parameters
+    ----------
+    nodes : Iterable[Coord3D]
+        Iterable of 3D coordinates representing nodes in the canvas.
+    coord2role : Mapping[Coord3D, NodeRole]
+        Mapping from coordinates to their roles. Nodes not in the mapping
+        default to NodeRole.DATA.
+
+    Returns
+    -------
+    dict[NodeRole, NodeGroup]
+        Dictionary mapping each node role to its grouped coordinate data.
+        Each NodeGroup contains separate lists for x, y, z coordinates
+        and the original Coord3D objects.
+    """
+    groups: dict[NodeRole, NodeGroup] = {role: {"x": [], "y": [], "z": [], "coords": []} for role in _COLOR_MAP}
     for coord in nodes:
         role = coord2role.get(coord, NodeRole.DATA)
         groups[role]["x"].append(coord.x)
@@ -31,14 +95,23 @@ def _group_nodes(
     return groups
 
 
-def _edge_coordinates(edges: Iterable[tuple[Coord3D, Coord3D]]) -> tuple[list[float], list[float], list[float]]:
+def _edge_coordinates(
+    edges: Iterable[tuple[Coord3D, Coord3D]],
+    valid_nodes: set[Coord3D],
+) -> tuple[list[float], list[float], list[float]]:
+    """Extract coordinates for edges whose endpoints both exist on the canvas."""
+
     edge_x: list[float] = []
     edge_y: list[float] = []
     edge_z: list[float] = []
+
     for start, end in edges:
-        edge_x.extend([float(start.x), float(end.x), float("nan")])
-        edge_y.extend([float(start.y), float(end.y), float("nan")])
-        edge_z.extend([float(start.z), float(end.z), float("nan")])
+        if start not in valid_nodes or end not in valid_nodes:
+            continue
+        edge_x.extend((float(start.x), float(end.x), _EDGE_SEPARATOR))
+        edge_y.extend((float(start.y), float(end.y), _EDGE_SEPARATOR))
+        edge_z.extend((float(start.z), float(end.z), _EDGE_SEPARATOR))
+
     return edge_x, edge_y, edge_z
 
 
@@ -52,7 +125,40 @@ def visualize_canvas_plotly(
     height: int = 700,
     reverse_axes: bool = True,
 ) -> go.Figure:
-    """Plot a Canvas with Plotly using node coordinates."""
+    """Create an interactive 3D visualization of a Canvas using Plotly.
+
+    This function renders nodes colored by their role (data, X ancilla, Z ancilla)
+    and optionally displays edges connecting them. The visualization uses 3D scatter
+    plots with customizable styling.
+
+    Parameters
+    ----------
+    canvas : Canvas
+        The Canvas object to visualize, containing nodes, edges, and role information.
+    show_edges : bool, optional
+        Whether to display edges between nodes, by default True.
+    edge_width : float, optional
+        Width of edge lines in pixels, by default 3.0.
+    edge_color : str, optional
+        RGBA color string for edges, by default "rgba(60, 60, 60, 0.7)".
+    width : int, optional
+        Figure width in pixels, by default 900.
+    height : int, optional
+        Figure height in pixels, by default 700.
+    reverse_axes : bool, optional
+        Reverse X and Y axes to match quantum circuit layout convention,
+        by default True.
+
+    Returns
+    -------
+    go.Figure
+        Plotly Figure object ready for display or further customization.
+
+    Examples
+    --------
+    >>> fig = visualize_canvas_plotly(canvas)
+    >>> fig.show()
+    """
 
     nodes = canvas.nodes
     coord2role = canvas.coord2role
@@ -61,7 +167,7 @@ def visualize_canvas_plotly(
     fig = go.Figure()
 
     for role, pts in groups.items():
-        if not pts["x"]:
+        if not pts["coords"]:  # Check if any nodes exist for this role
             continue
         spec = _COLOR_MAP[role]
         coords: list[Coord3D] = pts["coords"]  # narrow type for mypy/pyright
@@ -85,8 +191,8 @@ def visualize_canvas_plotly(
 
     edges = canvas.edges
     if show_edges and edges:
-        edge_x, edge_y, edge_z = _edge_coordinates(edges)
-        if edge_x:
+        edge_x, edge_y, edge_z = _edge_coordinates(edges, nodes)
+        if edge_x:  # only add trace when at least one valid edge remains
             fig.add_trace(
                 go.Scatter3d(
                     x=edge_x,
