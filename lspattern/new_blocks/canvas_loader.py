@@ -7,12 +7,12 @@ only, e.g., ``load_canvas("memory_canvas")``.
 
 from __future__ import annotations
 
+import re
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from importlib import resources
 from importlib.abc import Traversable
 from pathlib import Path
-import re
-from collections.abc import Iterable, Mapping, Sequence
 
 import yaml
 
@@ -20,7 +20,6 @@ from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.new_blocks.canvas import Canvas, CanvasConfig
 from lspattern.new_blocks.loader import BlockConfig, PatchLayoutConfig, load_patch_layout_from_yaml
 from lspattern.new_blocks.mytype import Coord3D
-
 
 _DEFAULT_BOUNDARY: dict[BoundarySide, EdgeSpecValue] = {
     BoundarySide.TOP: EdgeSpecValue.X,
@@ -68,8 +67,8 @@ class CanvasSpec:
     pipes: list[CanvasPipeSpec]
 
 
-_SNAKE_CAMEL_RE_1 = re.compile("([A-Z]+)([A-Z][a-z])")
-_SNAKE_CAMEL_RE_2 = re.compile("([a-z0-9])([A-Z])")
+_SNAKE_CAMEL_RE_1 = re.compile(r"([A-Z]+)([A-Z][a-z])")
+_SNAKE_CAMEL_RE_2 = re.compile(r"([a-z0-9])([A-Z])")
 
 
 def _snakeify(name: str) -> str:
@@ -107,7 +106,6 @@ def _candidate_filenames(name: str) -> list[str]:
                 if trimmed and trimmed not in base_candidates:
                     base_candidates.add(trimmed)
                     queue.append(trimmed)
-
 
     exts = [ext] if ext else [".yml", ".yaml"]
 

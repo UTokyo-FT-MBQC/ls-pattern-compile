@@ -1,18 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+
 from graphqomb.common import Axis
 
-from lspattern.new_blocks.mytype import Coord3D
-from lspattern.new_blocks.accumulator import CoordParityAccumulator, CoordFlowAccumulator, CoordScheduleAccumulator
-from lspattern.new_blocks.mytype import NodeRole
-from lspattern.new_blocks.block import Node, Edge
+from lspattern.new_blocks.accumulator import CoordFlowAccumulator, CoordParityAccumulator, CoordScheduleAccumulator
 from lspattern.new_blocks.layout.rotated_surface_code import (
-    rotated_surface_code_layout,
-    rotated_surface_code_pipe_layout,
     ANCILLA_EDGE,
+    rotated_surface_code_layout,
 )  # this will be dynamically loaded based on config
 from lspattern.new_blocks.loader import BlockConfig
+from lspattern.new_blocks.mytype import Coord3D, NodeRole
 
 
 @dataclass

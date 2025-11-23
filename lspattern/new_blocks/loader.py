@@ -5,9 +5,9 @@ This module provides utilities to safely load and validate YAML configuration fi
 that define patch layout layers for MBQC surface code patterns.
 """
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import NamedTuple
-from collections.abc import Sequence
 
 import yaml
 from graphqomb.common import Axis

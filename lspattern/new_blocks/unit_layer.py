@@ -4,15 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from lspattern.consts import BoundarySide, EdgeSpecValue, NodeRole
-from lspattern.new_blocks import coord_utils
-from lspattern.new_blocks.accumulator import (
-    CoordFlowAccumulator,
-    CoordParityAccumulator,
-    CoordScheduleAccumulator,
-)
-from lspattern.new_blocks.layout.rotated_surface_code import rotated_surface_code_layout
-from lspattern.new_blocks.mytype import Coord2D, Coord3D
+from lspattern.consts import BoundarySide, EdgeSpecValue
 
 
 @dataclass

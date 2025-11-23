@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 from lspattern.new_blocks.canvas_loader import load_canvas
-from lspattern.new_blocks.mytype import NodeRole
 from lspattern.new_blocks.visualizer import visualize_canvas_plotly
 
 spec_name = "memory_canvas.yml"
