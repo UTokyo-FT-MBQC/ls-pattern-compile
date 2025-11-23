@@ -119,6 +119,22 @@ class CoordParityAccumulator:
             self.checks[xy][z] = set()
         self.checks[xy][z].update(coords)
 
+    def remove_check(self, xy: Coord2D, z: int) -> None:
+        """Remove a parity check at coordinate `xy` occurring at `z`.
+
+        Parameters
+        ----------
+        xy : Coord2D
+            The (x, y) coordinate of the parity check.
+        z : int
+            The z-coordinate (layer) of the parity check.
+        """
+        if xy in self.checks and z in self.checks[xy]:
+            del self.checks[xy][z]
+        else:
+            msg = f"Attempted to remove non-existent check at {xy} z={z}"
+            raise KeyError(msg)
+
     def to_node_checks(self, coord2node: Mapping[Coord3D, int]) -> dict[Coord2D, dict[int, set[int]]]:
         """Convert parity check coordinates to node identifiers using `coord2node`.
 
