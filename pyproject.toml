@@ -54,6 +54,17 @@ dev = { file = ["requirements-dev.txt"] }
 [tool.setuptools.package-dir]
 lspattern = "lspattern"
 
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"lspattern.new_blocks" = [
+  "patch_layout/blocks/*.yml",
+  "patch_layout/layers/*.yml",
+  "patch_layout/canvas/*.yml",
+  "examples/*.yml",
+]
+
 [tool.ruff]
 target-version = "py313"
 line-length = 120

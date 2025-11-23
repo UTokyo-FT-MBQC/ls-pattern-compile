@@ -9,3 +9,4 @@ nbformat>=4.20
 plotly>=6
 graphqomb>=0.1.1
 pydantic>=2.0.0
+pyyaml>=6
