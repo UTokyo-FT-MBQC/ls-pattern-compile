@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Visualizes different edge specifications (XXZZ, ZZXX, OOOO, ZXZX)
   - Shows horizontal and vertical pipe configurations
 
+### Fixed
+- Resolved duplicate/missing entries in `CompiledRHGCanvas.coord2node` by remapping node IDs before merging layers and by ignoring conflicting coordinate claims, ensuring global graphs stay consistent across compositions. Added regression coverage in `tests/test_coord2node_integrity.py`.
+
 ---
 
 ## Version [0.0.4] - 2025-10-31

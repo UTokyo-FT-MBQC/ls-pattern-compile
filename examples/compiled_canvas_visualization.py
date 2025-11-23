@@ -11,6 +11,7 @@ from lspattern.blocks.cubes.memory import MemoryCubeSkeleton
 from lspattern.blocks.pipes.memory import MemoryPipeSkeleton
 from lspattern.canvas import CompiledRHGCanvas, RHGCanvasSkeleton
 from lspattern.consts import BoundarySide, EdgeSpecValue
+from lspattern.utils import to_edgespec
 from lspattern.mytype import PatchCoordGlobal3D
 
 # %%
@@ -20,8 +21,8 @@ r = 3
 
 canvass = RHGCanvasSkeleton("Memory X")
 
-edgespec: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.X, BoundarySide.RIGHT: EdgeSpecValue.X, BoundarySide.TOP: EdgeSpecValue.Z, BoundarySide.BOTTOM: EdgeSpecValue.Z}
-edgespec_trimmed: dict[BoundarySide, EdgeSpecValue] = {BoundarySide.LEFT: EdgeSpecValue.O, BoundarySide.RIGHT: EdgeSpecValue.O, BoundarySide.TOP: EdgeSpecValue.O, BoundarySide.BOTTOM: EdgeSpecValue.O}
+edgespec: dict[BoundarySide, EdgeSpecValue] = to_edgespec("XXZZ")
+edgespec_trimmed: dict[BoundarySide, EdgeSpecValue] = to_edgespec("OOOO")
 # tmpl = RotatedPlanarTemplate(d=3, edgespec=edgespec)
 # _ = tmpl.to_tiling()
 blocks = [

@@ -16,6 +16,7 @@ from lspattern.blocks.cubes.measure import MeasureXSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_to_stim
 from lspattern.consts import BoundarySide, EdgeSpecValue
+from lspattern.utils import to_edgespec
 from lspattern.mytype import PatchCoordGlobal3D
 from lspattern.visualizers import visualize_compiled_canvas_plotly
 
@@ -26,12 +27,7 @@ d = 3
 skeleton = RHGCanvasSkeleton(name=f"Layered RHG Memory (d={d})")
 
 # Define edge specification
-edgespec: dict[BoundarySide, EdgeSpecValue] = {
-    BoundarySide.TOP: EdgeSpecValue.X,
-    BoundarySide.BOTTOM: EdgeSpecValue.X,
-    BoundarySide.LEFT: EdgeSpecValue.Z,
-    BoundarySide.RIGHT: EdgeSpecValue.Z,
-}
+edgespec: dict[BoundarySide, EdgeSpecValue] = to_edgespec("ZZXX")
 
 # Add InitPlus cube at z=0 using LayeredInitPlusCubeSkeleton
 init_skeleton = LayeredInitPlusCubeSkeleton(d=d, edgespec=edgespec)

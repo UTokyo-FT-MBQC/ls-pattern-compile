@@ -11,7 +11,9 @@ if TYPE_CHECKING:
     from lspattern.mytype import PhysCoordGlobal3D
 
 
-def _reverse_coord2node(coord2node: Mapping[PhysCoordGlobal3D, int]) -> dict[int, tuple[int, int, int]]:
+def _reverse_coord2node(
+    coord2node: Mapping[PhysCoordGlobal3D, int],
+) -> dict[int, tuple[int, int, int]]:
     node2coord: dict[int, tuple[int, int, int]] = {}
     for coord, nid in coord2node.items():
         node2coord[int(nid)] = (int(coord[0]), int(coord[1]), int(coord[2]))
@@ -37,6 +39,7 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
     - エッジは任意で描画。
     - 入力/出力ノードは赤ダイヤで強調。
     """
+
     node2coord = _reverse_coord2node(cgraph.coord2node or {})
     g = cgraph.global_graph
 
@@ -115,7 +118,12 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
                 y=yin,
                 z=zin,
                 mode="markers",
-                marker={"size": 8, "color": color, "line": {"color": "darkred", "width": 2}, "symbol": "diamond"},
+                marker={
+                    "size": 8,
+                    "color": color,
+                    "line": {"color": "darkred", "width": 2},
+                    "symbol": "diamond",
+                },
                 name=name,
             )
         )

@@ -8,11 +8,15 @@ temporal layers.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from graphqomb.graphstate import GraphState, compose
 
-from lspattern.accumulator import FlowAccumulator, ParityAccumulator, ScheduleAccumulator
+from lspattern.accumulator import (
+    FlowAccumulator,
+    ParityAccumulator,
+    ScheduleAccumulator,
+)
 from lspattern.canvas.graph_utils import create_remapped_graphstate
 from lspattern.canvas.layer import TemporalLayer
 from lspattern.canvas.ports import PortManager
@@ -107,7 +111,9 @@ class CompiledRHGCanvas:
         return self.port_manager.cout_portset_pipe
 
     @property
-    def cout_port_groups_cube(self) -> dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]]:
+    def cout_port_groups_cube(
+        self,
+    ) -> dict[PatchCoordGlobal3D, list[list[NodeIdLocal]]]:
         """Get cout_port_groups_cube from port_manager."""
         return self.port_manager.cout_port_groups_cube
 
@@ -117,12 +123,16 @@ class CompiledRHGCanvas:
         return self.port_manager.cout_port_groups_pipe
 
     @property
-    def cout_group_lookup_cube(self) -> dict[NodeIdLocal, tuple[PatchCoordGlobal3D, int]]:
+    def cout_group_lookup_cube(
+        self,
+    ) -> dict[NodeIdLocal, tuple[PatchCoordGlobal3D, int]]:
         """Get cout_group_lookup_cube from port_manager."""
         return self.port_manager.cout_group_lookup_cube
 
     @property
-    def cout_group_lookup_pipe(self) -> dict[NodeIdLocal, tuple[PipeCoordGlobal3D, int]]:
+    def cout_group_lookup_pipe(
+        self,
+    ) -> dict[NodeIdLocal, tuple[PipeCoordGlobal3D, int]]:
         """Get cout_group_lookup_pipe from port_manager."""
         return self.port_manager.cout_group_lookup_pipe
 
@@ -239,7 +249,9 @@ class CompiledRHGCanvas:
 
     @staticmethod
     def _remap_layer_portsets(
-        layer: TemporalLayer, remapped_layer: TemporalLayer, node_map: Mapping[NodeIdLocal, NodeIdLocal]
+        layer: TemporalLayer,
+        remapped_layer: TemporalLayer,
+        node_map: Mapping[NodeIdLocal, NodeIdLocal],
     ) -> None:
         """Remap portsets for a layer."""
         # Copy and remap the port_manager
@@ -359,11 +371,23 @@ def _remap_layer_mappings(next_layer: TemporalLayer, node_map2: Mapping[int, int
 
 
 def _build_merged_coord2node(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> dict[PhysCoordGlobal3D, int]:
-    """Build merged coordinate to node mapping."""
-    return {
-        **cgraph.coord2node,
-        **next_layer.coord2node,
-    }
+    """Build merged coordinate to node mapping without duplicate node ids."""
+
+    merged: dict[PhysCoordGlobal3D, int] = dict(cgraph.coord2node)
+    node2coord = {node_id: coord for coord, node_id in merged.items()}
+
+    for node_id, coord in next_layer.node2coord.items():
+        # Avoid overriding an existing node mapped to the same coordinate with a different id.
+        current_node = merged.get(coord)
+        if current_node is not None and current_node != node_id:
+            continue
+        existing_coord = node2coord.get(node_id)
+        if existing_coord is not None and existing_coord != coord:
+            merged.pop(existing_coord, None)
+        merged[coord] = node_id
+        node2coord[node_id] = coord
+
+    return merged
 
 
 def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> CompiledRHGCanvas:
@@ -385,8 +409,14 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> 
     if cgraph.global_graph is None:
         return _create_first_layer_canvas(next_layer)
 
+    if next_layer.local_graph is None:
+        msg = "Temporal layer missing local graph during composition"
+        raise ValueError(msg)
+
     # Compose graphs and remap
-    new_graph, node_map1, node_map2 = compose(cgraph.global_graph, next_layer.local_graph)  # pyright: ignore[reportArgumentType]
+    global_graph = cast("GraphState", cgraph.global_graph)
+    local_graph = next_layer.local_graph
+    new_graph, node_map1, node_map2 = compose(global_graph, local_graph)
 
     # Only remap if node mapping actually changes node IDs
     if any(k != v for k, v in node_map1.items()):

@@ -17,6 +17,7 @@ from lspattern.blocks.pipes.measure import MeasureXPipeSkeleton
 from lspattern.canvas import RHGCanvasSkeleton
 from lspattern.compile import compile_to_stim
 from lspattern.consts import BoundarySide, EdgeSpecValue
+from lspattern.utils import to_edgespec
 from lspattern.mytype import PatchCoordGlobal3D, PipeCoordGlobal3D
 
 
@@ -24,36 +25,11 @@ def _create_merge_split_skeleton(d: int) -> RHGCanvasSkeleton:
     """Create RHG canvas skeleton for merge and split operation."""
     canvass = RHGCanvasSkeleton("Merge and Split")
 
-    edgespec: dict[BoundarySide, EdgeSpecValue] = {
-        BoundarySide.LEFT: EdgeSpecValue.X,
-        BoundarySide.RIGHT: EdgeSpecValue.X,
-        BoundarySide.TOP: EdgeSpecValue.Z,
-        BoundarySide.BOTTOM: EdgeSpecValue.Z,
-    }
-    edgespec1: dict[BoundarySide, EdgeSpecValue] = {
-        BoundarySide.LEFT: EdgeSpecValue.X,
-        BoundarySide.RIGHT: EdgeSpecValue.O,
-        BoundarySide.TOP: EdgeSpecValue.Z,
-        BoundarySide.BOTTOM: EdgeSpecValue.Z,
-    }
-    edgespec2: dict[BoundarySide, EdgeSpecValue] = {
-        BoundarySide.LEFT: EdgeSpecValue.O,
-        BoundarySide.RIGHT: EdgeSpecValue.X,
-        BoundarySide.TOP: EdgeSpecValue.Z,
-        BoundarySide.BOTTOM: EdgeSpecValue.Z,
-    }
-    edgespec_trimmed: dict[BoundarySide, EdgeSpecValue] = {
-        BoundarySide.LEFT: EdgeSpecValue.O,
-        BoundarySide.RIGHT: EdgeSpecValue.O,
-        BoundarySide.TOP: EdgeSpecValue.Z,
-        BoundarySide.BOTTOM: EdgeSpecValue.Z,
-    }
-    edgespec_measure_trimmed: dict[BoundarySide, EdgeSpecValue] = {
-        BoundarySide.LEFT: EdgeSpecValue.O,
-        BoundarySide.RIGHT: EdgeSpecValue.O,
-        BoundarySide.TOP: EdgeSpecValue.O,
-        BoundarySide.BOTTOM: EdgeSpecValue.O,
-    }
+    edgespec: dict[BoundarySide, EdgeSpecValue] = to_edgespec("XXZZ")
+    edgespec1: dict[BoundarySide, EdgeSpecValue] = to_edgespec("XOZZ")
+    edgespec2: dict[BoundarySide, EdgeSpecValue] = to_edgespec("OXZZ")
+    edgespec_trimmed: dict[BoundarySide, EdgeSpecValue] = to_edgespec("OOZZ")
+    edgespec_measure_trimmed: dict[BoundarySide, EdgeSpecValue] = to_edgespec("OOOO")
 
     blocks = [
         (
