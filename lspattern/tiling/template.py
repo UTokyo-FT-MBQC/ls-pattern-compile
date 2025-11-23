@@ -429,7 +429,11 @@ class RotatedPlanarCubeTemplate(ScalableTemplate):
         # Data qubits at even-even coordinates in [0, 2d-2]
         data_coords = {(2 * i, 2 * j) for i in range(d) for j in range(d)}
 
-        # pop elements if up = right, up = left, down = right, down = left
+        # Remove corner data qubits when specific edge spec combinations create conflicts:
+        #   - (2d-2, 2d-2) if both top and right are Z edges
+        #   - (0, 0) if both bottom and left are Z edges
+        #   - (0, 2d-2) if both top and left are X edges
+        #   - (2d-2, 0) if both bottom and right are X edges
         left, right, top, bottom = (
             self._spec(BoundarySide.LEFT),
             self._spec(BoundarySide.RIGHT),
