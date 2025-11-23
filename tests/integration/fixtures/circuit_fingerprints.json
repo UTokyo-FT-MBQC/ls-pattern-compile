@@ -15,12 +15,12 @@
     "num_detectors": 160,
     "num_observables": 3,
     "num_qubits": 545,
-    "sha256": "bb1335671fee56274cf345e4ac6e7fab8403e3c6769c6a5f582cb2e9551be643"
+    "sha256": "848e0e18344b9a886aa3db298c2b93a0419c4e49b61a377cbefeb733d0ebfa06"
   },
   "merge_split_xx_d3": {
     "num_detectors": 166,
     "num_observables": 1,
     "num_qubits": 566,
-    "sha256": "c9769ed871a972b453793c9b4f83ac19151d3da0d42b3e6f7706834011a8957d"
+    "sha256": "b522cf4babbd6f15e766e7ceee054a5bb7d57b928888258ceb1f823b200bfe45"
   }
 }
