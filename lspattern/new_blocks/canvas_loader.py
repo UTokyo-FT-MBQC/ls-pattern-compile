@@ -21,17 +21,6 @@ from lspattern.new_blocks.canvas import Canvas, CanvasConfig
 from lspattern.new_blocks.loader import BlockConfig, PatchLayoutConfig, load_patch_layout_from_yaml
 from lspattern.new_blocks.mytype import Coord3D
 
-__all__ = [
-    "CanvasSpec",
-    "CanvasCubeSpec",
-    "LogicalObservableSpec",
-    "load_canvas_spec",
-    "build_canvas",
-    "load_canvas",
-    "load_block_config_from_name",
-    "load_layer_config_from_name",
-]
-
 
 _DEFAULT_BOUNDARY: dict[BoundarySide, EdgeSpecValue] = {
     BoundarySide.TOP: EdgeSpecValue.X,
