@@ -92,7 +92,7 @@ print("\nFigure saved: tiling_oooo.png")
 plt.show()
 
 # %%
-# Case: Rotated Planar Tiling (XXXX) (<- see if the corners are trimmed)
+# Case: Rotated Planar Tiling (ZXZX) (<- see if the corners are trimmed)
 print("\n" + "=" * 60)
 print("Case: Rotated Planar Tiling (ZXZX) - Check corner trimming")
 print("=" * 60)
