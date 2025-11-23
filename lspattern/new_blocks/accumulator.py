@@ -97,63 +97,45 @@ class CoordFlowAccumulator:
 class CoordParityAccumulator:
     """Coordinate-based parity checks indexed by (x, y, z)."""
 
-    checks: dict[Coord2D, dict[int, set[Coord3D]]] = field(default_factory=dict)
+    syndrome_meas: dict[Coord2D, dict[int, set[Coord3D]]] = field(default_factory=dict)
 
-    def add_check(self, xy: Coord2D, z: int, coords: Collection[Coord3D]) -> None:
-        """Add a parity check at coordinate `xy` occurring at `z`.
+    def add_syndrome_measurement(self, xy: Coord2D, z: int, involved_coords: Collection[Coord3D]) -> None:
+        """Add a syndrome measurement at coordinate `coord`.
+
 
         Parameters
         ----------
         xy : Coord2D
-            The (x, y) coordinate of the parity check.
+            The (x, y) coordinate of the syndrome measurement.
         z : int
-            The z-coordinate (layer) of the parity check.
-        coords : collections.abc.Collection[Coord3D]
-            The coordinates involved in the parity check.
+            The z-coordinate (layer) of the syndrome measurement.
+        involved_coords : collections.abc.Collection[Coord3D]
+            The coordinates involved in the syndrome measurement.
+
+        Notes
+        -----
+        This is a pre-processing step before constructing parity checks.
         """
-        if not coords:
+        if not involved_coords:
             return
-        if xy not in self.checks:
-            self.checks[xy] = {}
-        if z not in self.checks[xy]:
-            self.checks[xy][z] = set()
-        self.checks[xy][z].update(coords)
+        if xy not in self.syndrome_meas:
+            self.syndrome_meas[xy] = {}
+        if z not in self.syndrome_meas[xy]:
+            self.syndrome_meas[xy][z] = set()
+        self.syndrome_meas[xy][z].update(involved_coords)
 
-    def remove_check(self, xy: Coord2D, z: int) -> None:
-        """Remove a parity check at coordinate `xy` occurring at `z`.
+    def remove_syndrome_measurement(self, xy: Coord2D, z: int) -> None:
+        """Remove a syndrome measurement at coordinate `xy` occurring at `z`.
 
         Parameters
         ----------
         xy : Coord2D
-            The (x, y) coordinate of the parity check.
+            The (x, y) coordinate of the syndrome measurement.
         z : int
-            The z-coordinate (layer) of the parity check.
+            The z-coordinate (layer) of the syndrome measurement.
         """
-        if xy in self.checks and z in self.checks[xy]:
-            del self.checks[xy][z]
+        if xy in self.syndrome_meas and z in self.syndrome_meas[xy]:
+            del self.syndrome_meas[xy][z]
         else:
-            msg = f"Attempted to remove non-existent check at {xy} z={z}"
+            msg = f"Attempted to remove non-existent syndrome measurement at {xy} z={z}"
             raise KeyError(msg)
-
-    def to_node_checks(self, coord2node: Mapping[Coord3D, int]) -> dict[Coord2D, dict[int, set[int]]]:
-        """Convert parity check coordinates to node identifiers using `coord2node`.
-
-        Parameters
-        ----------
-        coord2node : collections.abc.Mapping[Coord3D, int]
-            A mapping from coordinates to node identifiers.
-
-        Returns
-        -------
-        dict[Coord2D, dict[int, set[int]]]
-            A mapping from (x, y) coordinates to mappings of z-layers to sets of node identifiers.
-        """
-        result: dict[Coord2D, dict[int, set[int]]] = {}
-        for xy, z_dict in self.checks.items():
-            for z, coords in z_dict.items():
-                mapped = {coord2node[c] for c in coords if c in coord2node}
-                if mapped:
-                    if xy not in result:
-                        result[xy] = {}
-                    result[xy][z] = mapped
-        return result
