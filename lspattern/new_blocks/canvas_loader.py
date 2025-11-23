@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from importlib import resources
 from importlib.abc import Traversable
 from pathlib import Path
+import re
 from collections.abc import Iterable, Mapping, Sequence
 
 import yaml
@@ -67,25 +68,46 @@ class CanvasSpec:
     pipes: list[CanvasPipeSpec]
 
 
+_SNAKE_CAMEL_RE_1 = re.compile("([A-Z]+)([A-Z][a-z])")
+_SNAKE_CAMEL_RE_2 = re.compile("([a-z0-9])([A-Z])")
+
+
 def _snakeify(name: str) -> str:
-    snake = ""
-    for idx, ch in enumerate(name):
-        if ch.isupper() and idx > 0:
-            snake += "_"
-        snake += ch.lower()
-    return snake
+    snake = _SNAKE_CAMEL_RE_1.sub(r"\1_\2", name)
+    snake = _SNAKE_CAMEL_RE_2.sub(r"\1_\2", snake)
+    return snake.replace("-", "_").lower()
 
 
 def _candidate_filenames(name: str) -> list[str]:
     path = Path(name)
     stem = path.stem
     ext = path.suffix
-    base_candidates = {stem, _snakeify(stem)}
-    lower_stem = stem.lower()
-    if lower_stem.endswith("_block"):
-        base_candidates.add(lower_stem[: -len("_block")])
-    if lower_stem.endswith("_unit"):
-        base_candidates.add(lower_stem[: -len("_unit")])
+    base_candidates: set[str] = set()
+
+    def _add_candidate(value: str) -> None:
+        if value and value not in base_candidates:
+            base_candidates.add(value)
+
+    _add_candidate(stem)
+    _add_candidate(_snakeify(stem))
+
+    suffixes = ("_block", "block", "_unit", "unit")
+    queue = list(base_candidates)
+    while queue:
+        candidate = queue.pop()
+        snake = _snakeify(candidate)
+        if snake not in base_candidates:
+            base_candidates.add(snake)
+            queue.append(snake)
+
+        lower_candidate = candidate.lower()
+        for suffix in suffixes:
+            if lower_candidate.endswith(suffix) and len(candidate) > len(suffix):
+                trimmed = candidate[: -len(suffix)]
+                if trimmed and trimmed not in base_candidates:
+                    base_candidates.add(trimmed)
+                    queue.append(trimmed)
+
 
     exts = [ext] if ext else [".yml", ".yaml"]
 
