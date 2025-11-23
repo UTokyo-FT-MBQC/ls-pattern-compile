@@ -14,7 +14,6 @@ from pathlib import Path
 from collections.abc import Iterable, Mapping, Sequence
 
 import yaml
-from graphqomb.common import Axis
 
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.new_blocks.canvas import Canvas, CanvasConfig
@@ -36,10 +35,9 @@ _RESOURCE_PACKAGES = {
 }
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class LogicalObservableSpec:
-    basis: Axis | None
-    span: tuple[BoundarySide, BoundarySide]
+    token: str
 
 
 @dataclass
@@ -79,10 +77,7 @@ def _candidate_filenames(name: str) -> list[str]:
     if lower_stem.endswith("_unit"):
         base_candidates.add(lower_stem[: -len("_unit")])
 
-    if ext:
-        exts = [ext]
-    else:
-        exts = [".yml", ".yaml"]
+    exts = [ext] if ext else [".yml", ".yaml"]
 
     candidates: list[str] = []
     for base in base_candidates:
@@ -171,16 +166,15 @@ def _parse_logical_observable(value: object | None) -> LogicalObservableSpec | N
         if cleaned.lower() in {"", "none", "null"}:
             return None
         token = cleaned.upper().replace("-", "").replace("_", "").replace(" ", "")
-        basis: Axis | None = None
-        if token and token[0] in {"X", "Z"} and len(token) > 1:
-            basis = Axis[token[0]]
-            token = token[1:]
-        if len(token) != 2 or any(ch not in {"T", "B", "L", "R"} for ch in token):
-            msg = f"Logical observable must pick two of T/B/L/R (optionally prefixed with X or Z). Got: {value}"
-            raise ValueError(msg)
-        side_map = {"T": BoundarySide.TOP, "B": BoundarySide.BOTTOM, "L": BoundarySide.LEFT, "R": BoundarySide.RIGHT}
-        span = (side_map[token[0]], side_map[token[1]])
-        return LogicalObservableSpec(basis=basis, span=span)
+        if len(token) == 1 and token in {"X", "Z"}:
+            return LogicalObservableSpec(token=token)
+        if len(token) == 2 and all(ch in {"T", "B", "L", "R"} for ch in token):
+            if token[0] == token[1]:
+                msg = f"Logical observable sides must be distinct; got duplicate '{token[0]}'."
+                raise ValueError(msg)
+            return LogicalObservableSpec(token=token)
+        msg = f"Logical observable must be 'X', 'Z', or two distinct chars from T/B/L/R. Got: {value}"
+        raise ValueError(msg)
     msg = f"Unsupported logical_observables spec: {value!r}"
     raise TypeError(msg)
 
