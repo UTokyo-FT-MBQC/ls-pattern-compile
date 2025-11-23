@@ -40,6 +40,36 @@ class LogicalObservableSpec:
     token: str
 
 
+def _normalize_paths(paths: Sequence[Path | str]) -> tuple[Path, ...]:
+    normalized: list[Path] = []
+    for path in paths:
+        path_obj = Path(path)
+        if path_obj not in normalized:
+            normalized.append(path_obj)
+    return tuple(normalized)
+
+
+def _augment_search_paths(source: Traversable | Path, extra_paths: Sequence[Path | str]) -> tuple[Path, ...]:
+    """Return search paths with the source directory (if any) prepended."""
+
+    search_paths = list(_normalize_paths(extra_paths))
+    if isinstance(source, Path):
+        parent = source.parent
+        if parent not in search_paths:
+            search_paths.insert(0, parent)
+    return tuple(search_paths)
+
+
+def _merge_search_paths(*groups: Sequence[Path | str]) -> tuple[Path, ...]:
+    merged: list[Path] = []
+    for group in groups:
+        for path in group:
+            path_obj = Path(path)
+            if path_obj not in merged:
+                merged.append(path_obj)
+    return tuple(merged)
+
+
 @dataclass
 class CanvasCubeSpec:
     position: Coord3D
@@ -65,6 +95,7 @@ class CanvasSpec:
     layout: str
     cubes: list[CanvasCubeSpec]
     pipes: list[CanvasPipeSpec]
+    search_paths: tuple[Path, ...] = ()
 
 
 _SNAKE_CAMEL_RE_1 = re.compile(r"([A-Z]+)([A-Z][a-z])")
@@ -250,6 +281,7 @@ def load_block_config_from_name(
     boundary_override: Mapping[BoundarySide, EdgeSpecValue] | None = None,
 ) -> BlockConfig:
     traversable = _resolve_yaml("blocks", name, extra_paths)
+    search_paths = _augment_search_paths(traversable, extra_paths)
     with traversable.open("r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
@@ -262,7 +294,7 @@ def load_block_config_from_name(
     for layer_cfg in cfg.get("layers", []):
         layer_name = layer_cfg["type"]
         num_layers = _resolve_num_layers(layer_cfg, code_distance, consumed)
-        patch_layout = _load_layer_config(layer_name, extra_paths=extra_paths)
+        patch_layout = _load_layer_config(layer_name, extra_paths=search_paths)
         patch_configs.extend([patch_layout] * num_layers)
         consumed += num_layers
 
@@ -273,6 +305,7 @@ def load_block_config_from_name(
 
 def load_canvas_spec(name: str | Path, *, extra_paths: Sequence[Path | str] = ()) -> CanvasSpec:
     traversable = _resolve_yaml("canvas", name, extra_paths)
+    search_paths = _augment_search_paths(traversable, extra_paths)
     with traversable.open("r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
@@ -327,17 +360,19 @@ def load_canvas_spec(name: str | Path, *, extra_paths: Sequence[Path | str] = ()
         layout=cfg.get("layout", "rotated_surface_code"),
         cubes=cubes,
         pipes=pipes,
+        search_paths=search_paths,
     )
 
 
 def build_canvas(spec: CanvasSpec, *, extra_paths: Sequence[Path | str] = ()) -> Canvas:
     canvas = Canvas(CanvasConfig(spec.name, spec.description, spec.code_distance, spec.layout))
+    search_paths = _merge_search_paths(spec.search_paths, extra_paths)
 
     for cube in spec.cubes:
         block_config = load_block_config_from_name(
             cube.block,
             code_distance=spec.code_distance,
-            extra_paths=extra_paths,
+            extra_paths=search_paths,
             boundary_override=cube.boundary,
         )
         canvas.add_cube(cube.position, block_config)
@@ -346,7 +381,7 @@ def build_canvas(spec: CanvasSpec, *, extra_paths: Sequence[Path | str] = ()) ->
         block_config = load_block_config_from_name(
             pipe.block,
             code_distance=spec.code_distance,
-            extra_paths=extra_paths,
+            extra_paths=search_paths,
             boundary_override=pipe.boundary,
         )
         canvas.add_pipe((pipe.start, pipe.end), block_config)
