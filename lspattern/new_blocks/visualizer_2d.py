@@ -100,7 +100,7 @@ def visualize_canvas_matplotlib_2d(
     edge_alpha: float = 0.5,
     figsize: tuple[int, int] = (8, 8),
     show_grid: bool = True,
-    reverse_axes: bool = True,
+    reverse_axes: bool = False,
 ) -> Figure:
     """Create a 2D visualization of a Canvas at a specific Z-slice using Matplotlib.
 
@@ -128,7 +128,7 @@ def visualize_canvas_matplotlib_2d(
         Whether to show grid lines, by default True.
     reverse_axes : bool, optional
         Reverse X and Y axes to match quantum circuit layout convention,
-        by default True.
+        by default False.
 
     Returns
     -------
@@ -193,7 +193,10 @@ def visualize_canvas_matplotlib_2d(
 
     # Reverse axes if requested (quantum circuit convention)
     if reverse_axes:
+        # Reverse setting: invert X axis only
         ax.invert_xaxis()
+    else:
+        # Default: invert Y axis only
         ax.invert_yaxis()
 
     return fig
