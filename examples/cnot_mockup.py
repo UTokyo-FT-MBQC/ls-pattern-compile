@@ -78,18 +78,6 @@ blocks = [
         PatchCoordGlobal3D((1, 1, 2)),
         MemoryCubeSkeleton(d=d, edgespec=edgespec),
     ),
-    (
-        PatchCoordGlobal3D((0, 0, 3)),
-        MeasureXSkeleton(d=d, edgespec=edgespec),
-    ),
-    (
-        PatchCoordGlobal3D((0, 1, 3)),
-        MeasureXSkeleton(d=d, edgespec=edgespec),
-    ),
-    (
-        PatchCoordGlobal3D((1, 1, 3)),
-        MeasureXSkeleton(d=d, edgespec=edgespec),
-    ),
     # Clock 3 (Split and Merge XX)
     (
         PatchCoordGlobal3D((0, 0, 3)),
@@ -290,7 +278,7 @@ dem = circuit.detector_error_model(decompose_errors=True)
 matching = pymatching.Matching.from_detector_error_model(dem)
 print(matching)
 
-err = dem.shortest_graphlike_error(ignore_ungraphlike_errors=True)
+err = dem.shortest_graphlike_error(ignore_ungraphlike_errors=False)
 print(f"Shortest error length: {len(err)}")
 print(err)
 
