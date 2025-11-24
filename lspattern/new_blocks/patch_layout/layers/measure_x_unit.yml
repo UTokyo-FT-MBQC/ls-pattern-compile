@@ -4,8 +4,6 @@ description: This patch layout specifies a X measurement unit layer
 layer1:
   basis: X # layer 1, transversally X basis, can be omitted, defaults to X
   ancilla: false # measure layer does not need ancilla qubits
-  init: false
 layer2:
   basis: null # layer 2, no qubit after measurement
   ancilla: false
-  init: false

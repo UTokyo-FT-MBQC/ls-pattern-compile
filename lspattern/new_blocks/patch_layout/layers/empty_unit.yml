@@ -4,8 +4,6 @@ description: This patch layout specifies an empty unit layer
 layer1:
   basis: null # layer 1, no qubit preparation
   ancilla: false # no ancilla qubits prepared
-  init: false
 layer2:
   basis: null # layer 2, no qubit preparation
   ancilla: false
-  init: false
