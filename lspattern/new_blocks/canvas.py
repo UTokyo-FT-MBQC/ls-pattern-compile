@@ -5,7 +5,7 @@ from typing import NamedTuple
 
 from graphqomb.common import Axis
 
-from lspattern.consts import EdgeSpecValue
+from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.new_blocks.accumulator import CoordFlowAccumulator, CoordParityAccumulator, CoordScheduleAccumulator
 from lspattern.new_blocks.layout.rotated_surface_code import (
     ANCILLA_EDGE,
@@ -90,6 +90,11 @@ class Canvas:
     __flow: CoordFlowAccumulator
     __schedule: CoordScheduleAccumulator
 
+    cube_config: dict[Coord3D, BlockConfig]
+    pipe_config: dict[tuple[Coord3D, Coord3D], BlockConfig]
+
+    bgraph: BoundaryGraph  # NOTE: boundary info is duplicated in configs
+
     def __init__(self, config: CanvasConfig) -> None:
         self.config = config
         self.__nodes = set()
@@ -99,6 +104,10 @@ class Canvas:
         self.__parity = CoordParityAccumulator()
         self.__flow = CoordFlowAccumulator()
         self.__schedule = CoordScheduleAccumulator()
+
+        self.cube_config = {}
+        self.pipe_config = {}
+        self.bgraph = BoundaryGraph(boundary_map={})
 
     @property
     def nodes(self) -> set[Coord3D]:
@@ -121,7 +130,18 @@ class Canvas:
         return self.__parity
 
     def add_cube(self, global_pos: Coord3D, block_config: BlockConfig) -> None:
-        data2d, ancilla_x2d, ancilla_z2d = rotated_surface_code_layout(self.config.d, global_pos, block_config.boundary)
+        self.cube_config[global_pos] = block_config
+        boundary = Boundary(
+            top=block_config.boundary[BoundarySide.TOP],
+            bottom=block_config.boundary[BoundarySide.BOTTOM],
+            left=block_config.boundary[BoundarySide.LEFT],
+            right=block_config.boundary[BoundarySide.RIGHT],
+        )
+        self.bgraph.add_boundary(global_pos, boundary)
+
+        data2d, ancilla_x2d, ancilla_z2d = rotated_surface_code_layout(
+            self.config.d, Coord2D(global_pos.x, global_pos.y), block_config.boundary
+        )
 
         offset_z = global_pos.z * 2 * self.config.d
 
