@@ -86,9 +86,12 @@ class Canvas:
     __edges: set[tuple[Coord3D, Coord3D]]
     __pauli_axes: dict[Coord3D, Axis]
     __coord2role: dict[Coord3D, NodeRole]
+
+    couts: dict[Coord3D, set[Coord3D]]
+
     __parity: CoordParityAccumulator
-    __flow: CoordFlowAccumulator
-    __schedule: CoordScheduleAccumulator
+    flow: CoordFlowAccumulator
+    scheduler: CoordScheduleAccumulator
 
     cube_config: dict[Coord3D, BlockConfig]
     pipe_config: dict[tuple[Coord3D, Coord3D], BlockConfig]
@@ -102,8 +105,8 @@ class Canvas:
         self.__pauli_axes = {}
         self.__coord2role = {}
         self.__parity = CoordParityAccumulator()
-        self.__flow = CoordFlowAccumulator()
-        self.__schedule = CoordScheduleAccumulator()
+        self.flow = CoordFlowAccumulator()
+        self.scheduler = CoordScheduleAccumulator()
 
         self.cube_config = {}
         self.pipe_config = {}
@@ -157,7 +160,7 @@ class Canvas:
                     # temporal edge
                     if Coord3D(x, y, z - 1) in self.__nodes:
                         self.__edges.add((Coord3D(x, y, z - 1), Coord3D(x, y, z)))
-                        self.__flow.add_flow(Coord3D(x, y, z - 1), Coord3D(x, y, z))
+                        self.flow.add_flow(Coord3D(x, y, z - 1), Coord3D(x, y, z))
 
                 # should construct parity check with data qubits
                 if not layer_cfg.layer1.ancilla:
@@ -179,7 +182,7 @@ class Canvas:
                     # temporal edge
                     if Coord3D(x, y, z) in self.__nodes:
                         self.__edges.add((Coord3D(x, y, z), Coord3D(x, y, z + 1)))
-                        self.__flow.add_flow(Coord3D(x, y, z), Coord3D(x, y, z + 1))
+                        self.flow.add_flow(Coord3D(x, y, z), Coord3D(x, y, z + 1))
 
                 # NOTE: Redundant in layer2?
                 # should construct parity check with data qubits
