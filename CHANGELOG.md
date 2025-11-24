@@ -13,9 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Supports both PatchCoordGlobal3D and PipeCoordGlobal3D for logical observable coordinates
   - Reduces boilerplate code from ~30-40 lines to ~3-5 lines in example files
   - Updated all example files to use the new API
+- Added tiling visualization example (`examples/tiling_visualization.py`)
+  - Demonstrates various tiling patterns for rotated planar cubes and pipes
+  - Visualizes different edge specifications (XXZZ, ZZXX, OOOO, ZXZX)
+  - Shows horizontal and vertical pipe configurations
 
 ### Fixed
 - Resolved duplicate/missing entries in `CompiledRHGCanvas.coord2node` by remapping node IDs before merging layers and by ignoring conflicting coordinate claims, ensuring global graphs stay consistent across compositions. Added regression coverage in `tests/test_coord2node_integrity.py`.
+- Fixed a bug where corner nodes were incorrectly handled during graph composition, leading to missing or duplicated nodes at the corners of merged patterns. The issue was caused by improper coordinate mapping logic for corner cases and is now resolved by explicitly checking and remapping corner coordinates during the merge process. (cherry-picked from commit 33541fc)
 
 ---
 

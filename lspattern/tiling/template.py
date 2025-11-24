@@ -329,7 +329,9 @@ class ScalableTemplate(Tiling):
         self.x_coords = [p for p in (self.x_coords or []) if p[axis] != target]
         self.z_coords = [p for p in (self.z_coords or []) if p[axis] != target]
 
-    def visualize_tiling(self, ax: Axes | None = None, show: bool = True, title_suffix: str | None = None) -> None:  # noqa: C901
+    def visualize_tiling(  # noqa: C901
+        self, ax: Axes | None = None, show: bool = True, title_suffix: str | None = None
+    ) -> None:
         """Visualize the tiling using matplotlib.
 
         - data qubits: white-filled circles with black edge
@@ -426,6 +428,27 @@ class RotatedPlanarCubeTemplate(ScalableTemplate):
 
         # Data qubits at even-even coordinates in [0, 2d-2]
         data_coords = {(2 * i, 2 * j) for i in range(d) for j in range(d)}
+
+        # Remove corner data qubits when specific edge spec combinations create conflicts:
+        #   - (2d-2, 2d-2) if both top and right are Z edges
+        #   - (0, 0) if both bottom and left are Z edges
+        #   - (0, 2d-2) if both top and left are X edges
+        #   - (2d-2, 0) if both bottom and right are X edges
+        left, right, top, bottom = (
+            self._spec(BoundarySide.LEFT),
+            self._spec(BoundarySide.RIGHT),
+            self._spec(BoundarySide.TOP),
+            self._spec(BoundarySide.BOTTOM),
+        )
+
+        if (top, right) == (EdgeSpecValue.Z, EdgeSpecValue.Z):
+            data_coords.remove((2 * d - 2, 2 * d - 2))
+        if (bottom, left) == (EdgeSpecValue.Z, EdgeSpecValue.Z):
+            data_coords.remove((0, 0))
+        if (top, left) == (EdgeSpecValue.X, EdgeSpecValue.X):
+            data_coords.remove((0, 2 * d - 2))
+        if (bottom, right) == (EdgeSpecValue.X, EdgeSpecValue.X):
+            data_coords.remove((2 * d - 2, 0))
 
         # Bulk checks (odd-odd), two interleaving lattices per type
         for x0, y0 in ((1, 3), (3, 1)):
