@@ -11,12 +11,12 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 
-ANCILLA_EDGE = {
+ANCILLA_EDGE = (
     (1, 1),
     (1, -1),
     (-1, 1),
     (-1, -1),
-}
+)  # order is optimized for the distance
 
 
 def rotated_surface_code_layout(  # noqa: C901
