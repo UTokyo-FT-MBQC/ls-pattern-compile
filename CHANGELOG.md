@@ -13,6 +13,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Supports both PatchCoordGlobal3D and PipeCoordGlobal3D for logical observable coordinates
   - Reduces boilerplate code from ~30-40 lines to ~3-5 lines in example files
   - Updated all example files to use the new API
+- Added `to_edgespec()` utility function for standardized edge specification conversion and manipulation.
+- Enhanced Plotly visualization with X-parity highlighting for improved logical observable analysis.
+- Added new CNOT error simulation examples demonstrating error propagation and logical error rate analysis.
+
+### Fixed
+- Resolved duplicate/missing entries in `CompiledRHGCanvas.coord2node` by remapping node IDs before merging layers and by ignoring conflicting coordinate claims, ensuring global graphs stay consistent across compositions. Added regression coverage in `tests/test_coord2node_integrity.py`.
+- Fixed pipe direction detection bug (OOOO edgespec ambiguity) to ensure correct edge orientation and connectivity in global graph construction.
+  - Integration tests in `tests/integration/test_cnot_integration.py` with circuit fingerprint verification
+  - Regression tests in `tests/test_coord2node_integrity.py` to prevent coord2node mapping bugs
+- **Utility function for edge specification** ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
+  - Added `to_edgespec()` function in `lspattern/utils.py` for convenient string-based edge spec creation
+  - Accepts 4-character strings (e.g., "ZZXX") representing LEFT, RIGHT, TOP, BOTTOM boundaries
+  - Supports characters O (open), X (rough X), Z (rough Z) in any case
+- **Enhanced Plotly visualization for compiled canvases** ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
+  - Added `show_xparity` parameter to `visualize_compiled_canvas_plotly()` for X-parity check visualization
+  - Renders parity connections as directed edges with arrow cones showing stabilizer measurement flow
+  - Color-coded parity lines (red) with hover information showing node pairs
+  - Improved spatial layout and visual clarity for debugging detector structure
+
+### Changed
+- **Fixed pipe direction handling in templates** ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
+  - `RotatedPlanarPipetemplate` now requires explicit `direction: PIPEDIRECTION` parameter
+  - Pipe tiling no longer inferred from edge specifications; uses explicit direction (LEFT/RIGHT/TOP/BOTTOM)
+  - Updated `_InitPipeBase` to pass `direction` parameter to template initialization
+  - Prevents ambiguous pipe orientation errors in complex circuits
+- **Improved coord2node composition logic** ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
+  - Enhanced `_build_merged_coord2node()` in `lspattern/canvas/compiled.py` with duplicate node detection
+  - Added validation to prevent missing graph states during temporal layer composition
+  - Better error messages for node mapping mismatches
+- **Enhanced InitZeroPipe cout_port handling** ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
+  - Implemented `set_cout_ports()` for `InitZeroPipe` (previously missing)
+  - Consistent z-offset calculation (+1 from base) matching initialization layer structure
+  - Enables proper classical output tracking for zero-initialized merge operations
+- Updated all example files to use `to_edgespec()` utility for cleaner edge specification ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
+
+### Fixed
+- Resolved duplicate/missing entries in `CompiledRHGCanvas.coord2node` by remapping node IDs before merging layers and by ignoring conflicting coordinate claims, ensuring global graphs stay consistent across compositions. Added regression coverage in `tests/test_coord2node_integrity.py`. ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
+- Fixed z-offset calculation bug in pipe initialization (off-by-one error) ensuring correct temporal layer alignment ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
+- Fixed pipe direction inference bug where edge spec ambiguity caused incorrect pipe orientation ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
 - Added tiling visualization example (`examples/tiling_visualization.py`)
   - Demonstrates various tiling patterns for rotated planar cubes and pipes
   - Visualizes different edge specifications (XXZZ, ZZXX, OOOO, ZXZX)

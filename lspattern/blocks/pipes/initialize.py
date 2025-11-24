@@ -7,7 +7,13 @@ from graphqomb.graphstate import GraphState
 
 from lspattern.blocks.pipes.base import RHGPipe, RHGPipeSkeleton
 from lspattern.consts import TemporalBoundarySpecValue
-from lspattern.mytype import NodeIdLocal, PatchCoordGlobal3D, PhysCoordGlobal3D, PhysCoordLocal2D, SpatialEdgeSpec
+from lspattern.mytype import (
+    NodeIdLocal,
+    PatchCoordGlobal3D,
+    PhysCoordGlobal3D,
+    PhysCoordLocal2D,
+    SpatialEdgeSpec,
+)
 from lspattern.tiling.template import RotatedPlanarPipetemplate
 from lspattern.utils import get_direction
 
@@ -35,7 +41,7 @@ class _InitPipeBase(RHGPipe):
         edge_spec = edgespec or {}
         super().__init__(d=d, edge_spec=edge_spec)
         self.direction = direction
-        self.template = RotatedPlanarPipetemplate(d=d, edgespec=edge_spec)
+        self.template = RotatedPlanarPipetemplate(d=d, edgespec=edge_spec, direction=direction)
 
     def set_in_ports(self, patch_coord: tuple[int, int] | None = None) -> None:
         """Initialization pipes do not consume logical inputs."""
@@ -136,7 +142,6 @@ class InitPlusPipe(_InitPipeBase):
         """
         z0 = int(self.source[2]) * (2 * int(self.d))  # Base z-offset per block
         ancilla_coords = self.template.z_coords if z0 % 2 == 0 else self.template.x_coords
-
         cout_port_set = set()
         for x, y in ancilla_coords:
             node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z0)))
@@ -256,6 +261,24 @@ class InitZeroPipeSkeleton(RHGPipeSkeleton):
 
 class InitZeroPipe(_InitPipeBase):
     """Zero-state initialization pipe with standard RHG depth."""
+
+    def set_cout_ports(self, patch_coord: tuple[int, int] | None = None) -> None:  # noqa: ARG002
+        """Set classical outport for init zero
+
+        Parameters
+        ----------
+        patch_coord : tuple[int, int] | None, optional
+            global patch coordinates, by default None
+        """
+        z0 = int(self.source[2]) * (2 * int(self.d)) + 1  # Base z-offset per block
+        ancilla_coords = self.template.z_coords if z0 % 2 == 0 else self.template.x_coords
+        cout_port_set = set()
+        for x, y in ancilla_coords:
+            node_id = self.coord2node.get(PhysCoordGlobal3D((x, y, z0)))
+            if node_id is not None:
+                cout_port_set.add(node_id)
+
+        self.cout_ports.append(cout_port_set)
 
     def _build_3d_graph(self) -> Build3DGraphReturn:
         """Override to create single-layer graph with only 13 nodes (9 data + 4 ancilla) at z=2*d."""

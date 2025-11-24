@@ -371,23 +371,12 @@ def _remap_layer_mappings(next_layer: TemporalLayer, node_map2: Mapping[int, int
 
 
 def _build_merged_coord2node(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> dict[PhysCoordGlobal3D, int]:
-    """Build merged coordinate to node mapping without duplicate node ids."""
+    """Build merged coordinate to node mapping."""
 
-    merged: dict[PhysCoordGlobal3D, int] = dict(cgraph.coord2node)
-    node2coord = {node_id: coord for coord, node_id in merged.items()}
-
-    for node_id, coord in next_layer.node2coord.items():
-        # Avoid overriding an existing node mapped to the same coordinate with a different id.
-        current_node = merged.get(coord)
-        if current_node is not None and current_node != node_id:
-            continue
-        existing_coord = node2coord.get(node_id)
-        if existing_coord is not None and existing_coord != coord:
-            merged.pop(existing_coord, None)
-        merged[coord] = node_id
-        node2coord[node_id] = coord
-
-    return merged
+    return {
+        **cgraph.coord2node,
+        **next_layer.coord2node,
+    }
 
 
 def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> CompiledRHGCanvas:
@@ -423,10 +412,9 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> 
         cgraph = cgraph.remap_nodes({NodeIdLocal(k): NodeIdLocal(v) for k, v in node_map1.items()})
 
     _remap_layer_mappings(next_layer, node_map2)
-
     # Build merged mappings
     new_coord2node = _build_merged_coord2node(cgraph, next_layer)
-    # cgraph is already remapped with node_map1 at line 386, so pass empty map to avoid double remapping
+    # cgraph is already remapped with node_map1 at line 412, so pass empty map to avoid double remapping
     # TODO: should simplify the logic for better clarity
     merged_port_manager = cgraph.port_manager.merge(next_layer.port_manager, {}, node_map2)
 
@@ -440,7 +428,6 @@ def add_temporal_layer(cgraph: CompiledRHGCanvas, next_layer: TemporalLayer) -> 
     new_schedule = cgraph_filtered_schedule.compose_sequential(next_layer.schedule, exclude_nodes=None)
     merged_flow = cgraph.flow.merge_with(next_layer.flow)
     new_parity = cgraph.parity.merge_with(next_layer.parity)
-
     # TODO: should add boundary checks?
 
     return CompiledRHGCanvas(

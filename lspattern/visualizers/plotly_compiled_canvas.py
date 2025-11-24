@@ -1,3 +1,4 @@
+# ruff: noqa: PLR1702
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
@@ -9,6 +10,9 @@ if TYPE_CHECKING:
 
     from lspattern.canvas import CompiledRHGCanvas
     from lspattern.mytype import PhysCoordGlobal3D
+
+# Minimum number of nodes required to visualize parity connections
+_MIN_PARITY_NODES = 2
 
 
 def _reverse_coord2node(
@@ -32,12 +36,13 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
     reverse_axes: bool = False,
     show_axes: bool = True,
     show_grid: bool = True,
+    show_xparity: bool = True,
 ) -> go.Figure:
-    """CompiledRHGCanvas 可視化(Plotly 3D)。
+    """CompiledRHGCanvas visualization (Plotly 3D).
 
-    - ノードは z ごとに色分け(z 値をカラーに反映)。
-    - エッジは任意で描画。
-    - 入力/出力ノードは赤ダイヤで強調。
+    - Nodes are colored by z (z value is reflected in color).
+    - Edges are drawn optionally.
+    - Input/output nodes are highlighted with red diamonds.
     """
 
     node2coord = _reverse_coord2node(cgraph.coord2node or {})
@@ -130,6 +135,81 @@ def visualize_compiled_canvas_plotly(  # noqa: C901
 
     _add_marker(input_nodes or [], "Input", "white")
     _add_marker(output_nodes or [], "Output", "red")
+
+    if show_xparity and cgraph.parity is not None:
+        checks = cgraph.parity.checks
+        if checks:
+            line_x: list[float | None] = []
+            line_y: list[float | None] = []
+            line_z: list[float | None] = []
+            line_text: list[str | None] = []
+            cone_x: list[float] = []
+            cone_y: list[float] = []
+            cone_z: list[float] = []
+            cone_u: list[float] = []
+            cone_v: list[float] = []
+            cone_w: list[float] = []
+            seen_pairs: set[tuple[int, int]] = set()
+
+            for groups in checks.values():
+                for nodes in groups.values():
+                    ordered = [(node_id, node2coord[node_id]) for n in nodes if (node_id := int(n)) in node2coord]
+                    if len(ordered) < _MIN_PARITY_NODES:
+                        continue
+                    ordered.sort(key=lambda item: (item[1][2], item[1][0], item[1][1], item[0]))
+                    for idx in range(len(ordered) - 1):
+                        start_id, start_coord = ordered[idx]
+                        end_id, end_coord = ordered[idx + 1]
+                        if start_id == end_id:
+                            continue
+                        pair = (start_id, end_id)
+                        if pair in seen_pairs:
+                            continue
+                        seen_pairs.add(pair)
+                        line_x.extend([float(start_coord[0]), float(end_coord[0]), None])
+                        line_y.extend([float(start_coord[1]), float(end_coord[1]), None])
+                        line_z.extend([float(start_coord[2]), float(end_coord[2]), None])
+                        label = f"X parity: {start_id} → {end_id}"
+                        line_text.extend([label, label, None])
+                        cone_x.append(float(end_coord[0]))
+                        cone_y.append(float(end_coord[1]))
+                        cone_z.append(float(end_coord[2]))
+                        cone_u.append(float(end_coord[0] - start_coord[0]))
+                        cone_v.append(float(end_coord[1] - start_coord[1]))
+                        cone_w.append(float(end_coord[2] - start_coord[2]))
+
+            if line_x:
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=line_x,
+                        y=line_y,
+                        z=line_z,
+                        mode="lines",
+                        line={"color": "#e74c3c", "width": 1.5},
+                        name="X parity",
+                        hoverinfo="text",
+                        text=line_text,
+                        showlegend=True,
+                    )
+                )
+            if cone_x:
+                fig.add_trace(
+                    go.Cone(
+                        x=cone_x,
+                        y=cone_y,
+                        z=cone_z,
+                        u=cone_u,
+                        v=cone_v,
+                        w=cone_w,
+                        colorscale=[[0, "#e74c3c"], [1, "#e74c3c"]],
+                        showscale=False,
+                        sizemode="absolute",
+                        sizeref=1.5,
+                        anchor="tip",
+                        name="X parity arrow",
+                        hoverinfo="skip",
+                    )
+                )
 
     # highlighted nodes (same shape as base scatter, colored red)
     if hilight_nodes:
