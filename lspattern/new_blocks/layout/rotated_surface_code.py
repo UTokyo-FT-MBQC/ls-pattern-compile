@@ -21,7 +21,7 @@ ANCILLA_EDGE = {
 
 def rotated_surface_code_layout(  # noqa: C901
     code_distance: int,
-    global_pos: Coord3D,
+    global_pos: Coord2D,
     boundary: Mapping[BoundarySide, EdgeSpecValue],
 ) -> tuple[set[Coord2D], set[Coord2D], set[Coord2D]]:
     """Get data and ancilla coordinates for rotated surface code cube layout.
@@ -30,8 +30,8 @@ def rotated_surface_code_layout(  # noqa: C901
     ----------
     code_distance : int
         The code distance of the rotated surface code.
-    global_pos : Coord3D
-        The global (x, y, z) position offset for the layout.
+    global_pos : Coord2D
+        The global (x, y) position offset for the layout.
     boundary : Mapping[BoundarySide, EdgeSpecValue]
         The boundary specifications for the rotated surface code.
 
