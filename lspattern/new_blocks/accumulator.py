@@ -98,6 +98,7 @@ class CoordParityAccumulator:
     """Coordinate-based parity checks indexed by (x, y, z)."""
 
     syndrome_meas: dict[Coord2D, dict[int, set[Coord3D]]] = field(default_factory=dict)
+    non_deterministic_coords: set[Coord3D] = field(default_factory=set)
 
     def add_syndrome_measurement(self, xy: Coord2D, z: int, involved_coords: Collection[Coord3D]) -> None:
         """Add a syndrome measurement at coordinate `coord`.
@@ -124,18 +125,18 @@ class CoordParityAccumulator:
             self.syndrome_meas[xy][z] = set()
         self.syndrome_meas[xy][z].update(involved_coords)
 
-    def remove_syndrome_measurement(self, xy: Coord2D, z: int) -> None:
-        """Remove a syndrome measurement at coordinate `xy` occurring at `z`.
+    def add_non_deterministic_coord(self, coord: Coord3D) -> None:
+        """Mark a coordinate as non-deterministic.
 
         Parameters
         ----------
-        xy : Coord2D
-            The (x, y) coordinate of the syndrome measurement.
-        z : int
-            The z-coordinate (layer) of the syndrome measurement.
+        coord : Coord3D
+            The coordinate to mark as non-deterministic.
         """
-        if xy in self.syndrome_meas and z in self.syndrome_meas[xy]:
-            del self.syndrome_meas[xy][z]
-        else:
-            msg = f"Attempted to remove non-existent syndrome measurement at {xy} z={z}"
+        if Coord2D(coord.x, coord.y) not in self.syndrome_meas:
+            msg = f"Cannot add non-deterministic coord {coord} without existing syndrome measurement at (x={coord.x}, y={coord.y})"
             raise KeyError(msg)
+        if coord.z not in self.syndrome_meas[Coord2D(coord.x, coord.y)]:
+            msg = f"Cannot add non-deterministic coord {coord} without existing syndrome measurement at z={coord.z}"
+            raise KeyError(msg)
+        self.non_deterministic_coords.add(coord)
