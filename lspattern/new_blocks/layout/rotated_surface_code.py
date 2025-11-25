@@ -8,7 +8,8 @@ from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.new_blocks.mytype import DIRECTION2D, AxisDIRECTION2D, Coord2D, Coord3D
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
+    from collections.abc import Set as AbstractSet
 
 
 ANCILLA_EDGE = (
@@ -17,6 +18,129 @@ ANCILLA_EDGE = (
     (-1, 1),
     (-1, -1),
 )  # order is optimized for the distance
+
+
+def _range_step2(start: int, end: int) -> list[int]:
+    """Inclusive range helper that moves in steps of 2 toward ``end``."""
+
+    if start == end:
+        return [start]
+    step = 2 if end > start else -2
+    return list(range(start, end + step, step))
+
+
+def _merge_segments(path: Sequence[Coord2D], segment: Sequence[Coord2D]) -> None:
+    """Append ``segment`` to ``path`` without duplicating the joint point."""
+
+    if not segment:
+        return
+    if path and path[-1] == segment[0]:
+        path.extend(segment[1:])
+    else:
+        path.extend(segment)
+
+
+def _data_path_between_boundaries(
+    data_coords: AbstractSet[Coord2D],
+    side_a: BoundarySide,
+    side_b: BoundarySide,
+) -> list[Coord2D]:
+    """Return ordered data-qubit coordinates connecting two boundaries through the patch center.
+
+    The path follows Manhattan geometry on the data lattice:
+    - Opposite sides (TOP-BOTTOM or LEFT-RIGHT): a straight center line.
+    - Adjacent sides (e.g., TOP-LEFT): an ``L`` shape via the patch center,
+      combining the central row and column.
+
+    Parameters
+    ----------
+    data_coords : collections.abc.Set[Coord2D]
+        Data-qubit coordinates for the patch (cube or pipe).
+    side_a, side_b : BoundarySide
+        Two boundary sides chosen from TOP, BOTTOM, LEFT, RIGHT.
+
+    Returns
+    -------
+    list[Coord2D]
+        Ordered coordinates from ``side_a`` toward ``side_b``.
+    """
+
+    if not data_coords:
+        return []
+
+    xs = sorted({c.x for c in data_coords})
+    ys = sorted({c.y for c in data_coords})
+
+    min_x = xs[0]
+    max_x = xs[-1]
+    min_y = ys[0]
+    max_y = ys[-1]
+
+    center_x = xs[len(xs) // 2]
+    center_y = ys[len(ys) // 2]
+
+    boundary_pos = {
+        BoundarySide.TOP: min_y,
+        BoundarySide.BOTTOM: max_y,
+        BoundarySide.LEFT: min_x,
+        BoundarySide.RIGHT: max_x,
+    }
+
+    vertical = {BoundarySide.TOP, BoundarySide.BOTTOM}
+    horizontal = {BoundarySide.LEFT, BoundarySide.RIGHT}
+
+    def vertical_segment(src: BoundarySide, dst: BoundarySide) -> list[Coord2D]:
+        y_start = boundary_pos[src]
+        y_end = boundary_pos[dst]
+        return [Coord2D(center_x, y) for y in _range_step2(y_start, y_end) if Coord2D(center_x, y) in data_coords]
+
+    def horizontal_segment(src: BoundarySide, dst: BoundarySide) -> list[Coord2D]:
+        x_start = boundary_pos[src]
+        x_end = boundary_pos[dst]
+        return [Coord2D(x, center_y) for x in _range_step2(x_start, x_end) if Coord2D(x, center_y) in data_coords]
+
+    # Opposite sides -> straight line
+    if side_a in vertical and side_b in vertical:
+        return vertical_segment(side_a, side_b)
+    if side_a in horizontal and side_b in horizontal:
+        return horizontal_segment(side_a, side_b)
+
+    # Adjacent sides -> L via center, ordered from side_a to side_b
+    path: list[Coord2D] = []
+    if side_a in vertical and side_b in horizontal:
+        # side_a to center (vertical), then center to side_b (horizontal)
+        v_seg = [
+            Coord2D(center_x, y)
+            for y in _range_step2(boundary_pos[side_a], center_y)
+            if Coord2D(center_x, y) in data_coords
+        ]
+        h_seg = [
+            Coord2D(x, center_y)
+            for x in _range_step2(center_x, boundary_pos[side_b])
+            if Coord2D(x, center_y) in data_coords
+        ]
+        _merge_segments(path, v_seg)
+        _merge_segments(path, h_seg)
+        return path
+
+    if side_a in horizontal and side_b in vertical:
+        # side_a to center (horizontal), then center to side_b (vertical)
+        h_seg = [
+            Coord2D(x, center_y)
+            for x in _range_step2(boundary_pos[side_a], center_x)
+            if Coord2D(x, center_y) in data_coords
+        ]
+        v_seg = [
+            Coord2D(center_x, y)
+            for y in _range_step2(center_y, boundary_pos[side_b])
+            if Coord2D(center_x, y) in data_coords
+        ]
+        _merge_segments(path, h_seg)
+        _merge_segments(path, v_seg)
+        return path
+
+    msg = f"Unsupported boundary pair: {side_a}, {side_b}."
+    raise ValueError(msg)
 
 
 def rotated_surface_code_layout(  # noqa: C901
@@ -141,6 +265,36 @@ def rotated_surface_code_layout(  # noqa: C901
     return data_coords, x_ancilla_coords, z_ancilla_coords
 
 
+def boundary_data_path_cube(
+    code_distance: int,
+    global_pos: Coord2D,
+    boundary: Mapping[BoundarySide, EdgeSpecValue],
+    side_a: BoundarySide,
+    side_b: BoundarySide,
+) -> list[Coord2D]:
+    """Get data-qubit coordinates connecting two boundaries inside a cube patch.
+
+    Parameters
+    ----------
+    code_distance : int
+        Code distance of the patch.
+    global_pos : Coord2D
+        Patch XY anchor (same as ``rotated_surface_code_layout``).
+    boundary : Mapping[BoundarySide, EdgeSpecValue]
+        Boundary specification for the patch (passed to layout for completeness).
+    side_a, side_b : BoundarySide
+        Two boundaries among TOP, BOTTOM, LEFT, RIGHT.
+
+    Returns
+    -------
+    list[Coord2D]
+        Ordered data-qubit coordinates forming a path from ``side_a`` to ``side_b`` via the patch center.
+    """
+
+    data_coords, _, _ = rotated_surface_code_layout(code_distance, global_pos, boundary)
+    return _data_path_between_boundaries(data_coords, side_a, side_b)
+
+
 def rotated_surface_code_pipe_layout(  # noqa: C901
     code_distance: int,
     global_pos_source: Coord3D,
@@ -232,6 +386,42 @@ def rotated_surface_code_pipe_layout(  # noqa: C901
                 z_ancilla_coords.add(Coord2D(x_right, y))
 
     return data_coords, x_ancilla_coords, z_ancilla_coords
+
+
+def boundary_data_path_pipe(
+    code_distance: int,
+    global_pos_source: Coord3D,
+    global_pos_target: Coord3D,
+    boundary: Mapping[BoundarySide, EdgeSpecValue],
+    side_a: BoundarySide,
+    side_b: BoundarySide,
+) -> list[Coord2D]:
+    """Get data-qubit coordinates connecting two boundaries inside a pipe patch.
+
+    The pipe orientation and offset are derived from ``boundary`` and the
+    source/target positions in the same way as ``rotated_surface_code_pipe_layout``.
+
+    Parameters
+    ----------
+    code_distance : int
+        Code distance of the pipe.
+    global_pos_source : Coord3D
+        Source patch coordinate (same semantics as pipe layout helper).
+    global_pos_target : Coord3D
+        Target patch coordinate.
+    boundary : Mapping[BoundarySide, EdgeSpecValue]
+        Boundary specification for the pipe.
+    side_a, side_b : BoundarySide
+        Two boundaries among TOP, BOTTOM, LEFT, RIGHT.
+
+    Returns
+    -------
+    list[Coord2D]
+        Ordered data-qubit coordinates forming a path from ``side_a`` to ``side_b`` via the pipe center.
+    """
+
+    data_coords, _, _ = rotated_surface_code_pipe_layout(code_distance, global_pos_source, global_pos_target, boundary)
+    return _data_path_between_boundaries(data_coords, side_a, side_b)
 
 
 # NOTE: This is redundant to the current 3D coord based implementation, but kept for
