@@ -59,6 +59,13 @@ _COLOR_MAP: dict[NodeRole, NodeStyleSpec] = {
     NodeRole.ANCILLA_Z: {"color": "blue", "line_color": "darkblue", "size": 80, "label": "Z ancilla"},
 }
 
+_HIGHLIGHT_STYLE: NodeStyleSpec = {
+    "color": "red",
+    "line_color": "darkred",
+    "size": 150,
+    "label": "Highlighted",
+}
+
 
 def _group_nodes_2d(
     nodes: Iterable[Coord3D],
@@ -94,6 +101,7 @@ def visualize_canvas_matplotlib_2d(
     canvas: Canvas,
     target_z: int,
     *,
+    highlight_nodes: Iterable[Coord3D] | None = None,
     show_edges: bool = True,
     edge_color: str = "gray",
     edge_width: float = 0.5,
@@ -114,6 +122,9 @@ def visualize_canvas_matplotlib_2d(
         The Canvas object to visualize, containing nodes, edges, and role information.
     target_z : int
         The Z coordinate of the slice to visualize.
+    highlight_nodes : Iterable[Coord3D] | None, optional
+        Nodes to highlight in red color. These nodes will be drawn on top
+        of regular nodes with a larger marker size. By default None.
     show_edges : bool, optional
         Whether to display edges between nodes, by default True.
     edge_color : str, optional
@@ -166,6 +177,25 @@ def visualize_canvas_matplotlib_2d(
             linewidths=1.5,
             zorder=2,  # Draw nodes on top of edges
         )
+
+    # Draw highlighted nodes on top
+    if highlight_nodes is not None:
+        highlight_set = set(highlight_nodes)
+        highlight_at_z = [n for n in highlight_set if n in nodes_at_z]
+        if highlight_at_z:
+            hx = [n.x for n in highlight_at_z]
+            hy = [n.y for n in highlight_at_z]
+            ax.scatter(
+                hx,
+                hy,
+                c=_HIGHLIGHT_STYLE["color"],
+                edgecolors=_HIGHLIGHT_STYLE["line_color"],
+                s=_HIGHLIGHT_STYLE["size"],
+                label=_HIGHLIGHT_STYLE["label"],
+                alpha=1.0,
+                linewidths=2.0,
+                zorder=3,  # Draw on top of regular nodes
+            )
 
     # Draw edges if requested
     if show_edges:
