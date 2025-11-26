@@ -104,6 +104,7 @@ class Canvas:
         self.__edges = set()
         self.__pauli_axes = {}
         self.__coord2role = {}
+        self.couts = {}
         self.__parity = CoordParityAccumulator()
         self.flow = CoordFlowAccumulator()
         self.scheduler = CoordScheduleAccumulator()

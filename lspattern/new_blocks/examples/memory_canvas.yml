@@ -15,3 +15,6 @@ cube:
     logical_observables: TB # top to bottom, logical X observable
 
 pipe: []
+
+logical_observables:
+  - [[0, 0, 1]] # can be combinations of coordinates
