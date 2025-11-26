@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from graphqomb.common import Axis
 
@@ -9,10 +9,47 @@ from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.new_blocks.accumulator import CoordFlowAccumulator, CoordParityAccumulator, CoordScheduleAccumulator
 from lspattern.new_blocks.layout.rotated_surface_code import (
     ANCILLA_EDGE,
+    boundary_data_path_cube,
     rotated_surface_code_layout,
 )  # this will be dynamically loaded based on config
 from lspattern.new_blocks.loader import BlockConfig
 from lspattern.new_blocks.mytype import DIRECTION2D, Coord2D, Coord3D, NodeRole
+
+if TYPE_CHECKING:
+    from collections.abc import Set as AbstractSet
+    from lspattern.new_blocks.canvas_loader import LogicalObservableSpec
+
+
+_TOKEN_TO_SIDES: dict[str, BoundarySide] = {
+    "T": BoundarySide.TOP,
+    "B": BoundarySide.BOTTOM,
+    "L": BoundarySide.LEFT,
+    "R": BoundarySide.RIGHT,
+}
+
+
+def _token_to_boundary_sides(token: str) -> tuple[BoundarySide, BoundarySide]:
+    """Convert logical observable token (2-char) to boundary side pair.
+
+    Parameters
+    ----------
+    token : str
+        A two-character token like "TB", "LR", "TL", etc.
+
+    Returns
+    -------
+    tuple[BoundarySide, BoundarySide]
+        A pair of boundary sides.
+
+    Raises
+    ------
+    ValueError
+        If the token is not a valid 2-character boundary token.
+    """
+    if len(token) == 2 and token[0] in _TOKEN_TO_SIDES and token[1] in _TOKEN_TO_SIDES:
+        return _TOKEN_TO_SIDES[token[0]], _TOKEN_TO_SIDES[token[1]]
+    msg = f"Unknown logical observable token: {token}"
+    raise ValueError(msg)
 
 
 class Boundary(NamedTuple):
@@ -133,7 +170,12 @@ class Canvas:
     def parity_accumulator(self) -> CoordParityAccumulator:
         return self.__parity
 
-    def add_cube(self, global_pos: Coord3D, block_config: BlockConfig) -> None:
+    def add_cube(
+        self,
+        global_pos: Coord3D,
+        block_config: BlockConfig,
+        logical_observable: LogicalObservableSpec | None = None,
+    ) -> None:
         self.cube_config[global_pos] = block_config
         boundary = Boundary(
             top=block_config.boundary[BoundarySide.TOP],
@@ -146,6 +188,12 @@ class Canvas:
         data2d, ancilla_x2d, ancilla_z2d = rotated_surface_code_layout(
             self.config.d, Coord2D(global_pos.x, global_pos.y), block_config.boundary
         )
+
+        # Compute couts if logical_observable is specified
+        if logical_observable is not None:
+            self._compute_cout_from_logical_observable(
+                global_pos, block_config, logical_observable, ancilla_x2d, ancilla_z2d
+            )
 
         offset_z = global_pos.z * 2 * self.config.d
 
@@ -220,6 +268,59 @@ class Canvas:
                         if Coord3D(x + dx, y + dy, z + 1) in self.__nodes:
                             self.__edges.add((Coord3D(x, y, z + 1), Coord3D(x + dx, y + dy, z + 1)))
                     self.__parity.add_syndrome_measurement(Coord2D(x, y), z + 1, {Coord3D(x, y, z + 1)})
+
+    def _compute_cout_from_logical_observable(
+        self,
+        global_pos: Coord3D,
+        block_config: BlockConfig,
+        logical_observable: LogicalObservableSpec,
+        ancilla_x2d: AbstractSet[Coord2D],
+        ancilla_z2d: AbstractSet[Coord2D],
+    ) -> None:
+        """Compute cout coordinates from logical observable specification.
+
+        Parameters
+        ----------
+        global_pos : Coord3D
+            The global position of the cube.
+        block_config : BlockConfig
+            The block configuration.
+        logical_observable : LogicalObservableSpec
+            The logical observable specification.
+        ancilla_x2d : collections.abc.Set[Coord2D]
+            X ancilla 2D coordinates for this cube.
+        ancilla_z2d : collections.abc.Set[Coord2D]
+            Z ancilla 2D coordinates for this cube.
+
+        Notes
+        -----
+        Token types:
+        - "TB", "LR", etc. (2-char): Use boundary_data_path_cube() to get data qubit path
+        - "X": Select all ANCILLA_X nodes in the cube's final layer
+        - "Z": Select all ANCILLA_Z nodes in the cube's final layer
+        """
+        observable_token = logical_observable.token
+        offset_z = global_pos.z * 2 * self.config.d
+
+        if observable_token == "X":  # noqa: S105
+            # Select ANCILLA_X nodes at final layer within cube's XY range
+            cout_coords = {Coord3D(c.x, c.y, offset_z + 1) for c in ancilla_x2d}
+        elif observable_token == "Z":  # noqa: S105
+            # Select ANCILLA_Z nodes at final layer within cube's XY range
+            cout_coords = {Coord3D(c.x, c.y, offset_z) for c in ancilla_z2d}
+        else:
+            # TB, LR, etc. - use boundary_data_path_cube for data qubit path
+            side_a, side_b = _token_to_boundary_sides(observable_token)
+            path_2d = boundary_data_path_cube(
+                self.config.d,
+                Coord2D(global_pos.x, global_pos.y),
+                block_config.boundary,
+                side_a,
+                side_b,
+            )
+            cout_coords = {Coord3D(c.x, c.y, offset_z) for c in path_2d}
+
+        self.couts[global_pos] = cout_coords
 
     def add_pipe(self, global_edge: tuple[Coord3D, Coord3D], block_config: BlockConfig) -> None:
         pass

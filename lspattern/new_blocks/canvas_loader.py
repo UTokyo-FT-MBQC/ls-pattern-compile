@@ -375,7 +375,7 @@ def build_canvas(spec: CanvasSpec, *, extra_paths: Sequence[Path | str] = ()) ->
             extra_paths=search_paths,
             boundary_override=cube.boundary,
         )
-        canvas.add_cube(cube.position, block_config)
+        canvas.add_cube(cube.position, block_config, cube.logical_observable)
 
     for pipe in spec.pipes:
         block_config = load_block_config_from_name(
