@@ -47,15 +47,15 @@ def remove_non_deterministic_det(canvas: Canvas) -> CoordParityAccumulator:
         )
         for layer_idx, layer_cfg in enumerate(block_config):
             if layer_cfg.layer1.basis is not None:
-                z = target_coord.z + layer_idx * 2
+                z = target_coord.z * 2 * canvas.config.d + layer_idx * 2
                 for xy in ancilla_z2d:
                     new_parity_accumulator.add_non_deterministic_coord(Coord3D(xy.x, xy.y, z))
-                    break
-            elif layer_cfg.layer2.basis is not None:
-                z = target_coord.z + layer_idx * 2 + 1
+                break
+            if layer_cfg.layer2.basis is not None:
+                z = target_coord.z * 2 * canvas.config.d + layer_idx * 2 + 1
                 for xy in ancilla_x2d:
                     new_parity_accumulator.add_non_deterministic_coord(Coord3D(xy.x, xy.y, z))
-                    break
+                break
     return new_parity_accumulator
 
 
