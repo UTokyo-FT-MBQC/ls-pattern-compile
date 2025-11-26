@@ -81,30 +81,31 @@ class CoordScheduleAccumulator:
 
         Returns
         -------
-        tuple[dict[int, set[int]], dict[int, set[int]], dict[int, set[tuple[int, int]]]]
+        tuple[dict[int, int], dict[int, int], dict[tuple[int, int], int]]
             A tuple containing three dictionaries for preparation, measurement,
             and entangling schedules indexed by time steps.
         """
-        prep_schedule: dict[int, set[int]] = {}
-        meas_schedule: dict[int, set[int]] = {}
-        entangle_schedule: dict[int, set[tuple[int, int]]] = {}
+        prep_schedule: dict[int, int] = {}
+        meas_schedule: dict[int, int] = {}
+        entangle_schedule: dict[tuple[int, int], int] = {}
 
         for time, coords in self.prep_time.items():
             mapped = {coord2node[c] for c in coords if c in coord2node}
-            if mapped:
-                prep_schedule[time] = mapped
+            for node in mapped:
+                prep_schedule[node] = time
 
         for time, coords in self.meas_time.items():
             mapped = {coord2node[c] for c in coords if c in coord2node}
-            if mapped:
-                meas_schedule[time] = mapped
+            for node in mapped:
+                meas_schedule[node] = time
 
         for time, edges in self.entangle_time.items():
             mapped_edge = {
                 (coord2node[c1], coord2node[c2]) for c1, c2 in edges if c1 in coord2node and c2 in coord2node
             }
             if mapped_edge:
-                entangle_schedule[time] = mapped_edge
+                for edge in mapped_edge:
+                    entangle_schedule[edge] = time
 
         return prep_schedule, meas_schedule, entangle_schedule
 
