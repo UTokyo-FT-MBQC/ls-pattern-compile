@@ -17,11 +17,12 @@ if TYPE_CHECKING:
 class CoordScheduleAccumulator:
     """Coordinate-based measurement schedule."""
 
-    schedule: dict[int, set[Coord3D]] = field(default_factory=dict)
-    edge_schedule: dict[int, set[tuple[Coord3D, Coord3D]]] = field(default_factory=dict)
+    prep_time: dict[int, set[Coord3D]] = field(default_factory=dict)
+    meas_time: dict[int, set[Coord3D]] = field(default_factory=dict)
+    entangle_time: dict[int, set[tuple[Coord3D, Coord3D]]] = field(default_factory=dict)
 
-    def add_at_time(self, time: int, coords: Collection[Coord3D]) -> None:
-        """Add coordinates to the schedule at the given time.
+    def add_prep_at_time(self, time: int, coords: Collection[Coord3D]) -> None:
+        """Add preparation coordinates to the schedule at the given time.
 
         Parameters
         ----------
@@ -32,9 +33,25 @@ class CoordScheduleAccumulator:
         """
         if not coords:
             return
-        if time not in self.schedule:
-            self.schedule[time] = set()
-        self.schedule[time].update(coords)
+        if time not in self.prep_time:
+            self.prep_time[time] = set()
+        self.prep_time[time].update(coords)
+
+    def add_meas_at_time(self, time: int, coords: Collection[Coord3D]) -> None:
+        """Add measurement coordinates to the schedule at the given time.
+
+        Parameters
+        ----------
+        time : int
+            The time step to add the coordinates to.
+        coords : collections.abc.Collection[Coord3D]
+            The coordinates to add at the specified time.
+        """
+        if not coords:
+            return
+        if time not in self.meas_time:
+            self.meas_time[time] = set()
+        self.meas_time[time].update(coords)
 
     def add_entangle_at_time(self, time: int, edges: Collection[tuple[Coord3D, Coord3D]]) -> None:
         """Add entangling edges to the schedule at the given time.
@@ -48,12 +65,14 @@ class CoordScheduleAccumulator:
         """
         if not edges:
             return
-        if time not in self.edge_schedule:
-            self.edge_schedule[time] = set()
-        self.edge_schedule[time].update(edges)
+        if time not in self.entangle_time:
+            self.entangle_time[time] = set()
+        self.entangle_time[time].update(edges)
 
-    def to_node_schedule(self, coord2node: Mapping[Coord3D, int]) -> dict[int, set[int]]:
-        """Convert schedule coordinates to node identifiers using `coord2node`.
+    def to_node_schedule(
+        self, coord2node: Mapping[Coord3D, int]
+    ) -> tuple[dict[int, set[int]], dict[int, set[int]], dict[int, set[tuple[int, int]]]]:
+        """Convert coordinate-based schedule to node identifier-based schedule.
 
         Parameters
         ----------
@@ -62,10 +81,32 @@ class CoordScheduleAccumulator:
 
         Returns
         -------
-        dict[int, set[int]]
-            A mapping from time steps to sets of node identifiers.
+        tuple[dict[int, set[int]], dict[int, set[int]], dict[int, set[tuple[int, int]]]]
+            A tuple containing three dictionaries for preparation, measurement,
+            and entangling schedules indexed by time steps.
         """
-        return {t: {coord2node[c] for c in coords if c in coord2node} for t, coords in self.schedule.items() if coords}
+        prep_schedule: dict[int, set[int]] = {}
+        meas_schedule: dict[int, set[int]] = {}
+        entangle_schedule: dict[int, set[tuple[int, int]]] = {}
+
+        for time, coords in self.prep_time.items():
+            mapped = {coord2node[c] for c in coords if c in coord2node}
+            if mapped:
+                prep_schedule[time] = mapped
+
+        for time, coords in self.meas_time.items():
+            mapped = {coord2node[c] for c in coords if c in coord2node}
+            if mapped:
+                meas_schedule[time] = mapped
+
+        for time, edges in self.entangle_time.items():
+            mapped_edge = {
+                (coord2node[c1], coord2node[c2]) for c1, c2 in edges if c1 in coord2node and c2 in coord2node
+            }
+            if mapped_edge:
+                entangle_schedule[time] = mapped_edge
+
+        return prep_schedule, meas_schedule, entangle_schedule
 
 
 @dataclass
