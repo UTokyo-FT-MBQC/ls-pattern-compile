@@ -226,3 +226,161 @@ def visualize_canvas_plotly(
     )
 
     return fig
+
+
+def visualize_detectors_plotly(
+    detectors: Mapping[Coord3D, Iterable[int]],
+    *,
+    canvas: Canvas | None = None,
+    show_canvas_nodes: bool = True,
+    show_canvas_edges: bool = True,
+    show_node_indices_on_hover: bool = True,
+    detector_color: str = "red",
+    detector_line_color: str = "darkred",
+    detector_marker_size: int = 9,
+    edge_width: float = 3.0,
+    edge_color: str = "rgba(60, 60, 60, 0.6)",
+    width: int = 900,
+    height: int = 700,
+    reverse_axes: bool = True,
+) -> go.Figure:
+    """Visualize detectors in 3D with Plotly and optionally show involved node indices on hover.
+
+    Parameters
+    ----------
+    detectors : Mapping[Coord3D, Iterable[int]]
+        Mapping from detector coordinates to the set/list of node indices included
+        in each detector (e.g., construct_detector output after coord->node mapping).
+    canvas : Canvas | None, optional
+        Canvas to render as background (nodes/edges). If None, only detectors are shown.
+    show_canvas_nodes : bool, optional
+        Whether to draw canvas nodes when `canvas` is provided. Default True.
+    show_canvas_edges : bool, optional
+        Whether to draw canvas edges when `canvas` is provided. Default True.
+    show_node_indices_on_hover : bool, optional
+        Show the list of node indices in hover text. Default True.
+    detector_color : str, optional
+        Marker fill color for detectors. Default "red".
+    detector_line_color : str, optional
+        Marker outline color for detectors. Default "darkred".
+    detector_marker_size : int, optional
+        Marker size in pixels. Default 9.
+    edge_width : float, optional
+        Line width for canvas edges. Default 3.0.
+    edge_color : str, optional
+        Color for canvas edges. Default "rgba(60, 60, 60, 0.6)".
+    width : int, optional
+        Figure width in pixels. Default 900.
+    height : int, optional
+        Figure height in pixels. Default 700.
+    reverse_axes : bool, optional
+        Reverse X/Y axes to mimic circuit-style layout. Default True.
+
+    Returns
+    -------
+    go.Figure
+        Plotly Figure object ready for `fig.show()` or `fig.write_html(...)`.
+    """
+
+    fig = go.Figure()
+
+    # オプションでキャンバスのノード・エッジを背景に描画
+    if canvas is not None and show_canvas_nodes:
+        groups = _group_nodes(canvas.nodes, canvas.coord2role)
+        for role, pts in groups.items():
+            if not pts["coords"]:
+                continue
+            spec = _COLOR_MAP[role]
+            coords: list[Coord3D] = pts["coords"]
+            fig.add_trace(
+                go.Scatter3d(
+                    x=pts["x"],
+                    y=pts["y"],
+                    z=pts["z"],
+                    mode="markers",
+                    marker={
+                        "size": spec["size"],
+                        "color": spec["color"],
+                        "line": {"color": spec["line_color"], "width": 1.2},
+                        "opacity": 0.45,
+                    },
+                    name=spec["label"],
+                    text=[f"{spec['label']} ({c.x}, {c.y}, {c.z})" for c in coords],
+                    hovertemplate="<b>%{text}</b><extra></extra>",
+                    showlegend=False,
+                )
+            )
+
+    if canvas is not None and show_canvas_edges:
+        edge_x, edge_y, edge_z = _edge_coordinates(canvas.edges, canvas.nodes)
+        if edge_x:
+            fig.add_trace(
+                go.Scatter3d(
+                    x=edge_x,
+                    y=edge_y,
+                    z=edge_z,
+                    mode="lines",
+                    line={"color": edge_color, "width": edge_width},
+                    name="Edges",
+                    showlegend=False,
+                    hoverinfo="none",
+                )
+            )
+
+    # Detector を描画
+    det_x: list[int] = []
+    det_y: list[int] = []
+    det_z: list[int] = []
+    det_hover: list[str] = []
+
+    for coord, nodes in detectors.items():
+        det_x.append(coord.x)
+        det_y.append(coord.y)
+        det_z.append(coord.z)
+
+        if show_node_indices_on_hover:
+            node_list = sorted({int(n) for n in nodes})
+            node_str = ", ".join(str(n) for n in node_list)
+            det_hover.append(f"Detector ({coord.x}, {coord.y}, {coord.z})<br>nodes: [{node_str}]")
+        else:
+            det_hover.append(f"Detector ({coord.x}, {coord.y}, {coord.z})")
+
+    fig.add_trace(
+        go.Scatter3d(
+            x=det_x,
+            y=det_y,
+            z=det_z,
+            mode="markers",
+            marker={
+                "size": detector_marker_size,
+                "color": detector_color,
+                "line": {"color": detector_line_color, "width": 2},
+                "symbol": "diamond",
+                "opacity": 0.95,
+            },
+            name="Detector",
+            text=det_hover,
+            hovertemplate="%{text}<extra></extra>",
+        )
+    )
+
+    scene: dict[str, object] = {
+        "xaxis_title": "X",
+        "yaxis_title": "Y",
+        "zaxis_title": "Z",
+        "aspectmode": "data",
+    }
+    if reverse_axes:
+        scene["xaxis"] = {"autorange": "reversed"}
+        scene["yaxis"] = {"autorange": "reversed"}
+
+    fig.update_layout(
+        scene=scene,
+        width=width,
+        height=height,
+        legend={"itemsizing": "constant"},
+        margin={"l": 0, "r": 0, "b": 0, "t": 40},
+        template="plotly_white",
+    )
+
+    return fig
