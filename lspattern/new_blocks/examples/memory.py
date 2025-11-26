@@ -3,15 +3,21 @@
 # %%
 from __future__ import annotations
 
+import pathlib
+
+import pymatching
+import stim
 from graphqomb.common import AxisMeasBasis, Sign
 from graphqomb.graphstate import GraphState
+
+from lspattern.consts import BoundarySide
 from lspattern.new_blocks.canvas_loader import load_canvas
+from lspattern.new_blocks.compiler import compile_canvas_to_stim
 from lspattern.new_blocks.detector import construct_detector, remove_non_deterministic_det
+from lspattern.new_blocks.layout.rotated_surface_code import boundary_data_path_cube
+from lspattern.new_blocks.mytype import Coord2D, Coord3D
 from lspattern.new_blocks.visualizer import visualize_canvas_plotly, visualize_detectors_plotly
 from lspattern.new_blocks.visualizer_2d import visualize_canvas_matplotlib_2d
-from lspattern.new_blocks.layout.rotated_surface_code import boundary_data_path_cube
-from lspattern.new_blocks.mytype import Coord3D
-from lspattern.consts import BoundarySide
 
 spec_name = "memory_canvas.yml"
 canvas, spec = load_canvas(spec_name)
@@ -38,7 +44,7 @@ for pos, coords in canvas.couts.items():
 # boundary path verification
 boundary_path = boundary_data_path_cube(
     canvas.config.d,
-    Coord3D(0, 0, 0),
+    Coord2D(0, 0),
     canvas.cube_config[Coord3D(0, 0, 0)].boundary,
     BoundarySide.BOTTOM,
     BoundarySide.TOP,
@@ -78,5 +84,48 @@ fig_det = visualize_detectors_plotly(
     show_canvas_edges=True,
 )
 fig_det.show()
+
+# %%
+# Stim circuit compilation
+# Build logical_observables dict from couts keys
+# Use the cube positions that have logical observables defined
+logical_observables: dict[int, set[Coord3D]] = {}
+for idx, (pos, _) in enumerate(canvas.couts.items()):
+    logical_observables[idx] = {pos}
+
+print("\n=== Stim Circuit Compilation ===")
+print(f"Logical observables: {logical_observables}")
+
+noise = 0.001
+circuit_str = compile_canvas_to_stim(
+    canvas,
+    logical_observables,
+    p_depol_after_clifford=noise,
+    p_before_meas_flip=noise,
+)
+circuit = stim.Circuit(circuit_str)
+print(f"Stim circuit: num_qubits={circuit.num_qubits}")
+print(circuit)
+
+# %%
+# Detector error model analysis
+dem = circuit.detector_error_model(decompose_errors=True)
+print("\n=== Detector Error Model ===")
+print(dem)
+
+matching = pymatching.Matching.from_detector_error_model(dem)
+print("\n=== PyMatching ===")
+print(matching)
+
+err = dem.shortest_graphlike_error(ignore_ungraphlike_errors=False)
+print(f"\nShortest graphlike error length: {len(err)}")
+print(err)
+
+# %%
+# Export SVG diagram
+svg = dem.diagram(type="match-graph-svg")
+pathlib.Path("figures").mkdir(exist_ok=True)
+pathlib.Path("figures/memory_canvas_dem.svg").write_text(str(svg), encoding="utf-8")
+print("SVG diagram saved to figures/memory_canvas_dem.svg")
 
 # %%
