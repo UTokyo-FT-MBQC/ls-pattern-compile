@@ -28,6 +28,8 @@ _TOKEN_TO_SIDES: dict[str, BoundarySide] = {
     "R": BoundarySide.RIGHT,
 }
 
+_PHYSICAL_CLOCK = 2
+
 
 def _token_to_boundary_sides(token: str) -> tuple[BoundarySide, BoundarySide]:
     """Convert logical observable token (2-char) to boundary side pair.
@@ -190,6 +192,10 @@ class Canvas:
             self.config.d, Coord2D(global_pos.x, global_pos.y), block_config.boundary
         )
 
+        current_time = global_pos.z * (
+            2 * self.config.d * (_PHYSICAL_CLOCK + len(ANCILLA_EDGE))
+        )  # time offset for scheduler
+
         # Compute couts if logical_observable is specified
         if logical_observable is not None:
             self._compute_cout_from_logical_observable(
@@ -201,6 +207,7 @@ class Canvas:
         # Build graph layer by layer
         for layer_idx, layer_cfg in enumerate(block_config):  # noqa: PLR1702
             z = offset_z + layer_idx * 2
+            layer_time = current_time + layer_idx * 2 * (_PHYSICAL_CLOCK + len(ANCILLA_EDGE))
 
             if layer_cfg.layer1.basis is not None:
                 layer1_coords: list[Coord3D] = []
@@ -214,8 +221,13 @@ class Canvas:
                     if Coord3D(x, y, z - 1) in self.__nodes:
                         self.__edges.add((Coord3D(x, y, z - 1), coord))
                         self.flow.add_flow(Coord3D(x, y, z - 1), coord)
+                        self.scheduler.add_entangle_at_time(layer_time, {(Coord3D(x, y, z - 1), coord)})
                 # Add layer1 data qubits to scheduler
-                self.scheduler.add_at_time(z, layer1_coords)
+                self.scheduler.add_prep_at_time(layer_time, layer1_coords)
+                self.scheduler.add_meas_at_time(
+                    layer_time + _PHYSICAL_CLOCK + len(ANCILLA_EDGE) + 1,
+                    layer1_coords,
+                )
 
                 # should construct parity check with data qubits
                 if not layer_cfg.layer1.ancilla:
@@ -241,8 +253,18 @@ class Canvas:
                     if Coord3D(x, y, z) in self.__nodes:
                         self.__edges.add((Coord3D(x, y, z), coord))
                         self.flow.add_flow(Coord3D(x, y, z), coord)
+                        self.scheduler.add_entangle_at_time(
+                            layer_time + _PHYSICAL_CLOCK + len(ANCILLA_EDGE), {(Coord3D(x, y, z), coord)}
+                        )
                 # Add layer2 data qubits to scheduler
-                self.scheduler.add_at_time(z + 1, layer2_coords)
+                self.scheduler.add_prep_at_time(
+                    layer_time + _PHYSICAL_CLOCK + len(ANCILLA_EDGE),
+                    layer2_coords,
+                )
+                self.scheduler.add_meas_at_time(
+                    layer_time + 2 * (_PHYSICAL_CLOCK + len(ANCILLA_EDGE)) + 1,
+                    layer2_coords,
+                )
 
                 # NOTE: Redundant in layer2?
                 # should construct parity check with data qubits
@@ -267,12 +289,16 @@ class Canvas:
                     self.__coord2role[coord] = NodeRole.ANCILLA_Z
                     self.__pauli_axes[coord] = Axis.X
                     ancilla_z_coords.append(coord)
-                    for dx, dy in ANCILLA_EDGE:
+                    for i, (dx, dy) in enumerate(ANCILLA_EDGE):
                         if Coord3D(x + dx, y + dy, z) in self.__nodes:
                             self.__edges.add((coord, Coord3D(x + dx, y + dy, z)))
+                            self.scheduler.add_entangle_at_time(
+                                layer_time + 1 + i, {(coord, Coord3D(x + dx, y + dy, z))}
+                            )
                     self.__parity.add_syndrome_measurement(Coord2D(x, y), z, {coord})
                 # Add ancilla_z qubits to scheduler
-                self.scheduler.add_at_time(z, ancilla_z_coords)
+                self.scheduler.add_prep_at_time(layer_time, ancilla_z_coords)
+                self.scheduler.add_meas_at_time(layer_time + len(ANCILLA_EDGE) + 1, ancilla_z_coords)
 
             if layer_cfg.layer2.ancilla:
                 ancilla_x_coords: list[Coord3D] = []
@@ -282,12 +308,23 @@ class Canvas:
                     self.__coord2role[coord] = NodeRole.ANCILLA_X
                     self.__pauli_axes[coord] = Axis.X
                     ancilla_x_coords.append(coord)
-                    for dx, dy in ANCILLA_EDGE:
+                    for i, (dx, dy) in enumerate(ANCILLA_EDGE):
                         if Coord3D(x + dx, y + dy, z + 1) in self.__nodes:
                             self.__edges.add((coord, Coord3D(x + dx, y + dy, z + 1)))
+                            self.scheduler.add_entangle_at_time(
+                                layer_time + _PHYSICAL_CLOCK + len(ANCILLA_EDGE) + 1 + i,
+                                {(coord, Coord3D(x + dx, y + dy, z + 1))},
+                            )
                     self.__parity.add_syndrome_measurement(Coord2D(x, y), z + 1, {coord})
                 # Add ancilla_x qubits to scheduler
-                self.scheduler.add_at_time(z + 1, ancilla_x_coords)
+                self.scheduler.add_prep_at_time(
+                    layer_time + _PHYSICAL_CLOCK + len(ANCILLA_EDGE),
+                    ancilla_x_coords,
+                )
+                self.scheduler.add_meas_at_time(
+                    layer_time + _PHYSICAL_CLOCK + 2 * len(ANCILLA_EDGE) + 1,
+                    ancilla_x_coords,
+                )
 
     def _compute_cout_from_logical_observable(
         self,
