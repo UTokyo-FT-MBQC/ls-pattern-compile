@@ -17,6 +17,7 @@ from lspattern.new_blocks.mytype import DIRECTION2D, Coord2D, Coord3D, NodeRole
 
 if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
+
     from lspattern.new_blocks.canvas_loader import LogicalObservableSpec
 
 
@@ -202,14 +203,19 @@ class Canvas:
             z = offset_z + layer_idx * 2
 
             if layer_cfg.layer1.basis is not None:
+                layer1_coords: list[Coord3D] = []
                 for x, y in data2d:
-                    self.__nodes.add(Coord3D(x, y, z))
-                    self.__coord2role[Coord3D(x, y, z)] = NodeRole.DATA
-                    self.__pauli_axes[Coord3D(x, y, z)] = layer_cfg.layer1.basis
+                    coord = Coord3D(x, y, z)
+                    self.__nodes.add(coord)
+                    self.__coord2role[coord] = NodeRole.DATA
+                    self.__pauli_axes[coord] = layer_cfg.layer1.basis
+                    layer1_coords.append(coord)
                     # temporal edge
                     if Coord3D(x, y, z - 1) in self.__nodes:
-                        self.__edges.add((Coord3D(x, y, z - 1), Coord3D(x, y, z)))
-                        self.flow.add_flow(Coord3D(x, y, z - 1), Coord3D(x, y, z))
+                        self.__edges.add((Coord3D(x, y, z - 1), coord))
+                        self.flow.add_flow(Coord3D(x, y, z - 1), coord)
+                # Add layer1 data qubits to scheduler
+                self.scheduler.add_at_time(z, layer1_coords)
 
                 # should construct parity check with data qubits
                 if not layer_cfg.layer1.ancilla:
@@ -224,14 +230,19 @@ class Canvas:
                             self.__parity.add_syndrome_measurement(Coord2D(x, y), z + parity_offset, data_collection)
 
             if layer_cfg.layer2.basis is not None:
+                layer2_coords: list[Coord3D] = []
                 for x, y in data2d:
-                    self.__nodes.add(Coord3D(x, y, z + 1))
-                    self.__coord2role[Coord3D(x, y, z + 1)] = NodeRole.DATA
-                    self.__pauli_axes[Coord3D(x, y, z + 1)] = layer_cfg.layer2.basis
+                    coord = Coord3D(x, y, z + 1)
+                    self.__nodes.add(coord)
+                    self.__coord2role[coord] = NodeRole.DATA
+                    self.__pauli_axes[coord] = layer_cfg.layer2.basis
+                    layer2_coords.append(coord)
                     # temporal edge
                     if Coord3D(x, y, z) in self.__nodes:
-                        self.__edges.add((Coord3D(x, y, z), Coord3D(x, y, z + 1)))
-                        self.flow.add_flow(Coord3D(x, y, z), Coord3D(x, y, z + 1))
+                        self.__edges.add((Coord3D(x, y, z), coord))
+                        self.flow.add_flow(Coord3D(x, y, z), coord)
+                # Add layer2 data qubits to scheduler
+                self.scheduler.add_at_time(z + 1, layer2_coords)
 
                 # NOTE: Redundant in layer2?
                 # should construct parity check with data qubits
@@ -249,25 +260,34 @@ class Canvas:
                             )
 
             if layer_cfg.layer1.ancilla:
+                ancilla_z_coords: list[Coord3D] = []
                 for x, y in ancilla_z2d:
-                    if layer_cfg.layer1.ancilla:
-                        self.__nodes.add(Coord3D(x, y, z))
-                        self.__coord2role[Coord3D(x, y, z)] = NodeRole.ANCILLA_Z
-                        self.__pauli_axes[Coord3D(x, y, z)] = Axis.X
-                        for dx, dy in ANCILLA_EDGE:
-                            if Coord3D(x + dx, y + dy, z) in self.__nodes:
-                                self.__edges.add((Coord3D(x, y, z), Coord3D(x + dx, y + dy, z)))
-                        self.__parity.add_syndrome_measurement(Coord2D(x, y), z, {Coord3D(x, y, z)})
+                    coord = Coord3D(x, y, z)
+                    self.__nodes.add(coord)
+                    self.__coord2role[coord] = NodeRole.ANCILLA_Z
+                    self.__pauli_axes[coord] = Axis.X
+                    ancilla_z_coords.append(coord)
+                    for dx, dy in ANCILLA_EDGE:
+                        if Coord3D(x + dx, y + dy, z) in self.__nodes:
+                            self.__edges.add((coord, Coord3D(x + dx, y + dy, z)))
+                    self.__parity.add_syndrome_measurement(Coord2D(x, y), z, {coord})
+                # Add ancilla_z qubits to scheduler
+                self.scheduler.add_at_time(z, ancilla_z_coords)
 
             if layer_cfg.layer2.ancilla:
+                ancilla_x_coords: list[Coord3D] = []
                 for x, y in ancilla_x2d:
-                    self.__nodes.add(Coord3D(x, y, z + 1))
-                    self.__coord2role[Coord3D(x, y, z + 1)] = NodeRole.ANCILLA_X
-                    self.__pauli_axes[Coord3D(x, y, z + 1)] = Axis.X
+                    coord = Coord3D(x, y, z + 1)
+                    self.__nodes.add(coord)
+                    self.__coord2role[coord] = NodeRole.ANCILLA_X
+                    self.__pauli_axes[coord] = Axis.X
+                    ancilla_x_coords.append(coord)
                     for dx, dy in ANCILLA_EDGE:
                         if Coord3D(x + dx, y + dy, z + 1) in self.__nodes:
-                            self.__edges.add((Coord3D(x, y, z + 1), Coord3D(x + dx, y + dy, z + 1)))
-                    self.__parity.add_syndrome_measurement(Coord2D(x, y), z + 1, {Coord3D(x, y, z + 1)})
+                            self.__edges.add((coord, Coord3D(x + dx, y + dy, z + 1)))
+                    self.__parity.add_syndrome_measurement(Coord2D(x, y), z + 1, {coord})
+                # Add ancilla_x qubits to scheduler
+                self.scheduler.add_at_time(z + 1, ancilla_x_coords)
 
     def _compute_cout_from_logical_observable(
         self,
