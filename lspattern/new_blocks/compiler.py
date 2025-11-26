@@ -32,9 +32,16 @@ def compile_canvas_to_stim(
     flow = canvas.flow.to_node_flow(node_map)
 
     # construct scheduler
-    prep_time, meas_time, entangle_time = canvas.scheduler.to_node_schedule(node_map)
+    # Convert time->nodes to node->time mappings
+    time_to_nodes = canvas.scheduler.to_node_schedule(node_map)
+    prep_time: dict[int, int] = {}
+    meas_time: dict[int, int] = {}
+    for time, nodes in time_to_nodes.items():
+        for node in nodes:
+            prep_time[node] = time
+            meas_time[node] = time + 1  # measure one step after prepare
     scheduler = Scheduler(graph, flow)
-    scheduler.manual_schedule(prep_time, meas_time, entangle_time)
+    scheduler.manual_schedule(prep_time, meas_time)
 
     # construct detectors
     deterministic_accumulator = remove_non_deterministic_det(canvas)

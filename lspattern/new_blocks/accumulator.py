@@ -18,6 +18,7 @@ class CoordScheduleAccumulator:
     """Coordinate-based measurement schedule."""
 
     schedule: dict[int, set[Coord3D]] = field(default_factory=dict)
+    edge_schedule: dict[int, set[tuple[Coord3D, Coord3D]]] = field(default_factory=dict)
 
     def add_at_time(self, time: int, coords: Collection[Coord3D]) -> None:
         """Add coordinates to the schedule at the given time.
@@ -34,6 +35,22 @@ class CoordScheduleAccumulator:
         if time not in self.schedule:
             self.schedule[time] = set()
         self.schedule[time].update(coords)
+
+    def add_entangle_at_time(self, time: int, edges: Collection[tuple[Coord3D, Coord3D]]) -> None:
+        """Add entangling edges to the schedule at the given time.
+
+        Parameters
+        ----------
+        time : int
+            The time step to add the edges to.
+        edges : collections.abc.Collection[tuple[Coord3D, Coord3D]]
+            The edges to add at the specified time.
+        """
+        if not edges:
+            return
+        if time not in self.edge_schedule:
+            self.edge_schedule[time] = set()
+        self.edge_schedule[time].update(edges)
 
     def to_node_schedule(self, coord2node: Mapping[Coord3D, int]) -> dict[int, set[int]]:
         """Convert schedule coordinates to node identifiers using `coord2node`.
