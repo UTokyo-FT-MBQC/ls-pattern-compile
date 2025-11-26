@@ -12,9 +12,15 @@ if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
 
 
-ANCILLA_EDGE = (
+ANCILLA_EDGE_X = (
     (1, 1),
     (1, -1),
+    (-1, -1),
+    (-1, 1),
+)  # order is optimized for the distance
+ANCILLA_EDGE_Z = (
+    (1, -1),
+    (1, 1),
     (-1, 1),
     (-1, -1),
 )  # order is optimized for the distance
