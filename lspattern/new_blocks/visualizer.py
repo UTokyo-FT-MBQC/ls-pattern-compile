@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypedDict
+from collections.abc import Iterable, Mapping
+from typing import TYPE_CHECKING, TypedDict, TypeAlias
 
 import plotly.graph_objects as go
 
 from lspattern.new_blocks.mytype import Coord3D, NodeRole
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
-
     from lspattern.new_blocks.canvas import Canvas
+
+NodeIndex: TypeAlias = int | Coord3D
 
 
 class NodeStyleSpec(TypedDict):
@@ -113,6 +114,43 @@ def _edge_coordinates(
         edge_z.extend((float(start.z), float(end.z), _EDGE_SEPARATOR))
 
     return edge_x, edge_y, edge_z
+
+
+def _format_node_labels(
+    nodes: Iterable[NodeIndex],
+    index_to_coord: Mapping[int, Coord3D] | None,
+) -> list[str]:
+    """Format node identifiers for hover text, preferring 3D coordinates."""
+
+    sortable: list[tuple[tuple[int, int, int, int], str]] = []
+    for node in nodes:
+        if isinstance(node, Coord3D):
+            coord = node
+            key = (0, coord.x, coord.y, coord.z)
+            label = f"({coord.x}, {coord.y}, {coord.z})"
+        elif index_to_coord is not None and isinstance(node, int) and node in index_to_coord:
+            coord = index_to_coord[node]
+            key = (0, coord.x, coord.y, coord.z)
+            label = f"({coord.x}, {coord.y}, {coord.z})"
+        else:
+            try:
+                num = int(node)  # type: ignore[arg-type]
+            except (TypeError, ValueError):
+                num = None
+            key = (1, num, 0, 0) if num is not None else (2, 0, 0, 0)
+            label = str(node)
+        sortable.append((key, label))
+
+    sortable.sort(key=lambda item: item[0])
+
+    labels: list[str] = []
+    seen: set[str] = set()
+    for _, label in sortable:
+        if label in seen:
+            continue
+        seen.add(label)
+        labels.append(label)
+    return labels
 
 
 def visualize_canvas_plotly(
@@ -229,12 +267,13 @@ def visualize_canvas_plotly(
 
 
 def visualize_detectors_plotly(
-    detectors: Mapping[Coord3D, Iterable[int]],
+    detectors: Mapping[Coord3D, Iterable[NodeIndex]],
     *,
     canvas: Canvas | None = None,
     show_canvas_nodes: bool = True,
     show_canvas_edges: bool = True,
     show_node_indices_on_hover: bool = True,
+    node_index_to_coord: Mapping[int, Coord3D] | None = None,
     detector_color: str = "red",
     detector_line_color: str = "darkred",
     detector_marker_size: int = 9,
@@ -248,9 +287,9 @@ def visualize_detectors_plotly(
 
     Parameters
     ----------
-    detectors : Mapping[Coord3D, Iterable[int]]
-        Mapping from detector coordinates to the set/list of node indices included
-        in each detector (e.g., construct_detector output after coord->node mapping).
+    detectors : Mapping[Coord3D, Iterable[NodeIndex]]
+        Mapping from detector coordinates to the set/list of node identifiers included
+        in each detector. Identifiers may be raw integer node IDs or Coord3D values.
     canvas : Canvas | None, optional
         Canvas to render as background (nodes/edges). If None, only detectors are shown.
     show_canvas_nodes : bool, optional
@@ -258,7 +297,11 @@ def visualize_detectors_plotly(
     show_canvas_edges : bool, optional
         Whether to draw canvas edges when `canvas` is provided. Default True.
     show_node_indices_on_hover : bool, optional
-        Show the list of node indices in hover text. Default True.
+        Show the list of node identifiers in hover text. Default True.
+    node_index_to_coord : Mapping[int, Coord3D] | None, optional
+        Optional lookup to convert integer node IDs back to Coord3D when formatting
+        hover text. If provided, integers found in this mapping are displayed using
+        their corresponding coordinates.
     detector_color : str, optional
         Marker fill color for detectors. Default "red".
     detector_line_color : str, optional
@@ -339,8 +382,8 @@ def visualize_detectors_plotly(
         det_z.append(coord.z)
 
         if show_node_indices_on_hover:
-            node_list = sorted({int(n) for n in nodes})
-            node_str = ", ".join(str(n) for n in node_list)
+            node_labels = _format_node_labels(nodes, node_index_to_coord)
+            node_str = ", ".join(node_labels)
             det_hover.append(f"Detector ({coord.x}, {coord.y}, {coord.z})<br>nodes: [{node_str}]")
         else:
             det_hover.append(f"Detector ({coord.x}, {coord.y}, {coord.z})")
