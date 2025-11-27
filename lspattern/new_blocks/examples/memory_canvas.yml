@@ -2,7 +2,7 @@ name: Memory Canvas
 description: Global config for rotated surface code based blocks
 
 layout: rotated_surface_code # required
-code_distance: 5 # required
+code_distance: 3 # required
 
 cube:
   - position: [0, 0, 0]
@@ -10,10 +10,6 @@ cube:
     boundary: XXZZ
     logical_observables: null
   - position: [0, 0, 1]
-    block: MemoryBlock
-    boundary: XXZZ
-    logical_observables: null
-  - position: [0, 0, 2]
     block: MeasureXBlock
     boundary: XXZZ
     logical_observables: TB # top to bottom, logical X observable
@@ -21,4 +17,4 @@ cube:
 pipe: []
 
 logical_observables:
-  - [[0, 0, 2]] # can be combinations of coordinates
+  - [[0, 0, 1]] # can be combinations of coordinates
