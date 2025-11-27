@@ -19,8 +19,8 @@ ANCILLA_EDGE_X = (
     (-1, 1),
 )  # order is optimized for the distance
 ANCILLA_EDGE_Z = (
-    (1, -1),
     (1, 1),
+    (1, -1),
     (-1, 1),
     (-1, -1),
 )  # order is optimized for the distance

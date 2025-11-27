@@ -1,0 +1,8 @@
+name: MeasureZBlock
+description: This block represents a measurement along the Z axis
+
+layers: # list of layers in this block
+  - type: MeasureZUnit
+    num_layers: 1
+  - type: EmptyUnit
+    num_layers_from_distance: rest
