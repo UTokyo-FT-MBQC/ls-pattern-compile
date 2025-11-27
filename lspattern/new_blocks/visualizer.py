@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, TypedDict, TypeAlias
 
 import plotly.graph_objects as go
 
+from graphqomb.common import Axis
+
 from lspattern.new_blocks.mytype import Coord3D, NodeRole
 
 if TYPE_CHECKING:
@@ -63,6 +65,18 @@ _COLOR_MAP: dict[NodeRole, NodeStyleSpec] = {
 
 # Constants for edge rendering
 _EDGE_SEPARATOR = float("nan")
+
+
+def _axis_to_str(axis: Axis | None) -> str:
+    """Return compact string for measurement axis."""
+
+    return axis.name if axis is not None else "-"
+
+
+def _node_hover_label(coord: Coord3D, role_label: str, axis: Axis | None) -> str:
+    """Compose hover label for a single node."""
+
+    return f"{role_label} ({coord.x}, {coord.y}, {coord.z})<br>axis: {_axis_to_str(axis)}"
 
 
 def _group_nodes(
@@ -200,6 +214,7 @@ def visualize_canvas_plotly(
 
     nodes = canvas.nodes
     coord2role = canvas.coord2role
+    pauli_axes = canvas.pauli_axes
     groups = _group_nodes(nodes, coord2role)
 
     fig = go.Figure()
@@ -222,7 +237,7 @@ def visualize_canvas_plotly(
                     "opacity": 0.9,
                 },
                 name=spec["label"],
-                text=[f"{spec['label']} ({c.x}, {c.y}, {c.z})" for c in coords],
+                text=[_node_hover_label(c, spec["label"], pauli_axes.get(c)) for c in coords],
                 hovertemplate="<b>%{text}</b><extra></extra>",
             )
         )
@@ -329,6 +344,7 @@ def visualize_detectors_plotly(
 
     # オプションでキャンバスのノード・エッジを背景に描画
     if canvas is not None and show_canvas_nodes:
+        pauli_axes = canvas.pauli_axes
         groups = _group_nodes(canvas.nodes, canvas.coord2role)
         for role, pts in groups.items():
             if not pts["coords"]:
@@ -348,7 +364,7 @@ def visualize_detectors_plotly(
                         "opacity": 0.45,
                     },
                     name=spec["label"],
-                    text=[f"{spec['label']} ({c.x}, {c.y}, {c.z})" for c in coords],
+                    text=[_node_hover_label(c, spec["label"], pauli_axes.get(c)) for c in coords],
                     hovertemplate="<b>%{text}</b><extra></extra>",
                     showlegend=False,
                 )
