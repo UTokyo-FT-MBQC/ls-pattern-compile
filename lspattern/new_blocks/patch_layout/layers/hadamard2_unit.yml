@@ -1,0 +1,9 @@
+name: Hadamard2Unit
+description: This patch layout specifies a Hadamard unit layer
+
+layer1:
+  basis: Y # layer 1, transversally X basis, can be omitted, defaults to X
+  ancilla: true # can be omitted, defaults to true
+layer2:
+  basis: X # layer 2, transversal Y basis measurement
+  ancilla: true

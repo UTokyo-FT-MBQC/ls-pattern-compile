@@ -2,7 +2,9 @@ name: HadamardBlock
 description: This block represents a Hadamard block
 
 layers: # list of layers in this block
-  - type: MemoryUnit
-    num_layers_from_distance: 1
   - type: HadamardUnit
+    num_layers_from_distance: 1
+  - type: MemoryUnit
     num_layers_from_distance: 2
+  # - type: Hadamard2Unit
+  #   num_layers_from_distance: 1

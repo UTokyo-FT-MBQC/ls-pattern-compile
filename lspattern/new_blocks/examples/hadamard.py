@@ -17,9 +17,9 @@ from lspattern.new_blocks.visualizer import visualize_canvas_plotly, visualize_d
 
 spec_name = "hadamard_canvas.yml"
 canvas, spec = load_canvas(spec_name)
-fig = visualize_canvas_plotly(canvas)
-print(f"Loaded canvas '{spec.name}' (d={spec.code_distance}) with {len(spec.cubes)} cubes")
-fig.show()
+# fig = visualize_canvas_plotly(canvas, highlight_nodes=selected_coords)
+# print(f"Loaded canvas '{spec.name}' (d={spec.code_distance}) with {len(spec.cubes)} cubes")
+# fig.show()
 
 
 # %%
@@ -45,6 +45,60 @@ _graph, node_map = GraphState.from_graph(
     edges=canvas.edges,
     meas_bases={coord: AxisMeasBasis(canvas.pauli_axes[coord], Sign.PLUS) for coord in canvas.nodes},
 )
+node_index_to_coord = {idx: coord for coord, idx in node_map.items()}
+
+# collect selected coordinates
+selected = {
+    131,
+    132,
+    4,
+    15,
+    16,
+    145,
+    18,
+    144,
+    23,
+    154,
+    30,
+    33,
+    37,
+    38,
+    47,
+    53,
+    54,
+    62,
+    63,
+    67,
+    68,
+    74,
+    75,
+    77,
+    87,
+    90,
+    96,
+    98,
+    101,
+    107,
+    108,
+    111,
+    112,
+    118,
+}
+selected_coords = {node_index_to_coord[n] for n in selected}
+fig = visualize_canvas_plotly(canvas, highlight_nodes=selected_coords)
+fig.show()
+collapsed_stabilizer_x = {4, 33, 53, 74, 87, 101, 118}
+collapsed_stabilizer_z = {4, 45, 53, 87, 118, 137}
+# remap to coordinates
+collapsed_stabilizer_x_coords = {node_index_to_coord[n] for n in collapsed_stabilizer_x}
+collapsed_stabilizer_z_coords = {node_index_to_coord[n] for n in collapsed_stabilizer_z}
+print("\nCollapsed stabilizers:")
+print("X-type:")
+for c in collapsed_stabilizer_x_coords:
+    print(f"  - {c}")
+print("Z-type:")
+for c in collapsed_stabilizer_z_coords:
+    print(f"  - {c}")
 
 # 2) build detectors (Coord3D -> set[Coord3D]) then convert to node indices
 det_acc = remove_non_deterministic_det(canvas)
@@ -61,6 +115,7 @@ print(f"Constructed {len(coord2det_nodes)} detectors")
 fig_det = visualize_detectors_plotly(
     coord2det_nodes,
     canvas=canvas,
+    node_index_to_coord=node_index_to_coord,
     show_node_indices_on_hover=True,
     show_canvas_edges=True,
 )
@@ -104,3 +159,20 @@ pathlib.Path("figures/memory_canvas_dem.svg").write_text(str(svg), encoding="utf
 print("SVG diagram saved to figures/memory_canvas_dem.svg")
 
 # %%
+# print schedule
+prep_time = canvas.scheduler.prep_time
+meas_time = canvas.scheduler.meas_time
+entangle_time = canvas.scheduler.entangle_time
+
+for t in sorted(prep_time.keys() | meas_time.keys() | entangle_time.keys()):
+    prep_nodes = prep_time.get(t, [])
+    meas_nodes = meas_time.get(t, [])
+    entangle_edges = entangle_time.get(t, [])
+
+    print(f"\nTime step {t}:")
+    if prep_nodes:
+        print(f"  Preparation on nodes: {prep_nodes}")
+    if entangle_edges:
+        print(f"  Entangling edges: {entangle_edges}")
+    if meas_nodes:
+        print(f"  Measurement on nodes: {meas_nodes}")

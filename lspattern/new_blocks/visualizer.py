@@ -173,6 +173,10 @@ def visualize_canvas_plotly(
     show_edges: bool = True,
     edge_width: float = 3.0,
     edge_color: str = "rgba(60, 60, 60, 0.7)",
+    highlight_nodes: Iterable[Coord3D] | None = None,
+    highlight_color: str = "red",
+    highlight_line_color: str = "darkred",
+    highlight_size: int = 11,
     width: int = 900,
     height: int = 700,
     reverse_axes: bool = True,
@@ -193,6 +197,15 @@ def visualize_canvas_plotly(
         Width of edge lines in pixels, by default 3.0.
     edge_color : str, optional
         RGBA color string for edges, by default "rgba(60, 60, 60, 0.7)".
+    highlight_nodes : Iterable[Coord3D] | None, optional
+        Optional iterable of node coordinates to emphasize. Highlighted nodes are
+        drawn in red on top of the regular markers. Default None.
+    highlight_color : str, optional
+        Fill color for highlighted nodes. Default "red".
+    highlight_line_color : str, optional
+        Outline color for highlighted nodes. Default "darkred".
+    highlight_size : int, optional
+        Marker size for highlighted nodes. Default 11.
     width : int, optional
         Figure width in pixels, by default 900.
     height : int, optional
@@ -215,6 +228,7 @@ def visualize_canvas_plotly(
     nodes = canvas.nodes
     coord2role = canvas.coord2role
     pauli_axes = canvas.pauli_axes
+    highlight_set = set(highlight_nodes) if highlight_nodes is not None else set()
     groups = _group_nodes(nodes, coord2role)
 
     fig = go.Figure()
@@ -241,6 +255,32 @@ def visualize_canvas_plotly(
                 hovertemplate="<b>%{text}</b><extra></extra>",
             )
         )
+
+    # overlay highlighted nodes (if any)
+    if highlight_set:
+        highlight_coords = [c for c in nodes if c in highlight_set]
+        if highlight_coords:
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[c.x for c in highlight_coords],
+                    y=[c.y for c in highlight_coords],
+                    z=[c.z for c in highlight_coords],
+                    mode="markers",
+                    marker={
+                        "size": highlight_size,
+                        "color": highlight_color,
+                        "line": {"color": highlight_line_color, "width": 2},
+                        "opacity": 0.98,
+                        "symbol": "diamond",
+                    },
+                    name="Highlighted",
+                    text=[
+                        _node_hover_label(c, "Highlighted", pauli_axes.get(c)) for c in highlight_coords
+                    ],
+                    hovertemplate="<b>%{text}</b><extra></extra>",
+                    showlegend=True,
+                )
+            )
 
     edges = canvas.edges
     if show_edges and edges:
@@ -289,6 +329,10 @@ def visualize_detectors_plotly(
     show_canvas_edges: bool = True,
     show_node_indices_on_hover: bool = True,
     node_index_to_coord: Mapping[int, Coord3D] | None = None,
+    highlight_nodes: Iterable[Coord3D] | None = None,
+    highlight_color: str = "red",
+    highlight_line_color: str = "darkred",
+    highlight_size: int = 11,
     detector_color: str = "red",
     detector_line_color: str = "darkred",
     detector_marker_size: int = 9,
@@ -317,6 +361,15 @@ def visualize_detectors_plotly(
         Optional lookup to convert integer node IDs back to Coord3D when formatting
         hover text. If provided, integers found in this mapping are displayed using
         their corresponding coordinates.
+    highlight_nodes : Iterable[Coord3D] | None, optional
+        Coordinates to highlight (plotted in red diamond markers) on the canvas background.
+        Only used when `canvas` is provided. Default None.
+    highlight_color : str, optional
+        Fill color for highlighted nodes. Default "red".
+    highlight_line_color : str, optional
+        Outline color for highlighted nodes. Default "darkred".
+    highlight_size : int, optional
+        Marker size for highlighted nodes. Default 11.
     detector_color : str, optional
         Marker fill color for detectors. Default "red".
     detector_line_color : str, optional
@@ -342,9 +395,10 @@ def visualize_detectors_plotly(
 
     fig = go.Figure()
 
-    # オプションでキャンバスのノード・エッジを背景に描画
+    # Optionally draw canvas nodes/edges as background
     if canvas is not None and show_canvas_nodes:
         pauli_axes = canvas.pauli_axes
+        highlight_set = set(highlight_nodes) if highlight_nodes is not None else set()
         groups = _group_nodes(canvas.nodes, canvas.coord2role)
         for role, pts in groups.items():
             if not pts["coords"]:
@@ -370,6 +424,31 @@ def visualize_detectors_plotly(
                 )
             )
 
+        if highlight_set:
+            highlight_coords = [c for c in canvas.nodes if c in highlight_set]
+            if highlight_coords:
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=[c.x for c in highlight_coords],
+                        y=[c.y for c in highlight_coords],
+                        z=[c.z for c in highlight_coords],
+                        mode="markers",
+                        marker={
+                            "size": highlight_size,
+                            "color": highlight_color,
+                            "line": {"color": highlight_line_color, "width": 2},
+                            "opacity": 0.98,
+                            "symbol": "diamond",
+                        },
+                        name="Highlighted",
+                        text=[
+                            _node_hover_label(c, "Highlighted", pauli_axes.get(c)) for c in highlight_coords
+                        ],
+                        hovertemplate="<b>%{text}</b><extra></extra>",
+                        showlegend=True,
+                    )
+                )
+
     if canvas is not None and show_canvas_edges:
         edge_x, edge_y, edge_z = _edge_coordinates(canvas.edges, canvas.nodes)
         if edge_x:
@@ -386,7 +465,7 @@ def visualize_detectors_plotly(
                 )
             )
 
-    # Detector を描画
+    # Draw detectors
     det_x: list[int] = []
     det_y: list[int] = []
     det_z: list[int] = []

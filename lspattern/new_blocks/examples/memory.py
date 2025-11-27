@@ -72,6 +72,7 @@ _graph, node_map = GraphState.from_graph(
     edges=canvas.edges,
     meas_bases={coord: AxisMeasBasis(canvas.pauli_axes[coord], Sign.PLUS) for coord in canvas.nodes},
 )
+node_index_to_coord = {idx: coord for coord, idx in node_map.items()}
 
 # 2) build detectors (Coord3D -> set[Coord3D]) then convert to node indices
 det_acc = remove_non_deterministic_det(canvas)
@@ -88,6 +89,7 @@ print(f"Constructed {len(coord2det_nodes)} detectors")
 fig_det = visualize_detectors_plotly(
     coord2det_nodes,
     canvas=canvas,
+    node_index_to_coord=node_index_to_coord,
     show_node_indices_on_hover=True,
     show_canvas_edges=True,
 )
