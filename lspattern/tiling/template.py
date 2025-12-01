@@ -437,14 +437,14 @@ class RotatedPlanarCubeTemplate(ScalableTemplate):
             self._spec(BoundarySide.BOTTOM),
         )
 
-        if (top, right) == (EdgeSpecValue.Z, EdgeSpecValue.Z):
-            data_coords.remove((2 * d - 2, 2 * d - 2))
-        if (bottom, left) == (EdgeSpecValue.Z, EdgeSpecValue.Z):
-            data_coords.remove((0, 0))
-        if (top, left) == (EdgeSpecValue.X, EdgeSpecValue.X):
-            data_coords.remove((0, 2 * d - 2))
-        if (bottom, right) == (EdgeSpecValue.X, EdgeSpecValue.X):
-            data_coords.remove((2 * d - 2, 0))
+        # if (top, right) == (EdgeSpecValue.Z, EdgeSpecValue.Z):
+        #     data_coords.remove((2 * d - 2, 2 * d - 2))
+        # if (bottom, left) == (EdgeSpecValue.Z, EdgeSpecValue.Z):
+        #     data_coords.remove((0, 0))
+        # if (top, left) == (EdgeSpecValue.X, EdgeSpecValue.X):
+        #     data_coords.remove((0, 2 * d - 2))
+        # if (bottom, right) == (EdgeSpecValue.X, EdgeSpecValue.X):
+        #     data_coords.remove((2 * d - 2, 0))
 
         # Bulk checks (odd-odd), two interleaving lattices per type
         for x0, y0 in ((1, 3), (3, 1)):

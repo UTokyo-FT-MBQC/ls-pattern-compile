@@ -59,6 +59,7 @@ def compile_to_stim(  # noqa: C901
     *,
     p_depol_after_clifford: float = 0.0,
     p_before_meas_flip: float = 0.0,
+    additional_logical_observables: Mapping[int, AbstractSet[int]] | None = None,
 ) -> stim.Circuit:
     """
     Compile a CompiledRHGCanvas to a stim.Circuit.
@@ -176,6 +177,8 @@ def compile_to_stim(  # noqa: C901
                     msg = f"Patch coordinate {coord} not found in cout ports"
                     raise KeyError(msg)
         logical_observables[key] = observable_nodes
+        if additional_logical_observables and key in additional_logical_observables:
+            logical_observables[key].update(additional_logical_observables[key])
 
     # 7. Generate stim circuit
     # Note: stim_compile expects int keys, but we allow str | int for flexibility
