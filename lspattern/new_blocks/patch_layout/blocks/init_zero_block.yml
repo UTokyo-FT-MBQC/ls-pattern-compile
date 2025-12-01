@@ -1,0 +1,8 @@
+name: InitZeroBlock
+description: This block represents a initialization zero block
+
+layers: # list of layers in this block
+  - type: InitZeroUnit
+    num_layers: 1
+  - type: MemoryUnit
+    num_layers_from_distance: rest
