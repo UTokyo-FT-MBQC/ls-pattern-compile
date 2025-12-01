@@ -129,6 +129,7 @@ class Canvas:
     __coord2role: dict[Coord3D, NodeRole]
 
     couts: dict[Coord3D, set[Coord3D]]
+    pipe_couts: dict[tuple[Coord3D, Coord3D], set[Coord3D]]
 
     __parity: CoordParityAccumulator
     flow: CoordFlowAccumulator
@@ -146,6 +147,7 @@ class Canvas:
         self.__pauli_axes = {}
         self.__coord2role = {}
         self.couts = {}
+        self.pipe_couts = {}
         self.__parity = CoordParityAccumulator()
         self.flow = CoordFlowAccumulator()
         self.scheduler = CoordScheduleAccumulator()
@@ -379,6 +381,61 @@ class Canvas:
             cout_coords = {Coord3D(c.x, c.y, offset_z) for c in path_2d}
 
         self.couts[global_pos] = cout_coords
+
+    def compute_pipe_cout_from_logical_observable(
+        self,
+        global_edge: tuple[Coord3D, Coord3D],
+        block_config: BlockConfig,
+        logical_observable: LogicalObservableSpec,
+        ancilla_x2d: AbstractSet[Coord2D],
+        ancilla_z2d: AbstractSet[Coord2D],
+    ) -> None:
+        """Compute cout coordinates from logical observable specification for pipe.
+
+        Parameters
+        ----------
+        global_edge : tuple[Coord3D, Coord3D]
+            The global edge (start, end) of the pipe.
+        block_config : BlockConfig
+            The block configuration.
+        logical_observable : LogicalObservableSpec
+            The logical observable specification.
+        ancilla_x2d : collections.abc.Set[Coord2D]
+            X ancilla 2D coordinates for this pipe.
+        ancilla_z2d : collections.abc.Set[Coord2D]
+            Z ancilla 2D coordinates for this pipe.
+
+        Notes
+        -----
+        Token types:
+        - "RL", "TB", etc. (2-char): Use pipe_boundary_path() to get data qubit path
+        - "X": Select all ANCILLA_X nodes in the pipe's first layer
+        - "Z": Select all ANCILLA_Z nodes in the pipe's first layer
+        """
+        observable_token = logical_observable.token
+        start, end = global_edge
+        offset_z = start.z * 2 * self.config.d
+
+        if observable_token == "X":  # noqa: S105
+            # Select ANCILLA_X nodes at first layer within pipe's XY range
+            cout_coords = {Coord3D(c.x, c.y, offset_z + 1) for c in ancilla_x2d}
+        elif observable_token == "Z":  # noqa: S105
+            # Select ANCILLA_Z nodes at first layer within pipe's XY range
+            cout_coords = {Coord3D(c.x, c.y, offset_z) for c in ancilla_z2d}
+        else:
+            # RL, TB, etc. - use pipe_boundary_path for data qubit path
+            side_a, side_b = _token_to_boundary_sides(observable_token)
+            path_2d = RotatedSurfaceCodeLayoutBuilder.pipe_boundary_path(
+                self.config.d,
+                start,
+                end,
+                block_config.boundary,
+                side_a,
+                side_b,
+            )
+            cout_coords = {Coord3D(c.x, c.y, offset_z) for c in path_2d}
+
+        self.pipe_couts[global_edge] = cout_coords
 
     def add_pipe(self, global_edge: tuple[Coord3D, Coord3D], block_config: BlockConfig) -> None:
         pass

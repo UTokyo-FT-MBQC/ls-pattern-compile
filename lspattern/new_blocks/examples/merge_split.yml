@@ -45,6 +45,7 @@ pipe:
     logical_observables: RL
 
 logical_observables:
-  - [[0, 0, 3]] # cube
-  - [[1, 0, 3]] # cube
-  - [[[0, 0, 1], [1, 0, 1]]] # pipe
+  - cube: [[0, 0, 3]] # cube
+  - cube: [[1, 0, 3]] # cube
+  - cube: [[0, 0, 3], [1, 0, 3]] # both cube and pipe
+    pipe: [[[0, 0, 1], [1, 0, 1]]]

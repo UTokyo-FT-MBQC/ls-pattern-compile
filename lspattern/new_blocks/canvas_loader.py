@@ -12,12 +12,14 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from importlib import resources
 from importlib.abc import Traversable
+from itertools import starmap
 from pathlib import Path
 
 import yaml
 
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.new_blocks.canvas import Canvas, CanvasConfig
+from lspattern.new_blocks.layout.rotated_surface_code import RotatedSurfaceCodeLayoutBuilder
 from lspattern.new_blocks.loader import BlockConfig, PatchLayoutConfig, load_patch_layout_from_yaml
 from lspattern.new_blocks.mytype import Coord3D
 
@@ -38,6 +40,14 @@ _RESOURCE_PACKAGES = {
 @dataclass(frozen=True, slots=True)
 class LogicalObservableSpec:
     token: str
+
+
+@dataclass(frozen=True, slots=True)
+class CompositeLogicalObservableSpec:
+    """Represents a logical observable spanning multiple cubes/pipes."""
+
+    cubes: tuple[Coord3D, ...]
+    pipes: tuple[tuple[Coord3D, Coord3D], ...]
 
 
 def _normalize_paths(paths: Sequence[Path | str]) -> tuple[Path, ...]:
@@ -96,6 +106,7 @@ class CanvasSpec:
     cubes: list[CanvasCubeSpec]
     pipes: list[CanvasPipeSpec]
     search_paths: tuple[Path, ...] = ()
+    logical_observables: tuple[CompositeLogicalObservableSpec, ...] = ()
 
 
 _SNAKE_CAMEL_RE_1 = re.compile(r"([A-Z]+)([A-Z][a-z])")
@@ -240,6 +251,44 @@ def _parse_logical_observable(value: object | None) -> LogicalObservableSpec | N
     raise TypeError(msg)
 
 
+def _parse_composite_logical_observables(
+    spec: object | None,
+) -> tuple[CompositeLogicalObservableSpec, ...]:
+    """Parse top-level logical_observables section.
+
+    Parameters
+    ----------
+    spec : object | None
+        The raw YAML value for the logical_observables section.
+
+    Returns
+    -------
+    tuple[CompositeLogicalObservableSpec, ...]
+        Parsed composite logical observable specifications.
+    """
+    if spec is None:
+        return ()
+    if not isinstance(spec, Sequence) or isinstance(spec, (str, bytes)):
+        msg = f"logical_observables must be a list, got: {type(spec)}"
+        raise TypeError(msg)
+
+    result: list[CompositeLogicalObservableSpec] = []
+    for entry in spec:
+        if not isinstance(entry, Mapping):
+            msg = f"Each logical_observables entry must be a mapping, got: {type(entry)}"
+            raise TypeError(msg)
+
+        raw_cubes: Sequence[Sequence[int]] = entry.get("cube", [])  # type: ignore[assignment]
+        raw_pipes: Sequence[Sequence[Sequence[int]]] = entry.get("pipe", [])  # type: ignore[assignment]
+
+        cubes = tuple(starmap(Coord3D, raw_cubes))
+        pipes = tuple((Coord3D(*p[0]), Coord3D(*p[1])) for p in raw_pipes)
+
+        result.append(CompositeLogicalObservableSpec(cubes=cubes, pipes=pipes))
+
+    return tuple(result)
+
+
 def _resolve_num_layers(layer_cfg: Mapping[str, object], distance: int, consumed_layers: int) -> int:
     if "num_layers" in layer_cfg:
         return int(layer_cfg["num_layers"])
@@ -353,6 +402,8 @@ def load_canvas_spec(name: str | Path, *, extra_paths: Sequence[Path | str] = ()
             )
         )
 
+    logical_obs = _parse_composite_logical_observables(cfg.get("logical_observables"))
+
     return CanvasSpec(
         name=cfg["name"],
         description=cfg.get("description", ""),
@@ -361,6 +412,7 @@ def load_canvas_spec(name: str | Path, *, extra_paths: Sequence[Path | str] = ()
         cubes=cubes,
         pipes=pipes,
         search_paths=search_paths,
+        logical_observables=logical_obs,
     )
 
 
@@ -385,6 +437,16 @@ def build_canvas(spec: CanvasSpec, *, extra_paths: Sequence[Path | str] = ()) ->
             boundary_override=pipe.boundary,
         )
         canvas.add_pipe((pipe.start, pipe.end), block_config)
+
+        if pipe.logical_observable is not None:
+            pipe_coords = RotatedSurfaceCodeLayoutBuilder.pipe(spec.code_distance, pipe.start, pipe.end, pipe.boundary)
+            canvas.compute_pipe_cout_from_logical_observable(
+                (pipe.start, pipe.end),
+                block_config,
+                pipe.logical_observable,
+                pipe_coords.ancilla_x,
+                pipe_coords.ancilla_z,
+            )
 
     return canvas
 
