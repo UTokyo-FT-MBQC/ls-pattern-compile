@@ -344,12 +344,9 @@ class RotatedSurfaceCodeLayoutBuilder:
                     data.add(Coord2D(x, y))
                 # Ancillas use absolute odd coordinates but relative pattern for X/Z distinction
                 elif x % 2 == 1 and y % 2 == 1:
-                    # Use relative coordinates for the checkerboard pattern
-                    rel_x = x - bounds.x_min
-                    rel_y = y - bounds.y_min
-                    if (rel_x + rel_y) % 4 == 0:
+                    if (x + y) % 4 == 0:
                         ancilla_x.add(Coord2D(x, y))
-                    elif (rel_x + rel_y) % 4 == 2:  # noqa: PLR2004
+                    elif (x + y) % 4 == 2:  # noqa: PLR2004
                         ancilla_z.add(Coord2D(x, y))
 
         return PatchCoordinates(
