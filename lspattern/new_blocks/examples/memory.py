@@ -13,7 +13,7 @@ from lspattern.consts import BoundarySide
 from lspattern.new_blocks.canvas_loader import load_canvas
 from lspattern.new_blocks.compiler import compile_canvas_to_stim
 from lspattern.new_blocks.detector import construct_detector, remove_non_deterministic_det
-from lspattern.new_blocks.layout.rotated_surface_code import boundary_data_path_cube
+from lspattern.new_blocks.layout import RotatedSurfaceCodeLayoutBuilder
 from lspattern.new_blocks.mytype import Coord2D, Coord3D
 from lspattern.new_blocks.visualizer import visualize_canvas_plotly, visualize_detectors_plotly
 from lspattern.new_blocks.visualizer_2d import visualize_canvas_matplotlib_2d
@@ -50,7 +50,7 @@ for pos, coords in canvas.couts.items():
 
 # %%
 # boundary path verification
-boundary_path = boundary_data_path_cube(
+boundary_path = RotatedSurfaceCodeLayoutBuilder.cube_boundary_path(
     canvas.config.d,
     Coord2D(0, 0),
     canvas.cube_config[Coord3D(0, 0, 0)].boundary,

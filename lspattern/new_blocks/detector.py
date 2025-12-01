@@ -6,7 +6,7 @@ import copy
 
 from lspattern.new_blocks.accumulator import CoordParityAccumulator
 from lspattern.new_blocks.canvas import BoundaryGraph, Canvas
-from lspattern.new_blocks.layout.rotated_surface_code import rotated_surface_code_layout
+from lspattern.new_blocks.layout import RotatedSurfaceCodeLayoutBuilder
 from lspattern.new_blocks.mytype import Coord2D, Coord3D
 
 
@@ -40,11 +40,11 @@ def remove_non_deterministic_det(canvas: Canvas) -> CoordParityAccumulator:
 
     for target_coord in non_deterministic_coords:
         block_config = canvas.cube_config[target_coord]
-        _, ancilla_x2d, ancilla_z2d = rotated_surface_code_layout(
+        _, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.cube(
             canvas.config.d,
             Coord2D(target_coord.x, target_coord.y),
             canvas.cube_config[target_coord].boundary,
-        )
+        ).to_mutable_sets()
         for layer_idx, layer_cfg in enumerate(block_config):
             if layer_cfg.layer1.basis is not None:
                 z = target_coord.z * 2 * canvas.config.d + layer_idx * 2

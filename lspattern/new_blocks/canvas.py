@@ -7,12 +7,11 @@ from graphqomb.common import Axis
 
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.new_blocks.accumulator import CoordFlowAccumulator, CoordParityAccumulator, CoordScheduleAccumulator
-from lspattern.new_blocks.layout.rotated_surface_code import (
+from lspattern.new_blocks.layout import (
     ANCILLA_EDGE_X,
     ANCILLA_EDGE_Z,
-    boundary_data_path_cube,
-    rotated_surface_code_layout,
-)  # this will be dynamically loaded based on config
+    RotatedSurfaceCodeLayoutBuilder,
+)
 from lspattern.new_blocks.loader import BlockConfig
 from lspattern.new_blocks.mytype import DIRECTION2D, Coord2D, Coord3D, NodeRole
 
@@ -190,9 +189,9 @@ class Canvas:
         )
         self.bgraph.add_boundary(global_pos, boundary)
 
-        data2d, ancilla_x2d, ancilla_z2d = rotated_surface_code_layout(
+        data2d, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.cube(
             self.config.d, Coord2D(global_pos.x, global_pos.y), block_config.boundary
-        )
+        ).to_mutable_sets()
 
         current_time = global_pos.z * (
             2 * self.config.d * (_PHYSICAL_CLOCK + ANCILLA_LENGTH)
@@ -368,9 +367,9 @@ class Canvas:
             # Select ANCILLA_Z nodes at final layer within cube's XY range
             cout_coords = {Coord3D(c.x, c.y, offset_z) for c in ancilla_z2d}
         else:
-            # TB, LR, etc. - use boundary_data_path_cube for data qubit path
+            # TB, LR, etc. - use cube_boundary_path for data qubit path
             side_a, side_b = _token_to_boundary_sides(observable_token)
-            path_2d = boundary_data_path_cube(
+            path_2d = RotatedSurfaceCodeLayoutBuilder.cube_boundary_path(
                 self.config.d,
                 Coord2D(global_pos.x, global_pos.y),
                 block_config.boundary,
