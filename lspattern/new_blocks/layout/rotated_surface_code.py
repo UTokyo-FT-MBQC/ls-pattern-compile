@@ -194,9 +194,7 @@ class RotatedSurfaceCodeLayoutBuilder:
         # Generate components
         bulk = RotatedSurfaceCodeLayoutBuilder._generate_bulk_coords(bounds)
         corner_remove = RotatedSurfaceCodeLayoutBuilder._get_corner_data_to_remove(bounds, boundary)
-        boundary_x, boundary_z = RotatedSurfaceCodeLayoutBuilder._generate_cube_boundary_ancillas(
-            bounds, boundary
-        )
+        boundary_x, boundary_z = RotatedSurfaceCodeLayoutBuilder._generate_cube_boundary_ancillas(bounds, boundary)
         corner_x, corner_z = RotatedSurfaceCodeLayoutBuilder._get_corner_ancillas(bounds, boundary)
 
         return PatchCoordinates(
@@ -235,13 +233,9 @@ class RotatedSurfaceCodeLayoutBuilder:
         """
         # Determine pipe direction from boundary or positions
         pipe_dir = RotatedSurfaceCodeLayoutBuilder.pipe_direction(boundary)
-        pipe_offset_dir = RotatedSurfaceCodeLayoutBuilder.pipe_offset(
-            global_pos_source, global_pos_target
-        )
+        pipe_offset_dir = RotatedSurfaceCodeLayoutBuilder.pipe_offset(global_pos_source, global_pos_target)
 
-        offset = RotatedSurfaceCodeLayoutBuilder._compute_pipe_offset(
-            code_distance, global_pos_source, pipe_offset_dir
-        )
+        offset = RotatedSurfaceCodeLayoutBuilder._compute_pipe_offset(code_distance, global_pos_source, pipe_offset_dir)
         bounds = RotatedSurfaceCodeLayoutBuilder._pipe_bounds(code_distance, offset, pipe_dir)
 
         # Generate components
@@ -278,19 +272,19 @@ class RotatedSurfaceCodeLayoutBuilder:
     ) -> PatchBounds:
         """Create bounds for a pipe patch."""
         if direction == AxisDIRECTION2D.H:
-            # Horizontal pipe: narrow in x (3 units), long in y
+            # Horizontal pipe: narrow in y (3 units), long in x (d data qubits)
             return PatchBounds(
-                x_min=offset.x - 1,
-                x_max=offset.x + 1,
-                y_min=offset.y,
-                y_max=offset.y + 2 * (code_distance - 1) - 1,
+                x_min=offset.x,
+                x_max=offset.x + 2 * (code_distance - 1),
+                y_min=offset.y - 1,
+                y_max=offset.y + 1,
             )
-        # Vertical pipe: long in x, narrow in y (3 units)
+        # Vertical pipe: long in y (d data qubits), narrow in x (3 units)
         return PatchBounds(
-            x_min=offset.x,
-            x_max=offset.x + 2 * (code_distance - 1) - 1,
-            y_min=offset.y - 1,
-            y_max=offset.y + 1,
+            x_min=offset.x - 1,
+            x_max=offset.x + 1,
+            y_min=offset.y,
+            y_max=offset.y + 2 * (code_distance - 1),
         )
 
     # =========================================================================
@@ -560,14 +554,8 @@ class RotatedSurfaceCodeLayoutBuilder:
         ValueError
             If boundary specifications don't match a valid pipe direction.
         """
-        horizontal = (
-            boundary[BoundarySide.TOP] == EdgeSpecValue.O
-            and boundary[BoundarySide.BOTTOM] == EdgeSpecValue.O
-        )
-        vertical = (
-            boundary[BoundarySide.LEFT] == EdgeSpecValue.O
-            and boundary[BoundarySide.RIGHT] == EdgeSpecValue.O
-        )
+        horizontal = boundary[BoundarySide.TOP] == EdgeSpecValue.O and boundary[BoundarySide.BOTTOM] == EdgeSpecValue.O
+        vertical = boundary[BoundarySide.LEFT] == EdgeSpecValue.O and boundary[BoundarySide.RIGHT] == EdgeSpecValue.O
 
         if horizontal and not vertical:
             return AxisDIRECTION2D.H
@@ -799,14 +787,8 @@ class RotatedSurfaceCodeLayoutBuilder:
             Ordered data-qubit coordinates from side_a to side_b.
         """
         pipe_dir = RotatedSurfaceCodeLayoutBuilder.pipe_direction(boundary)
-        pipe_offset_dir = RotatedSurfaceCodeLayoutBuilder.pipe_offset(
-            global_pos_source, global_pos_target
-        )
-        offset = RotatedSurfaceCodeLayoutBuilder._compute_pipe_offset(
-            code_distance, global_pos_source, pipe_offset_dir
-        )
+        pipe_offset_dir = RotatedSurfaceCodeLayoutBuilder.pipe_offset(global_pos_source, global_pos_target)
+        offset = RotatedSurfaceCodeLayoutBuilder._compute_pipe_offset(code_distance, global_pos_source, pipe_offset_dir)
         bounds = RotatedSurfaceCodeLayoutBuilder._pipe_bounds(code_distance, offset, pipe_dir)
-        coords = RotatedSurfaceCodeLayoutBuilder.pipe(
-            code_distance, global_pos_source, global_pos_target, boundary
-        )
+        coords = RotatedSurfaceCodeLayoutBuilder.pipe(code_distance, global_pos_source, global_pos_target, boundary)
         return RotatedSurfaceCodeLayoutBuilder._boundary_path(coords.data, bounds, side_a, side_b)
