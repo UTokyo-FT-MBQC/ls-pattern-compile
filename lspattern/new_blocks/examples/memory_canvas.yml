@@ -17,4 +17,4 @@ cube:
 pipe: []
 
 logical_observables:
-  - [[0, 0, 1]] # can be combinations of coordinates
+  - cube: [[0, 0, 1]] # can be combinations of coordinates
