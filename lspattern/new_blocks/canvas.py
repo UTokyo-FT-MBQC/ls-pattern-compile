@@ -437,5 +437,172 @@ class Canvas:
 
         self.pipe_couts[global_edge] = cout_coords
 
-    def add_pipe(self, global_edge: tuple[Coord3D, Coord3D], block_config: BlockConfig) -> None:
-        pass
+    def add_pipe(
+        self,
+        global_edge: tuple[Coord3D, Coord3D],
+        block_config: BlockConfig,
+        logical_observable: LogicalObservableSpec | None = None,
+    ) -> None:
+        """Add a pipe to the canvas.
+
+        Parameters
+        ----------
+        global_edge : tuple[Coord3D, Coord3D]
+            The global edge (start, end) of the pipe.
+        block_config : BlockConfig
+            The block configuration for the pipe.
+        logical_observable : LogicalObservableSpec | None
+            Optional logical observable specification.
+        """
+        start, end = global_edge
+
+        # Store config
+        self.pipe_config[global_edge] = block_config
+
+        # Create boundary and register BOTH coordinates
+        boundary = Boundary(
+            top=block_config.boundary[BoundarySide.TOP],
+            bottom=block_config.boundary[BoundarySide.BOTTOM],
+            left=block_config.boundary[BoundarySide.LEFT],
+            right=block_config.boundary[BoundarySide.RIGHT],
+        )
+        self.bgraph.add_boundary(start, boundary)
+        self.bgraph.add_boundary(end, boundary)
+
+        # Get 2D coordinates from layout builder
+        data2d, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.pipe(
+            self.config.d, start, end, block_config.boundary
+        ).to_mutable_sets()
+
+        # Calculate time offsets using start.z
+        current_time = start.z * (2 * self.config.d * (_PHYSICAL_CLOCK + ANCILLA_LENGTH))
+        offset_z = start.z * 2 * self.config.d
+
+        # Compute couts if logical_observable is specified
+        if logical_observable is not None:
+            self.compute_pipe_cout_from_logical_observable(
+                global_edge, block_config, logical_observable, ancilla_x2d, ancilla_z2d
+            )
+
+        # Build graph layer by layer (same structure as add_cube)
+        for layer_idx, layer_cfg in enumerate(block_config):  # noqa: PLR1702
+            z = offset_z + layer_idx * 2
+            layer_time = current_time + layer_idx * 2 * (_PHYSICAL_CLOCK + ANCILLA_LENGTH)
+
+            if layer_cfg.layer1.basis is not None:
+                layer1_coords: list[Coord3D] = []
+                for x, y in data2d:
+                    coord = Coord3D(x, y, z)
+                    self.__nodes.add(coord)
+                    self.__coord2role[coord] = NodeRole.DATA
+                    self.__pauli_axes[coord] = layer_cfg.layer1.basis
+                    layer1_coords.append(coord)
+                    # temporal edge
+                    if Coord3D(x, y, z - 1) in self.__nodes:
+                        self.__edges.add((Coord3D(x, y, z - 1), coord))
+                        self.flow.add_flow(Coord3D(x, y, z - 1), coord)
+                        self.scheduler.add_entangle_at_time(layer_time, {(Coord3D(x, y, z - 1), coord)})
+                # Add layer1 data qubits to scheduler
+                self.scheduler.add_prep_at_time(layer_time, layer1_coords)
+                self.scheduler.add_meas_at_time(
+                    layer_time + _PHYSICAL_CLOCK + ANCILLA_LENGTH + 1,
+                    layer1_coords,
+                )
+
+                # should construct parity check with data qubits
+                if not layer_cfg.layer1.ancilla:
+                    parity_offset = 1 if layer_cfg.layer1.basis == Axis.X else 0
+                    ancilla_2d = ancilla_z2d if layer_cfg.layer1.basis == Axis.Z else ancilla_x2d
+                    for x, y in ancilla_2d:
+                        data_collection: set[Coord3D] = set()
+                        for dx, dy in ANCILLA_EDGE_Z:
+                            if Coord3D(x + dx, y + dy, z) in self.__nodes:
+                                data_collection.add(Coord3D(x + dx, y + dy, z))
+                        if data_collection:
+                            self.__parity.add_syndrome_measurement(
+                                Coord2D(x, y), z + parity_offset, data_collection
+                            )
+
+            if layer_cfg.layer2.basis is not None:
+                layer2_coords: list[Coord3D] = []
+                for x, y in data2d:
+                    coord = Coord3D(x, y, z + 1)
+                    self.__nodes.add(coord)
+                    self.__coord2role[coord] = NodeRole.DATA
+                    self.__pauli_axes[coord] = layer_cfg.layer2.basis
+                    layer2_coords.append(coord)
+                    # temporal edge
+                    if Coord3D(x, y, z) in self.__nodes:
+                        self.__edges.add((Coord3D(x, y, z), coord))
+                        self.flow.add_flow(Coord3D(x, y, z), coord)
+                        self.scheduler.add_entangle_at_time(
+                            layer_time + _PHYSICAL_CLOCK + ANCILLA_LENGTH, {(Coord3D(x, y, z), coord)}
+                        )
+                # Add layer2 data qubits to scheduler
+                self.scheduler.add_prep_at_time(
+                    layer_time + _PHYSICAL_CLOCK + ANCILLA_LENGTH,
+                    layer2_coords,
+                )
+                self.scheduler.add_meas_at_time(
+                    layer_time + 2 * (_PHYSICAL_CLOCK + ANCILLA_LENGTH) + 1,
+                    layer2_coords,
+                )
+
+                # should construct parity check with data qubits
+                if not layer_cfg.layer2.ancilla:
+                    parity_offset = 0 if layer_cfg.layer2.basis == Axis.X else 1
+                    ancilla_2d = ancilla_z2d if layer_cfg.layer2.basis == Axis.Z else ancilla_x2d
+                    for x, y in ancilla_2d:
+                        data_collection = set()
+                        for dx, dy in ANCILLA_EDGE_X:
+                            if Coord3D(x + dx, y + dy, z + 1) in self.__nodes:
+                                data_collection.add(Coord3D(x + dx, y + dy, z + 1))
+                        if data_collection:
+                            self.__parity.add_syndrome_measurement(
+                                Coord2D(x, y), z + 1 + parity_offset, data_collection
+                            )
+
+            if layer_cfg.layer1.ancilla:
+                ancilla_z_coords: list[Coord3D] = []
+                for x, y in ancilla_z2d:
+                    coord = Coord3D(x, y, z)
+                    self.__nodes.add(coord)
+                    self.__coord2role[coord] = NodeRole.ANCILLA_Z
+                    self.__pauli_axes[coord] = Axis.X
+                    ancilla_z_coords.append(coord)
+                    for i, (dx, dy) in enumerate(ANCILLA_EDGE_Z):
+                        if Coord3D(x + dx, y + dy, z) in self.__nodes:
+                            self.__edges.add((coord, Coord3D(x + dx, y + dy, z)))
+                            self.scheduler.add_entangle_at_time(
+                                layer_time + 1 + i, {(coord, Coord3D(x + dx, y + dy, z))}
+                            )
+                    self.__parity.add_syndrome_measurement(Coord2D(x, y), z, {coord})
+                # Add ancilla_z qubits to scheduler
+                self.scheduler.add_prep_at_time(layer_time, ancilla_z_coords)
+                self.scheduler.add_meas_at_time(layer_time + ANCILLA_LENGTH + 1, ancilla_z_coords)
+
+            if layer_cfg.layer2.ancilla:
+                ancilla_x_coords: list[Coord3D] = []
+                for x, y in ancilla_x2d:
+                    coord = Coord3D(x, y, z + 1)
+                    self.__nodes.add(coord)
+                    self.__coord2role[coord] = NodeRole.ANCILLA_X
+                    self.__pauli_axes[coord] = Axis.X
+                    ancilla_x_coords.append(coord)
+                    for i, (dx, dy) in enumerate(ANCILLA_EDGE_X):
+                        if Coord3D(x + dx, y + dy, z + 1) in self.__nodes:
+                            self.__edges.add((coord, Coord3D(x + dx, y + dy, z + 1)))
+                            self.scheduler.add_entangle_at_time(
+                                layer_time + _PHYSICAL_CLOCK + ANCILLA_LENGTH + 1 + i,
+                                {(coord, Coord3D(x + dx, y + dy, z + 1))},
+                            )
+                    self.__parity.add_syndrome_measurement(Coord2D(x, y), z + 1, {coord})
+                # Add ancilla_x qubits to scheduler
+                self.scheduler.add_prep_at_time(
+                    layer_time + _PHYSICAL_CLOCK + ANCILLA_LENGTH,
+                    ancilla_x_coords,
+                )
+                self.scheduler.add_meas_at_time(
+                    layer_time + _PHYSICAL_CLOCK + 2 * ANCILLA_LENGTH + 1,
+                    ancilla_x_coords,
+                )
