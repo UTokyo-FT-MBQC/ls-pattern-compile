@@ -23,15 +23,15 @@ def analyze_non_deterministic_regions(bgraph: BoundaryGraph) -> set[Coord3D]:
     set[Coord3D]
         A set of coordinates that are in non-deterministic regions.
     """
-    non_deterministic_coords = set()
+    non_deterministic_cube_coords = set()
     for coord in bgraph.boundary_map:
         if bgraph.check_bulk_init(coord):
-            non_deterministic_coords.add(coord)
+            non_deterministic_cube_coords.add(coord)
 
         # TODO: Add boundary checks later
 
     # convert to qubit coordinates
-    return non_deterministic_coords
+    return non_deterministic_cube_coords
 
 
 def remove_non_deterministic_det(canvas: Canvas) -> CoordParityAccumulator:
