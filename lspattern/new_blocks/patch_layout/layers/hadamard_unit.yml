@@ -1,9 +1,0 @@
-name: HadamardUnit
-description: This patch layout specifies a Hadamard unit layer
-
-layer1:
-  basis: Y # layer 1, transversal Y basis
-  ancilla: true # can be omitted, defaults to true
-layer2:
-  basis: Y # layer 2, transversal Y basis measurement
-  ancilla: true
