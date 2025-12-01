@@ -1,0 +1,50 @@
+name: Merge and Split Canvas
+description: Global config for rotated surface code based blocks
+
+layout: rotated_surface_code # required
+code_distance: 3 # required
+
+cube:
+  - position: [0, 0, 0]
+    block: InitZeroBlock
+    boundary: ZZXX
+  - position: [1, 0, 0]
+    block: InitZeroBlock
+    boundary: ZZXX
+  - position: [0, 0, 1]
+    block: MemoryBlock
+    boundary: ZZXO
+  - position: [1, 0, 1]
+    block: MemoryBlock
+    boundary: ZZOX
+  - position: [0, 0, 2]
+    block: MemoryBlock
+    boundary: ZZXX
+  - position: [1, 0, 2]
+    block: MemoryBlock
+    boundary: ZZXX
+  - position: [0, 0, 3]
+    block: MeasureZBlock
+    boundary: ZZXX
+    logical_observables: TB
+  - position: [1, 0, 3]
+    block: MeasureZBlock
+    boundary: ZZXX
+    logical_observables: TB
+
+pipe:
+  - start: [0, 0, 1]
+    end: [1, 0, 1]
+    block: InitPlusBlock
+    boundary: ZZOO
+    logical_observables: Z
+  - start: [0, 0, 2]
+    end: [1, 0, 2]
+    block: MeasureXBlock
+    boundary: ZZXX
+    logical_observables: RL
+
+logical_observables:
+  - [[0, 0, 3]] # cube
+  - [[1, 0, 3]] # cube
+  - [[[0, 0, 1], [1, 0, 1]]] # pipe
