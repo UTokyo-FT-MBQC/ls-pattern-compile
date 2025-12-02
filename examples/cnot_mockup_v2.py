@@ -35,7 +35,7 @@ from lspattern.mytype import PatchCoordGlobal3D, PipeCoordGlobal3D
 from lspattern.visualizers import visualize_compiled_canvas_plotly
 
 # %%
-d = 3
+d = 7
 
 canvass = RHGCanvasSkeleton("CNOT")
 
@@ -126,7 +126,7 @@ blocks = [
     ),
     (
         PatchCoordGlobal3D((0, 1, 6)),
-        MeasureXSkeleton(d=d, edgespec=edgespec),
+        MeasureZSkeleton(d=d, edgespec=edgespec),
     ),
     (
         PatchCoordGlobal3D((1, 1, 6)),
@@ -238,6 +238,7 @@ print("X parity")
 for coord, group_list in compiled_canvas.parity.checks.items():
     print(f"  {coord}: {group_list}")
 
+# manually update parity
 print("\nDetailed Flow Information:")
 print(f"Total flow edges: {sum(len(dsts) for dsts in xflow.values())}")
 print(f"Flow sources: {len(xflow)}")
@@ -266,25 +267,17 @@ noise = 0.001
 circuit = compile_to_stim(
     compiled_canvas,
     logical_observable_coords={
-        # 0: [
-        #     PatchCoordGlobal3D((0, 0, 6)),
-        # ],
-        1: [
+        0: [
+            # 
+            PatchCoordGlobal3D((0, 1, 6)),
             PatchCoordGlobal3D((1, 1, 6)),
-            # PipeCoordGlobal3D(
-            #     (
-            #         PatchCoordGlobal3D((0, 1, 4)),
-            #         PatchCoordGlobal3D((1, 1, 4))
-            #     )
-            # ),
-            # PatchCoordGlobal3D((0, 1, 6)),
-            # PipeCoordGlobal3D(
-            #     (
-            #         PatchCoordGlobal3D((0, 0, 3)),
-            #         PatchCoordGlobal3D((0, 1, 3))
-            #     )
-            # ),
-            # PatchCoordGlobal3D((0, 0, 6)),
+            PipeCoordGlobal3D(
+                (PatchCoordGlobal3D((0, 1, 5)), PatchCoordGlobal3D((1, 1, 5)))
+            ),
+            PipeCoordGlobal3D(
+                (PatchCoordGlobal3D((0, 0, 2)), PatchCoordGlobal3D((0, 1, 2)))
+            ),
+  
         ],
     },
     p_before_meas_flip=noise,
