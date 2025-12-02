@@ -77,24 +77,24 @@ def remove_non_deterministic_det(canvas: Canvas) -> CoordParityAccumulator:
                 for layer_idx, layer_cfg in enumerate(block_config):
                     if axis == Axis.Z and layer_cfg.layer1.ancilla:
                         z = target_coord.z * 2 * canvas.config.d + layer_idx * 2
-                        target_ancilla2d = RotatedSurfaceCodeLayoutBuilder.cube_boundary_ancillas_for_side(
+                        _, z_ancilla2d = RotatedSurfaceCodeLayoutBuilder.cube_boundary_ancillas_for_side(
                             canvas.config.d,
                             Coord2D(target_coord.x, target_coord.y),
                             block_config.boundary,
                             direction,
                         )
-                        for xy in target_ancilla2d:
+                        for xy in z_ancilla2d:
                             new_parity_accumulator.add_non_deterministic_coord(Coord3D(xy.x, xy.y, z))
                         break
                     if axis == Axis.X and layer_cfg.layer2.ancilla:
                         z = target_coord.z * 2 * canvas.config.d + layer_idx * 2 + 1
-                        target_ancilla2d = RotatedSurfaceCodeLayoutBuilder.cube_boundary_ancillas_for_side(
+                        x_ancilla2d, _ = RotatedSurfaceCodeLayoutBuilder.cube_boundary_ancillas_for_side(
                             canvas.config.d,
                             Coord2D(target_coord.x, target_coord.y),
                             block_config.boundary,
                             direction,
                         )
-                        for xy in target_ancilla2d:
+                        for xy in x_ancilla2d:
                             new_parity_accumulator.add_non_deterministic_coord(Coord3D(xy.x, xy.y, z))
                         break
 

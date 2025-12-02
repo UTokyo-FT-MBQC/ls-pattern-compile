@@ -11,7 +11,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from lspattern.consts import BoundarySide, EdgeSpecValue
-from lspattern.new_blocks.mytype import DIRECTION2D, AxisDIRECTION2D, Coord2D, Coord3D
+from lspattern.new_blocks.mytype import AxisDIRECTION2D, Coord2D, Coord3D
+from lspattern.consts import BoundarySide
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -303,19 +304,19 @@ class RotatedSurfaceCodeLayoutBuilder:
     def _compute_pipe_offset(
         code_distance: int,
         global_pos_source: Coord3D,
-        pipe_dir: DIRECTION2D,
+        pipe_dir: BoundarySide,
     ) -> Coord2D:
         """Compute the offset for a pipe patch based on source position and direction."""
         offset_x = 2 * (code_distance + 1) * global_pos_source.x
         offset_y = 2 * (code_distance + 1) * global_pos_source.y
 
-        if pipe_dir == DIRECTION2D.RIGHT:
+        if pipe_dir == BoundarySide.RIGHT:
             offset_x += 2 * code_distance
-        elif pipe_dir == DIRECTION2D.LEFT:
+        elif pipe_dir == BoundarySide.LEFT:
             offset_x -= 2
-        elif pipe_dir == DIRECTION2D.TOP:
+        elif pipe_dir == BoundarySide.TOP:
             offset_y -= 2
-        elif pipe_dir == DIRECTION2D.BOTTOM:
+        elif pipe_dir == BoundarySide.BOTTOM:
             offset_y += 2 * code_distance
 
         return Coord2D(offset_x, offset_y)
@@ -722,7 +723,7 @@ class RotatedSurfaceCodeLayoutBuilder:
     def pipe_offset(
         global_pos_source: Coord3D,
         global_pos_target: Coord3D,
-    ) -> DIRECTION2D:
+    ) -> BoundarySide:
         """Calculate pipe offset direction from source to target positions.
 
         Parameters
@@ -734,7 +735,7 @@ class RotatedSurfaceCodeLayoutBuilder:
 
         Returns
         -------
-        DIRECTION2D
+        BoundarySide
             The direction from source to target.
 
         Raises
@@ -746,13 +747,13 @@ class RotatedSurfaceCodeLayoutBuilder:
         dy = global_pos_target.y - global_pos_source.y
 
         if dx == 1 and dy == 0:
-            return DIRECTION2D.RIGHT
+            return BoundarySide.RIGHT
         if dx == -1 and dy == 0:
-            return DIRECTION2D.LEFT
+            return BoundarySide.LEFT
         if dx == 0 and dy == 1:
-            return DIRECTION2D.TOP
+            return BoundarySide.TOP
         if dx == 0 and dy == -1:
-            return DIRECTION2D.BOTTOM
+            return BoundarySide.BOTTOM
 
         msg = f"Invalid pipe offset: source {global_pos_source}, target {global_pos_target}."
         raise ValueError(msg)
