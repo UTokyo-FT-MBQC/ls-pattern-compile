@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import copy
 
+from graphqomb.common import Axis
+
 from lspattern.new_blocks.accumulator import CoordParityAccumulator
 from lspattern.new_blocks.canvas import BoundaryGraph, Canvas
 from lspattern.new_blocks.layout import RotatedSurfaceCodeLayoutBuilder
-from lspattern.new_blocks.mytype import Coord2D, Coord3D
+from lspattern.new_blocks.mytype import DIRECTION2D, Coord2D, Coord3D
 
 
-def analyze_non_deterministic_regions(bgraph: BoundaryGraph) -> set[Coord3D]:
+def analyze_non_deterministic_regions(
+    bgraph: BoundaryGraph,
+) -> tuple[set[Coord3D], dict[Coord3D, dict[DIRECTION2D, frozenset[Axis]]]]:
     """Analyze the boundary graph to find non-deterministic regions.
 
     Parameters
@@ -20,22 +24,28 @@ def analyze_non_deterministic_regions(bgraph: BoundaryGraph) -> set[Coord3D]:
 
     Returns
     -------
-    set[Coord3D]
-        A set of coordinates that are in non-deterministic regions.
+    tuple[set[Coord3D], dict[Coord3D, dict[DIRECTION2D, frozenset[Axis]]]]
+        A tuple containing:
+        - A set of coordinates that require bulk initialization.
+        - A dictionary mapping coordinates to their boundary initialization info,
+          where each entry maps a direction to the set of Pauli axes to be initialized.
     """
-    non_deterministic_cube_coords = set()
+    bulk_init_coords: set[Coord3D] = set()
+    boundary_init_info: dict[Coord3D, dict[DIRECTION2D, frozenset[Axis]]] = {}
+
     for coord in bgraph.boundary_map:
         if bgraph.check_bulk_init(coord):
-            non_deterministic_cube_coords.add(coord)
+            bulk_init_coords.add(coord)
+        else:
+            boundary_changes = bgraph.check_boundary_init(coord)
+            if boundary_changes:
+                boundary_init_info[coord] = boundary_changes
 
-        # TODO: Add boundary checks later
-
-    # convert to qubit coordinates
-    return non_deterministic_cube_coords
+    return bulk_init_coords, boundary_init_info
 
 
 def remove_non_deterministic_det(canvas: Canvas) -> CoordParityAccumulator:
-    non_deterministic_coords = analyze_non_deterministic_regions(canvas.bgraph)
+    non_deterministic_coords, _ = analyze_non_deterministic_regions(canvas.bgraph)
     new_parity_accumulator = copy.deepcopy(canvas.parity_accumulator)  # NOTE: should refactor
 
     for target_coord in non_deterministic_coords:
