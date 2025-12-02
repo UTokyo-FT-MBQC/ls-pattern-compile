@@ -9,12 +9,13 @@ from graphqomb.common import Axis
 from lspattern.new_blocks.accumulator import CoordParityAccumulator
 from lspattern.new_blocks.canvas import BoundaryGraph, Canvas
 from lspattern.new_blocks.layout import RotatedSurfaceCodeLayoutBuilder
-from lspattern.new_blocks.mytype import DIRECTION2D, Coord2D, Coord3D
+from lspattern.new_blocks.mytype import Coord2D, Coord3D
+from lspattern.consts import BoundarySide
 
 
 def analyze_non_deterministic_regions(
     bgraph: BoundaryGraph,
-) -> tuple[set[Coord3D], dict[Coord3D, dict[DIRECTION2D, frozenset[Axis]]]]:
+) -> tuple[set[Coord3D], dict[Coord3D, dict[BoundarySide, frozenset[Axis]]]]:
     """Analyze the boundary graph to find non-deterministic regions.
 
     Parameters
@@ -24,14 +25,14 @@ def analyze_non_deterministic_regions(
 
     Returns
     -------
-    tuple[set[Coord3D], dict[Coord3D, dict[DIRECTION2D, frozenset[Axis]]]]
+    tuple[set[Coord3D], dict[Coord3D, dict[BoundarySide, frozenset[Axis]]]]
         A tuple containing:
         - A set of coordinates that require bulk initialization.
         - A dictionary mapping coordinates to their boundary initialization info,
           where each entry maps a direction to the set of Pauli axes to be initialized.
     """
     bulk_init_coords: set[Coord3D] = set()
-    boundary_init_info: dict[Coord3D, dict[DIRECTION2D, frozenset[Axis]]] = {}
+    boundary_init_info: dict[Coord3D, dict[BoundarySide, frozenset[Axis]]] = {}
 
     for coord in bgraph.boundary_map:
         if bgraph.check_bulk_init(coord):
@@ -45,9 +46,10 @@ def analyze_non_deterministic_regions(
 
 
 def remove_non_deterministic_det(canvas: Canvas) -> CoordParityAccumulator:
-    non_deterministic_coords, _ = analyze_non_deterministic_regions(canvas.bgraph)
+    non_deterministic_coords, boundary_init_info = analyze_non_deterministic_regions(canvas.bgraph)
     new_parity_accumulator = copy.deepcopy(canvas.parity_accumulator)  # NOTE: should refactor
 
+    # process bulk init coords
     for target_coord in non_deterministic_coords:
         block_config = canvas.cube_config[target_coord]
         _, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.cube(
@@ -66,6 +68,36 @@ def remove_non_deterministic_det(canvas: Canvas) -> CoordParityAccumulator:
                 for xy in ancilla_x2d:
                     new_parity_accumulator.add_non_deterministic_coord(Coord3D(xy.x, xy.y, z))
                 break
+
+    # process boundary init coords
+    for target_coord, direction_map in boundary_init_info.items():  # noqa: PLR1702
+        block_config = canvas.cube_config[target_coord]
+        for direction, axes in direction_map.items():
+            for axis in axes:
+                for layer_idx, layer_cfg in enumerate(block_config):
+                    if axis == Axis.Z and layer_cfg.layer1.ancilla:
+                        z = target_coord.z * 2 * canvas.config.d + layer_idx * 2
+                        target_ancilla2d = RotatedSurfaceCodeLayoutBuilder.cube_boundary_ancillas_for_side(
+                            canvas.config.d,
+                            Coord2D(target_coord.x, target_coord.y),
+                            block_config.boundary,
+                            direction,
+                        )
+                        for xy in target_ancilla2d:
+                            new_parity_accumulator.add_non_deterministic_coord(Coord3D(xy.x, xy.y, z))
+                        break
+                    if axis == Axis.X and layer_cfg.layer2.ancilla:
+                        z = target_coord.z * 2 * canvas.config.d + layer_idx * 2 + 1
+                        target_ancilla2d = RotatedSurfaceCodeLayoutBuilder.cube_boundary_ancillas_for_side(
+                            canvas.config.d,
+                            Coord2D(target_coord.x, target_coord.y),
+                            block_config.boundary,
+                            direction,
+                        )
+                        for xy in target_ancilla2d:
+                            new_parity_accumulator.add_non_deterministic_coord(Coord3D(xy.x, xy.y, z))
+                        break
+
     return new_parity_accumulator
 
 
