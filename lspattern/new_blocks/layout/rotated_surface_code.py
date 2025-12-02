@@ -421,6 +421,85 @@ class RotatedSurfaceCodeLayoutBuilder:
 
         return frozenset(x_ancillas), frozenset(z_ancillas)
 
+    @staticmethod
+    def _get_corner_ancillas_for_side(
+        bounds: PatchBounds,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+        side: BoundarySide,
+    ) -> tuple[frozenset[Coord2D], frozenset[Coord2D]]:
+        """Generate corner ancilla coordinates for a specific side.
+
+        Each corner belongs to two adjacent sides. This method returns
+        the corners that are adjacent to the specified side.
+
+        Parameters
+        ----------
+        bounds : PatchBounds
+            Bounding box for the patch region.
+        boundary : Mapping[BoundarySide, EdgeSpecValue]
+            Boundary specifications for the cube.
+        side : BoundarySide
+            The boundary side to get corner ancillas for.
+
+        Returns
+        -------
+        tuple[frozenset[Coord2D], frozenset[Coord2D]]
+            (X ancillas, Z ancillas) for corners adjacent to the specified side.
+        """
+        x_ancillas: set[Coord2D] = set()
+        z_ancillas: set[Coord2D] = set()
+
+        # Corner positions (outside the main bounds)
+        corner_coords = {
+            "top_right": Coord2D(bounds.x_max + 1, bounds.y_min - 1),
+            "bottom_right": Coord2D(bounds.x_max + 1, bounds.y_max + 1),
+            "top_left": Coord2D(bounds.x_min - 1, bounds.y_min - 1),
+            "bottom_left": Coord2D(bounds.x_min - 1, bounds.y_max + 1),
+        }
+
+        # Corners adjacent to each side
+        side_corners: dict[BoundarySide, tuple[str, str]] = {
+            BoundarySide.TOP: ("top_left", "top_right"),
+            BoundarySide.BOTTOM: ("bottom_left", "bottom_right"),
+            BoundarySide.LEFT: ("top_left", "bottom_left"),
+            BoundarySide.RIGHT: ("top_right", "bottom_right"),
+        }
+
+        xo_set = {EdgeSpecValue.X, EdgeSpecValue.O}
+        zo_set = {EdgeSpecValue.Z, EdgeSpecValue.O}
+
+        # All rules: (primary_side, secondary_side, secondary_vals, ancilla_type, corner_key)
+        rules: list[tuple[BoundarySide, BoundarySide, set[EdgeSpecValue], str, str]] = [
+            # RIGHT == O rules
+            (BoundarySide.RIGHT, BoundarySide.TOP, xo_set, "x", "top_right"),
+            (BoundarySide.RIGHT, BoundarySide.BOTTOM, zo_set, "z", "bottom_right"),
+            # LEFT == O rules
+            (BoundarySide.LEFT, BoundarySide.TOP, zo_set, "z", "top_left"),
+            (BoundarySide.LEFT, BoundarySide.BOTTOM, xo_set, "x", "bottom_left"),
+            # TOP == O rules
+            (BoundarySide.TOP, BoundarySide.LEFT, zo_set, "z", "top_left"),
+            (BoundarySide.TOP, BoundarySide.RIGHT, xo_set, "x", "top_right"),
+            # BOTTOM == O rules
+            (BoundarySide.BOTTOM, BoundarySide.LEFT, xo_set, "x", "bottom_left"),
+            (BoundarySide.BOTTOM, BoundarySide.RIGHT, zo_set, "z", "bottom_right"),
+        ]
+
+        # Get corners that belong to this side
+        valid_corners = side_corners[side]
+
+        for primary_side, secondary_side, secondary_vals, ancilla_type, corner_key in rules:
+            # Only include corners adjacent to the specified side
+            if corner_key not in valid_corners:
+                continue
+            if boundary[primary_side] == EdgeSpecValue.O and boundary[secondary_side] in secondary_vals:
+                coord = corner_coords[corner_key]
+                if ancilla_type == "x":
+                    x_ancillas.add(coord)
+                else:
+                    z_ancillas.add(coord)
+
+        return frozenset(x_ancillas), frozenset(z_ancillas)
+
     # =========================================================================
     # Boundary Ancilla Generation
     # =========================================================================
@@ -478,6 +557,81 @@ class RotatedSurfaceCodeLayoutBuilder:
                 x_ancillas.add(Coord2D(bounds.x_max + 1, y))
             if check(boundary[BoundarySide.RIGHT], EdgeSpecValue.Z, rel_y_mod4, 1):
                 z_ancillas.add(Coord2D(bounds.x_max + 1, y))
+
+        return frozenset(x_ancillas), frozenset(z_ancillas)
+
+    @staticmethod
+    def _generate_boundary_ancillas_for_side(  # noqa: C901
+        bounds: PatchBounds,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+        side: BoundarySide,
+    ) -> tuple[frozenset[Coord2D], frozenset[Coord2D]]:
+        """Generate boundary ancilla coordinates for a specific side of a cube.
+
+        This method generates edge ancillas (not corners) for the specified side.
+
+        Parameters
+        ----------
+        bounds : PatchBounds
+            Bounding box for the patch region.
+        boundary : Mapping[BoundarySide, EdgeSpecValue]
+            Boundary specifications for the cube.
+        side : BoundarySide
+            The boundary side to generate ancillas for.
+
+        Returns
+        -------
+        tuple[frozenset[Coord2D], frozenset[Coord2D]]
+            (X ancillas, Z ancillas) for the specified side (edges only, no corners).
+        """
+        x_ancillas: set[Coord2D] = set()
+        z_ancillas: set[Coord2D] = set()
+        check = RotatedSurfaceCodeLayoutBuilder._should_add_boundary_ancilla
+        edge_spec = boundary[side]
+
+        if side == BoundarySide.TOP:
+            # TOP boundary (y = y_min - 1)
+            y = bounds.y_min - 1
+            for x in range(bounds.x_min + 1, bounds.x_max):
+                rel_x = x - bounds.x_min
+                rel_x_mod4 = rel_x % 4
+                if check(edge_spec, EdgeSpecValue.X, rel_x_mod4, 1):
+                    x_ancillas.add(Coord2D(x, y))
+                if check(edge_spec, EdgeSpecValue.Z, rel_x_mod4, 3):
+                    z_ancillas.add(Coord2D(x, y))
+
+        elif side == BoundarySide.BOTTOM:
+            # BOTTOM boundary (y = y_max + 1)
+            y = bounds.y_max + 1
+            for x in range(bounds.x_min + 1, bounds.x_max):
+                rel_x = x - bounds.x_min
+                rel_x_mod4 = rel_x % 4
+                if check(edge_spec, EdgeSpecValue.X, rel_x_mod4, 3):
+                    x_ancillas.add(Coord2D(x, y))
+                if check(edge_spec, EdgeSpecValue.Z, rel_x_mod4, 1):
+                    z_ancillas.add(Coord2D(x, y))
+
+        elif side == BoundarySide.LEFT:
+            # LEFT boundary (x = x_min - 1)
+            x = bounds.x_min - 1
+            for y in range(bounds.y_min + 1, bounds.y_max):
+                rel_y = y - bounds.y_min
+                rel_y_mod4 = rel_y % 4
+                if check(edge_spec, EdgeSpecValue.X, rel_y_mod4, 1):
+                    x_ancillas.add(Coord2D(x, y))
+                if check(edge_spec, EdgeSpecValue.Z, rel_y_mod4, 3):
+                    z_ancillas.add(Coord2D(x, y))
+
+        elif side == BoundarySide.RIGHT:
+            # RIGHT boundary (x = x_max + 1)
+            x = bounds.x_max + 1
+            for y in range(bounds.y_min + 1, bounds.y_max):
+                rel_y = y - bounds.y_min
+                rel_y_mod4 = rel_y % 4
+                if check(edge_spec, EdgeSpecValue.X, rel_y_mod4, 3):
+                    x_ancillas.add(Coord2D(x, y))
+                if check(edge_spec, EdgeSpecValue.Z, rel_y_mod4, 1):
+                    z_ancillas.add(Coord2D(x, y))
 
         return frozenset(x_ancillas), frozenset(z_ancillas)
 
@@ -751,6 +905,66 @@ class RotatedSurfaceCodeLayoutBuilder:
         bounds = RotatedSurfaceCodeLayoutBuilder._cube_bounds(code_distance, offset)
         coords = RotatedSurfaceCodeLayoutBuilder.cube(code_distance, global_pos, boundary)
         return RotatedSurfaceCodeLayoutBuilder._boundary_path(coords.data, bounds, side_a, side_b)
+
+    @staticmethod
+    def cube_boundary_ancillas_for_side(
+        code_distance: int,
+        global_pos: Coord2D,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+        side: BoundarySide,
+    ) -> tuple[frozenset[Coord2D], frozenset[Coord2D]]:
+        """Get ancilla coordinates for a specific boundary side of a cube.
+
+        This method returns all ancilla qubits located on the specified boundary
+        side, including corner ancillas. Each corner belongs to both adjacent
+        sides (e.g., top_left corner belongs to both TOP and LEFT sides).
+
+        Parameters
+        ----------
+        code_distance : int
+            Code distance of the surface code.
+        global_pos : Coord2D
+            Global (x, y) position of the cube.
+        boundary : Mapping[BoundarySide, EdgeSpecValue]
+            Boundary specifications for the cube.
+        side : BoundarySide
+            The boundary side to get ancillas for (TOP, BOTTOM, LEFT, RIGHT).
+
+        Returns
+        -------
+        tuple[frozenset[Coord2D], frozenset[Coord2D]]
+            (X ancillas, Z ancillas) for the specified boundary side,
+            including corner ancillas that belong to this side.
+
+        Examples
+        --------
+        >>> from lspattern.consts import BoundarySide, EdgeSpecValue
+        >>> from lspattern.new_blocks.mytype import Coord2D
+        >>> boundary = {
+        ...     BoundarySide.TOP: EdgeSpecValue.X,
+        ...     BoundarySide.BOTTOM: EdgeSpecValue.X,
+        ...     BoundarySide.LEFT: EdgeSpecValue.Z,
+        ...     BoundarySide.RIGHT: EdgeSpecValue.Z,
+        ... }
+        >>> x_anc, z_anc = RotatedSurfaceCodeLayoutBuilder.cube_boundary_ancillas_for_side(
+        ...     code_distance=3,
+        ...     global_pos=Coord2D(0, 0),
+        ...     boundary=boundary,
+        ...     side=BoundarySide.TOP,
+        ... )
+        """
+        # Calculate bounds internally
+        offset = RotatedSurfaceCodeLayoutBuilder._compute_cube_offset(code_distance, global_pos)
+        bounds = RotatedSurfaceCodeLayoutBuilder._cube_bounds(code_distance, offset)
+
+        # Get edge ancillas for this side
+        edge_x, edge_z = RotatedSurfaceCodeLayoutBuilder._generate_boundary_ancillas_for_side(bounds, boundary, side)
+
+        # Get corner ancillas for this side
+        corner_x, corner_z = RotatedSurfaceCodeLayoutBuilder._get_corner_ancillas_for_side(bounds, boundary, side)
+
+        # Combine edge and corner ancillas
+        return frozenset(edge_x | corner_x), frozenset(edge_z | corner_z)
 
     @staticmethod
     def pipe_boundary_path(
