@@ -286,7 +286,7 @@ class Canvas:
                     for x, y in ancilla_2d:
                         data_collection: set[Coord3D] = set()
                         for dx, dy in ANCILLA_EDGE_Z:
-                            if Coord3D(x + dx, y + dy, z) in self.__nodes:
+                            if Coord2D(x + dx, y + dy) in data2d:
                                 data_collection.add(Coord3D(x + dx, y + dy, z))
                         if data_collection:
                             self.__parity.add_syndrome_measurement(Coord2D(x, y), z + parity_offset, data_collection)
@@ -324,7 +324,7 @@ class Canvas:
                     for x, y in ancilla_2d:
                         data_collection = set()
                         for dx, dy in ANCILLA_EDGE_X:
-                            if Coord3D(x + dx, y + dy, z + 1) in self.__nodes:
+                            if Coord2D(x + dx, y + dy) in data2d:
                                 data_collection.add(Coord3D(x + dx, y + dy, z + 1))
                         if data_collection:
                             self.__parity.add_syndrome_measurement(
@@ -520,6 +520,7 @@ class Canvas:
         data2d, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.pipe(
             self.config.d, start, end, block_config.boundary
         ).to_mutable_sets()
+        print(f"pipe data2d: {data2d}, ancilla_x2d: {ancilla_x2d}, ancilla_z2d: {ancilla_z2d}")
 
         # Calculate time offsets using start.z
         current_time = start.z * (2 * self.config.d * (_PHYSICAL_CLOCK + ANCILLA_LENGTH))
@@ -563,7 +564,7 @@ class Canvas:
                     for x, y in ancilla_2d:
                         data_collection: set[Coord3D] = set()
                         for dx, dy in ANCILLA_EDGE_Z:
-                            if Coord3D(x + dx, y + dy, z) in self.__nodes:
+                            if Coord2D(x + dx, y + dy) in data2d:
                                 data_collection.add(Coord3D(x + dx, y + dy, z))
                         if data_collection:
                             self.__parity.add_syndrome_measurement(Coord2D(x, y), z + parity_offset, data_collection)
@@ -600,7 +601,7 @@ class Canvas:
                     for x, y in ancilla_2d:
                         data_collection = set()
                         for dx, dy in ANCILLA_EDGE_X:
-                            if Coord3D(x + dx, y + dy, z + 1) in self.__nodes:
+                            if Coord2D(x + dx, y + dy) in data2d:
                                 data_collection.add(Coord3D(x + dx, y + dy, z + 1))
                         if data_collection:
                             self.__parity.add_syndrome_measurement(

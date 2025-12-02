@@ -234,6 +234,7 @@ class RotatedSurfaceCodeLayoutBuilder:
         """
         # Determine pipe direction from boundary or positions
         pipe_dir = RotatedSurfaceCodeLayoutBuilder.pipe_direction(boundary)
+        print(f"Determined pipe direction: {pipe_dir}")
         pipe_offset_dir = RotatedSurfaceCodeLayoutBuilder.pipe_offset(global_pos_source, global_pos_target)
 
         offset = RotatedSurfaceCodeLayoutBuilder._compute_pipe_offset(code_distance, global_pos_source, pipe_offset_dir)
@@ -273,19 +274,19 @@ class RotatedSurfaceCodeLayoutBuilder:
     ) -> PatchBounds:
         """Create bounds for a pipe patch."""
         if direction == AxisDIRECTION2D.H:
-            # Horizontal pipe: narrow in y (3 units), long in x (d data qubits)
+            # Horizontal pipe: narrow in x (3 units), long in y (d data qubits)
             return PatchBounds(
-                x_min=offset.x,
-                x_max=offset.x + 2 * (code_distance - 1),
-                y_min=offset.y - 1,
-                y_max=offset.y + 1,
+                x_min=offset.x - 1,
+                x_max=offset.x + 1,
+                y_min=offset.y,
+                y_max=offset.y + 2 * (code_distance - 1),
             )
-        # Vertical pipe: long in y (d data qubits), narrow in x (3 units)
+        # Vertical pipe: long in x (d data qubits), narrow in y (3 units)
         return PatchBounds(
-            x_min=offset.x - 1,
-            x_max=offset.x + 1,
-            y_min=offset.y,
-            y_max=offset.y + 2 * (code_distance - 1),
+            x_min=offset.x,
+            x_max=offset.x + 2 * (code_distance - 1),
+            y_min=offset.y - 1,
+            y_max=offset.y + 1,
         )
 
     # =========================================================================
@@ -706,8 +707,8 @@ class RotatedSurfaceCodeLayoutBuilder:
         ValueError
             If boundary specifications don't match a valid pipe direction.
         """
-        horizontal = boundary[BoundarySide.TOP] == EdgeSpecValue.O and boundary[BoundarySide.BOTTOM] == EdgeSpecValue.O
-        vertical = boundary[BoundarySide.LEFT] == EdgeSpecValue.O and boundary[BoundarySide.RIGHT] == EdgeSpecValue.O
+        vertical = boundary[BoundarySide.TOP] == EdgeSpecValue.O and boundary[BoundarySide.BOTTOM] == EdgeSpecValue.O
+        horizontal = boundary[BoundarySide.LEFT] == EdgeSpecValue.O and boundary[BoundarySide.RIGHT] == EdgeSpecValue.O
 
         if horizontal and not vertical:
             return AxisDIRECTION2D.H
