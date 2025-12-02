@@ -56,6 +56,29 @@ def _token_to_boundary_sides(token: str) -> tuple[BoundarySide, BoundarySide]:
     raise ValueError(msg)
 
 
+def _edge_spec_to_pauli_set(edge_spec: EdgeSpecValue) -> frozenset[Axis]:
+    """Convert EdgeSpecValue to a set of Pauli axes.
+
+    O boundary contains both X and Z.
+
+    Parameters
+    ----------
+    edge_spec : EdgeSpecValue
+        The edge specification value (X, Z, or O).
+
+    Returns
+    -------
+    frozenset[Axis]
+        The set of Pauli axes contained in this boundary type.
+    """
+    if edge_spec == EdgeSpecValue.X:
+        return frozenset({Axis.X})
+    if edge_spec == EdgeSpecValue.Z:
+        return frozenset({Axis.Z})
+    # O boundary contains both X and Z
+    return frozenset({Axis.X, Axis.Z})
+
+
 class Boundary(NamedTuple):
     top: EdgeSpecValue
     bottom: EdgeSpecValue
@@ -98,7 +121,26 @@ class BoundaryGraph:
         """Check if the coordinate is in the bulk for initialization."""
         return Coord3D(coord.x, coord.y, coord.z - 1) not in self.boundary_map
 
-    def check_boundary_init(self, coord: Coord3D) -> set[DIRECTION2D]:
+    def check_boundary_init(self, coord: Coord3D) -> dict[DIRECTION2D, frozenset[Axis]]:
+        """Check boundary changes and return added Pauli axes for each direction.
+
+        Parameters
+        ----------
+        coord : Coord3D
+            The coordinate to check.
+
+        Returns
+        -------
+        dict[DIRECTION2D, frozenset[Axis]]
+            A dictionary mapping each changed direction to the set of Pauli axes
+            that were added in the transition. Only directions with added Paulis
+            are included (e.g., O->X transitions are excluded since no Pauli is added).
+
+        Raises
+        ------
+        KeyError
+            If boundary info is missing for the coordinate or its predecessor.
+        """
         prev_boundary = self.boundary_map.get(Coord3D(coord.x, coord.y, coord.z - 1), None)
         if prev_boundary is None:
             msg = f"No boundary info for coordinate {Coord3D(coord.x, coord.y, coord.z - 1)}"
@@ -108,17 +150,22 @@ class BoundaryGraph:
             msg = f"No boundary info for coordinate {coord}"
             raise KeyError(msg)
 
-        # check boundary change for each direction
-        changed_directions: set[DIRECTION2D] = set()
-        if prev_boundary.top != current_boundary.top:
-            changed_directions.add(DIRECTION2D.TOP)
-        if prev_boundary.bottom != current_boundary.bottom:
-            changed_directions.add(DIRECTION2D.BOTTOM)
-        if prev_boundary.left != current_boundary.left:
-            changed_directions.add(DIRECTION2D.LEFT)
-        if prev_boundary.right != current_boundary.right:
-            changed_directions.add(DIRECTION2D.RIGHT)
-        return changed_directions
+        result: dict[DIRECTION2D, frozenset[Axis]] = {}
+
+        directions_and_boundaries = [
+            (DIRECTION2D.TOP, prev_boundary.top, current_boundary.top),
+            (DIRECTION2D.BOTTOM, prev_boundary.bottom, current_boundary.bottom),
+            (DIRECTION2D.LEFT, prev_boundary.left, current_boundary.left),
+            (DIRECTION2D.RIGHT, prev_boundary.right, current_boundary.right),
+        ]
+
+        for direction, prev_edge, current_edge in directions_and_boundaries:
+            if prev_edge != current_edge:
+                added = _edge_spec_to_pauli_set(current_edge) - _edge_spec_to_pauli_set(prev_edge)
+                if added:
+                    result[direction] = added
+
+        return result
 
 
 class Canvas:
@@ -519,9 +566,7 @@ class Canvas:
                             if Coord3D(x + dx, y + dy, z) in self.__nodes:
                                 data_collection.add(Coord3D(x + dx, y + dy, z))
                         if data_collection:
-                            self.__parity.add_syndrome_measurement(
-                                Coord2D(x, y), z + parity_offset, data_collection
-                            )
+                            self.__parity.add_syndrome_measurement(Coord2D(x, y), z + parity_offset, data_collection)
 
             if layer_cfg.layer2.basis is not None:
                 layer2_coords: list[Coord3D] = []
