@@ -25,15 +25,6 @@ class NodeRole(Enum):
     ANCILLA_Z = auto()
 
 
-class DIRECTION2D(Enum):
-    """Direction in 2D lattice."""
-
-    LEFT = auto()
-    RIGHT = auto()
-    TOP = auto()
-    BOTTOM = auto()
-
-
 class AxisDIRECTION2D(Enum):
     """Axis direction in 2D lattice."""
 

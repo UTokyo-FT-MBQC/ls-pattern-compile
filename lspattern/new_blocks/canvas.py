@@ -13,7 +13,7 @@ from lspattern.new_blocks.layout import (
     RotatedSurfaceCodeLayoutBuilder,
 )
 from lspattern.new_blocks.loader import BlockConfig
-from lspattern.new_blocks.mytype import DIRECTION2D, Coord2D, Coord3D, NodeRole
+from lspattern.new_blocks.mytype import Coord2D, Coord3D, NodeRole
 
 if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
@@ -121,7 +121,7 @@ class BoundaryGraph:
         """Check if the coordinate is in the bulk for initialization."""
         return Coord3D(coord.x, coord.y, coord.z - 1) not in self.boundary_map
 
-    def check_boundary_init(self, coord: Coord3D) -> dict[DIRECTION2D, frozenset[Axis]]:
+    def check_boundary_init(self, coord: Coord3D) -> dict[BoundarySide, frozenset[Axis]]:
         """Check boundary changes and return added Pauli axes for each direction.
 
         Parameters
@@ -131,7 +131,7 @@ class BoundaryGraph:
 
         Returns
         -------
-        dict[DIRECTION2D, frozenset[Axis]]
+        dict[BoundarySide, frozenset[Axis]]
             A dictionary mapping each changed direction to the set of Pauli axes
             that were added in the transition. Only directions with added Paulis
             are included (e.g., O->X transitions are excluded since no Pauli is added).
@@ -150,13 +150,13 @@ class BoundaryGraph:
             msg = f"No boundary info for coordinate {coord}"
             raise KeyError(msg)
 
-        result: dict[DIRECTION2D, frozenset[Axis]] = {}
+        result: dict[BoundarySide, frozenset[Axis]] = {}
 
         directions_and_boundaries = [
-            (DIRECTION2D.TOP, prev_boundary.top, current_boundary.top),
-            (DIRECTION2D.BOTTOM, prev_boundary.bottom, current_boundary.bottom),
-            (DIRECTION2D.LEFT, prev_boundary.left, current_boundary.left),
-            (DIRECTION2D.RIGHT, prev_boundary.right, current_boundary.right),
+            (BoundarySide.TOP, prev_boundary.top, current_boundary.top),
+            (BoundarySide.BOTTOM, prev_boundary.bottom, current_boundary.bottom),
+            (BoundarySide.LEFT, prev_boundary.left, current_boundary.left),
+            (BoundarySide.RIGHT, prev_boundary.right, current_boundary.right),
         ]
 
         for direction, prev_edge, current_edge in directions_and_boundaries:
