@@ -14,12 +14,12 @@ from lspattern.new_blocks.detector import construct_detector, remove_non_determi
 
 if TYPE_CHECKING:
     from lspattern.new_blocks.canvas import Canvas
-    from lspattern.new_blocks.mytype import Coord3D
+    from lspattern.new_blocks.canvas_loader import CompositeLogicalObservableSpec
 
 
 def compile_canvas_to_stim(
     canvas: Canvas,
-    logical_observables: dict[int, set[Coord3D]],
+    logical_observables: dict[int, CompositeLogicalObservableSpec],
     p_depol_after_clifford: float,
     p_before_meas_flip: float,
 ) -> str:
@@ -49,10 +49,12 @@ def compile_canvas_to_stim(
 
     # extract logical observables
     logical_observables_nodes: dict[int, set[int]] = {}
-    for key, coord_set in logical_observables.items():
+    for key, composite_logical_obs in logical_observables.items():
         nodes = set()
-        for coord in coord_set:
-            nodes |= canvas.couts[coord]
+        for cube in composite_logical_obs.cubes:
+            nodes |= canvas.couts[cube]
+        for pipe in composite_logical_obs.pipes:
+            nodes |= canvas.pipe_couts[pipe]
         logical_observables_nodes[key] = {node_map[coord] for coord in nodes}
 
     return stim_compile(
