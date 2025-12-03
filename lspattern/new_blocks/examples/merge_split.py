@@ -7,7 +7,7 @@ import stim
 from graphqomb.common import AxisMeasBasis, Sign
 from graphqomb.graphstate import GraphState
 
-from lspattern.new_blocks.canvas_loader import CompositeLogicalObservableSpec, load_canvas
+from lspattern.new_blocks.canvas_loader import load_canvas
 from lspattern.new_blocks.compiler import compile_canvas_to_stim
 from lspattern.new_blocks.detector import construct_detector, remove_non_deterministic_det
 from lspattern.new_blocks.mytype import Coord3D
@@ -66,15 +66,12 @@ fig_det.show()
 
 # %%
 # Stim circuit compilation
-logical_observables: dict[int, CompositeLogicalObservableSpec] = dict(enumerate(spec.logical_observables))
-
 print("\n=== Stim Circuit Compilation ===")
-print(f"Logical observables: {logical_observables}")
+print(f"Logical observables: {canvas.logical_observables}")
 
 noise = 0.001
 circuit_str = compile_canvas_to_stim(
     canvas,
-    logical_observables,
     p_depol_after_clifford=noise,
     p_before_meas_flip=noise,
 )

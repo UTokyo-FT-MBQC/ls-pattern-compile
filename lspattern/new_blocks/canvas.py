@@ -18,7 +18,7 @@ from lspattern.new_blocks.mytype import Coord2D, Coord3D, NodeRole
 if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
 
-    from lspattern.new_blocks.canvas_loader import LogicalObservableSpec
+    from lspattern.new_blocks.canvas_loader import CompositeLogicalObservableSpec, LogicalObservableSpec
 
 
 _TOKEN_TO_SIDES: dict[str, BoundarySide] = {
@@ -187,6 +187,8 @@ class Canvas:
 
     bgraph: BoundaryGraph  # NOTE: boundary info is duplicated in configs
 
+    logical_observables: tuple[CompositeLogicalObservableSpec, ...]
+
     def __init__(self, config: CanvasConfig) -> None:
         self.config = config
         self.__nodes = set()
@@ -202,6 +204,7 @@ class Canvas:
         self.cube_config = {}
         self.pipe_config = {}
         self.bgraph = BoundaryGraph(boundary_map={})
+        self.logical_observables = ()
 
     @property
     def nodes(self) -> set[Coord3D]:

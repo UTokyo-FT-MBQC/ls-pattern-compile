@@ -448,6 +448,7 @@ def build_canvas(spec: CanvasSpec, *, extra_paths: Sequence[Path | str] = ()) ->
                 pipe_coords.ancilla_z,
             )
 
+    canvas.logical_observables = spec.logical_observables
     return canvas
 
 

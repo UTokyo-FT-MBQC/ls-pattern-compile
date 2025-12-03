@@ -97,19 +97,12 @@ fig_det.show()
 
 # %%
 # Stim circuit compilation
-# Build logical_observables dict from couts keys
-# Use the cube positions that have logical observables defined
-logical_observables: dict[int, set[Coord3D]] = {}
-for idx, (pos, _) in enumerate(canvas.couts.items()):
-    logical_observables[idx] = {pos}
-
 print("\n=== Stim Circuit Compilation ===")
-print(f"Logical observables: {logical_observables}")
+print(f"Logical observables: {canvas.logical_observables}")
 
 noise = 0.001
 circuit_str = compile_canvas_to_stim(
     canvas,
-    logical_observables,
     p_depol_after_clifford=noise,
     p_before_meas_flip=noise,
 )

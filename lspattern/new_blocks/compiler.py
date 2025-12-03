@@ -14,12 +14,10 @@ from lspattern.new_blocks.detector import construct_detector, remove_non_determi
 
 if TYPE_CHECKING:
     from lspattern.new_blocks.canvas import Canvas
-    from lspattern.new_blocks.canvas_loader import CompositeLogicalObservableSpec
 
 
 def compile_canvas_to_stim(
     canvas: Canvas,
-    logical_observables: dict[int, CompositeLogicalObservableSpec],
     p_depol_after_clifford: float,
     p_before_meas_flip: float,
 ) -> str:
@@ -47,7 +45,8 @@ def compile_canvas_to_stim(
             detectors.append(frozenset(det_nodes))
     pattern = qompile(graph, flow, parity_check_group=detectors, scheduler=scheduler)
 
-    # extract logical observables
+    # extract logical observables from canvas
+    logical_observables = dict(enumerate(canvas.logical_observables))
     logical_observables_nodes: dict[int, set[int]] = {}
     for key, composite_logical_obs in logical_observables.items():
         nodes = set()
