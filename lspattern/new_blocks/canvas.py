@@ -346,6 +346,7 @@ class Canvas:
                                 layer_time + 1 + i, {(coord, Coord3D(x + dx, y + dy, z))}
                             )
                     self.__parity.add_syndrome_measurement(Coord2D(x, y), z, {coord})
+                    self.__parity.add_remaining_parity(Coord2D(x, y), z, {coord})
                 # Add ancilla_z qubits to scheduler
                 self.scheduler.add_prep_at_time(layer_time, ancilla_z_coords)
                 self.scheduler.add_meas_at_time(layer_time + ANCILLA_LENGTH + 1, ancilla_z_coords)
@@ -366,6 +367,7 @@ class Canvas:
                                 {(coord, Coord3D(x + dx, y + dy, z + 1))},
                             )
                     self.__parity.add_syndrome_measurement(Coord2D(x, y), z + 1, {coord})
+                    self.__parity.add_remaining_parity(Coord2D(x, y), z + 1, {coord})
                 # Add ancilla_x qubits to scheduler
                 self.scheduler.add_prep_at_time(
                     layer_time + _PHYSICAL_CLOCK + ANCILLA_LENGTH,

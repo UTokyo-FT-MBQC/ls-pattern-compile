@@ -121,9 +121,9 @@ def construct_detector(parity_accumulator: CoordParityAccumulator) -> dict[Coord
         previous_meas = set()
         for z in sorted_z_keys:
             if Coord3D(xy.x, xy.y, z) in parity_accumulator.non_deterministic_coords:
-                previous_meas = z_map[z]
+                previous_meas = parity_accumulator.remaining_parity.get(xy, {}).get(z, set())
                 continue
 
             detectors[Coord3D(xy.x, xy.y, z)] = previous_meas.symmetric_difference(z_map[z])
-            previous_meas = z_map[z]
+            previous_meas = parity_accumulator.remaining_parity.get(xy, {}).get(z, set())
     return detectors

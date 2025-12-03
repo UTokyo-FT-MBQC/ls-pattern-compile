@@ -159,6 +159,7 @@ class CoordParityAccumulator:
     """Coordinate-based parity checks indexed by (x, y, z)."""
 
     syndrome_meas: dict[Coord2D, dict[int, set[Coord3D]]] = field(default_factory=dict)
+    remaining_parity: dict[Coord2D, dict[int, set[Coord3D]]] = field(default_factory=dict)
     non_deterministic_coords: set[Coord3D] = field(default_factory=set)
 
     def add_syndrome_measurement(self, xy: Coord2D, z: int, involved_coords: Collection[Coord3D]) -> None:
@@ -185,6 +186,30 @@ class CoordParityAccumulator:
         if z not in self.syndrome_meas[xy]:
             self.syndrome_meas[xy][z] = set()
         self.syndrome_meas[xy][z].update(involved_coords)
+
+    def add_remaining_parity(self, xy: Coord2D, z: int, involved_coords: Collection[Coord3D]) -> None:
+        """Add remaining parity information at coordinate `coord`.
+
+        Parameters
+        ----------
+        xy : Coord2D
+            The (x, y) coordinate of the remaining parity.
+        z : int
+            The z-coordinate (layer) of the remaining parity.
+        involved_coords : collections.abc.Collection[Coord3D]
+            The coordinates involved in the remaining parity.
+
+        Notes
+        -----
+        This is a pre-processing step before constructing parity checks.
+        """
+        if not involved_coords:
+            return
+        if xy not in self.remaining_parity:
+            self.remaining_parity[xy] = {}
+        if z not in self.remaining_parity[xy]:
+            self.remaining_parity[xy][z] = set()
+        self.remaining_parity[xy][z].update(involved_coords)
 
     def add_non_deterministic_coord(self, coord: Coord3D) -> None:
         """Mark a coordinate as non-deterministic.
