@@ -7,7 +7,7 @@ import stim
 from graphqomb.common import AxisMeasBasis, Sign
 from graphqomb.graphstate import GraphState
 
-from lspattern.new_blocks.canvas_loader import load_canvas
+from lspattern.new_blocks.canvas_loader import CompositeLogicalObservableSpec, load_canvas
 from lspattern.new_blocks.compiler import compile_canvas_to_stim
 from lspattern.new_blocks.detector import construct_detector, remove_non_deterministic_det
 from lspattern.new_blocks.mytype import Coord3D
@@ -27,7 +27,7 @@ for cube in spec.cubes:
     lo = cube.logical_observable
     print(f"  {cube.position}: {lo.token if lo else 'None'}")
 
-print("\nComputed couts (physical coordinates):")
+print("\nComputed cube couts (physical coordinates):")
 for pos, coords in canvas.couts.items():
     print(f"  {pos}: {len(coords)} coordinates")
     for coord in sorted(coords, key=lambda c: (c.x, c.y, c.z)):
@@ -66,11 +66,7 @@ fig_det.show()
 
 # %%
 # Stim circuit compilation
-# Build logical_observables dict from couts keys
-# Use the cube positions that have logical observables defined
-logical_observables: dict[int, set[Coord3D]] = {}
-for idx, (pos, _) in enumerate(canvas.couts.items()):
-    logical_observables[idx] = {pos}
+logical_observables: dict[int, CompositeLogicalObservableSpec] = dict(enumerate(spec.logical_observables))
 
 print("\n=== Stim Circuit Compilation ===")
 print(f"Logical observables: {logical_observables}")
