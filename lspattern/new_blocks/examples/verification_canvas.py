@@ -13,7 +13,7 @@ from lspattern.new_blocks.detector import construct_detector, remove_non_determi
 from lspattern.new_blocks.mytype import Coord3D
 from lspattern.new_blocks.visualizer import visualize_canvas_plotly, visualize_detectors_plotly
 
-spec_name = "merge_split.yml"
+spec_name = "design/merge_split.yml"
 canvas, spec = load_canvas(spec_name)
 fig = visualize_canvas_plotly(canvas)
 print(f"Loaded canvas '{spec.name}' (d={spec.code_distance}) with {len(spec.cubes)} cubes")
