@@ -13,11 +13,8 @@ from lspattern.new_blocks.detector import construct_detector, remove_non_determi
 from lspattern.new_blocks.mytype import Coord3D
 from lspattern.new_blocks.visualizer import visualize_canvas_plotly, visualize_detectors_plotly
 
-spec_name = "design/merge_split.yml"
+spec_name = "design/cnot.yml"
 canvas, spec = load_canvas(spec_name)
-fig = visualize_canvas_plotly(canvas)
-print(f"Loaded canvas '{spec.name}' (d={spec.code_distance}) with {len(spec.cubes)} cubes")
-fig.show()
 
 # %%
 # Logical observables from YAML spec and computed couts
@@ -32,6 +29,20 @@ for pos, coords in canvas.couts.items():
     print(f"  {pos}: {len(coords)} coordinates")
     for coord in sorted(coords, key=lambda c: (c.x, c.y, c.z)):
         print(f"    - {coord}")
+
+# collect logical obs
+idx = 0
+logical_observables_spec = canvas.logical_observables[idx]
+logical_obs_coords = set()
+for cube in logical_observables_spec.cubes:
+    logical_obs_coords |= canvas.couts[cube]
+for pipe in logical_observables_spec.pipes:
+    logical_obs_coords |= canvas.pipe_couts[pipe]
+
+# %%
+fig = visualize_canvas_plotly(canvas, highlight_nodes=logical_obs_coords)
+print(f"Loaded canvas '{spec.name}' (d={spec.code_distance}) with {len(spec.cubes)} cubes")
+fig.show()
 
 # %%
 # Detector construction and visualization
