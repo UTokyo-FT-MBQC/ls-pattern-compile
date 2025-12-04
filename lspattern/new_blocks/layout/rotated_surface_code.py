@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING
 
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.new_blocks.mytype import AxisDIRECTION2D, Coord2D, Coord3D
-from lspattern.consts import BoundarySide
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -752,9 +751,9 @@ class RotatedSurfaceCodeLayoutBuilder:
         if dx == -1 and dy == 0:
             return BoundarySide.LEFT
         if dx == 0 and dy == 1:
-            return BoundarySide.TOP
+            return BoundarySide.BOTTOM  # y increases toward BOTTOM (y_max side)
         if dx == 0 and dy == -1:
-            return BoundarySide.BOTTOM
+            return BoundarySide.TOP  # y decreases toward TOP (y_min side)
 
         msg = f"Invalid pipe offset: source {global_pos_source}, target {global_pos_target}."
         raise ValueError(msg)
