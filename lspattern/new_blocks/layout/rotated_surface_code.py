@@ -231,10 +231,9 @@ class RotatedSurfaceCodeLayoutBuilder:
         PatchCoordinates
             Complete coordinate sets for the pipe.
         """
-        # Determine pipe direction from boundary or positions
-        pipe_dir = RotatedSurfaceCodeLayoutBuilder.pipe_direction(boundary)
-        print(f"Determined pipe direction: {pipe_dir}")
+        # Determine pipe direction from source/target positions
         pipe_offset_dir = RotatedSurfaceCodeLayoutBuilder.pipe_offset(global_pos_source, global_pos_target)
+        pipe_dir = RotatedSurfaceCodeLayoutBuilder._pipe_axis_from_offset(pipe_offset_dir)
 
         offset = RotatedSurfaceCodeLayoutBuilder._compute_pipe_offset(code_distance, global_pos_source, pipe_offset_dir)
         bounds = RotatedSurfaceCodeLayoutBuilder._pipe_bounds(code_distance, offset, pipe_dir)
@@ -686,38 +685,22 @@ class RotatedSurfaceCodeLayoutBuilder:
     # =========================================================================
 
     @staticmethod
-    def pipe_direction(
-        boundary: Mapping[BoundarySide, EdgeSpecValue],
-    ) -> AxisDIRECTION2D:
-        """Determine pipe direction from boundary specifications.
+    def _pipe_axis_from_offset(offset_dir: BoundarySide) -> AxisDIRECTION2D:
+        """Derive pipe axis direction from offset direction.
 
         Parameters
         ----------
-        boundary : Mapping[BoundarySide, EdgeSpecValue]
-            Boundary specifications for the pipe.
+        offset_dir : BoundarySide
+            The direction from source to target (from pipe_offset()).
 
         Returns
         -------
         AxisDIRECTION2D
-            The pipe direction (H for horizontal, V for vertical).
-
-        Raises
-        ------
-        ValueError
-            If boundary specifications don't match a valid pipe direction.
+            H for horizontal pipe (RIGHT/LEFT), V for vertical pipe (TOP/BOTTOM).
         """
-        vertical = boundary[BoundarySide.TOP] == EdgeSpecValue.O and boundary[BoundarySide.BOTTOM] == EdgeSpecValue.O
-        horizontal = boundary[BoundarySide.LEFT] == EdgeSpecValue.O and boundary[BoundarySide.RIGHT] == EdgeSpecValue.O
-
-        if horizontal and not vertical:
+        if offset_dir in {BoundarySide.RIGHT, BoundarySide.LEFT}:
             return AxisDIRECTION2D.H
-        if vertical and not horizontal:
-            return AxisDIRECTION2D.V
-        if horizontal and vertical:
-            msg = "Both horizontal and vertical boundaries cannot be open for pipe layout."
-            raise ValueError(msg)
-        msg = "Either top-bottom or left-right boundaries must be open for pipe layout."
-        raise ValueError(msg)
+        return AxisDIRECTION2D.V
 
     @staticmethod
     def pipe_offset(
@@ -998,8 +981,8 @@ class RotatedSurfaceCodeLayoutBuilder:
         list[Coord2D]
             Ordered data-qubit coordinates from side_a to side_b.
         """
-        pipe_dir = RotatedSurfaceCodeLayoutBuilder.pipe_direction(boundary)
         pipe_offset_dir = RotatedSurfaceCodeLayoutBuilder.pipe_offset(global_pos_source, global_pos_target)
+        pipe_dir = RotatedSurfaceCodeLayoutBuilder._pipe_axis_from_offset(pipe_offset_dir)
         offset = RotatedSurfaceCodeLayoutBuilder._compute_pipe_offset(code_distance, global_pos_source, pipe_offset_dir)
         bounds = RotatedSurfaceCodeLayoutBuilder._pipe_bounds(code_distance, offset, pipe_dir)
         coords = RotatedSurfaceCodeLayoutBuilder.pipe(code_distance, global_pos_source, global_pos_target, boundary)
