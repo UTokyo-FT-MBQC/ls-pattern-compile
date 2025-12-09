@@ -1,18 +1,20 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
-from typing import TYPE_CHECKING, TypedDict, TypeAlias
+import operator
+from typing import TYPE_CHECKING, TypedDict
 
 import plotly.graph_objects as go
-
-from graphqomb.common import Axis
 
 from lspattern.new_blocks.mytype import Coord3D, NodeRole
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
+    from graphqomb.common import Axis
+
     from lspattern.new_blocks.canvas import Canvas
 
-NodeIndex: TypeAlias = int | Coord3D
+type NodeIndex = int | Coord3D
 
 
 class NodeStyleSpec(TypedDict):
@@ -155,7 +157,7 @@ def _format_node_labels(
             label = str(node)
         sortable.append((key, label))
 
-    sortable.sort(key=lambda item: item[0])
+    sortable.sort(key=operator.itemgetter(0))
 
     labels: list[str] = []
     seen: set[str] = set()
@@ -321,7 +323,7 @@ def visualize_canvas_plotly(
     return fig
 
 
-def visualize_detectors_plotly(
+def visualize_detectors_plotly(  # noqa: C901
     detectors: Mapping[Coord3D, Iterable[NodeIndex]],
     *,
     canvas: Canvas | None = None,

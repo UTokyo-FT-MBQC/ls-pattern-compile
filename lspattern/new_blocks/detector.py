@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import copy
+from typing import TYPE_CHECKING
 
 from graphqomb.common import Axis
 
-from lspattern.new_blocks.accumulator import CoordParityAccumulator
-from lspattern.new_blocks.canvas import BoundaryGraph, Canvas
 from lspattern.new_blocks.layout import RotatedSurfaceCodeLayoutBuilder
 from lspattern.new_blocks.mytype import Coord2D, Coord3D
-from lspattern.consts import BoundarySide
+
+if TYPE_CHECKING:
+    from lspattern.consts import BoundarySide
+    from lspattern.new_blocks.accumulator import CoordParityAccumulator
+    from lspattern.new_blocks.canvas import BoundaryGraph, Canvas
 
 
 def analyze_non_deterministic_regions(
@@ -45,7 +48,7 @@ def analyze_non_deterministic_regions(
     return bulk_init_coords, boundary_init_info
 
 
-def remove_non_deterministic_det(canvas: Canvas) -> CoordParityAccumulator:
+def remove_non_deterministic_det(canvas: Canvas) -> CoordParityAccumulator:  # noqa: C901
     non_deterministic_coords, boundary_init_info = analyze_non_deterministic_regions(canvas.bgraph)
     new_parity_accumulator = copy.deepcopy(canvas.parity_accumulator)  # NOTE: should refactor
 

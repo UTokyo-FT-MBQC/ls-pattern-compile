@@ -3,6 +3,8 @@
 # %%
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import stim
 from graphqomb.common import AxisMeasBasis, Sign
 from graphqomb.graphstate import GraphState
@@ -10,8 +12,10 @@ from graphqomb.graphstate import GraphState
 from lspattern.new_blocks.canvas_loader import load_canvas
 from lspattern.new_blocks.compiler import compile_canvas_to_stim
 from lspattern.new_blocks.detector import construct_detector, remove_non_deterministic_det
-from lspattern.new_blocks.mytype import Coord3D
 from lspattern.new_blocks.visualizer import visualize_canvas_plotly, visualize_detectors_plotly
+
+if TYPE_CHECKING:
+    from lspattern.new_blocks.mytype import Coord3D
 
 spec_name = "design/cnot.yml"
 canvas, spec = load_canvas(spec_name)

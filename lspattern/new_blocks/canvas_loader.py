@@ -11,11 +11,14 @@ import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from importlib import resources
-from importlib.abc import Traversable
 from itertools import starmap
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import yaml
+
+if TYPE_CHECKING:
+    from importlib.abc import Traversable
 
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.new_blocks.canvas import Canvas, CanvasConfig
@@ -119,7 +122,7 @@ def _snakeify(name: str) -> str:
     return snake.replace("-", "_").lower()
 
 
-def _candidate_filenames(name: str) -> list[str]:
+def _candidate_filenames(name: str) -> list[str]:  # noqa: C901
     path = Path(name)
     stem = path.stem
     ext = path.suffix
@@ -189,7 +192,10 @@ def _resolve_yaml(kind: str, name: str | Path, extra_paths: Sequence[Path | str]
             if traversable.is_file():
                 return traversable
 
-    msg = f"YAML '{name}' not found in {list(_iter_search_paths(extra_paths))} or packaged {_RESOURCE_PACKAGES.get(kind, ())}"
+    msg = (
+        f"YAML '{name}' not found in {list(_iter_search_paths(extra_paths))} "
+        f"or packaged {_RESOURCE_PACKAGES.get(kind, ())}"
+    )
     raise FileNotFoundError(msg)
 
 
@@ -208,7 +214,7 @@ def _parse_boundary(
     # String form e.g., "XXZZ" (T, B, L, R)
     if isinstance(spec, str):
         cleaned = spec.strip().replace(" ", "")
-        if len(cleaned) != 4:
+        if len(cleaned) != 4:  # noqa: PLR2004
             msg = f"Boundary string must have 4 chars (T,B,L,R order), got: {spec}"
             raise ValueError(msg)
         return {
@@ -240,7 +246,7 @@ def _parse_logical_observable(value: object | None) -> LogicalObservableSpec | N
         token = cleaned.upper().replace("-", "").replace("_", "").replace(" ", "")
         if len(token) == 1 and token in {"X", "Z"}:
             return LogicalObservableSpec(token=token)
-        if len(token) == 2 and all(ch in {"T", "B", "L", "R"} for ch in token):
+        if len(token) == 2 and all(ch in {"T", "B", "L", "R"} for ch in token):  # noqa: PLR2004
             if token[0] == token[1]:
                 msg = f"Logical observable sides must be distinct; got duplicate '{token[0]}'."
                 raise ValueError(msg)

@@ -12,13 +12,13 @@ from lspattern.new_blocks.layout import (
     ANCILLA_EDGE_Z,
     RotatedSurfaceCodeLayoutBuilder,
 )
-from lspattern.new_blocks.loader import BlockConfig
 from lspattern.new_blocks.mytype import Coord2D, Coord3D, NodeRole
 
 if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
 
     from lspattern.new_blocks.canvas_loader import CompositeLogicalObservableSpec, LogicalObservableSpec
+    from lspattern.new_blocks.loader import BlockConfig
 
 
 _TOKEN_TO_SIDES: dict[str, BoundarySide] = {
@@ -50,7 +50,7 @@ def _token_to_boundary_sides(token: str) -> tuple[BoundarySide, BoundarySide]:
     ValueError
         If the token is not a valid 2-character boundary token.
     """
-    if len(token) == 2 and token[0] in _TOKEN_TO_SIDES and token[1] in _TOKEN_TO_SIDES:
+    if len(token) == 2 and token[0] in _TOKEN_TO_SIDES and token[1] in _TOKEN_TO_SIDES:  # noqa: PLR2004
         return _TOKEN_TO_SIDES[token[0]], _TOKEN_TO_SIDES[token[1]]
     msg = f"Unknown logical observable token: {token}"
     raise ValueError(msg)
@@ -226,7 +226,7 @@ class Canvas:
     def parity_accumulator(self) -> CoordParityAccumulator:
         return self.__parity
 
-    def add_cube(
+    def add_cube(  # noqa: C901
         self,
         global_pos: Coord3D,
         block_config: BlockConfig,
@@ -489,7 +489,7 @@ class Canvas:
 
         self.pipe_couts[global_edge] = cout_coords
 
-    def add_pipe(
+    def add_pipe(  # noqa: C901
         self,
         global_edge: tuple[Coord3D, Coord3D],
         block_config: BlockConfig,

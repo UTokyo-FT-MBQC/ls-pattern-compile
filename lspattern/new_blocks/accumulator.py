@@ -220,7 +220,10 @@ class CoordParityAccumulator:
             The coordinate to mark as non-deterministic.
         """
         if Coord2D(coord.x, coord.y) not in self.syndrome_meas:
-            msg = f"Cannot add non-deterministic coord {coord} without existing syndrome measurement at (x={coord.x}, y={coord.y})"
+            msg = (
+                f"Cannot add non-deterministic coord {coord} "
+                f"without existing syndrome measurement at (x={coord.x}, y={coord.y})"
+            )
             raise KeyError(msg)
         if coord.z not in self.syndrome_meas[Coord2D(coord.x, coord.y)]:
             msg = f"Cannot add non-deterministic coord {coord} without existing syndrome measurement at z={coord.z}"
