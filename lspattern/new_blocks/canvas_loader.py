@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from importlib import resources
 from itertools import starmap
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, SupportsInt, cast
 
 import yaml
 
@@ -284,8 +284,8 @@ def _parse_composite_logical_observables(
             msg = f"Each logical_observables entry must be a mapping, got: {type(entry)}"
             raise TypeError(msg)
 
-        raw_cubes: Sequence[Sequence[int]] = entry.get("cube", [])  # type: ignore[assignment]
-        raw_pipes: Sequence[Sequence[Sequence[int]]] = entry.get("pipe", [])  # type: ignore[assignment]
+        raw_cubes = entry.get("cube", [])
+        raw_pipes = entry.get("pipe", [])
 
         cubes = tuple(starmap(Coord3D, raw_cubes))
         pipes = tuple((Coord3D(*p[0]), Coord3D(*p[1])) for p in raw_pipes)
@@ -297,7 +297,7 @@ def _parse_composite_logical_observables(
 
 def _resolve_num_layers(layer_cfg: Mapping[str, object], distance: int, consumed_layers: int) -> int:
     if "num_layers" in layer_cfg:
-        return int(layer_cfg["num_layers"])
+        return int(cast("SupportsInt", layer_cfg["num_layers"]))
 
     if "num_layers_from_distance" in layer_cfg:
         spec = layer_cfg["num_layers_from_distance"]
@@ -307,7 +307,7 @@ def _resolve_num_layers(layer_cfg: Mapping[str, object], distance: int, consumed
             scale = int(spec.get("scale", 1))
             offset = int(spec.get("offset", 0))
             return max(scale * distance + offset, 0)
-        return max(int(spec), 0)
+        return max(int(cast("SupportsInt", spec)), 0)
 
     params = layer_cfg.get("params", {})
     if isinstance(params, Mapping) and "num_layers" in params:
@@ -354,7 +354,7 @@ def load_block_config_from_name(
         consumed += num_layers
 
     block_config = BlockConfig(patch_configs)
-    block_config.boundary = boundary  # type: ignore[attr-defined]
+    block_config.boundary = boundary
     return block_config
 
 
@@ -393,9 +393,9 @@ def load_canvas_spec(name: str | Path, *, extra_paths: Sequence[Path | str] = ()
         if not isinstance(pipe_cfg, Mapping):
             msg = f"Each pipe entry must be a mapping, got: {type(pipe_cfg)}"
             raise TypeError(msg)
-        start = Coord3D(*pipe_cfg["start"])
-        end = Coord3D(*pipe_cfg["end"])
-        block = pipe_cfg["block"]
+        start = Coord3D(*cast("Sequence[int]", pipe_cfg["start"]))
+        end = Coord3D(*cast("Sequence[int]", pipe_cfg["end"]))
+        block = cast("str", pipe_cfg["block"])
         boundary = _parse_boundary(pipe_cfg.get("boundary"), _DEFAULT_BOUNDARY)
         logical = _parse_logical_observable(pipe_cfg.get("logical_observables"))
         pipes.append(

@@ -7,7 +7,7 @@ that define patch layout layers for MBQC surface code patterns.
 
 from collections.abc import Sequence
 from pathlib import Path
-from typing import NamedTuple
+from typing import NamedTuple, overload
 
 import yaml
 from graphqomb.common import Axis
@@ -64,9 +64,15 @@ class BlockConfig(Sequence[PatchLayoutConfig]):
     boundary: dict[BoundarySide, EdgeSpecValue]
 
     def __init__(self, configs: Sequence[PatchLayoutConfig]) -> None:
-        self._configs = configs
+        self._configs = list(configs)
 
-    def __getitem__(self, index: int) -> PatchLayoutConfig:
+    @overload
+    def __getitem__(self, index: int) -> PatchLayoutConfig: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> Sequence[PatchLayoutConfig]: ...
+
+    def __getitem__(self, index: int | slice) -> PatchLayoutConfig | Sequence[PatchLayoutConfig]:
         return self._configs[index]
 
     def __len__(self) -> int:

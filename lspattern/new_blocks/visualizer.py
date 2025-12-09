@@ -150,7 +150,7 @@ def _format_node_labels(
             label = f"({coord.x}, {coord.y}, {coord.z})"
         else:
             try:
-                num = int(node)  # type: ignore[arg-type]
+                num = int(node)
             except (TypeError, ValueError):
                 num = None
             key = (1, num, 0, 0) if num is not None else (2, 0, 0, 0)

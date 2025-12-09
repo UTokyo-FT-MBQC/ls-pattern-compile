@@ -71,7 +71,7 @@ class CoordScheduleAccumulator:
 
     def to_node_schedule(
         self, coord2node: Mapping[Coord3D, int]
-    ) -> tuple[dict[int, set[int]], dict[int, set[int]], dict[int, set[tuple[int, int]]]]:
+    ) -> tuple[dict[int, int], dict[int, int], dict[tuple[int, int], int]]:
         """Convert coordinate-based schedule to node identifier-based schedule.
 
         Parameters

@@ -56,9 +56,10 @@ def compile_canvas_to_stim(
             nodes |= canvas.pipe_couts[pipe]
         logical_observables_nodes[key] = {node_map[coord] for coord in nodes}
 
-    return stim_compile(
+    result: str = stim_compile(
         pattern,
         logical_observables_nodes,
         p_depol_after_clifford=p_depol_after_clifford,
         p_before_meas_flip=p_before_meas_flip,
     )
+    return result
