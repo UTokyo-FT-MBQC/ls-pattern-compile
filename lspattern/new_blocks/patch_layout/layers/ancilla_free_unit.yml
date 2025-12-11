@@ -1,0 +1,9 @@
+name: AncillaFreeUnit
+description: This patch layout specifies a layer without ancilla qubits
+
+layer1:
+  basis: X
+  ancilla: false # ancilla qubits are intentionally omitted
+layer2:
+  basis: X
+  ancilla: false

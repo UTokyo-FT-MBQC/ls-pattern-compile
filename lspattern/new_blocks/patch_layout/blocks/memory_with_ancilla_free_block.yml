@@ -1,0 +1,8 @@
+name: MemoryWithAncillaFreeBlock
+description: This block represents a memory block
+
+layers: # list of layers in this block
+  - type: AncillaFreeUnit
+    num_layers: 1
+  - type: MemoryUnit
+    num_layers_from_distance: rest
