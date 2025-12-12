@@ -104,7 +104,6 @@ class CanvasPipeSpec:
 class CanvasSpec:
     name: str
     description: str
-    code_distance: int
     layout: str
     cubes: list[CanvasCubeSpec]
     pipes: list[CanvasPipeSpec]
@@ -413,7 +412,6 @@ def load_canvas_spec(name: str | Path, *, extra_paths: Sequence[Path | str] = ()
     return CanvasSpec(
         name=cfg["name"],
         description=cfg.get("description", ""),
-        code_distance=int(cfg["code_distance"]),
         layout=cfg.get("layout", "rotated_surface_code"),
         cubes=cubes,
         pipes=pipes,
@@ -422,14 +420,14 @@ def load_canvas_spec(name: str | Path, *, extra_paths: Sequence[Path | str] = ()
     )
 
 
-def build_canvas(spec: CanvasSpec, *, extra_paths: Sequence[Path | str] = ()) -> Canvas:
-    canvas = Canvas(CanvasConfig(spec.name, spec.description, spec.code_distance, spec.layout))
+def build_canvas(spec: CanvasSpec, *, code_distance: int, extra_paths: Sequence[Path | str] = ()) -> Canvas:
+    canvas = Canvas(CanvasConfig(spec.name, spec.description, code_distance, spec.layout))
     search_paths = _merge_search_paths(spec.search_paths, extra_paths)
 
     for cube in spec.cubes:
         block_config = load_block_config_from_name(
             cube.block,
-            code_distance=spec.code_distance,
+            code_distance=code_distance,
             extra_paths=search_paths,
             boundary_override=cube.boundary,
         )
@@ -438,14 +436,14 @@ def build_canvas(spec: CanvasSpec, *, extra_paths: Sequence[Path | str] = ()) ->
     for pipe in spec.pipes:
         block_config = load_block_config_from_name(
             pipe.block,
-            code_distance=spec.code_distance,
+            code_distance=code_distance,
             extra_paths=search_paths,
             boundary_override=pipe.boundary,
         )
         canvas.add_pipe((pipe.start, pipe.end), block_config)
 
         if pipe.logical_observable is not None:
-            pipe_coords = RotatedSurfaceCodeLayoutBuilder.pipe(spec.code_distance, pipe.start, pipe.end, pipe.boundary)
+            pipe_coords = RotatedSurfaceCodeLayoutBuilder.pipe(code_distance, pipe.start, pipe.end, pipe.boundary)
             canvas.compute_pipe_cout_from_logical_observable(
                 (pipe.start, pipe.end),
                 block_config,
@@ -458,7 +456,9 @@ def build_canvas(spec: CanvasSpec, *, extra_paths: Sequence[Path | str] = ()) ->
     return canvas
 
 
-def load_canvas(name: str | Path, *, extra_paths: Sequence[Path | str] = ()) -> tuple[Canvas, CanvasSpec]:
+def load_canvas(
+    name: str | Path, *, code_distance: int, extra_paths: Sequence[Path | str] = ()
+) -> tuple[Canvas, CanvasSpec]:
     spec = load_canvas_spec(name, extra_paths=extra_paths)
-    canvas = build_canvas(spec, extra_paths=extra_paths)
+    canvas = build_canvas(spec, code_distance=code_distance, extra_paths=extra_paths)
     return canvas, spec

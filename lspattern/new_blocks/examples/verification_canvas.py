@@ -17,8 +17,9 @@ from lspattern.new_blocks.visualizer import visualize_canvas_plotly, visualize_d
 if TYPE_CHECKING:
     from lspattern.new_blocks.mytype import Coord3D
 
-spec_name = "design/cnot.yml"
-canvas, spec = load_canvas(spec_name)
+spec_name = "design/xx_meas.yml"
+code_distance = 3
+canvas, spec = load_canvas(spec_name, code_distance=code_distance)
 
 # %%
 # Logical observables from YAML spec and computed couts
@@ -45,7 +46,7 @@ for pipe_coord in logical_observables_spec.pipes:
 
 # %%
 fig = visualize_canvas_plotly(canvas, highlight_nodes=logical_obs_coords)
-print(f"Loaded canvas '{spec.name}' (d={spec.code_distance}) with {len(spec.cubes)} cubes")
+print(f"Loaded canvas '{spec.name}' (d={code_distance}) with {len(spec.cubes)} cubes")
 fig.show()
 
 # %%
@@ -228,7 +229,7 @@ print(f"Constructed {len(coord2det_nodes)} detectors")
 
 # %%
 fig = visualize_canvas_plotly(canvas, highlight_nodes=highlight_node)
-print(f"Loaded canvas '{spec.name}' (d={spec.code_distance}) with {len(spec.cubes)} cubes")
+print(f"Loaded canvas '{spec.name}' (d={code_distance}) with {len(spec.cubes)} cubes")
 fig.show()
 
 # %%

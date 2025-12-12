@@ -2,7 +2,6 @@ name: Patch Expansion along Z boundary
 description: Global config for rotated surface code based blocks
 
 layout: rotated_surface_code # required
-code_distance: 3 # required
 
 cube:
   - position: [0, 0, 0]

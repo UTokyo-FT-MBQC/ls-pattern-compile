@@ -34,7 +34,6 @@ def test_load_canvas_with_local_block_and_layer(tmp_path: Path) -> None:
 
     canvas_yaml = """
     name: LocalCanvas
-    code_distance: 3
     layout: rotated_surface_code
     cube:
       - position: [0, 0, 0]
@@ -46,7 +45,7 @@ def test_load_canvas_with_local_block_and_layer(tmp_path: Path) -> None:
     canvas_path = tmp_path / "custom_canvas.yml"
     _write_yaml(canvas_path, canvas_yaml)
 
-    canvas, _ = load_canvas(canvas_path)
+    canvas, _ = load_canvas(canvas_path, code_distance=3)
 
     # With a single block we should at least materialize one cube worth of nodes.
     assert canvas.nodes, "Canvas failed to materialize nodes from local YAML layers"

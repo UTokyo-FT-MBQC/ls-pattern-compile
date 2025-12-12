@@ -19,9 +19,10 @@ from lspattern.new_blocks.visualizer import visualize_canvas_plotly, visualize_d
 from lspattern.new_blocks.visualizer_2d import visualize_canvas_matplotlib_2d
 
 spec_name = "memory_canvas.yml"
-canvas, spec = load_canvas(spec_name)
+code_distance = 3
+canvas, spec = load_canvas(spec_name, code_distance=code_distance)
 fig = visualize_canvas_plotly(canvas)
-print(f"Loaded canvas '{spec.name}' (d={spec.code_distance}) with {len(spec.cubes)} cubes")
+print(f"Loaded canvas '{spec.name}' (d={code_distance}) with {len(spec.cubes)} cubes")
 fig.show()
 
 # # %%
