@@ -1,0 +1,85 @@
+name: cnot_spec_1
+description: 'Imported from cnot_spec.json | stabilizer: .ZZZ'
+layout: rotated_surface_code
+cube:
+- position:
+  - 1
+  - 0
+  - 0
+  block: InitZeroBlock
+  boundary: ZZXX
+- position:
+  - 0
+  - 1
+  - 0
+  block: InitZeroBlock
+  boundary: ZZXX
+- position:
+  - 0
+  - 0
+  - 1
+  block: MemoryBlock
+  boundary: ZZXO
+- position:
+  - 1
+  - 0
+  - 1
+  block: MemoryBlock
+  boundary: ZZOX
+- position:
+  - 0
+  - 1
+  - 1
+  block: MemoryBlock
+  boundary: ZZXX
+- position:
+  - 0
+  - 0
+  - 2
+  block: MemoryBlock
+  boundary: ZOXX
+- position:
+  - 1
+  - 0
+  - 2
+  block: MemoryBlock
+  boundary: ZZXX
+- position:
+  - 0
+  - 1
+  - 2
+  block: MemoryBlock
+  boundary: OZXX
+- position:
+  - 1
+  - 0
+  - 3
+  block: MeasureZBlock
+  boundary: ZZXX
+- position:
+  - 0
+  - 1
+  - 3
+  block: MeasureZBlock
+  boundary: ZZXX
+pipe:
+- start:
+  - 0
+  - 0
+  - 1
+  end:
+  - 1
+  - 0
+  - 1
+  block: MeasureZBlock
+  boundary: ZZOO
+- start:
+  - 0
+  - 0
+  - 2
+  end:
+  - 0
+  - 1
+  - 2
+  block: MeasureZBlock
+  boundary: OOZZ

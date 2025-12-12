@@ -198,13 +198,13 @@ def _pipe_boundary(axis: str, color: int) -> str:
 def _assign_blocks(
     cubes: Iterable[Coord3],
     port_cubes: Sequence[Coord3],
-    spec_ports: Sequence[dict[str, Any]],
+    lasre_ports: Sequence[dict[str, Any]],
     stabilizer: str,
 ) -> dict[Coord3, str]:
     """Decide block type per cube (init/measure/memory)."""
     blocks: dict[Coord3, str] = dict.fromkeys(cubes, "MemoryBlock")
 
-    for idx, (port, coord) in enumerate(zip(spec_ports, port_cubes, strict=True)):
+    for idx, (port, coord) in enumerate(zip(lasre_ports, port_cubes, strict=True)):
         ch = _stab_char(stabilizer, idx)
         if port.get("e") == "-":  # input / bottom
             blocks[coord] = _init_block(ch)
@@ -261,6 +261,7 @@ def convert_lasre_to_yamls(
     _check_no_y_cubes(lasre)
 
     spec_ports: list[dict[str, Any]] = specification.get("ports", [])
+    lasre_ports: list[dict[str, Any]] = lasre.get("ports", [])
     stabilizers: list[str] = specification.get("stabilizers", [])
     if not spec_ports:
         msg = "specification must contain ports with z_basis_direction"
@@ -283,7 +284,7 @@ def convert_lasre_to_yamls(
     yaml_results: list[tuple[str, str]] = []
 
     for stab_idx, stab in enumerate(stabilizers):
-        blocks = _assign_blocks(cubes, port_cubes, spec_ports, stab)
+        blocks = _assign_blocks(cubes, port_cubes, lasre_ports, stab)
 
         cube_entries = [
             {
@@ -304,14 +305,21 @@ def convert_lasre_to_yamls(
             for axis, start, end, color in pipes
         ]
 
+        desc_base = description or name_prefix
         canvas_dict: dict[str, Any] = {
             "name": f"{name_prefix}_{stab_idx}",
-            "description": description or name_prefix,
+            "description": f"{desc_base} | stabilizer: {stab}",
             "layout": "rotated_surface_code",
             "cube": cube_entries,
             "pipe": pipe_entries,
         }
 
-        yaml_results.append((canvas_dict["name"], yaml.safe_dump(canvas_dict, sort_keys=False)))
+        yaml_text = yaml.safe_dump(
+            canvas_dict,
+            sort_keys=False,
+            width=1000,  # encourage inline short lists like [0, 0, 0]
+            default_flow_style=False,
+        )
+        yaml_results.append((canvas_dict["name"], yaml_text))
 
     return yaml_results
