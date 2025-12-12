@@ -23,6 +23,12 @@ Design choices (agreed with user):
 
 The output YAML omits code distance; choose it at load time (e.g. d=3 for
 debugging).
+
+NOTE: Correlation surfaces (lasre keys CorrIJ/CorrIK/CorrJI/CorrJK/CorrKI/CorrKJ)
+      are currently untouched. If/when logical observables are derived from
+      these surfaces, access them directly from `lasre` inside
+      `convert_lasre_to_yamls` and thread the information into YAML (e.g. as a
+      top-level section or per-cube metadata).
 """
 
 from __future__ import annotations
