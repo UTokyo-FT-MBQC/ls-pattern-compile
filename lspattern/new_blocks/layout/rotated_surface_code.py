@@ -33,8 +33,8 @@ ANCILLA_EDGE_X: tuple[tuple[int, int], ...] = (
 ANCILLA_EDGE_Z: tuple[tuple[int, int], ...] = (
     (1, 1),
     (1, -1),
-    (-1, 1),
     (-1, -1),
+    (-1, 1),
 )
 
 
