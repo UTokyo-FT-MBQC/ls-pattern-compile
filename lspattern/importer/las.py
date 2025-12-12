@@ -1,0 +1,301 @@
+"""Convert LaSSynth solutions (lasre) into lspattern YAML canvases.
+
+Usage (sketch)::
+
+    from lspattern.importer.las import convert_lasre_to_yamls
+    yamls = convert_lasre_to_yamls(lasre, specification,
+                                   name_prefix="cnot",
+                                   description="Auto-imported from LaSSynth")
+    for name, text in yamls:
+        Path(f"{name}.yml").write_text(text)
+
+Design choices (agreed with user):
+    - Y cubes are not supported yet -> raise a clear error.
+    - K-direction pipes in LaSSynth correspond to stacked cubes in lspattern;
+      only I/J pipes become lspattern `pipe` entries.
+    - When a pipe exists, the two faces it connects are set to open (O) on the
+      adjacent cubes. Pipe boundaries themselves use O on the connecting faces.
+    - Color 0 -> X boundary, Color 1 -> Z boundary.
+    - Initialisation / measurement bases are derived per stabilizer string:
+        X -> InitPlus / MeasureX
+        Z or . -> InitZero / MeasureZ
+    - One YAML is produced for every stabilizer supplied in the specification.
+
+The output YAML omits code distance; choose it at load time (e.g. d=3 for
+debugging).
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Sequence, Tuple
+
+import yaml
+
+
+class LasImportError(RuntimeError):
+    """Raised when the LaS → lspattern import cannot proceed."""
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _base_boundary(z_dir: str) -> List[str]:
+    """Return [T,B,L,R] boundary chars given z_basis_direction.
+
+    J means Z boundary is orthogonal to J → TOP/BOTTOM are Z, LEFT/RIGHT are X
+    I means Z boundary is orthogonal to I → TOP/BOTTOM are X, LEFT/RIGHT are Z
+    Anything else defaults to J-convention.
+    """
+
+    z_dir = (z_dir or "J").upper()
+    if z_dir == "I":
+        return list("XXZZ")
+    return list("ZZXX")
+
+
+def _color_to_axis(color: Any) -> str:
+    if color in (0, False):
+        return "X"
+    if color in (1, True):
+        return "Z"
+    raise LasImportError(f"Unsupported color value {color!r}; run color_z() first?")
+
+
+def _init_block(ch: str) -> str:
+    return "InitPlusBlock" if ch.upper() == "X" else "InitZeroBlock"
+
+
+def _meas_block(ch: str) -> str:
+    return "MeasureXBlock" if ch.upper() == "X" else "MeasureZBlock"
+
+
+def _stab_char(stabilizer: str, idx: int) -> str:
+    if idx < len(stabilizer):
+        return stabilizer[idx]
+    return "."
+
+
+# ---------------------------------------------------------------------------
+# Core conversion
+# ---------------------------------------------------------------------------
+
+
+def _gather_cube_and_pipe_coords(lasre: Dict[str, Any]) -> Tuple[set, list]:
+    """Collect cubes and I/J pipes from lasre.
+
+    Returns
+    -------
+    cubes : set[Tuple[int,int,int]]
+        All cube coordinates to materialise in lspattern (includes pipe endpoints
+        and K-extension endpoints).
+    pipes : list[Tuple[str, Tuple[int,int,int], Tuple[int,int,int], int]]
+        Entries are (axis, start, end, color) with axis in {"I","J"}.
+    """
+
+    n_i, n_j, n_k = lasre["n_i"], lasre["n_j"], lasre["n_k"]
+    cubes: set[Tuple[int, int, int]] = set()
+    pipes: list[Tuple[str, Tuple[int, int, int], Tuple[int, int, int], int]] = []
+
+    exist_i = lasre.get("ExistI", [])
+    exist_j = lasre.get("ExistJ", [])
+    exist_k = lasre.get("ExistK", [])
+    color_i = lasre.get("ColorI", [])
+    color_j = lasre.get("ColorJ", [])
+
+    for i in range(n_i):
+        for j in range(n_j):
+            for k in range(n_k):
+                if exist_i and exist_i[i][j][k]:
+                    cubes.update({(i, j, k), (i + 1, j, k)})
+                    pipes.append(("I", (i, j, k), (i + 1, j, k), int(color_i[i][j][k])))
+                if exist_j and exist_j[i][j][k]:
+                    cubes.update({(i, j, k), (i, j + 1, k)})
+                    pipes.append(("J", (i, j, k), (i, j + 1, k), int(color_j[i][j][k])))
+                if exist_k and exist_k[i][j][k]:
+                    cubes.update({(i, j, k), (i, j, k + 1)})
+
+    # include port cubes (they may sit on the top/bottom layer)
+    cubes.update(tuple(pc) for pc in lasre.get("port_cubes", []))
+
+    return cubes, pipes
+
+
+def _cube_orientation_map(spec_ports: Sequence[Dict[str, Any]], port_cubes: Sequence[Sequence[int]]) -> Dict[Tuple[int, int, int], str]:
+    """Map each port cube coordinate to its z_basis_direction."""
+
+    mapping: Dict[Tuple[int, int, int], str] = {}
+    for port, coord in zip(spec_ports, port_cubes):
+        zdir = port.get("z_basis_direction", "J")
+        mapping[tuple(coord)] = zdir
+    return mapping
+
+
+def _build_cube_boundaries(
+    cubes: Iterable[Tuple[int, int, int]],
+    pipes: Iterable[Tuple[str, Tuple[int, int, int], Tuple[int, int, int], int]],
+    port_zdir_map: Dict[Tuple[int, int, int], str],
+    default_zdir: str,
+) -> Dict[Tuple[int, int, int], List[str]]:
+    """Create boundary spec per cube, applying O on faces touched by pipes."""
+
+    boundaries: Dict[Tuple[int, int, int], List[str]] = {}
+
+    for coord in cubes:
+        zdir = port_zdir_map.get(coord, default_zdir)
+        boundaries[coord] = _base_boundary(zdir)
+
+    # apply openings from pipes
+    for axis, start, end, _color in pipes:
+        if axis == "I":
+            # start is -I face of end and +I face of start -> LEFT/RIGHT are O
+            if start in boundaries:
+                boundaries[start][3] = "O"  # RIGHT
+            if end in boundaries:
+                boundaries[end][2] = "O"  # LEFT
+        elif axis == "J":
+            if start in boundaries:
+                boundaries[start][1] = "O"  # BOTTOM
+            if end in boundaries:
+                boundaries[end][0] = "O"  # TOP
+
+    return boundaries
+
+
+def _pipe_boundary(axis: str, color: int) -> str:
+    axis_char = _color_to_axis(color)
+    if axis == "I":
+        # T,B = axis_char, L,R = O
+        return f"{axis_char}{axis_char}OO"
+    if axis == "J":
+        # T,B = O, L,R = axis_char
+        return f"OO{axis_char}{axis_char}"
+    raise LasImportError(f"Unknown pipe axis {axis}")
+
+
+def _assign_blocks(
+    cubes: Iterable[Tuple[int, int, int]],
+    port_cubes: Sequence[Sequence[int]],
+    spec_ports: Sequence[Dict[str, Any]],
+    stabilizer: str,
+) -> Dict[Tuple[int, int, int], str]:
+    """Decide block type per cube (init/measure/memory)."""
+
+    blocks: Dict[Tuple[int, int, int], str] = {tuple(c): "MemoryBlock" for c in cubes}
+
+    for idx, (port, coord_raw) in enumerate(zip(spec_ports, port_cubes)):
+        coord = tuple(coord_raw)
+        ch = _stab_char(stabilizer, idx)
+        if port.get("e") == "-":  # input / bottom
+            blocks[coord] = _init_block(ch)
+        else:  # output / top
+            blocks[coord] = _meas_block(ch)
+
+    return blocks
+
+
+def _check_no_y_cubes(lasre: Dict[str, Any]) -> None:
+    node_y = lasre.get("NodeY")
+    if not node_y:
+        return
+    for plane in node_y:
+        for row in plane:
+            for val in row:
+                if val:
+                    raise LasImportError("Y cubes are not supported yet. Aborting import.")
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+
+def convert_lasre_to_yamls(
+    lasre: Dict[str, Any],
+    specification: Dict[str, Any],
+    *,
+    name_prefix: str = "las",
+    description: str | None = None,
+) -> List[Tuple[str, str]]:
+    """Convert a LaSSynth lasre + specification to multiple YAML canvases.
+
+    Parameters
+    ----------
+    lasre : dict
+        Output of LatticeSurgerySolution.lasre (after color_z recommended).
+    specification : dict
+        Original problem spec; must contain `ports` (with z_basis_direction)
+        and `stabilizers` (list of strings). Order is assumed consistent with
+        lasre["ports"].
+    name_prefix : str
+        Prefix for the generated canvas names.
+    description : str | None
+        Optional description field for YAML; defaults to name_prefix if None.
+
+    Returns
+    -------
+    list[(name, yaml_text)]
+        One entry per stabilizer string.
+    """
+
+    _check_no_y_cubes(lasre)
+
+    spec_ports: List[Dict[str, Any]] = specification.get("ports", [])
+    stabilizers: List[str] = specification.get("stabilizers", [])
+    if not spec_ports:
+        raise LasImportError("specification must contain ports with z_basis_direction")
+    if not stabilizers:
+        raise LasImportError("specification must contain stabilizers list")
+
+    cubes, pipes = _gather_cube_and_pipe_coords(lasre)
+    port_cubes = [tuple(pc) for pc in lasre.get("port_cubes", [])]
+    if len(port_cubes) != len(spec_ports):
+        raise LasImportError("Mismatch between port_cubes and ports length")
+
+    port_zdir_map = _cube_orientation_map(spec_ports, port_cubes)
+    default_zdir = next(iter(port_zdir_map.values()), "J")
+
+    boundaries = _build_cube_boundaries(cubes, pipes, port_zdir_map, default_zdir)
+
+    yaml_results: List[Tuple[str, str]] = []
+
+    for stab_idx, stab in enumerate(stabilizers):
+        blocks = _assign_blocks(cubes, port_cubes, spec_ports, stab)
+
+        cube_entries = []
+        for coord in sorted(cubes, key=lambda t: (t[2], t[1], t[0])):
+            cube_entries.append(
+                {
+                    "position": list(coord),
+                    "block": blocks[coord],
+                    "boundary": "".join(boundaries[coord]),
+                }
+            )
+
+        pipe_entries = []
+        for axis, start, end, color in pipes:
+            pipe_entries.append(
+                {
+                    "start": list(start),
+                    "end": list(end),
+                    "block": "MeasureXBlock" if _color_to_axis(color) == "X" else "MeasureZBlock",
+                    "boundary": _pipe_boundary(axis, color),
+                }
+            )
+
+        canvas_dict = {
+            "name": f"{name_prefix}_{stab_idx}",
+            "description": description or name_prefix,
+            "layout": "rotated_surface_code",
+            "cube": cube_entries,
+            "pipe": pipe_entries,
+        }
+
+        yaml_results.append((canvas_dict["name"], yaml.safe_dump(canvas_dict, sort_keys=False)))
+
+    return yaml_results
+
+
+__all__ = ["convert_lasre_to_yamls", "LasImportError"]
