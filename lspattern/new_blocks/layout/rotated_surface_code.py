@@ -24,17 +24,17 @@ if TYPE_CHECKING:
 # Ancilla edge offsets for X-type stabilizers (order optimized for distance)
 ANCILLA_EDGE_X: tuple[tuple[int, int], ...] = (
     (1, 1),
+    (-1, 1),
     (1, -1),
     (-1, -1),
-    (-1, 1),
 )
 
 # Ancilla edge offsets for Z-type stabilizers (order optimized for distance)
 ANCILLA_EDGE_Z: tuple[tuple[int, int], ...] = (
     (1, 1),
     (1, -1),
-    (-1, -1),
     (-1, 1),
+    (-1, -1),
 )
 
 
