@@ -17,7 +17,7 @@ from lspattern.new_blocks.visualizer import visualize_canvas_plotly, visualize_d
 if TYPE_CHECKING:
     from lspattern.new_blocks.mytype import Coord3D
 
-spec_name = "design/xx_meas.yml"
+spec_name = "/home/masato/projects/mbqc/ls-pattern-compile/lspattern/importer/demo/cnot_0.yml"
 code_distance = 3
 canvas, spec = load_canvas(spec_name, code_distance=code_distance)
 
@@ -35,14 +35,15 @@ for pos, coords in canvas.couts.items():
     for coord in sorted(coords, key=lambda c: (c.x, c.y, c.z)):
         print(f"    - {coord}")
 
-# collect logical obs
-idx = 0
-logical_observables_spec = canvas.logical_observables[idx]
+# # collect logical obs
+# idx = 0
+# logical_observables_spec = canvas.logical_observables[idx]
+# logical_obs_coords: set[Coord3D] = set()
+# for cube_coord in logical_observables_spec.cubes:
+#     logical_obs_coords |= canvas.couts[cube_coord]
+# for pipe_coord in logical_observables_spec.pipes:
+#     logical_obs_coords |= canvas.pipe_couts[pipe_coord]
 logical_obs_coords: set[Coord3D] = set()
-for cube_coord in logical_observables_spec.cubes:
-    logical_obs_coords |= canvas.couts[cube_coord]
-for pipe_coord in logical_observables_spec.pipes:
-    logical_obs_coords |= canvas.pipe_couts[pipe_coord]
 
 # %%
 fig = visualize_canvas_plotly(canvas, highlight_nodes=logical_obs_coords)
@@ -59,157 +60,7 @@ _graph, node_map = GraphState.from_graph(
 )
 node_index_to_coord = {idx: coord for coord, idx in node_map.items()}
 
-nodeidx_to_highlight = {
-    2,
-    515,
-    1029,
-    1035,
-    525,
-    16,
-    1044,
-    23,
-    26,
-    540,
-    29,
-    1056,
-    1058,
-    35,
-    549,
-    551,
-    1066,
-    43,
-    561,
-    50,
-    566,
-    65,
-    577,
-    72,
-    586,
-    81,
-    82,
-    597,
-    91,
-    96,
-    102,
-    106,
-    107,
-    620,
-    626,
-    627,
-    119,
-    633,
-    123,
-    637,
-    640,
-    130,
-    643,
-    133,
-    134,
-    650,
-    141,
-    654,
-    143,
-    653,
-    150,
-    663,
-    151,
-    665,
-    156,
-    672,
-    677,
-    678,
-    170,
-    172,
-    693,
-    695,
-    185,
-    189,
-    702,
-    706,
-    710,
-    206,
-    207,
-    721,
-    211,
-    728,
-    730,
-    220,
-    232,
-    746,
-    238,
-    751,
-    759,
-    248,
-    769,
-    771,
-    262,
-    775,
-    268,
-    793,
-    805,
-    293,
-    311,
-    823,
-    314,
-    317,
-    832,
-    834,
-    324,
-    846,
-    339,
-    854,
-    345,
-    346,
-    866,
-    356,
-    873,
-    880,
-    881,
-    882,
-    372,
-    373,
-    892,
-    382,
-    386,
-    901,
-    903,
-    393,
-    398,
-    399,
-    911,
-    910,
-    922,
-    926,
-    416,
-    933,
-    423,
-    936,
-    937,
-    431,
-    944,
-    945,
-    433,
-    952,
-    958,
-    450,
-    453,
-    971,
-    974,
-    975,
-    977,
-    468,
-    984,
-    472,
-    988,
-    993,
-    489,
-    490,
-    494,
-    1007,
-    1008,
-    1012,
-    502,
-}
+nodeidx_to_highlight = {}
 inv_node_map = {v: k for k, v in node_map.items()}
 highlight_node = set()
 for idx in nodeidx_to_highlight:

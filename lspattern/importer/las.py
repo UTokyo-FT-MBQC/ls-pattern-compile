@@ -81,6 +81,30 @@ def _color_to_axis(color: int | bool) -> str:
     raise LasImportError(msg)
 
 
+def _init_pipe_block(axis: str, color: int) -> str:
+    """Return init block type for pipe based on axis and color.
+
+    ColorI: 0 -> InitZero, 1 -> InitPlus
+    ColorJ: 0 -> InitPlus, 1 -> InitZero
+    """
+    if axis == "I":
+        return "InitPlusBlock" if color == 1 else "InitZeroBlock"
+    # axis == "J"
+    return "InitZeroBlock" if color == 1 else "InitPlusBlock"
+
+
+def _meas_pipe_block(axis: str, color: int) -> str:
+    """Return measure block type for pipe based on axis and color.
+
+    ColorI: 0 -> MeasureZ, 1 -> MeasureX
+    ColorJ: 0 -> MeasureX, 1 -> MeasureZ
+    """
+    if axis == "I":
+        return "MeasureXBlock" if color == 1 else "MeasureZBlock"
+    # axis == "J"
+    return "MeasureZBlock" if color == 1 else "MeasureXBlock"
+
+
 def _init_block(ch: str) -> str:
     return "InitPlusBlock" if ch.upper() == "X" else "InitZeroBlock"
 
@@ -184,26 +208,212 @@ def _build_cube_boundaries(
 
 
 def _pipe_boundary(axis: str, color: int) -> str:
-    axis_char = _color_to_axis(color)
+    """Return pipe boundary string based on axis and color.
+
+    ColorI: 0 -> X, 1 -> Z
+    ColorJ: 0 -> Z, 1 -> X
+    """
     if axis == "I":
+        # ColorI: 0 -> X, 1 -> Z
+        axis_char = "X" if color == 0 else "Z"
         # T,B = axis_char, L,R = O
         return f"{axis_char}{axis_char}OO"
     if axis == "J":
+        # ColorJ: 0 -> Z, 1 -> X
+        axis_char = "Z" if color == 0 else "X"
         # T,B = O, L,R = axis_char
         return f"OO{axis_char}{axis_char}"
     msg = f"Unknown pipe axis {axis}"
     raise LasImportError(msg)
 
 
-def _assign_blocks(
-    cubes: Iterable[Coord3],
+def _check_pipe_stacking_conflicts(pipes: list[Pipe]) -> None:
+    """Check if pipe stacking (z -> z+1) creates conflicts.
+
+    Each pipe at z is expanded to occupy both z and z+1. If another pipe
+    already exists at z+1 position, this is a conflict.
+
+    Parameters
+    ----------
+    pipes : list[Pipe]
+        List of (axis, start, end, color) tuples.
+
+    Raises
+    ------
+    LasImportError
+        If any pipe's z+1 position conflicts with another pipe.
+    """
+    # Build set of all pipe positions keyed by (axis, i, j, k)
+    pipe_positions: set[tuple[str, int, int, int]] = set()
+    for axis, start, _end, _color in pipes:
+        i, j, k = start
+        pipe_positions.add((axis, i, j, k))
+
+    # Check z+1 conflicts
+    for axis, start, end, _color in pipes:
+        i, j, k = start
+        z_plus_1_pos = (axis, i, j, k + 1)
+        if z_plus_1_pos in pipe_positions:
+            msg = (
+                f"Pipe stacking conflict: pipe at {start}->{end} would place "
+                f"measure block at z={k + 1}, but another pipe already exists there."
+            )
+            raise LasImportError(msg)
+
+
+def _k_color_to_init_block(color: int) -> str:
+    """Return init block type based on K- boundary color."""
+    # color=1 -> Z boundary -> InitZeroBlock
+    # color=-1 -> X boundary -> InitPlusBlock
+    return "InitZeroBlock" if color == 1 else "InitPlusBlock"
+
+
+def _k_color_to_meas_block(color: int) -> str:
+    """Return measure block type based on K+ boundary color."""
+    # color=1 -> Z boundary -> MeasureZBlock
+    # color=-1 -> X boundary -> MeasureXBlock
+    return "MeasureZBlock" if color == 1 else "MeasureXBlock"
+
+
+def _has_k_minus_connection(
+    i: int, j: int, k: int, exist_k: list[Any], n_i: int, n_j: int, n_k: int
+) -> bool:
+    """Check if there's a K- connection (cube below connected via ExistK)."""
+    if k == 0:
+        return False
+    if not exist_k or i >= n_i or j >= n_j or (k - 1) >= n_k:
+        return False
+    return bool(exist_k[i][j][k - 1])
+
+
+def _has_k_plus_connection(
+    i: int, j: int, k: int, exist_k: list[Any], n_i: int, n_j: int, n_k: int
+) -> bool:
+    """Check if there's a K+ connection (cube above connected via ExistK)."""
+    if not exist_k or i >= n_i or j >= n_j or k >= n_k:
+        return False
+    return bool(exist_k[i][j][k])
+
+
+def _get_color_km(
+    i: int, j: int, k: int, color_km: list[Any], n_i: int, n_j: int, n_k: int
+) -> int:
+    """Get ColorKM value at (i, j, k), return 0 if out of bounds."""
+    if not color_km or i >= n_i or j >= n_j or k >= n_k or k < 0:
+        return 0
+    return int(color_km[i][j][k])
+
+
+def _get_color_kp(
+    i: int, j: int, k: int, color_kp: list[Any], n_i: int, n_j: int, n_k: int
+) -> int:
+    """Get ColorKP value at (i, j, k), return 0 if out of bounds."""
+    if not color_kp or i >= n_i or j >= n_j or k >= n_k:
+        return 0
+    return int(color_kp[i][j][k])
+
+
+def _assign_block_for_cube(
+    coord: Coord3,
+    exist_k: list[Any],
+    color_km: list[Any],
+    color_kp: list[Any],
+    n_i: int,
+    n_j: int,
+    n_k: int,
+) -> tuple[str, Coord3 | None, str | None]:
+    """Assign block type for a single non-port cube.
+
+    Returns
+    -------
+    block : str
+        Block type for this cube.
+    meas_coord : Coord3 | None
+        Coordinate for added measure cube (if any).
+    meas_block : str | None
+        Block type for added measure cube (if any).
+    """
+    i, j, k = coord
+    block = "MemoryBlock"
+    meas_coord: Coord3 | None = None
+    meas_block: str | None = None
+
+    # Check K- connection for init
+    if not _has_k_minus_connection(i, j, k, exist_k, n_i, n_j, n_k):
+        # No K- connection -> needs Init block
+        # Use ColorKM at (i, j, k-1) to determine init type
+        km_val = _get_color_km(i, j, k - 1, color_km, n_i, n_j, n_k)
+        if km_val != 0:
+            block = _k_color_to_init_block(km_val)
+        else:
+            # Fallback: check ColorKM at current position
+            km_curr = _get_color_km(i, j, k, color_km, n_i, n_j, n_k)
+            if km_curr != 0:
+                block = _k_color_to_init_block(km_curr)
+
+    # Check K+ connection for measure
+    if not _has_k_plus_connection(i, j, k, exist_k, n_i, n_j, n_k):
+        kp_val = _get_color_kp(i, j, k, color_kp, n_i, n_j, n_k)
+        if kp_val != 0:
+            meas_coord = (i, j, k + 1)
+            meas_block = _k_color_to_meas_block(kp_val)
+
+    return block, meas_coord, meas_block
+
+
+def _assign_blocks_with_k_boundary(
+    cubes: set[Coord3],
     port_cubes: Sequence[Coord3],
     lasre_ports: Sequence[dict[str, Any]],
+    lasre: dict[str, Any],
     stabilizer: str,
-) -> dict[Coord3, str]:
-    """Decide block type per cube (init/measure/memory)."""
-    blocks: dict[Coord3, str] = dict.fromkeys(cubes, "MemoryBlock")
+) -> tuple[dict[Coord3, str], set[Coord3]]:
+    """Decide block type per cube and add measure cubes for K+ boundaries.
 
+    Parameters
+    ----------
+    cubes : set[Coord3]
+        All cube coordinates.
+    port_cubes : Sequence[Coord3]
+        Port cube coordinates.
+    lasre_ports : Sequence[dict[str, Any]]
+        Port information from lasre.
+    lasre : dict[str, Any]
+        Full lasre dictionary containing ColorKM, ColorKP, ExistK.
+    stabilizer : str
+        Stabilizer string for port-based init/measure assignment.
+
+    Returns
+    -------
+    blocks : dict[Coord3, str]
+        Block type assignment for each cube.
+    added_cubes : set[Coord3]
+        New cubes added at z+1 for K+ boundaries.
+    """
+    color_km = lasre.get("ColorKM", [])
+    color_kp = lasre.get("ColorKP", [])
+    exist_k = lasre.get("ExistK", [])
+    n_i, n_j, n_k = lasre["n_i"], lasre["n_j"], lasre["n_k"]
+
+    port_cube_set = set(port_cubes)
+    added_cubes: set[Coord3] = set()
+    blocks: dict[Coord3, str] = {}
+
+    # First pass: assign blocks to existing cubes
+    for coord in cubes:
+        if coord in port_cube_set:
+            blocks[coord] = "MemoryBlock"
+            continue
+
+        block, meas_coord, meas_block = _assign_block_for_cube(
+            coord, exist_k, color_km, color_kp, n_i, n_j, n_k
+        )
+        blocks[coord] = block
+        if meas_coord is not None and meas_block is not None:
+            added_cubes.add(meas_coord)
+            blocks[meas_coord] = meas_block
+
+    # Override with port-based assignments (these take precedence)
     for idx, (port, coord) in enumerate(zip(lasre_ports, port_cubes, strict=True)):
         ch = _stab_char(stabilizer, idx)
         if port.get("e") == "-":  # input / bottom
@@ -211,7 +421,7 @@ def _assign_blocks(
         else:  # output / top
             blocks[coord] = _meas_block(ch)
 
-    return blocks
+    return blocks, added_cubes
 
 
 def _check_no_y_cubes(lasre: dict[str, Any]) -> None:
@@ -284,26 +494,52 @@ def convert_lasre_to_yamls(
     yaml_results: list[tuple[str, str]] = []
 
     for stab_idx, stab in enumerate(stabilizers):
-        blocks = _assign_blocks(cubes, port_cubes, lasre_ports, stab)
+        blocks, added_cubes = _assign_blocks_with_k_boundary(
+            cubes, port_cubes, lasre_ports, lasre, stab
+        )
+
+        # Combine original cubes with added measure cubes
+        all_cubes = cubes | added_cubes
+
+        # Add boundaries for newly added cubes (use default boundary)
+        all_boundaries = dict(boundaries)
+        for coord in added_cubes:
+            if coord not in all_boundaries:
+                all_boundaries[coord] = _base_boundary(default_zdir)
 
         cube_entries = [
             {
                 "position": list(coord),
                 "block": blocks[coord],
-                "boundary": "".join(boundaries[coord]),
+                "boundary": "".join(all_boundaries[coord]),
             }
-            for coord in sorted(cubes, key=operator.itemgetter(2, 1, 0))
+            for coord in sorted(all_cubes, key=operator.itemgetter(2, 1, 0))
         ]
 
-        pipe_entries = [
-            {
-                "start": list(start),
-                "end": list(end),
-                "block": "MeasureXBlock" if _color_to_axis(color) == "X" else "MeasureZBlock",
-                "boundary": _pipe_boundary(axis, color),
-            }
-            for axis, start, end, color in pipes
-        ]
+        # Check for pipe stacking conflicts
+        _check_pipe_stacking_conflicts(pipes)
+
+        # Generate two-layer pipe structure: Init at z, Measure at z+1
+        pipe_entries: list[dict[str, Any]] = []
+        for axis, start, end, color in pipes:
+            boundary = _pipe_boundary(axis, color)
+            i, j, k = start
+
+            # Two-layer structure: Init at z, Measure at z+1
+            pipe_entries.extend([
+                {
+                    "start": list(start),
+                    "end": list(end),
+                    "block": _init_pipe_block(axis, color),
+                    "boundary": boundary,
+                },
+                {
+                    "start": [i, j, k + 1],
+                    "end": [end[0], end[1], k + 1],
+                    "block": _meas_pipe_block(axis, color),
+                    "boundary": boundary,
+                },
+            ])
 
         desc_base = description or name_prefix
         canvas_dict: dict[str, Any] = {

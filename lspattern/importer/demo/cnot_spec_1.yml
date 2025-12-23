@@ -18,7 +18,7 @@ cube:
   - 0
   - 0
   - 1
-  block: MemoryBlock
+  block: InitPlusBlock
   boundary: ZZXO
 - position:
   - 1
@@ -51,6 +51,12 @@ cube:
   block: MemoryBlock
   boundary: OZXX
 - position:
+  - 0
+  - 0
+  - 3
+  block: MeasureXBlock
+  boundary: ZZXX
+- position:
   - 1
   - 0
   - 3
@@ -71,7 +77,17 @@ pipe:
   - 1
   - 0
   - 1
-  block: MeasureZBlock
+  block: InitPlusBlock
+  boundary: ZZOO
+- start:
+  - 0
+  - 0
+  - 2
+  end:
+  - 1
+  - 0
+  - 2
+  block: MeasureXBlock
   boundary: ZZOO
 - start:
   - 0
@@ -81,5 +97,15 @@ pipe:
   - 0
   - 1
   - 2
+  block: InitZeroBlock
+  boundary: OOXX
+- start:
+  - 0
+  - 0
+  - 3
+  end:
+  - 0
+  - 1
+  - 3
   block: MeasureZBlock
-  boundary: OOZZ
+  boundary: OOXX
