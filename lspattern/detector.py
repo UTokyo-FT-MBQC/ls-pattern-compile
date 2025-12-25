@@ -7,13 +7,13 @@ from typing import TYPE_CHECKING
 
 from graphqomb.common import Axis
 
-from lspattern.new_blocks.layout import RotatedSurfaceCodeLayoutBuilder
-from lspattern.new_blocks.mytype import Coord2D, Coord3D
+from lspattern.layout import RotatedSurfaceCodeLayoutBuilder
+from lspattern.mytype import Coord2D, Coord3D
 
 if TYPE_CHECKING:
+    from lspattern.accumulator import CoordParityAccumulator
+    from lspattern.canvas import BoundaryGraph, Canvas
     from lspattern.consts import BoundarySide
-    from lspattern.new_blocks.accumulator import CoordParityAccumulator
-    from lspattern.new_blocks.canvas import BoundaryGraph, Canvas
 
 
 def analyze_non_deterministic_regions(

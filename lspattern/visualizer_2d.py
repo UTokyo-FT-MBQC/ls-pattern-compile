@@ -4,14 +4,14 @@ from typing import TYPE_CHECKING, TypedDict
 
 import matplotlib.pyplot as plt
 
-from lspattern.new_blocks.mytype import Coord3D, NodeRole
+from lspattern.mytype import Coord3D, NodeRole
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
 
     from matplotlib.figure import Figure
 
-    from lspattern.new_blocks.canvas import Canvas
+    from lspattern.canvas import Canvas
 
 
 class NodeStyleSpec(TypedDict):

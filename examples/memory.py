@@ -10,13 +10,13 @@ from graphqomb.common import AxisMeasBasis, Sign
 from graphqomb.graphstate import GraphState
 
 from lspattern.consts import BoundarySide
-from lspattern.new_blocks.canvas_loader import load_canvas
-from lspattern.new_blocks.compiler import compile_canvas_to_stim
-from lspattern.new_blocks.detector import construct_detector, remove_non_deterministic_det
-from lspattern.new_blocks.layout import RotatedSurfaceCodeLayoutBuilder
-from lspattern.new_blocks.mytype import Coord2D, Coord3D
-from lspattern.new_blocks.visualizer import visualize_canvas_plotly, visualize_detectors_plotly
-from lspattern.new_blocks.visualizer_2d import visualize_canvas_matplotlib_2d
+from lspattern.canvas_loader import load_canvas
+from lspattern.compiler import compile_canvas_to_stim
+from lspattern.detector import construct_detector, remove_non_deterministic_det
+from lspattern.layout import RotatedSurfaceCodeLayoutBuilder
+from lspattern.mytype import Coord2D, Coord3D
+from lspattern.visualizer import visualize_canvas_plotly, visualize_detectors_plotly
+from lspattern.visualizer_2d import visualize_canvas_matplotlib_2d
 
 spec_name = "memory_canvas.yml"
 code_distance = 3

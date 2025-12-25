@@ -5,20 +5,20 @@ from typing import TYPE_CHECKING, NamedTuple
 
 from graphqomb.common import Axis
 
+from lspattern.accumulator import CoordFlowAccumulator, CoordParityAccumulator, CoordScheduleAccumulator
 from lspattern.consts import BoundarySide, EdgeSpecValue
-from lspattern.new_blocks.accumulator import CoordFlowAccumulator, CoordParityAccumulator, CoordScheduleAccumulator
-from lspattern.new_blocks.layout import (
+from lspattern.layout import (
     ANCILLA_EDGE_X,
     ANCILLA_EDGE_Z,
     RotatedSurfaceCodeLayoutBuilder,
 )
-from lspattern.new_blocks.mytype import Coord2D, Coord3D, NodeRole
+from lspattern.mytype import Coord2D, Coord3D, NodeRole
 
 if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
 
-    from lspattern.new_blocks.canvas_loader import CompositeLogicalObservableSpec, LogicalObservableSpec
-    from lspattern.new_blocks.loader import BlockConfig
+    from lspattern.canvas_loader import CompositeLogicalObservableSpec, LogicalObservableSpec
+    from lspattern.loader import BlockConfig
 
 
 _TOKEN_TO_SIDES: dict[str, BoundarySide] = {

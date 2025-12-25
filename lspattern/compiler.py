@@ -10,10 +10,10 @@ from graphqomb.qompiler import qompile
 from graphqomb.scheduler import Scheduler
 from graphqomb.stim_compiler import stim_compile
 
-from lspattern.new_blocks.detector import construct_detector, remove_non_deterministic_det
+from lspattern.detector import construct_detector, remove_non_deterministic_det
 
 if TYPE_CHECKING:
-    from lspattern.new_blocks.canvas import Canvas
+    from lspattern.canvas import Canvas
 
 
 def compile_canvas_to_stim(

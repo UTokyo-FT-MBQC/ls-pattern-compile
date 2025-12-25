@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from lspattern.consts import BoundarySide, EdgeSpecValue
-from lspattern.new_blocks.mytype import AxisDIRECTION2D, Coord2D, Coord3D
+from lspattern.mytype import AxisDIRECTION2D, Coord2D, Coord3D
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -147,7 +147,7 @@ class RotatedSurfaceCodeLayoutBuilder:
     Examples
     --------
     >>> from lspattern.consts import BoundarySide, EdgeSpecValue
-    >>> from lspattern.new_blocks.mytype import Coord2D, Coord3D
+    >>> from lspattern.mytype import Coord2D, Coord3D
     >>> boundary = {
     ...     BoundarySide.TOP: EdgeSpecValue.X,
     ...     BoundarySide.BOTTOM: EdgeSpecValue.X,
@@ -923,7 +923,7 @@ class RotatedSurfaceCodeLayoutBuilder:
         Examples
         --------
         >>> from lspattern.consts import BoundarySide, EdgeSpecValue
-        >>> from lspattern.new_blocks.mytype import Coord2D
+        >>> from lspattern.mytype import Coord2D
         >>> boundary = {
         ...     BoundarySide.TOP: EdgeSpecValue.X,
         ...     BoundarySide.BOTTOM: EdgeSpecValue.X,

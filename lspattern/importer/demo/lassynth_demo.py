@@ -17,7 +17,7 @@ from lassynth import LatticeSurgerySynthesizer
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run LaSSynth synthesis standalone")
     parser.add_argument("--spec", type=Path, required=True, help="Input specification JSON")
-    parser.add_argument("--output-dir", type=Path, default=Path("."), help="Output directory")
+    parser.add_argument("--output-dir", type=Path, default=Path(), help="Output directory")
     parser.add_argument("--allow-y", action="store_true", help="Allow Y cubes")
     parser.add_argument("--solver", choices=["z3", "kissat"], default="z3")
     parser.add_argument("--optimize-depth", action="store_true", help="Run depth optimization")
@@ -42,10 +42,7 @@ def main() -> None:
 
     given_arrs = None
     if not args.allow_y:
-        zeros_nodey = [
-            [[0 for _ in range(spec["max_k"])] for _ in range(spec["max_j"])]
-            for _ in range(spec["max_i"])
-        ]
+        zeros_nodey = [[[0 for _ in range(spec["max_k"])] for _ in range(spec["max_j"])] for _ in range(spec["max_i"])]
         given_arrs = {"NodeY": zeros_nodey}
         print("Y cubes: forbidden")
     else:

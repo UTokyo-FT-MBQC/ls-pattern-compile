@@ -1,4 +1,4 @@
-"""YAML loaders for canvas/block/layer specs (new_blocks).
+"""YAML loaders for canvas/block/layer specs.
 
 This module keeps lookup details (package resources vs. user dirs) inside
 the library so callers can build canvases by referring to logical names
@@ -20,11 +20,11 @@ import yaml
 if TYPE_CHECKING:
     from importlib.abc import Traversable
 
+from lspattern.canvas import Canvas, CanvasConfig
 from lspattern.consts import BoundarySide, EdgeSpecValue
-from lspattern.new_blocks.canvas import Canvas, CanvasConfig
-from lspattern.new_blocks.layout.rotated_surface_code import RotatedSurfaceCodeLayoutBuilder
-from lspattern.new_blocks.loader import BlockConfig, PatchLayoutConfig, load_patch_layout_from_yaml
-from lspattern.new_blocks.mytype import Coord3D
+from lspattern.layout.rotated_surface_code import RotatedSurfaceCodeLayoutBuilder
+from lspattern.loader import BlockConfig, PatchLayoutConfig, load_patch_layout_from_yaml
+from lspattern.mytype import Coord3D
 
 _DEFAULT_BOUNDARY: dict[BoundarySide, EdgeSpecValue] = {
     BoundarySide.TOP: EdgeSpecValue.X,
@@ -34,9 +34,9 @@ _DEFAULT_BOUNDARY: dict[BoundarySide, EdgeSpecValue] = {
 }
 
 _RESOURCE_PACKAGES = {
-    "canvas": ("lspattern.new_blocks.examples", "lspattern.new_blocks.patch_layout.canvas"),
-    "blocks": ("lspattern.new_blocks.patch_layout.blocks",),
-    "layers": ("lspattern.new_blocks.patch_layout.layers",),
+    "canvas": ("lspattern.examples", "lspattern.patch_layout.canvas"),
+    "blocks": ("lspattern.patch_layout.blocks",),
+    "layers": ("lspattern.patch_layout.layers",),
 }
 
 

@@ -3,9 +3,8 @@
 Usage (sketch)::
 
     from lspattern.importer.las import convert_lasre_to_yamls
-    yamls = convert_lasre_to_yamls(lasre, specification,
-                                   name_prefix="cnot",
-                                   description="Auto-imported from LaSSynth")
+
+    yamls = convert_lasre_to_yamls(lasre, specification, name_prefix="cnot", description="Auto-imported from LaSSynth")
     for name, text in yamls:
         Path(f"{name}.yml").write_text(text)
 
@@ -36,7 +35,7 @@ from __future__ import annotations
 import operator
 from typing import TYPE_CHECKING, Any
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -275,9 +274,7 @@ def _k_color_to_meas_block(color: int) -> str:
     return "MeasureZBlock" if color == 1 else "MeasureXBlock"
 
 
-def _has_k_minus_connection(
-    i: int, j: int, k: int, exist_k: list[Any], n_i: int, n_j: int, n_k: int
-) -> bool:
+def _has_k_minus_connection(i: int, j: int, k: int, exist_k: list[Any], n_i: int, n_j: int, n_k: int) -> bool:
     """Check if there's a K- connection (cube below connected via ExistK)."""
     if k == 0:
         return False
@@ -286,27 +283,21 @@ def _has_k_minus_connection(
     return bool(exist_k[i][j][k - 1])
 
 
-def _has_k_plus_connection(
-    i: int, j: int, k: int, exist_k: list[Any], n_i: int, n_j: int, n_k: int
-) -> bool:
+def _has_k_plus_connection(i: int, j: int, k: int, exist_k: list[Any], n_i: int, n_j: int, n_k: int) -> bool:
     """Check if there's a K+ connection (cube above connected via ExistK)."""
     if not exist_k or i >= n_i or j >= n_j or k >= n_k:
         return False
     return bool(exist_k[i][j][k])
 
 
-def _get_color_km(
-    i: int, j: int, k: int, color_km: list[Any], n_i: int, n_j: int, n_k: int
-) -> int:
+def _get_color_km(i: int, j: int, k: int, color_km: list[Any], n_i: int, n_j: int, n_k: int) -> int:
     """Get ColorKM value at (i, j, k), return 0 if out of bounds."""
     if not color_km or i >= n_i or j >= n_j or k >= n_k or k < 0:
         return 0
     return int(color_km[i][j][k])
 
 
-def _get_color_kp(
-    i: int, j: int, k: int, color_kp: list[Any], n_i: int, n_j: int, n_k: int
-) -> int:
+def _get_color_kp(i: int, j: int, k: int, color_kp: list[Any], n_i: int, n_j: int, n_k: int) -> int:
     """Get ColorKP value at (i, j, k), return 0 if out of bounds."""
     if not color_kp or i >= n_i or j >= n_j or k >= n_k:
         return 0
@@ -405,9 +396,7 @@ def _assign_blocks_with_k_boundary(
             blocks[coord] = "MemoryBlock"
             continue
 
-        block, meas_coord, meas_block = _assign_block_for_cube(
-            coord, exist_k, color_km, color_kp, n_i, n_j, n_k
-        )
+        block, meas_coord, meas_block = _assign_block_for_cube(coord, exist_k, color_km, color_kp, n_i, n_j, n_k)
         blocks[coord] = block
         if meas_coord is not None and meas_block is not None:
             added_cubes.add(meas_coord)
@@ -494,9 +483,7 @@ def convert_lasre_to_yamls(
     yaml_results: list[tuple[str, str]] = []
 
     for stab_idx, stab in enumerate(stabilizers):
-        blocks, added_cubes = _assign_blocks_with_k_boundary(
-            cubes, port_cubes, lasre_ports, lasre, stab
-        )
+        blocks, added_cubes = _assign_blocks_with_k_boundary(cubes, port_cubes, lasre_ports, lasre, stab)
 
         # Combine original cubes with added measure cubes
         all_cubes = cubes | added_cubes
@@ -526,20 +513,22 @@ def convert_lasre_to_yamls(
             i, j, k = start
 
             # Two-layer structure: Init at z, Measure at z+1
-            pipe_entries.extend([
-                {
-                    "start": list(start),
-                    "end": list(end),
-                    "block": _init_pipe_block(axis, color),
-                    "boundary": boundary,
-                },
-                {
-                    "start": [i, j, k + 1],
-                    "end": [end[0], end[1], k + 1],
-                    "block": _meas_pipe_block(axis, color),
-                    "boundary": boundary,
-                },
-            ])
+            pipe_entries.extend(
+                [
+                    {
+                        "start": list(start),
+                        "end": list(end),
+                        "block": _init_pipe_block(axis, color),
+                        "boundary": boundary,
+                    },
+                    {
+                        "start": [i, j, k + 1],
+                        "end": [end[0], end[1], k + 1],
+                        "block": _meas_pipe_block(axis, color),
+                        "boundary": boundary,
+                    },
+                ]
+            )
 
         desc_base = description or name_prefix
         canvas_dict: dict[str, Any] = {

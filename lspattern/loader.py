@@ -143,7 +143,7 @@ def load_patch_layout_from_yaml(yaml_path: Path) -> PatchLayoutConfig:
     Examples
     --------
     >>> from pathlib import Path
-    >>> config_path = Path("lspattern/new_blocks/patch_layout/layers/memory.yml")
+    >>> config_path = Path("lspattern/patch_layout/layers/memory_unit.yml")
     >>> config = load_patch_layout_from_yaml(config_path)
     >>> config.name
     'MemoryUnit'

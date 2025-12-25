@@ -1,6 +1,6 @@
 """Rotated surface code layout utilities."""
 
-from lspattern.new_blocks.layout.rotated_surface_code import (
+from lspattern.layout.rotated_surface_code import (
     ANCILLA_EDGE_X,
     ANCILLA_EDGE_Z,
     PatchBounds,

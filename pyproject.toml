@@ -58,7 +58,7 @@ lspattern = "lspattern"
 include-package-data = true
 
 [tool.setuptools.package-data]
-"lspattern.new_blocks" = [
+"lspattern" = [
   "patch_layout/blocks/*.yml",
   "patch_layout/layers/*.yml",
   "patch_layout/canvas/*.yml",

@@ -3,7 +3,7 @@
 from pathlib import Path
 from textwrap import dedent
 
-from lspattern.new_blocks.canvas_loader import load_canvas
+from lspattern.canvas_loader import load_canvas
 
 
 def _write_yaml(path: Path, content: str) -> None:

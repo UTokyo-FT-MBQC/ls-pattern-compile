@@ -9,13 +9,13 @@ import stim
 from graphqomb.common import AxisMeasBasis, Sign
 from graphqomb.graphstate import GraphState
 
-from lspattern.new_blocks.canvas_loader import load_canvas
-from lspattern.new_blocks.compiler import compile_canvas_to_stim
-from lspattern.new_blocks.detector import construct_detector, remove_non_deterministic_det
-from lspattern.new_blocks.visualizer import visualize_canvas_plotly, visualize_detectors_plotly
+from lspattern.canvas_loader import load_canvas
+from lspattern.compiler import compile_canvas_to_stim
+from lspattern.detector import construct_detector, remove_non_deterministic_det
+from lspattern.visualizer import visualize_canvas_plotly, visualize_detectors_plotly
 
 if TYPE_CHECKING:
-    from lspattern.new_blocks.mytype import Coord3D
+    from lspattern.mytype import Coord3D
 
 spec_name = "/home/masato/projects/mbqc/ls-pattern-compile/lspattern/importer/demo/cnot_0.yml"
 code_distance = 3

@@ -5,12 +5,12 @@ from __future__ import annotations
 import pytest
 
 from lspattern.consts import BoundarySide, EdgeSpecValue
-from lspattern.new_blocks.layout import (
+from lspattern.layout import (
     PatchBounds,
     PatchCoordinates,
     RotatedSurfaceCodeLayoutBuilder,
 )
-from lspattern.new_blocks.mytype import Coord2D, Coord3D
+from lspattern.mytype import Coord2D, Coord3D
 
 # Alias for shorter test code
 Builder = RotatedSurfaceCodeLayoutBuilder
@@ -474,9 +474,7 @@ class TestBuilderCubeBoundaryAncillasForSide:
         assert isinstance(x_anc, frozenset)
         assert isinstance(z_anc, frozenset)
 
-    @pytest.mark.parametrize(
-        "side", [BoundarySide.TOP, BoundarySide.BOTTOM, BoundarySide.LEFT, BoundarySide.RIGHT]
-    )
+    @pytest.mark.parametrize("side", [BoundarySide.TOP, BoundarySide.BOTTOM, BoundarySide.LEFT, BoundarySide.RIGHT])
     def test_all_sides_return_valid_coordinates(
         self,
         standard_boundary: dict[BoundarySide, EdgeSpecValue],

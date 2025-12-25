@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sinter
 
-from lspattern.new_blocks.simulator import (
+from lspattern.simulator import (
     FittingResult,
     compute_x_from_d,
     fit_logical_error_rate,

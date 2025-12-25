@@ -5,14 +5,14 @@ from typing import TYPE_CHECKING, TypedDict
 
 import plotly.graph_objects as go
 
-from lspattern.new_blocks.mytype import Coord3D, NodeRole
+from lspattern.mytype import Coord3D, NodeRole
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
 
     from graphqomb.common import Axis
 
-    from lspattern.new_blocks.canvas import Canvas
+    from lspattern.canvas import Canvas
 
 type NodeIndex = int | Coord3D
 
@@ -276,9 +276,7 @@ def visualize_canvas_plotly(
                         "symbol": "diamond",
                     },
                     name="Highlighted",
-                    text=[
-                        _node_hover_label(c, "Highlighted", pauli_axes.get(c)) for c in highlight_coords
-                    ],
+                    text=[_node_hover_label(c, "Highlighted", pauli_axes.get(c)) for c in highlight_coords],
                     hovertemplate="<b>%{text}</b><extra></extra>",
                     showlegend=True,
                 )
@@ -443,9 +441,7 @@ def visualize_detectors_plotly(  # noqa: C901
                             "symbol": "diamond",
                         },
                         name="Highlighted",
-                        text=[
-                            _node_hover_label(c, "Highlighted", pauli_axes.get(c)) for c in highlight_coords
-                        ],
+                        text=[_node_hover_label(c, "Highlighted", pauli_axes.get(c)) for c in highlight_coords],
                         hovertemplate="<b>%{text}</b><extra></extra>",
                         showlegend=True,
                     )

@@ -5,12 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from lspattern.new_blocks.mytype import Coord2D
+from lspattern.mytype import Coord2D
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping
 
-    from lspattern.new_blocks.mytype import Coord3D
+    from lspattern.mytype import Coord3D
 
 
 @dataclass

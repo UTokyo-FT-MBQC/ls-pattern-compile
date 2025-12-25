@@ -5,7 +5,7 @@ logical error rates for canvas specifications across multiple code distances
 and noise rates.
 
 Usage:
-    python -m lspattern.new_blocks.examples.logical_error_rate
+    python -m lspattern.examples.logical_error_rate
 
 To use a different canvas specification, modify the SPEC_NAME variable below.
 Available specs:
@@ -24,9 +24,9 @@ from functools import partial
 import matplotlib.pyplot as plt
 import stim
 
-from lspattern.new_blocks.canvas_loader import load_canvas
-from lspattern.new_blocks.compiler import compile_canvas_to_stim
-from lspattern.new_blocks.plot_error_rate import (
+from lspattern.canvas_loader import load_canvas
+from lspattern.compiler import compile_canvas_to_stim
+from lspattern.plot_error_rate import (
     ObservablePlotConfig,
     PlotConfig,
     create_error_rate_figure,
@@ -34,7 +34,7 @@ from lspattern.new_blocks.plot_error_rate import (
     print_fitting_summary,
     save_figure,
 )
-from lspattern.new_blocks.simulator import (
+from lspattern.simulator import (
     SimulationConfig,
     fit_logical_error_rate,
     simulate_logical_error_rate,
