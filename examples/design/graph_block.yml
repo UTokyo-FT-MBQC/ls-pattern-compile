@@ -1,0 +1,5 @@
+name: GraphBlock
+boundary: XXZZ
+
+# Experimental: user-supplied graph block (JSON-only).
+graph: graph_block.json

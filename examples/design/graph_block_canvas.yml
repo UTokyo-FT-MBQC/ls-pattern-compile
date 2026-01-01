@@ -1,0 +1,15 @@
+name: Graph Block Canvas
+description: Demo canvas referencing a graph-based block YAML.
+layout: rotated_surface_code
+
+cube:
+  - position: [1, 0, 2]
+    block: graph_block
+    logical_observables:
+      nodes:
+        - [0, 0, 0]
+
+pipe: []
+
+logical_observables:
+  - cube: [[1, 0, 2]]
