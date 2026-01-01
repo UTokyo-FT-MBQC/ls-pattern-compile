@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, NamedTuple
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Literal, NamedTuple
 
 from graphqomb.common import Axis
 
@@ -106,6 +106,33 @@ class CanvasConfig:
     description: str
     d: int
     tiling: str
+
+
+@dataclass(slots=True)
+class GraphSpec:
+    """Explicit graph fragment provided by users via YAML.
+
+    Notes
+    -----
+    `coord_mode`
+        - "local": coordinates are translated when the block is placed on a canvas.
+        - "global": coordinates are used as-is.
+    `time_mode`
+        - "local": schedule times are shifted based on the block's z position.
+        - "global": schedule times are used as-is.
+    """
+
+    coord_mode: Literal["local", "global"] = "local"
+    time_mode: Literal["local", "global"] = "local"
+
+    nodes: set[Coord3D] = field(default_factory=set)
+    edges: set[tuple[Coord3D, Coord3D]] = field(default_factory=set)
+    pauli_axes: dict[Coord3D, Axis] = field(default_factory=dict)
+    coord2role: dict[Coord3D, NodeRole] = field(default_factory=dict)
+
+    flow: CoordFlowAccumulator = field(default_factory=CoordFlowAccumulator)
+    scheduler: CoordScheduleAccumulator = field(default_factory=CoordScheduleAccumulator)
+    parity: CoordParityAccumulator = field(default_factory=CoordParityAccumulator)
 
 
 @dataclass
@@ -226,6 +253,76 @@ class Canvas:
     def parity_accumulator(self) -> CoordParityAccumulator:
         return self.__parity
 
+    def _merge_graph_spec(self, graph_spec: GraphSpec, *, coord_offset: Coord3D, time_offset: int) -> None:
+        def translate_coord(coord: Coord3D) -> Coord3D:
+            if graph_spec.coord_mode == "global":
+                return coord
+            return Coord3D(coord.x + coord_offset.x, coord.y + coord_offset.y, coord.z + coord_offset.z)
+
+        def translate_xy(xy: Coord2D) -> Coord2D:
+            if graph_spec.coord_mode == "global":
+                return xy
+            return Coord2D(xy.x + coord_offset.x, xy.y + coord_offset.y)
+
+        def translate_z(z: int) -> int:
+            if graph_spec.coord_mode == "global":
+                return z
+            return z + coord_offset.z
+
+        def translate_time(time: int) -> int:
+            if graph_spec.time_mode == "global":
+                return time
+            return time + time_offset
+
+        # Nodes, roles, measurement bases
+        for coord in graph_spec.nodes:
+            translated = translate_coord(coord)
+            self.__nodes.add(translated)
+            self.__coord2role[translated] = graph_spec.coord2role.get(coord, NodeRole.DATA)
+            self.__pauli_axes[translated] = graph_spec.pauli_axes[coord]
+
+        # Physical edges
+        for a, b in graph_spec.edges:
+            self.__edges.add((translate_coord(a), translate_coord(b)))
+
+        # Flow (xflow)
+        for from_coord, to_coords in graph_spec.flow.flow.items():
+            from_translated = translate_coord(from_coord)
+            for to_coord in to_coords:
+                self.flow.add_flow(from_translated, translate_coord(to_coord))
+
+        # Scheduler
+        for time, coords in graph_spec.scheduler.prep_time.items():
+            self.scheduler.add_prep_at_time(translate_time(time), [translate_coord(coord) for coord in coords])
+        for time, coords in graph_spec.scheduler.meas_time.items():
+            self.scheduler.add_meas_at_time(translate_time(time), [translate_coord(coord) for coord in coords])
+        for time, edges in graph_spec.scheduler.entangle_time.items():
+            translated_edges = [(translate_coord(a), translate_coord(b)) for a, b in edges]
+            self.scheduler.add_entangle_at_time(translate_time(time), translated_edges)
+            self.__edges.update(translated_edges)
+
+        # Parity / detector candidates
+        for xy, z_map in graph_spec.parity.syndrome_meas.items():
+            xy_translated = translate_xy(xy)
+            for z, coords in z_map.items():
+                self.__parity.add_syndrome_measurement(
+                    xy_translated,
+                    translate_z(z),
+                    [translate_coord(coord) for coord in coords],
+                )
+
+        for xy, z_map in graph_spec.parity.remaining_parity.items():
+            xy_translated = translate_xy(xy)
+            for z, coords in z_map.items():
+                self.__parity.add_remaining_parity(
+                    xy_translated,
+                    translate_z(z),
+                    [translate_coord(coord) for coord in coords],
+                )
+
+        for det_coord in graph_spec.parity.non_deterministic_coords:
+            self.__parity.add_non_deterministic_coord(translate_coord(det_coord))
+
     def add_cube(  # noqa: C901
         self,
         global_pos: Coord3D,
@@ -233,6 +330,32 @@ class Canvas:
         logical_observable: LogicalObservableSpec | None = None,
     ) -> None:
         self.cube_config[global_pos] = block_config
+        if block_config.graph_spec is not None:
+            coord_offset = Coord3D(
+                2 * (self.config.d + 1) * global_pos.x,
+                2 * (self.config.d + 1) * global_pos.y,
+                global_pos.z * 2 * self.config.d,
+            )
+            time_offset = global_pos.z * (2 * self.config.d * (_PHYSICAL_CLOCK + ANCILLA_LENGTH))
+            self._merge_graph_spec(block_config.graph_spec, coord_offset=coord_offset, time_offset=time_offset)
+            if logical_observable is not None:
+                if logical_observable.nodes:
+                    unknown = set(logical_observable.nodes) - block_config.graph_spec.nodes
+                    if unknown:
+                        msg = f"logical_observables.nodes references undefined graph nodes: {sorted(unknown)}"
+                        raise ValueError(msg)
+                    if block_config.graph_spec.coord_mode == "global":
+                        self.couts[global_pos] = set(logical_observable.nodes)
+                    else:
+                        self.couts[global_pos] = {
+                            Coord3D(coord.x + coord_offset.x, coord.y + coord_offset.y, coord.z + coord_offset.z)
+                            for coord in logical_observable.nodes
+                        }
+                else:
+                    msg = "graph-based blocks require logical_observables.nodes (list of node coordinates)."
+                    raise ValueError(msg)
+            return
+
         boundary = Boundary(
             top=block_config.boundary[BoundarySide.TOP],
             bottom=block_config.boundary[BoundarySide.BOTTOM],
@@ -412,6 +535,9 @@ class Canvas:
         - "Z": Select all ANCILLA_Z nodes in the cube's final layer
         """
         observable_token = logical_observable.token
+        if observable_token is None:
+            msg = "Patch-based logical_observables must be specified as a token string (e.g. 'TB', 'X', 'Z')."
+            raise ValueError(msg)
         offset_z = global_pos.z * 2 * self.config.d
 
         if observable_token == "X":  # noqa: S105
@@ -465,6 +591,9 @@ class Canvas:
         - "Z": Select all ANCILLA_Z nodes in the pipe's first layer
         """
         observable_token = logical_observable.token
+        if observable_token is None:
+            msg = "Patch-based logical_observables must be specified as a token string (e.g. 'TB', 'X', 'Z')."
+            raise ValueError(msg)
         start, end = global_edge
         offset_z = start.z * 2 * self.config.d
 
@@ -511,6 +640,39 @@ class Canvas:
         # Store config
         self.pipe_config[global_edge] = block_config
 
+        if block_config.graph_spec is not None:
+            pipe_dir = RotatedSurfaceCodeLayoutBuilder.pipe_offset(start, end)
+            offset_x = 2 * (self.config.d + 1) * start.x
+            offset_y = 2 * (self.config.d + 1) * start.y
+            if pipe_dir == BoundarySide.RIGHT:
+                offset_x += 2 * self.config.d
+            elif pipe_dir == BoundarySide.LEFT:
+                offset_x -= 2
+            elif pipe_dir == BoundarySide.TOP:
+                offset_y -= 2
+            elif pipe_dir == BoundarySide.BOTTOM:
+                offset_y += 2 * self.config.d
+            coord_offset = Coord3D(offset_x, offset_y, start.z * 2 * self.config.d)
+            time_offset = start.z * (2 * self.config.d * (_PHYSICAL_CLOCK + ANCILLA_LENGTH))
+            self._merge_graph_spec(block_config.graph_spec, coord_offset=coord_offset, time_offset=time_offset)
+            if logical_observable is not None:
+                if logical_observable.nodes:
+                    unknown = set(logical_observable.nodes) - block_config.graph_spec.nodes
+                    if unknown:
+                        msg = f"logical_observables.nodes references undefined graph nodes: {sorted(unknown)}"
+                        raise ValueError(msg)
+                    if block_config.graph_spec.coord_mode == "global":
+                        self.pipe_couts[global_edge] = set(logical_observable.nodes)
+                    else:
+                        self.pipe_couts[global_edge] = {
+                            Coord3D(coord.x + coord_offset.x, coord.y + coord_offset.y, coord.z + coord_offset.z)
+                            for coord in logical_observable.nodes
+                        }
+                else:
+                    msg = "graph-based blocks require logical_observables.nodes (list of node coordinates)."
+                    raise ValueError(msg)
+            return
+
         # Create boundary and register BOTH coordinates
         boundary = Boundary(
             top=block_config.boundary[BoundarySide.TOP],
@@ -525,7 +687,6 @@ class Canvas:
         data2d, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.pipe(
             self.config.d, start, end, block_config.boundary
         ).to_mutable_sets()
-        print(f"pipe data2d: {data2d}, ancilla_x2d: {ancilla_x2d}, ancilla_z2d: {ancilla_z2d}")
 
         # Calculate time offsets using start.z
         current_time = start.z * (2 * self.config.d * (_PHYSICAL_CLOCK + ANCILLA_LENGTH))

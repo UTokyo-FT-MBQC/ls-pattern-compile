@@ -8,6 +8,7 @@ only, e.g., ``load_canvas("memory_canvas")``.
 from __future__ import annotations
 
 import re
+import json
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from importlib import resources
@@ -16,15 +17,16 @@ from pathlib import Path
 from typing import TYPE_CHECKING, SupportsInt, cast
 
 import yaml
+from graphqomb.common import Axis
 
 if TYPE_CHECKING:
     from importlib.abc import Traversable
 
-from lspattern.canvas import Canvas, CanvasConfig
+from lspattern.canvas import Canvas, CanvasConfig, GraphSpec
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.layout.rotated_surface_code import RotatedSurfaceCodeLayoutBuilder
 from lspattern.loader import BlockConfig, PatchLayoutConfig, load_patch_layout_from_yaml
-from lspattern.mytype import Coord3D
+from lspattern.mytype import Coord2D, Coord3D, NodeRole
 
 _DEFAULT_BOUNDARY: dict[BoundarySide, EdgeSpecValue] = {
     BoundarySide.TOP: EdgeSpecValue.X,
@@ -42,7 +44,8 @@ _RESOURCE_PACKAGES = {
 
 @dataclass(frozen=True, slots=True)
 class LogicalObservableSpec:
-    token: str
+    token: str | None = None
+    nodes: tuple[Coord3D, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -198,6 +201,30 @@ def _resolve_yaml(kind: str, name: str | Path, extra_paths: Sequence[Path | str]
     raise FileNotFoundError(msg)
 
 
+def _resolve_json(name: str | Path, extra_paths: Sequence[Path | str]) -> Path:
+    """Resolve JSON by path or search paths (filesystem only)."""
+
+    candidate = Path(name)
+    candidates = [candidate]
+    if candidate.suffix == "":
+        candidates.append(candidate.with_suffix(".json"))
+
+    # Explicit / relative path
+    for path in candidates:
+        if path.is_file():
+            return path
+
+    # Search paths
+    for root in _iter_search_paths(extra_paths):
+        for cand in candidates:
+            path = root / cand
+            if path.is_file():
+                return path
+
+    msg = f"JSON '{name}' not found in {list(_iter_search_paths(extra_paths))}"
+    raise FileNotFoundError(msg)
+
+
 def _parse_edge_spec(value: object) -> EdgeSpecValue:
     if isinstance(value, EdgeSpecValue):
         return value
@@ -252,8 +279,322 @@ def _parse_logical_observable(value: object | None) -> LogicalObservableSpec | N
             return LogicalObservableSpec(token=token)
         msg = f"Logical observable must be 'X', 'Z', or two distinct chars from T/B/L/R. Got: {value}"
         raise ValueError(msg)
+    if isinstance(value, Mapping):
+        if "token" in value:
+            token_value = value["token"]
+            if not isinstance(token_value, str):
+                msg = f"logical_observables.token must be a string, got: {type(token_value)}"
+                raise TypeError(msg)
+            return _parse_logical_observable(token_value)
+        raw_nodes = value.get("nodes", value.get("coords"))
+        if raw_nodes is None:
+            msg = "logical_observables mapping must provide 'token' or 'nodes'."
+            raise ValueError(msg)
+        if not isinstance(raw_nodes, Sequence) or isinstance(raw_nodes, (str, bytes)):
+            msg = f"logical_observables.nodes must be a list, got: {type(raw_nodes)}"
+            raise TypeError(msg)
+        coords = tuple(_parse_coord3d(coord) for coord in raw_nodes)
+        if not coords:
+            msg = "logical_observables.nodes must contain at least one coordinate."
+            raise ValueError(msg)
+        return LogicalObservableSpec(nodes=coords)
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        coords = tuple(_parse_coord3d(coord) for coord in value)
+        if not coords:
+            return None
+        return LogicalObservableSpec(nodes=coords)
     msg = f"Unsupported logical_observables spec: {value!r}"
     raise TypeError(msg)
+
+
+def _parse_coord3d(value: object) -> Coord3D:
+    if isinstance(value, Coord3D):
+        return value
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)) and len(value) == 3:  # noqa: PLR2004
+        x, y, z = value
+        return Coord3D(int(cast("SupportsInt", x)), int(cast("SupportsInt", y)), int(cast("SupportsInt", z)))
+    msg = f"Expected Coord3D as [x, y, z], got: {value!r}"
+    raise TypeError(msg)
+
+
+def _parse_coord2d(value: object) -> Coord2D:
+    if isinstance(value, Coord2D):
+        return value
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)) and len(value) == 2:  # noqa: PLR2004
+        x, y = value
+        return Coord2D(int(cast("SupportsInt", x)), int(cast("SupportsInt", y)))
+    msg = f"Expected Coord2D as [x, y], got: {value!r}"
+    raise TypeError(msg)
+
+
+def _parse_axis(value: object) -> Axis:
+    if isinstance(value, Axis):
+        return value
+    if isinstance(value, str):
+        cleaned = value.strip().upper()
+        if cleaned in {"X", "Y", "Z"}:
+            return Axis[cleaned]
+    msg = f"Expected basis 'X'/'Y'/'Z', got: {value!r}"
+    raise ValueError(msg)
+
+
+def _parse_node_role(value: object | None) -> NodeRole | None:
+    if value is None:
+        return None
+    if isinstance(value, NodeRole):
+        return value
+    if isinstance(value, str):
+        cleaned = value.strip().upper()
+        try:
+            return NodeRole[cleaned]
+        except KeyError as exc:
+            msg = f"Unknown node role: {value!r}"
+            raise ValueError(msg) from exc
+    msg = f"Unsupported node role: {value!r}"
+    raise TypeError(msg)
+
+
+def _parse_edge_entry(entry: object) -> tuple[Coord3D, Coord3D]:
+    if isinstance(entry, Mapping):
+        for key_a, key_b in (("a", "b"), ("u", "v"), ("src", "dst"), ("start", "end")):
+            if key_a in entry and key_b in entry:
+                return _parse_coord3d(entry[key_a]), _parse_coord3d(entry[key_b])
+        msg = f"Edge mapping must have a/b (or u/v), got keys: {sorted(entry.keys())}"
+        raise ValueError(msg)
+    if isinstance(entry, Sequence) and not isinstance(entry, (str, bytes)) and len(entry) == 2:  # noqa: PLR2004
+        a, b = entry
+        return _parse_coord3d(a), _parse_coord3d(b)
+    msg = f"Edge entry must be [[x,y,z],[x,y,z]] or mapping, got: {entry!r}"
+    raise TypeError(msg)
+
+
+def _parse_graph_spec(value: object) -> GraphSpec:  # noqa: C901, PLR0912
+    if not isinstance(value, Mapping):
+        msg = f"graph must be a mapping, got: {type(value)}"
+        raise TypeError(msg)
+
+    coord_mode = str(value.get("coord_mode", "local")).strip().lower()
+    if coord_mode not in {"local", "global"}:
+        msg = f"graph.coord_mode must be 'local' or 'global', got: {coord_mode!r}"
+        raise ValueError(msg)
+
+    time_mode = str(value.get("time_mode", "local")).strip().lower()
+    if time_mode not in {"local", "global"}:
+        msg = f"graph.time_mode must be 'local' or 'global', got: {time_mode!r}"
+        raise ValueError(msg)
+
+    spec = GraphSpec(coord_mode=coord_mode, time_mode=time_mode)
+
+    # Nodes
+    raw_nodes = value.get("nodes", [])
+    if raw_nodes is None:
+        raw_nodes = []
+    if not isinstance(raw_nodes, Sequence) or isinstance(raw_nodes, (str, bytes)):
+        msg = f"graph.nodes must be a list, got: {type(raw_nodes)}"
+        raise TypeError(msg)
+
+    for node_entry in raw_nodes:
+        if not isinstance(node_entry, Mapping):
+            msg = f"Each graph.nodes entry must be a mapping, got: {type(node_entry)}"
+            raise TypeError(msg)
+        coord = _parse_coord3d(node_entry.get("coord"))
+        basis = _parse_axis(node_entry.get("basis"))
+        role = _parse_node_role(node_entry.get("role"))
+        spec.nodes.add(coord)
+        spec.pauli_axes[coord] = basis
+        if role is not None:
+            spec.coord2role[coord] = role
+
+    # Edges
+    raw_edges = value.get("edges", [])
+    if raw_edges is None:
+        raw_edges = []
+    if not isinstance(raw_edges, Sequence) or isinstance(raw_edges, (str, bytes)):
+        msg = f"graph.edges must be a list, got: {type(raw_edges)}"
+        raise TypeError(msg)
+    for entry in raw_edges:
+        spec.edges.add(_parse_edge_entry(entry))
+
+    # xflow
+    raw_xflow = value.get("xflow", [])
+    if raw_xflow is None:
+        raw_xflow = []
+    if not isinstance(raw_xflow, Sequence) or isinstance(raw_xflow, (str, bytes)):
+        msg = f"graph.xflow must be a list, got: {type(raw_xflow)}"
+        raise TypeError(msg)
+    for entry in raw_xflow:
+        if isinstance(entry, Mapping):
+            from_coord = _parse_coord3d(entry.get("from"))
+            raw_to = entry.get("to", [])
+            if raw_to is None:
+                raw_to = []
+            if isinstance(raw_to, Sequence) and not isinstance(raw_to, (str, bytes)):
+                for to_coord in raw_to:
+                    spec.flow.add_flow(from_coord, _parse_coord3d(to_coord))
+            else:
+                spec.flow.add_flow(from_coord, _parse_coord3d(raw_to))
+            continue
+        if isinstance(entry, Sequence) and not isinstance(entry, (str, bytes)) and len(entry) == 2:  # noqa: PLR2004
+            from_coord, to_coord = entry
+            spec.flow.add_flow(_parse_coord3d(from_coord), _parse_coord3d(to_coord))
+            continue
+        msg = f"Each graph.xflow entry must be a mapping or [from,to] pair, got: {entry!r}"
+        raise TypeError(msg)
+
+    # schedule
+    schedule_cfg = value.get("schedule", None)
+    if schedule_cfg is not None:
+        if not isinstance(schedule_cfg, Mapping):
+            msg = f"graph.schedule must be a mapping, got: {type(schedule_cfg)}"
+            raise TypeError(msg)
+
+        def _load_time_groups(raw: object, *, kind: str) -> list[Mapping[str, object]]:
+            if raw is None:
+                return []
+            if not isinstance(raw, Sequence) or isinstance(raw, (str, bytes)):
+                msg = f"graph.schedule.{kind} must be a list, got: {type(raw)}"
+                raise TypeError(msg)
+            groups: list[Mapping[str, object]] = []
+            for item in raw:
+                if not isinstance(item, Mapping):
+                    msg = f"graph.schedule.{kind} entries must be mappings, got: {type(item)}"
+                    raise TypeError(msg)
+                groups.append(item)
+            return groups
+
+        for group in _load_time_groups(schedule_cfg.get("prep"), kind="prep"):
+            time = int(cast("SupportsInt", group.get("time")))
+            raw_coords = group.get("nodes", [])
+            if raw_coords is None:
+                raw_coords = []
+            if not isinstance(raw_coords, Sequence) or isinstance(raw_coords, (str, bytes)):
+                msg = f"graph.schedule.prep.nodes must be a list, got: {type(raw_coords)}"
+                raise TypeError(msg)
+            coords = [_parse_coord3d(coord) for coord in raw_coords]
+            spec.scheduler.add_prep_at_time(time, coords)
+
+        for group in _load_time_groups(schedule_cfg.get("meas"), kind="meas"):
+            time = int(cast("SupportsInt", group.get("time")))
+            raw_coords = group.get("nodes", [])
+            if raw_coords is None:
+                raw_coords = []
+            if not isinstance(raw_coords, Sequence) or isinstance(raw_coords, (str, bytes)):
+                msg = f"graph.schedule.meas.nodes must be a list, got: {type(raw_coords)}"
+                raise TypeError(msg)
+            coords = [_parse_coord3d(coord) for coord in raw_coords]
+            spec.scheduler.add_meas_at_time(time, coords)
+
+        for group in _load_time_groups(schedule_cfg.get("entangle"), kind="entangle"):
+            time = int(cast("SupportsInt", group.get("time")))
+            raw_edges = group.get("edges", [])
+            if raw_edges is None:
+                raw_edges = []
+            if not isinstance(raw_edges, Sequence) or isinstance(raw_edges, (str, bytes)):
+                msg = f"graph.schedule.entangle.edges must be a list, got: {type(raw_edges)}"
+                raise TypeError(msg)
+            edges = [_parse_edge_entry(edge) for edge in raw_edges]
+            spec.scheduler.add_entangle_at_time(time, edges)
+            spec.edges.update(edges)
+
+    # detector candidates (parity accumulator)
+    det_cfg = value.get("detector_candidates", None)
+    if det_cfg is not None:
+        if not isinstance(det_cfg, Mapping):
+            msg = f"graph.detector_candidates must be a mapping, got: {type(det_cfg)}"
+            raise TypeError(msg)
+
+        def _parse_parity_groups(raw: object, *, kind: str) -> None:
+            if raw is None:
+                return
+            if not isinstance(raw, Sequence) or isinstance(raw, (str, bytes)):
+                msg = f"graph.detector_candidates.{kind} must be a list, got: {type(raw)}"
+                raise TypeError(msg)
+            for group in raw:
+                if not isinstance(group, Mapping):
+                    msg = f"graph.detector_candidates.{kind} entries must be mappings, got: {type(group)}"
+                    raise TypeError(msg)
+                xy = _parse_coord2d(group.get("id"))
+                rounds = group.get("rounds", [])
+                if rounds is None:
+                    rounds = []
+                if not isinstance(rounds, Sequence) or isinstance(rounds, (str, bytes)):
+                    msg = f"graph.detector_candidates.{kind}.rounds must be a list, got: {type(rounds)}"
+                    raise TypeError(msg)
+                for round_entry in rounds:
+                    if not isinstance(round_entry, Mapping):
+                        msg = (
+                            f"graph.detector_candidates.{kind}.rounds entries must be mappings, "
+                            f"got: {type(round_entry)}"
+                        )
+                        raise TypeError(msg)
+                    z = int(cast("SupportsInt", round_entry.get("z")))
+                    nodes = round_entry.get("nodes", [])
+                    if nodes is None:
+                        nodes = []
+                    coords = [_parse_coord3d(coord) for coord in cast("Sequence[object]", nodes)]
+                    if kind == "syndrome_meas":
+                        spec.parity.add_syndrome_measurement(xy, z, coords)
+                    else:
+                        spec.parity.add_remaining_parity(xy, z, coords)
+
+        _parse_parity_groups(det_cfg.get("syndrome_meas"), kind="syndrome_meas")
+        _parse_parity_groups(det_cfg.get("remaining_parity"), kind="remaining_parity")
+
+        raw_non_det = det_cfg.get("non_deterministic", [])
+        if raw_non_det is None:
+            raw_non_det = []
+        if not isinstance(raw_non_det, Sequence) or isinstance(raw_non_det, (str, bytes)):
+            msg = f"graph.detector_candidates.non_deterministic must be a list, got: {type(raw_non_det)}"
+            raise TypeError(msg)
+        for coord in raw_non_det:
+            spec.parity.add_non_deterministic_coord(_parse_coord3d(coord))
+
+    # Validate cross-references (basis, edges, schedule, parity must reference nodes)
+    if not spec.nodes:
+        msg = "graph.nodes must contain at least one node"
+        raise ValueError(msg)
+    if set(spec.pauli_axes) != spec.nodes:
+        msg = "graph.nodes and graph.nodes[].basis must be provided for every node"
+        raise ValueError(msg)
+
+    def _assert_known(coord: Coord3D, *, context: str) -> None:
+        if coord not in spec.nodes:
+            msg = f"{context} references undefined node: {coord}"
+            raise ValueError(msg)
+
+    for a, b in spec.edges:
+        _assert_known(a, context="graph.edges")
+        _assert_known(b, context="graph.edges")
+
+    for from_coord, to_coords in spec.flow.flow.items():
+        _assert_known(from_coord, context="graph.xflow")
+        for to_coord in to_coords:
+            _assert_known(to_coord, context="graph.xflow")
+
+    for coords in spec.scheduler.prep_time.values():
+        for coord in coords:
+            _assert_known(coord, context="graph.schedule.prep")
+
+    for coords in spec.scheduler.meas_time.values():
+        for coord in coords:
+            _assert_known(coord, context="graph.schedule.meas")
+
+    for edges in spec.scheduler.entangle_time.values():
+        for a, b in edges:
+            _assert_known(a, context="graph.schedule.entangle")
+            _assert_known(b, context="graph.schedule.entangle")
+
+    for z_map in spec.parity.syndrome_meas.values():
+        for coords in z_map.values():
+            for coord in coords:
+                _assert_known(coord, context="graph.detector_candidates.syndrome_meas")
+
+    for z_map in spec.parity.remaining_parity.values():
+        for coords in z_map.values():
+            for coord in coords:
+                _assert_known(coord, context="graph.detector_candidates.remaining_parity")
+
+    return spec
 
 
 def _parse_composite_logical_observables(
@@ -342,6 +683,32 @@ def load_block_config_from_name(
     boundary = _parse_boundary(cfg.get("boundary"), _DEFAULT_BOUNDARY)
     if boundary_override is not None:
         boundary = dict(boundary_override)
+
+    if cfg.get("graph") is not None:
+        if cfg.get("layers"):
+            msg = "Block YAML cannot define both 'layers' and 'graph'."
+            raise ValueError(msg)
+        graph_ref = cfg["graph"]
+        if not isinstance(graph_ref, (str, Path)):
+            msg = "Block YAML 'graph' must be a JSON filename/path (string)."
+            raise TypeError(msg)
+        if isinstance(graph_ref, str) and not graph_ref.strip():
+            msg = "Block YAML 'graph' must be a non-empty JSON filename/path."
+            raise ValueError(msg)
+
+        graph_path = _resolve_json(graph_ref, search_paths)
+        with graph_path.open("r", encoding="utf-8") as f:
+            try:
+                graph_cfg = json.load(f)
+            except json.JSONDecodeError as exc:
+                msg = f"Invalid JSON in graph file '{graph_path}': {exc}"
+                raise ValueError(msg) from exc
+
+        graph_spec = _parse_graph_spec(graph_cfg)
+        block_config = BlockConfig([])
+        block_config.boundary = boundary
+        block_config.graph_spec = graph_spec
+        return block_config
 
     patch_configs = []
     consumed = 0
@@ -440,17 +807,7 @@ def build_canvas(spec: CanvasSpec, *, code_distance: int, extra_paths: Sequence[
             extra_paths=search_paths,
             boundary_override=pipe.boundary,
         )
-        canvas.add_pipe((pipe.start, pipe.end), block_config)
-
-        if pipe.logical_observable is not None:
-            pipe_coords = RotatedSurfaceCodeLayoutBuilder.pipe(code_distance, pipe.start, pipe.end, pipe.boundary)
-            canvas.compute_pipe_cout_from_logical_observable(
-                (pipe.start, pipe.end),
-                block_config,
-                pipe.logical_observable,
-                pipe_coords.ancilla_x,
-                pipe_coords.ancilla_z,
-            )
+        canvas.add_pipe((pipe.start, pipe.end), block_config, pipe.logical_observable)
 
     canvas.logical_observables = spec.logical_observables
     return canvas
