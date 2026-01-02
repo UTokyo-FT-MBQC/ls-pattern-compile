@@ -22,9 +22,9 @@ from graphqomb.common import Axis
 if TYPE_CHECKING:
     from importlib.abc import Traversable
 
-from lspattern.canvas import Canvas, CanvasConfig, GraphSpec
+from lspattern.canvas import Canvas, CanvasConfig
 from lspattern.consts import BoundarySide, EdgeSpecValue
-from lspattern.layout.rotated_surface_code import RotatedSurfaceCodeLayoutBuilder
+from lspattern.fragment import GraphSpec
 from lspattern.loader import BlockConfig, PatchLayoutConfig, load_patch_layout_from_yaml
 from lspattern.mytype import Coord2D, Coord3D, NodeRole
 

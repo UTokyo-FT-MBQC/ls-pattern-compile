@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field, field_validator
 from lspattern.consts import BoundarySide, EdgeSpecValue
 
 if TYPE_CHECKING:
-    from lspattern.canvas import GraphSpec
+    from lspattern.fragment import GraphSpec
 
 
 class LayerConfig(NamedTuple):

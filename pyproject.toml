@@ -135,6 +135,17 @@ docstring-code-format = true
   "D400",
   "PLR6301",
 ]
+"lspattern/canvas.py" = [
+  "C901",    # existing complexity (out of scope for this refactoring)
+  "PLC0415", # import inside function (intentional for circular import avoidance)
+  "TC001",   # imports needed at runtime for dataclass field types
+]
+"lspattern/fragment.py" = [
+  "TC001",   # imports needed at runtime for NamedTuple/dataclass field types
+]
+"lspattern/fragment_builder.py" = [
+  "C901",    # complexity inherited from canvas.py layer-building logic
+]
 "examples/*.py" = [
   "T201", # print
   "D",
