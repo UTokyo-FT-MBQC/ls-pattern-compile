@@ -32,10 +32,14 @@ class LayerConfig(NamedTuple):
         Common values: Axis.X, Axis.Y, Axis.Z, or None (no qubits present).
     ancilla : bool
         Whether ancilla qubits are prepared in this layer.
+    syndrome_meas_without_ancilla : bool
+        Whether to register syndrome measurements (detector candidates) even when
+        ``ancilla`` is ``false`` by inferring parity from neighboring data qubits.
     """
 
     basis: Axis | None
     ancilla: bool
+    syndrome_meas_without_ancilla: bool
 
 
 class PatchLayoutConfig(NamedTuple):
@@ -94,6 +98,10 @@ class LayerConfigValidator(BaseModel):
 
     basis: Axis | None = Field(default=Axis.X, description="Measurement basis for the layer")
     ancilla: bool = Field(default=True, description="Whether ancilla qubits are prepared")
+    syndrome_meas_without_ancilla: bool = Field(
+        default=True,
+        description="Whether to register syndrome measurements when ancilla=false",
+    )
 
     @field_validator("basis", mode="before")
     @classmethod
@@ -175,6 +183,14 @@ def load_patch_layout_from_yaml(yaml_path: Path) -> PatchLayoutConfig:
     return PatchLayoutConfig(
         name=validated.name,
         description=validated.description,
-        layer1=LayerConfig(basis=validated.layer1.basis, ancilla=validated.layer1.ancilla),
-        layer2=LayerConfig(basis=validated.layer2.basis, ancilla=validated.layer2.ancilla),
+        layer1=LayerConfig(
+            basis=validated.layer1.basis,
+            ancilla=validated.layer1.ancilla,
+            syndrome_meas_without_ancilla=validated.layer1.syndrome_meas_without_ancilla,
+        ),
+        layer2=LayerConfig(
+            basis=validated.layer2.basis,
+            ancilla=validated.layer2.ancilla,
+            syndrome_meas_without_ancilla=validated.layer2.syndrome_meas_without_ancilla,
+        ),
     )

@@ -164,7 +164,7 @@ def _build_layer1(
         scheduler.add_meas_at_time(layer_time + _PHYSICAL_CLOCK + ANCILLA_LENGTH + 1, layer1_coords)
 
         # Parity check with data qubits (when no ancilla in this layer)
-        if not layer_cfg.layer1.ancilla:
+        if not layer_cfg.layer1.ancilla and layer_cfg.layer1.syndrome_meas_without_ancilla:
             parity_offset = 1 if layer_cfg.layer1.basis == Axis.X else 0
             ancilla_2d = ancilla_z2d if layer_cfg.layer1.basis == Axis.Z else ancilla_x2d
             for x, y in ancilla_2d:
@@ -240,7 +240,7 @@ def _build_layer2(
         scheduler.add_meas_at_time(layer_time + 2 * (_PHYSICAL_CLOCK + ANCILLA_LENGTH) + 1, layer2_coords)
 
         # Parity check with data qubits (when no ancilla in this layer)
-        if not layer_cfg.layer2.ancilla:
+        if not layer_cfg.layer2.ancilla and layer_cfg.layer2.syndrome_meas_without_ancilla:
             parity_offset = 0 if layer_cfg.layer2.basis == Axis.X else 1
             ancilla_2d = ancilla_z2d if layer_cfg.layer2.basis == Axis.Z else ancilla_x2d
             for x, y in ancilla_2d:
