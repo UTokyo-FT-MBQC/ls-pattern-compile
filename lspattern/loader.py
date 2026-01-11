@@ -5,15 +5,20 @@ This module provides utilities to safely load and validate YAML configuration fi
 that define patch layout layers for MBQC surface code patterns.
 """
 
+from __future__ import annotations
+
 from collections.abc import Sequence
-from pathlib import Path
-from typing import NamedTuple, overload
+from typing import TYPE_CHECKING, NamedTuple, overload
 
 import yaml
 from graphqomb.common import Axis
 from pydantic import BaseModel, Field, field_validator
 
-from lspattern.consts import BoundarySide, EdgeSpecValue
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from lspattern.consts import BoundarySide, EdgeSpecValue
+    from lspattern.fragment import GraphSpec
 
 
 class LayerConfig(NamedTuple):
@@ -62,9 +67,11 @@ class BlockConfig(Sequence[PatchLayoutConfig]):
     """Sequence of PatchLayoutConfig representing a block configuration."""
 
     boundary: dict[BoundarySide, EdgeSpecValue]
+    graph_spec: GraphSpec | None
 
     def __init__(self, configs: Sequence[PatchLayoutConfig]) -> None:
         self._configs = list(configs)
+        self.graph_spec = None
 
     @overload
     def __getitem__(self, index: int) -> PatchLayoutConfig: ...
