@@ -1,0 +1,9 @@
+name: MeasureZUnit
+description: This patch layout specifies a Z measurement unit layer
+
+layer1:
+  basis: Z # layer 1, transversally Z basis
+  ancilla: false # measure layer does not need ancilla qubits
+layer2:
+  basis: null # layer 2, no qubit after measurement
+  ancilla: false

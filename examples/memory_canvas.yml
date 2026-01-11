@@ -1,0 +1,19 @@
+name: Memory Canvas
+description: Global config for rotated surface code based blocks
+
+layout: rotated_surface_code # required
+
+cube:
+  - position: [0, 0, 0]
+    block: InitPlusBlock
+    boundary: XXZZ
+    logical_observables: null
+  - position: [0, 0, 1]
+    block: MeasureXBlock
+    boundary: XXZZ
+    logical_observables: TB # top to bottom, logical X observable
+
+pipe: []
+
+logical_observables:
+  - cube: [[0, 0, 1]] # can be combinations of coordinates

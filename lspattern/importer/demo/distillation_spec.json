@@ -1,0 +1,160 @@
+{
+    "max_i": 8,
+    "max_j": 4,
+    "max_k": 7,
+    "ports": [
+        {
+            "location": [
+                0,
+                0,
+                0
+            ],
+            "direction": "+K",
+            "z_basis_direction": "J"
+        },
+        {
+            "location": [
+                1,
+                0,
+                0
+            ],
+            "direction": "+K",
+            "z_basis_direction": "J"
+        },
+        {
+            "location": [
+                2,
+                0,
+                0
+            ],
+            "direction": "+K",
+            "z_basis_direction": "J"
+        },
+        {
+            "location": [
+                3,
+                0,
+                0
+            ],
+            "direction": "+K",
+            "z_basis_direction": "J"
+        },
+        {
+            "location": [
+                4,
+                0,
+                0
+            ],
+            "direction": "+K",
+            "z_basis_direction": "J"
+        },
+        {
+            "location": [
+                0,
+                1,
+                0
+            ],
+            "direction": "+K",
+            "z_basis_direction": "J"
+        },
+        {
+            "location": [
+                1,
+                1,
+                0
+            ],
+            "direction": "+K",
+            "z_basis_direction": "J"
+        },
+        {
+            "location": [
+                2,
+                1,
+                0
+            ],
+            "direction": "+K",
+            "z_basis_direction": "J"
+        },
+        {
+            "location": [
+                3,
+                1,
+                0
+            ],
+            "direction": "+K",
+            "z_basis_direction": "J"
+        },
+        {
+            "location": [
+                4,
+                1,
+                0
+            ],
+            "direction": "+K",
+            "z_basis_direction": "J"
+        },
+        {
+            "location": [
+                0,
+                2,
+                0
+            ],
+            "direction": "+K",
+            "z_basis_direction": "J"
+        },
+        {
+            "location": [
+                1,
+                2,
+                0
+            ],
+            "direction": "+K",
+            "z_basis_direction": "J"
+        },
+        {
+            "location": [
+                2,
+                2,
+                0
+            ],
+            "direction": "+K",
+            "z_basis_direction": "J"
+        },
+        {
+            "location": [
+                3,
+                2,
+                0
+            ],
+            "direction": "+K",
+            "z_basis_direction": "J"
+        },
+        {
+            "location": [
+                4,
+                2,
+                0
+            ],
+            "direction": "+K",
+            "z_basis_direction": "J"
+        },
+        {
+            "location": [
+                4,
+                2,
+                7
+            ],
+            "direction": "-K",
+            "z_basis_direction": "J"
+        }
+    ],
+    "stabilizers": [
+        "XXXXXXXX........",
+        "XXXX....XXXX....",
+        "XX..XX..XX..XX..",
+        "X.X.X.X.X.X.X.X.",
+        ".XX.X..XX..X.XX.",
+        "..............XX",
+        "..............ZZ"
+    ]
+}

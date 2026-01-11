@@ -1,367 +1,231 @@
-"""Lightweight accumulators for schedules, parities, and flows."""
+"""Coordinate-based accumulators for new block primitives."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from lspattern.mytype import Coord2D
+
 if TYPE_CHECKING:
-    from collections.abc import Mapping
-    from collections.abc import Set as AbstractSet
+    from collections.abc import Collection, Mapping
 
-    from lspattern.mytype import FlowLocal, NodeIdGlobal, NodeIdLocal, PhysCoordLocal2D
-
-
-# Flow helpers (node maps guaranteed to contain all keys)
-def _remap_flow(flow: FlowLocal, node_map: dict[NodeIdLocal, NodeIdLocal]) -> FlowLocal:
-    return {node_map[src]: {node_map[dst] for dst in dsts} for src, dsts in flow.items()}
-
-
-def _merge_flow(a: FlowLocal, b: FlowLocal) -> FlowLocal:
-    out: FlowLocal = {}
-    for src, dsts in a.items():
-        if not dsts:
-            continue
-        out.setdefault(src, set()).update(dsts)
-    for src, dsts in b.items():
-        if not dsts:
-            continue
-        if src in out:
-            msg = f"Flow merge conflict at src {src}"
-            raise ValueError(msg)
-        out.setdefault(src, set()).update(dsts)
-    return out
-
-
-# Parity groups: remap dict[int, set[int]] via node maps.
-def _remap_groups(
-    groups: Mapping[int, AbstractSet[NodeIdLocal]],
-    node_map: Mapping[NodeIdLocal, NodeIdLocal],
-) -> dict[int, set[NodeIdLocal]]:
-    return {
-        z: {node_map.get(n, n) for n in grp}
-        for z, grp in groups.items()
-        if grp  # skip empty
-    }
+    from lspattern.mytype import Coord3D
 
 
 @dataclass
-class ScheduleAccumulator:
-    """Collect time-indexed node sets for measurement schedule."""
+class CoordScheduleAccumulator:
+    """Coordinate-based measurement schedule."""
 
-    schedule: dict[int, set[NodeIdGlobal]] = field(default_factory=dict)
+    prep_time: dict[int, set[Coord3D]] = field(default_factory=dict)
+    meas_time: dict[int, set[Coord3D]] = field(default_factory=dict)
+    entangle_time: dict[int, set[tuple[Coord3D, Coord3D]]] = field(default_factory=dict)
 
-    def remap_nodes(self, node_map: dict[NodeIdGlobal, NodeIdGlobal]) -> ScheduleAccumulator:
-        """Return a new accumulator with node ids remapped by `node_map`.
-
-        Times are preserved; nodes in each time slot are mapped via `node_map`.
-        Unknown nodes are kept as-is for robustness.
-
-        Returns
-        -------
-        ScheduleAccumulator
-            A new instance with remapped node ids.
-        """
-        remapped: dict[int, set[NodeIdGlobal]] = {}
-        for t, nodes in self.schedule.items():
-            remapped[t] = {node_map.get(n, n) for n in nodes}
-        return ScheduleAccumulator(remapped)
-
-    def compose_parallel(self, other: ScheduleAccumulator) -> ScheduleAccumulator:
-        """Merge two schedules slot-wise without shifting times."""
-        new_schedule = self.schedule.copy()
-        for t, nodes in other.schedule.items():
-            if t in new_schedule:
-                new_schedule[t].update(nodes)
-            else:
-                new_schedule[t] = nodes
-        return ScheduleAccumulator(new_schedule)
-
-    def shift_z(self, z_by: int) -> ScheduleAccumulator:
-        """Shift all time slots by `z_by` in-place."""
-        new_schedule = {}
-        for t, nodes in self.schedule.items():
-            new_schedule[t + z_by] = nodes
-        return ScheduleAccumulator(new_schedule)
-
-    def compose_sequential(
-        self,
-        late_schedule: ScheduleAccumulator,
-        exclude_nodes: set[NodeIdGlobal] | None = None,
-    ) -> ScheduleAccumulator:
-        """Concatenate schedules by placing `late_schedule` after this one.
+    def add_prep_at_time(self, time: int, coords: Collection[Coord3D]) -> None:
+        """Add preparation coordinates to the schedule at the given time.
 
         Parameters
         ----------
-        late_schedule : ScheduleAccumulator
-            The schedule to append after this one.
-        exclude_nodes : set[NodeIdGlobal] | None, optional
-            Set of nodes to exclude from the late_schedule when merging.
-
-        Returns
-        -------
-        ScheduleAccumulator
-            New accumulator with schedules concatenated.
+        time : int
+            The time step to add the coordinates to.
+        coords : collections.abc.Collection[Coord3D]
+            The coordinates to add at the specified time.
         """
-        new_schedule = self.schedule.copy()
+        if not coords:
+            return
+        if time not in self.prep_time:
+            self.prep_time[time] = set()
+        self.prep_time[time].update(coords)
 
-        # Calculate the shift amount to ensure continuity
-        if not self.schedule:
-            # If this schedule is empty, no shift needed
-            shift_amount = 0
-        elif not late_schedule.schedule:
-            # If late_schedule is empty, just return copy of this schedule
-            return ScheduleAccumulator(new_schedule)
-        else:
-            # Find the next available time slot after the last occupied slot
-            max_time = max(self.schedule.keys())
-            min_late_time = min(late_schedule.schedule.keys())
-            shift_amount = max_time + 1 - min_late_time
-
-        shifted_late_schedule = late_schedule.shift_z(shift_amount)
-        exclude_set = exclude_nodes or set()
-
-        for t, nodes in shifted_late_schedule.schedule.items():
-            # Filter out excluded nodes from the late schedule
-            filtered_nodes = nodes - exclude_set
-            if filtered_nodes:  # Only add if there are remaining nodes
-                new_schedule[t] = new_schedule.get(t, set()).union(filtered_nodes)
-        return ScheduleAccumulator(new_schedule)
-
-    def exclude_nodes(self, nodes_to_exclude: set[NodeIdGlobal]) -> ScheduleAccumulator:
-        """Remove specified nodes from the schedule.
+    def add_meas_at_time(self, time: int, coords: Collection[Coord3D]) -> None:
+        """Add measurement coordinates to the schedule at the given time.
 
         Parameters
         ----------
-        nodes_to_exclude : set[NodeIdGlobal]
-            Set of nodes to remove from the schedule.
+        time : int
+            The time step to add the coordinates to.
+        coords : collections.abc.Collection[Coord3D]
+            The coordinates to add at the specified time.
+        """
+        if not coords:
+            return
+        if time not in self.meas_time:
+            self.meas_time[time] = set()
+        self.meas_time[time].update(coords)
+
+    def add_entangle_at_time(self, time: int, edges: Collection[tuple[Coord3D, Coord3D]]) -> None:
+        """Add entangling edges to the schedule at the given time.
+
+        Parameters
+        ----------
+        time : int
+            The time step to add the edges to.
+        edges : collections.abc.Collection[tuple[Coord3D, Coord3D]]
+            The edges to add at the specified time.
+        """
+        if not edges:
+            return
+        if time not in self.entangle_time:
+            self.entangle_time[time] = set()
+        self.entangle_time[time].update(edges)
+
+    def to_node_schedule(
+        self, coord2node: Mapping[Coord3D, int]
+    ) -> tuple[dict[int, int], dict[int, int], dict[tuple[int, int], int]]:
+        """Convert coordinate-based schedule to node identifier-based schedule.
+
+        Parameters
+        ----------
+        coord2node : collections.abc.Mapping[Coord3D, int]
+            A mapping from coordinates to node identifiers.
 
         Returns
         -------
-        ScheduleAccumulator
-            New accumulator with specified nodes removed.
+        tuple[dict[int, int], dict[int, int], dict[tuple[int, int], int]]
+            A tuple containing three dictionaries for preparation, measurement,
+            and entangling schedules indexed by time steps.
         """
-        new_schedule = {}
-        for t, nodes in self.schedule.items():
-            filtered_nodes = nodes - nodes_to_exclude
-            if filtered_nodes:  # Only add if there are remaining nodes
-                new_schedule[t] = filtered_nodes
-        return ScheduleAccumulator(new_schedule)
+        prep_schedule: dict[int, int] = {}
+        meas_schedule: dict[int, int] = {}
+        entangle_schedule: dict[tuple[int, int], int] = {}
 
-    def compact(self) -> ScheduleAccumulator:
-        """Remove empty time slots and reindex times to be consecutive starting from 0.
+        for time, coords in self.prep_time.items():
+            mapped = {coord2node[c] for c in coords if c in coord2node}
+            for node in mapped:
+                prep_schedule[node] = time
 
-        Example
-        -------
-        If the schedule has nodes at times [0, 2, 5, 7], this method will
-        remap them to times [0, 1, 2, 3] while preserving the order.
+        for time, coords in self.meas_time.items():
+            mapped = {coord2node[c] for c in coords if c in coord2node}
+            for node in mapped:
+                meas_schedule[node] = time
+
+        for time, edges in self.entangle_time.items():
+            mapped_edge = {
+                (coord2node[c1], coord2node[c2]) for c1, c2 in edges if c1 in coord2node and c2 in coord2node
+            }
+            if mapped_edge:
+                for edge in mapped_edge:
+                    entangle_schedule[edge] = time
+
+        return prep_schedule, meas_schedule, entangle_schedule
+
+
+@dataclass
+class CoordFlowAccumulator:
+    """Coordinate-based flow (correction dependencies)."""
+
+    flow: dict[Coord3D, set[Coord3D]] = field(default_factory=dict)
+
+    def add_flow(self, from_coord: Coord3D, to_coord: Coord3D) -> None:
+        """Add a flow edge from `from_coord` to `to_coord`.
+
+        Parameters
+        ----------
+        from_coord : Coord3D
+            The starting coordinate of the flow edge.
+        to_coord : Coord3D
+            The ending coordinate of the flow edge.
+        """
+        if from_coord not in self.flow:
+            self.flow[from_coord] = set()
+        self.flow[from_coord].add(to_coord)
+
+    def to_node_flow(self, coord2node: Mapping[Coord3D, int]) -> dict[int, set[int]]:
+        """Convert flow coordinates to node identifiers using `coord2node`.
+
+        Parameters
+        ----------
+        coord2node : collections.abc.Mapping[Coord3D, int]
+            A mapping from coordinates to node identifiers.
 
         Returns
         -------
-        ScheduleAccumulator
-            New accumulator with compacted time slots.
+        dict[int, set[int]]
+            A mapping from node identifiers to sets of dependent node identifiers.
         """
-        if not self.schedule:
-            return ScheduleAccumulator()
-
-        # Get sorted list of times that actually have nodes
-        occupied_times = sorted(t for t, nodes in self.schedule.items() if nodes)
-
-        # Create mapping from old time to new consecutive time
-        time_mapping = {old_time: new_time for new_time, old_time in enumerate(occupied_times)}
-
-        # Build new schedule with compacted times
-        compacted_schedule: dict[int, set[NodeIdGlobal]] = {}
-        for old_time, nodes in self.schedule.items():
-            if nodes and old_time in time_mapping:  # Only include non-empty slots
-                new_time = time_mapping[old_time]
-                compacted_schedule[new_time] = nodes.copy()
-
-        return ScheduleAccumulator(compacted_schedule)
+        result: dict[int, set[int]] = {}
+        for from_coord, to_coords in self.flow.items():
+            if from_coord not in coord2node or not to_coords:
+                continue
+            from_node = coord2node[from_coord]
+            mapped = {coord2node[to_c] for to_c in to_coords if to_c in coord2node}
+            if mapped:
+                result[from_node] = mapped
+        return result
 
 
 @dataclass
-class ParityAccumulator:
-    """Parity check groups for X/Z stabilizers in local id space."""
+class CoordParityAccumulator:
+    """Coordinate-based parity checks indexed by (x, y, z)."""
 
-    checks: dict[PhysCoordLocal2D, dict[int, set[NodeIdLocal]]] = field(default_factory=dict)
-    dangling_parity: dict[PhysCoordLocal2D, set[NodeIdLocal]] = field(default_factory=dict)
-    ignore_dangling: dict[PhysCoordLocal2D, bool] = field(default_factory=dict)
+    syndrome_meas: dict[Coord2D, dict[int, set[Coord3D]]] = field(default_factory=dict)
+    remaining_parity: dict[Coord2D, dict[int, set[Coord3D]]] = field(default_factory=dict)
+    non_deterministic_coords: set[Coord3D] = field(default_factory=set)
 
-    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> ParityAccumulator:
-        """Return a new parity accumulator with nodes remapped via `node_map`."""
-        # Fast remap via dict comprehensions
-        new_checks = {k: _remap_groups(v, node_map) for k, v in self.checks.items()}
-
-        # Remap dangling_parity as well
-        new_dangling = {coord: {node_map.get(n, n) for n in nodes} for coord, nodes in self.dangling_parity.items()}
-
-        # Preserve ignore_dangling information
-        new_ignore_dangling = self.ignore_dangling.copy()
-
-        return ParityAccumulator(
-            checks=new_checks,
-            dangling_parity=new_dangling,
-            ignore_dangling=new_ignore_dangling,
-        )
-
-    def _handle_dangling_connection(
-        self,
-        coord: PhysCoordLocal2D,
-        checks_dict: dict[int, set[NodeIdLocal]],
-        other: ParityAccumulator,
-    ) -> None:
-        """Handle dangling connection logic for a specific coordinate."""
-        # Check if this coordinate should ignore dangling connection
-        if other.ignore_dangling.get(coord, False):
-            # Don't connect
-            for z, check_group in other.checks[coord].items():
-                checks_dict[z] = check_group.copy()
-        else:
-            # Original behavior: connect dangling with first check
-            other_checks = other.checks[coord]
-            if other_checks:
-                # Find the smallest z in other's checks
-                min_z = min(other_checks.keys())
-                merged = self.dangling_parity[coord].union(other_checks[min_z])
-                checks_dict[min_z] = merged
-                # Add remaining checks from other
-                for z, check_group in other_checks.items():
-                    if z > min_z:
-                        checks_dict[z] = check_group.copy()
-
-    def merge_with(self, other: ParityAccumulator) -> ParityAccumulator:  # noqa: C901
-        """Merge two parity accumulators with dangling parity handling for sequential composition."""
-        new_checks: dict[PhysCoordLocal2D, dict[int, set[NodeIdLocal]]] = {}
-        new_dangling: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
-        new_ignore_dangling: dict[PhysCoordLocal2D, bool] = {}
-
-        # Get all coordinates from both accumulators
-        all_coords = (
-            set(self.checks.keys())
-            | set(self.dangling_parity.keys())
-            | set(other.checks.keys())
-            | set(other.dangling_parity.keys())
-            | set(self.ignore_dangling.keys())
-            | set(other.ignore_dangling.keys())
-        )
-
-        for coord in all_coords:
-            # Start with self's completed checks (copy the z-dict)
-            checks_dict = self.checks.get(coord, {}).copy()
-
-            coord_in_dangling = coord in self.dangling_parity
-            coord_in_otherchecks = coord in other.checks
-            match (coord_in_dangling, coord_in_otherchecks):
-                case (True, True):
-                    # Handle connection between self.dangling and other.checks
-                    self._handle_dangling_connection(coord, checks_dict, other)
-                case (True, False):
-                    # self has dangling but other doesn't have this coord
-                    # => Keep dangling for potential future connection
-                    new_dangling[coord] = self.dangling_parity[coord].copy()
-                case (False, True):
-                    # self has no dangling, other has checks
-                    for z, check_group in other.checks[coord].items():
-                        checks_dict[z] = check_group.copy()
-                case (False, False):
-                    pass
-
-            # Set new dangling from other (overwrites any existing)
-            if coord in other.dangling_parity:
-                new_dangling[coord] = other.dangling_parity[coord].copy()
-
-            # Inherit ignore_dangling information from other (prioritize other's settings)
-            if coord in self.ignore_dangling:
-                new_ignore_dangling[coord] = self.ignore_dangling[coord]
-            elif coord in other.ignore_dangling:
-                new_ignore_dangling[coord] = other.ignore_dangling[coord]
-
-            # Save checks dict if it has content
-            if checks_dict:
-                new_checks[coord] = checks_dict
-
-        return ParityAccumulator(
-            checks=new_checks,
-            dangling_parity=new_dangling,
-            ignore_dangling=new_ignore_dangling,
-        )
-
-    def merge_parallel(self, other: ParityAccumulator) -> ParityAccumulator:  # noqa: C901
-        """Merge two parity accumulators for parallel composition with XOR merging at same z coordinates."""
-        new_checks: dict[PhysCoordLocal2D, dict[int, set[NodeIdLocal]]] = {}
-        new_dangling: dict[PhysCoordLocal2D, set[NodeIdLocal]] = {}
-        new_ignore_dangling: dict[PhysCoordLocal2D, bool] = {}
-
-        # Get all coordinates from both accumulators
-        all_coords = (
-            set(self.checks.keys())
-            | set(other.checks.keys())
-            | set(self.dangling_parity.keys())
-            | set(other.dangling_parity.keys())
-            | set(self.ignore_dangling.keys())
-            | set(other.ignore_dangling.keys())
-        )
-
-        for coord in all_coords:
-            checks_dict: dict[int, set[NodeIdLocal]] = {}
-
-            # Process checks from self
-            if coord in self.checks:
-                for z, check_group in self.checks[coord].items():
-                    checks_dict[z] = check_group.copy()
-
-            # Process checks from other
-            if coord in other.checks:
-                for z, check_group in other.checks[coord].items():
-                    if z in checks_dict:
-                        # XOR merge for same z coordinate
-                        checks_dict[z] ^= check_group
-                    else:
-                        checks_dict[z] = check_group.copy()
-
-            # Remove empty checks
-            checks_dict = {z: group for z, group in checks_dict.items() if group}
-
-            # Save checks dict if it has content
-            if checks_dict:
-                new_checks[coord] = checks_dict
-
-            # Process dangling parity
-            if coord in other.dangling_parity:
-                new_dangling[coord] = other.dangling_parity[coord].copy()
-                if coord in self.dangling_parity:
-                    new_dangling[coord] ^= self.dangling_parity[coord]
-            elif coord in self.dangling_parity:
-                new_dangling[coord] = self.dangling_parity[coord].copy()
-
-            # Process ignore_dangling: if either accumulator ignores dangling at this coord, keep ignoring
-            if self.ignore_dangling.get(coord, False) or other.ignore_dangling.get(coord, False):
-                new_ignore_dangling[coord] = True
-
-        return ParityAccumulator(
-            checks=new_checks,
-            dangling_parity=new_dangling,
-            ignore_dangling=new_ignore_dangling,
-        )
+    def add_syndrome_measurement(self, xy: Coord2D, z: int, involved_coords: Collection[Coord3D]) -> None:
+        """Add a syndrome measurement at coordinate `coord`.
 
 
-@dataclass
-class FlowAccumulator:
-    """Directed flow relations between nodes for X/Z types."""
+        Parameters
+        ----------
+        xy : Coord2D
+            The (x, y) coordinate of the syndrome measurement.
+        z : int
+            The z-coordinate (layer) of the syndrome measurement.
+        involved_coords : collections.abc.Collection[Coord3D]
+            The coordinates involved in the syndrome measurement.
 
-    flow: FlowLocal = field(default_factory=dict)
+        Notes
+        -----
+        This is a pre-processing step before constructing parity checks.
+        """
+        if not involved_coords:
+            return
+        if xy not in self.syndrome_meas:
+            self.syndrome_meas[xy] = {}
+        if z not in self.syndrome_meas[xy]:
+            self.syndrome_meas[xy][z] = set()
+        self.syndrome_meas[xy][z].update(involved_coords)
 
-    def remap_nodes(self, node_map: dict[NodeIdLocal, NodeIdLocal]) -> FlowAccumulator:
-        """Return a new flow accumulator with ids remapped via `node_map`."""
-        new_flow = _remap_flow(self.flow, node_map)
-        return FlowAccumulator(
-            flow=new_flow,
-        )
+    def add_remaining_parity(self, xy: Coord2D, z: int, involved_coords: Collection[Coord3D]) -> None:
+        """Add remaining parity information at coordinate `coord`.
 
-    def merge_with(self, other: FlowAccumulator) -> FlowAccumulator:
-        """Union-merge two flow accumulators (local/global-agnostic)."""
-        new_flow = _merge_flow(self.flow, other.flow)
-        return FlowAccumulator(
-            flow=new_flow,
-        )
+        Parameters
+        ----------
+        xy : Coord2D
+            The (x, y) coordinate of the remaining parity.
+        z : int
+            The z-coordinate (layer) of the remaining parity.
+        involved_coords : collections.abc.Collection[Coord3D]
+            The coordinates involved in the remaining parity.
+
+        Notes
+        -----
+        This is a pre-processing step before constructing parity checks.
+        """
+        if not involved_coords:
+            return
+        if xy not in self.remaining_parity:
+            self.remaining_parity[xy] = {}
+        if z not in self.remaining_parity[xy]:
+            self.remaining_parity[xy][z] = set()
+        self.remaining_parity[xy][z].update(involved_coords)
+
+    def add_non_deterministic_coord(self, coord: Coord3D) -> None:
+        """Mark a coordinate as non-deterministic.
+
+        Parameters
+        ----------
+        coord : Coord3D
+            The coordinate to mark as non-deterministic.
+        """
+        if Coord2D(coord.x, coord.y) not in self.syndrome_meas:
+            msg = (
+                f"Cannot add non-deterministic coord {coord} "
+                f"without existing syndrome measurement at (x={coord.x}, y={coord.y})"
+            )
+            raise KeyError(msg)
+        if coord.z not in self.syndrome_meas[Coord2D(coord.x, coord.y)]:
+            msg = f"Cannot add non-deterministic coord {coord} without existing syndrome measurement at z={coord.z}"
+            raise KeyError(msg)
+        self.non_deterministic_coords.add(coord)

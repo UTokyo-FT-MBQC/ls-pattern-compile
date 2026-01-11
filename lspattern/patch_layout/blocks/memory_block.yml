@@ -1,0 +1,6 @@
+name: MemoryBlock
+description: This block represents a memory block
+
+layers: # list of layers in this block
+  - type: MemoryUnit
+    num_layers_from_distance: rest

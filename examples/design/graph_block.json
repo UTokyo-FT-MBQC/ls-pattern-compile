@@ -1,0 +1,51 @@
+{
+  "coord_mode": "local",
+  "time_mode": "local",
+  "nodes": [
+    {
+      "coord": [0, 0, 0],
+      "basis": "X"
+    },
+    {
+      "coord": [2, 0, 0],
+      "basis": "Z"
+    }
+  ],
+  "edges": [
+    [[0, 0, 0], [2, 0, 0]]
+  ],
+  "xflow": [],
+  "schedule": {
+    "prep": [
+      {
+        "time": 0,
+        "nodes": [[0, 0, 0], [2, 0, 0]]
+      }
+    ],
+    "entangle": [
+      {
+        "time": 1,
+        "edges": [[[0, 0, 0], [2, 0, 0]]]
+      }
+    ],
+    "meas": [
+      {
+        "time": 2,
+        "nodes": [[0, 0, 0], [2, 0, 0]]
+      }
+    ]
+  },
+  "detector_candidates": {
+    "syndrome_meas": [
+      {
+        "id": [1, 1],
+        "rounds": [
+          {
+            "z": 0,
+            "nodes": [[0, 0, 0]]
+          }
+        ]
+      }
+    ]
+  }
+}

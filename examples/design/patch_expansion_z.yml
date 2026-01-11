@@ -1,0 +1,45 @@
+name: Patch Expansion along Z boundary
+description: Global config for rotated surface code based blocks
+
+layout: rotated_surface_code # required
+
+cube:
+  - position: [0, 0, 0]
+    block: InitPlusBlock
+    boundary: ZZXX
+  - position: [0, 0, 1]
+    block: MemoryBlock
+    boundary: ZZXX
+  # - position: [1, 0, 1]
+  #   block: InitPlusBlock
+  #   boundary: ZZXX
+  - position: [0, 0, 2]
+    block: MemoryBlock
+    boundary: ZZXO
+  - position: [1, 0, 2]
+    block: InitPlusBlock
+    boundary: ZZOX
+  - position: [0, 0, 3]
+    block: MeasureXBlock
+    boundary: ZZXO
+    logical_observables: LR
+  - position: [1, 0, 3]
+    block: MeasureXBlock
+    boundary: ZZOX
+    logical_observables: LR
+
+pipe:
+  - start: [0, 0, 2]
+    end: [1, 0, 2]
+    block: InitPlusBlock
+    boundary: ZZOO
+    logical_observables: Z
+  - start: [0, 0, 3]
+    end: [1, 0, 3]
+    block: MeasureXBlock
+    boundary: ZZOO
+    logical_observables: LR
+
+logical_observables:
+  - cube: [[0, 0, 3], [1, 0, 3]] # cube
+    pipe: [[[0, 0, 3], [1, 0, 3]]]

@@ -8,58 +8,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Added `compile_to_stim()` function in `lspattern.compile` to streamline CompiledRHGCanvas to stim.Circuit compilation ([#63](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/63))
-  - Unified API that internally handles scheduler setup, parity extraction, pattern compilation, and logical observable resolution
-  - Supports both PatchCoordGlobal3D and PipeCoordGlobal3D for logical observable coordinates
-  - Reduces boilerplate code from ~30-40 lines to ~3-5 lines in example files
-  - Updated all example files to use the new API
-- Added `to_edgespec()` utility function for standardized edge specification conversion and manipulation.
-- Enhanced Plotly visualization with X-parity highlighting for improved logical observable analysis.
-- Added new CNOT error simulation examples demonstrating error propagation and logical error rate analysis.
-
-### Fixed
-- Resolved duplicate/missing entries in `CompiledRHGCanvas.coord2node` by remapping node IDs before merging layers and by ignoring conflicting coordinate claims, ensuring global graphs stay consistent across compositions. Added regression coverage in `tests/test_coord2node_integrity.py`.
-- Fixed pipe direction detection bug (OOOO edgespec ambiguity) to ensure correct edge orientation and connectivity in global graph construction.
-  - Integration tests in `tests/integration/test_cnot_integration.py` with circuit fingerprint verification
-  - Regression tests in `tests/test_coord2node_integrity.py` to prevent coord2node mapping bugs
-- **Utility function for edge specification** ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
-  - Added `to_edgespec()` function in `lspattern/utils.py` for convenient string-based edge spec creation
-  - Accepts 4-character strings (e.g., "ZZXX") representing LEFT, RIGHT, TOP, BOTTOM boundaries
-  - Supports characters O (open), X (rough X), Z (rough Z) in any case
-- **Enhanced Plotly visualization for compiled canvases** ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
-  - Added `show_xparity` parameter to `visualize_compiled_canvas_plotly()` for X-parity check visualization
-  - Renders parity connections as directed edges with arrow cones showing stabilizer measurement flow
-  - Color-coded parity lines (red) with hover information showing node pairs
-  - Improved spatial layout and visual clarity for debugging detector structure
+- Complete architecture overhaul with YAML-based declarative design system ([#81](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/81), [#79](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/79), [#75](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/75), [#67](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/67), [#66](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/66), [#62](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/62), [#51](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/51), [#33](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/33), [#32](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/32), [#22](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/22))
+- `lspattern/layout/rotated_surface_code.py`: Rotated Surface Code tiling logic with comprehensive boundary handling
+- `lspattern/importer/las.py`: LAS (Lattice Surgery Assembly) importer for external circuit specifications
+- `lspattern/detector.py`: Detector group processing for error correction
+- `lspattern/simulator.py`: Error simulation utilities
+- `lspattern/visualizer.py`, `lspattern/visualizer_2d.py`: 3D and 2D visualization tools
+- `lspattern/plot_error_rate.py`: Logical error rate fitting and analysis utilities
+- `lspattern/patch_layout/blocks/`: YAML block definitions (memory, init_plus/zero, measure_x/z, etc.)
+- `lspattern/patch_layout/layers/`: YAML layer unit definitions
+- `examples/design/`: New YAML design files (cnot, merge_split, patch_expansion, xx_meas, etc.)
+- New examples: `memory.py`, `verification_canvas.py`, `logical_error_rate.py`
+- `tests/test_rotated_surface_code.py`: Comprehensive tests for rotated surface code (630+ lines)
+- `tests/test_canvas_loader_paths.py`: Canvas loader path resolution tests
 
 ### Changed
-- **Fixed pipe direction handling in templates** ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
-  - `RotatedPlanarPipetemplate` now requires explicit `direction: PIPEDIRECTION` parameter
-  - Pipe tiling no longer inferred from edge specifications; uses explicit direction (LEFT/RIGHT/TOP/BOTTOM)
-  - Updated `_InitPipeBase` to pass `direction` parameter to template initialization
-  - Prevents ambiguous pipe orientation errors in complex circuits
-- **Improved coord2node composition logic** ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
-  - Enhanced `_build_merged_coord2node()` in `lspattern/canvas/compiled.py` with duplicate node detection
-  - Added validation to prevent missing graph states during temporal layer composition
-  - Better error messages for node mapping mismatches
-- **Enhanced InitZeroPipe cout_port handling** ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
-  - Implemented `set_cout_ports()` for `InitZeroPipe` (previously missing)
-  - Consistent z-offset calculation (+1 from base) matching initialization layer structure
-  - Enables proper classical output tracking for zero-initialized merge operations
-- Updated all example files to use `to_edgespec()` utility for cleaner edge specification ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
+- **BREAKING**: Complete API redesign - consolidated `lspattern/canvas/` module structure into single `lspattern/canvas.py`
+- **BREAKING**: Removed entire `lspattern/blocks/` hierarchy (cubes, pipes, layers, unit_layer)
+- **BREAKING**: Removed `lspattern/consts/` directory and legacy constant definitions
+- Simplified accumulator API in `lspattern/accumulator.py`
+- Migrated to YAML-based configuration for block and layer definitions
+- Restructured examples to use new architecture
 
-### Fixed
-- Resolved duplicate/missing entries in `CompiledRHGCanvas.coord2node` by remapping node IDs before merging layers and by ignoring conflicting coordinate claims, ensuring global graphs stay consistent across compositions. Added regression coverage in `tests/test_coord2node_integrity.py`. ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
-- Fixed z-offset calculation bug in pipe initialization (off-by-one error) ensuring correct temporal layer alignment ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
-- Fixed pipe direction inference bug where edge spec ambiguity caused incorrect pipe orientation ([#89](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/pull/89))
-- Added tiling visualization example (`examples/tiling_visualization.py`)
-  - Demonstrates various tiling patterns for rotated planar cubes and pipes
-  - Visualizes different edge specifications (XXZZ, ZZXX, OOOO, ZXZX)
-  - Shows horizontal and vertical pipe configurations
-
-### Fixed
-- Resolved duplicate/missing entries in `CompiledRHGCanvas.coord2node` by remapping node IDs before merging layers and by ignoring conflicting coordinate claims, ensuring global graphs stay consistent across compositions. Added regression coverage in `tests/test_coord2node_integrity.py`.
-- Fixed a bug where corner nodes were incorrectly handled during graph composition, leading to missing or duplicated nodes at the corners of merged patterns. The issue was caused by improper coordinate mapping logic for corner cases and is now resolved by explicitly checking and remapping corner coordinates during the merge process. (cherry-picked from commit 33541fc)
+### Removed
+- `lspattern/blocks/` directory (base.py, cubes/, pipes/, layers/, unit_layer.py, layered_builder.py)
+- `lspattern/canvas/` modular structure (canvas.py, compiled.py, composition.py, coordinates.py, ports.py, seams.py, etc.)
+- Legacy example files (layered_*, merge_split_mockup, *_error_sim, pipe_visualization, etc.)
+- 87 legacy test files for old architecture
+- Documentation files (docs/scheduler-merge-workflow.md, docs/testing.md, tests/snapshot_testing_guide.md)
+- Snapshot test files and integration tests
 
 ---
 

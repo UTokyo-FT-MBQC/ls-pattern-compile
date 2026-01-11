@@ -1,0 +1,9 @@
+name: MeasureZZUnit
+description: This patch layout specifies a ZZ measurement unit layer
+
+layer1:
+  basis: X # layer 1, transversally X basis, can be omitted, defaults to X
+  ancilla: true # layer 1 needs ancilla qubits for ZZ measurement
+layer2:
+  basis: X # layer 2, transversally X basis, can be omitted, defaults to X
+  ancilla: true

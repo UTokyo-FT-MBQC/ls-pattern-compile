@@ -1,0 +1,50 @@
+name: Merge and Split XX Measurement
+description: Global config for rotated surface code based blocks
+
+layout: rotated_surface_code # required
+
+cube:
+  - position: [0, 0, 0]
+    block: InitPlusBlock
+    boundary: XXZZ
+  - position: [1, 0, 0]
+    block: InitPlusBlock
+    boundary: XXZZ
+  - position: [0, 0, 1]
+    block: MemoryBlock
+    boundary: XXZO
+  - position: [1, 0, 1]
+    block: MemoryBlock
+    boundary: XXOZ
+  - position: [0, 0, 2]
+    block: MemoryBlock
+    boundary: XXZZ
+  - position: [1, 0, 2]
+    block: MemoryBlock
+    boundary: XXZZ
+  - position: [0, 0, 3]
+    block: MeasureXBlock
+    boundary: XXZZ
+    logical_observables: TB
+  - position: [1, 0, 3]
+    block: MeasureXBlock
+    boundary: XXZZ
+    logical_observables: TB
+
+pipe:
+  - start: [0, 0, 1]
+    end: [1, 0, 1]
+    block: InitZeroBlock
+    boundary: XXOO
+    logical_observables: X
+  - start: [0, 0, 2]
+    end: [1, 0, 2]
+    block: MeasureZBlock
+    boundary: XXOO
+    logical_observables: TB
+
+logical_observables:
+  - cube: [[0, 0, 3]] # cube
+  - cube: [[1, 0, 3]] # cube
+  - cube: [[0, 0, 3], [1, 0, 3]] # both cube and pipe
+    pipe: [[[0, 0, 1], [1, 0, 1]]]

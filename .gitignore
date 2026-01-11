@@ -217,6 +217,7 @@ __marimo__/
 uv.lock
 AGENTS.md
 CLAUDE.md
+tmp/*
 
 # Personal pyright configuration
 .pyrightconfig.json

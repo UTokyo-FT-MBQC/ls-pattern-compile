@@ -1,0 +1,9 @@
+name: InitZeroUnit
+description: This patch layout specifies an init zero unit layer
+
+layer1:
+  basis: null # layer 1, no qubit preparation
+  ancilla: false # no ancilla qubits prepared
+layer2:
+  basis: X # layer 2, transversally X basis, can be omitted, defaults to X
+  ancilla: true

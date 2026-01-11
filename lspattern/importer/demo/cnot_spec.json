@@ -1,0 +1,12 @@
+{
+  "max_i": 2,
+  "max_j": 2,
+  "max_k": 3,
+  "ports": [
+    {"location": [1, 0, 0], "direction": "+K", "z_basis_direction": "J"},
+    {"location": [0, 1, 0], "direction": "+K", "z_basis_direction": "J"},
+    {"location": [1, 0, 3], "direction": "-K", "z_basis_direction": "J"},
+    {"location": [0, 1, 3], "direction": "-K", "z_basis_direction": "J"}
+  ],
+  "stabilizers": ["Z.Z.", ".ZZZ", "X.XX", ".X.X"]
+}
