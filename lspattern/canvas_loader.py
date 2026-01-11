@@ -7,8 +7,8 @@ only, e.g., ``load_canvas("memory_canvas")``.
 
 from __future__ import annotations
 
-import re
 import json
+import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from importlib import resources
@@ -20,7 +20,7 @@ import yaml
 from graphqomb.common import Axis
 
 if TYPE_CHECKING:
-    from importlib.abc import Traversable
+    from importlib.resources.abc import Traversable
 
 from lspattern.canvas import Canvas, CanvasConfig
 from lspattern.consts import BoundarySide, EdgeSpecValue
@@ -206,7 +206,7 @@ def _resolve_json(name: str | Path, extra_paths: Sequence[Path | str]) -> Path:
 
     candidate = Path(name)
     candidates = [candidate]
-    if candidate.suffix == "":
+    if not candidate.suffix:
         candidates.append(candidate.with_suffix(".json"))
 
     # Explicit / relative path
@@ -262,7 +262,7 @@ def _parse_boundary(
     raise TypeError(msg)
 
 
-def _parse_logical_observable(value: object | None) -> LogicalObservableSpec | None:
+def _parse_logical_observable(value: object | None) -> LogicalObservableSpec | None:  # noqa: C901
     if value is None:
         return None
     if isinstance(value, str):
@@ -368,22 +368,25 @@ def _parse_edge_entry(entry: object) -> tuple[Coord3D, Coord3D]:
     raise TypeError(msg)
 
 
-def _parse_graph_spec(value: object) -> GraphSpec:  # noqa: C901, PLR0912
+def _parse_graph_spec(value: object) -> GraphSpec:  # noqa: C901
     if not isinstance(value, Mapping):
         msg = f"graph must be a mapping, got: {type(value)}"
         raise TypeError(msg)
 
-    coord_mode = str(value.get("coord_mode", "local")).strip().lower()
-    if coord_mode not in {"local", "global"}:
-        msg = f"graph.coord_mode must be 'local' or 'global', got: {coord_mode!r}"
+    coord_mode_value = str(value.get("coord_mode", "local")).strip().lower()
+    if coord_mode_value not in {"local", "global"}:
+        msg = f"graph.coord_mode must be 'local' or 'global', got: {coord_mode_value!r}"
         raise ValueError(msg)
 
-    time_mode = str(value.get("time_mode", "local")).strip().lower()
-    if time_mode not in {"local", "global"}:
-        msg = f"graph.time_mode must be 'local' or 'global', got: {time_mode!r}"
+    time_mode_value = str(value.get("time_mode", "local")).strip().lower()
+    if time_mode_value not in {"local", "global"}:
+        msg = f"graph.time_mode must be 'local' or 'global', got: {time_mode_value!r}"
         raise ValueError(msg)
 
-    spec = GraphSpec(coord_mode=coord_mode, time_mode=time_mode)
+    spec = GraphSpec(
+        coord_mode="local" if coord_mode_value == "local" else "global",
+        time_mode="local" if time_mode_value == "local" else "global",
+    )
 
     # Nodes
     raw_nodes = value.get("nodes", [])
@@ -503,7 +506,7 @@ def _parse_graph_spec(value: object) -> GraphSpec:  # noqa: C901, PLR0912
             msg = f"graph.detector_candidates must be a mapping, got: {type(det_cfg)}"
             raise TypeError(msg)
 
-        def _parse_parity_groups(raw: object, *, kind: str) -> None:
+        def _parse_parity_groups(raw: object, *, kind: str) -> None:  # noqa: C901
             if raw is None:
                 return
             if not isinstance(raw, Sequence) or isinstance(raw, (str, bytes)):
@@ -571,27 +574,27 @@ def _parse_graph_spec(value: object) -> GraphSpec:  # noqa: C901, PLR0912
         for to_coord in to_coords:
             _assert_known(to_coord, context="graph.xflow")
 
-    for coords in spec.scheduler.prep_time.values():
-        for coord in coords:
+    for coords_at_time in spec.scheduler.prep_time.values():
+        for coord in coords_at_time:
             _assert_known(coord, context="graph.schedule.prep")
 
-    for coords in spec.scheduler.meas_time.values():
-        for coord in coords:
+    for coords_at_time in spec.scheduler.meas_time.values():
+        for coord in coords_at_time:
             _assert_known(coord, context="graph.schedule.meas")
 
-    for edges in spec.scheduler.entangle_time.values():
-        for a, b in edges:
+    for edges_at_time in spec.scheduler.entangle_time.values():
+        for a, b in edges_at_time:
             _assert_known(a, context="graph.schedule.entangle")
             _assert_known(b, context="graph.schedule.entangle")
 
     for z_map in spec.parity.syndrome_meas.values():
-        for coords in z_map.values():
-            for coord in coords:
+        for coords_in_round in z_map.values():
+            for coord in coords_in_round:
                 _assert_known(coord, context="graph.detector_candidates.syndrome_meas")
 
     for z_map in spec.parity.remaining_parity.values():
-        for coords in z_map.values():
-            for coord in coords:
+        for coords_in_round in z_map.values():
+            for coord in coords_in_round:
                 _assert_known(coord, context="graph.detector_candidates.remaining_parity")
 
     return spec

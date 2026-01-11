@@ -8,16 +8,16 @@ that define patch layout layers for MBQC surface code patterns.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, overload
 
 import yaml
 from graphqomb.common import Axis
 from pydantic import BaseModel, Field, field_validator
 
-from lspattern.consts import BoundarySide, EdgeSpecValue
-
 if TYPE_CHECKING:
+    from pathlib import Path
+
+    from lspattern.consts import BoundarySide, EdgeSpecValue
     from lspattern.fragment import GraphSpec
 
 
