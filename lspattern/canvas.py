@@ -220,7 +220,7 @@ class Canvas:
     def parity_accumulator(self) -> CoordParityAccumulator:
         return self.__parity
 
-    def _merge_graph_spec(self, graph_spec: GraphSpec, *, coord_offset: Coord3D, time_offset: int) -> None:
+    def _merge_graph_spec(self, graph_spec: GraphSpec, *, coord_offset: Coord3D, time_offset: int) -> None:  # noqa: C901
         def translate_coord(coord: Coord3D) -> Coord3D:
             if graph_spec.coord_mode == "global":
                 return coord
@@ -242,11 +242,28 @@ class Canvas:
             return time + time_offset
 
         # Nodes, roles, measurement bases
+        translated_nodes: set[Coord3D] = set()
         for coord in graph_spec.nodes:
             translated = translate_coord(coord)
+            translated_nodes.add(translated)
             self.__nodes.add(translated)
             self.__coord2role[translated] = graph_spec.coord2role.get(coord, NodeRole.DATA)
             self.__pauli_axes[translated] = graph_spec.pauli_axes[coord]
+
+        # Inter-block temporal edges (z-direction edges connecting to previous blocks)
+        inter_block_edges: list[tuple[Coord3D, Coord3D]] = []
+        for translated in translated_nodes:
+            prev_coord = Coord3D(translated.x, translated.y, translated.z - 1)
+            # Connect if prev_coord exists in canvas but is not part of current fragment
+            if prev_coord in self.__nodes and prev_coord not in translated_nodes:
+                edge = (prev_coord, translated)
+                inter_block_edges.append(edge)
+                self.__edges.add(edge)
+                self.flow.add_flow(prev_coord, translated)
+
+        # Schedule inter-block entanglements at time_offset (start of this block)
+        if inter_block_edges:
+            self.scheduler.add_entangle_at_time(time_offset, inter_block_edges)
 
         # Physical edges
         for a, b in graph_spec.edges:
