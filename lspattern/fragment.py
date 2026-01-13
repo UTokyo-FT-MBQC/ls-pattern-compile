@@ -11,13 +11,12 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal, NamedTuple
 
 from lspattern.accumulator import CoordFlowAccumulator, CoordParityAccumulator, CoordScheduleAccumulator
-from lspattern.consts import EdgeSpecValue
-from lspattern.mytype import Coord3D
 
 if TYPE_CHECKING:
     from graphqomb.common import Axis
 
-    from lspattern.mytype import NodeRole
+    from lspattern.consts import EdgeSpecValue
+    from lspattern.mytype import Coord3D, NodeRole
 
 
 class Boundary(NamedTuple):

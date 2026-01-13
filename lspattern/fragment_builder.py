@@ -126,7 +126,7 @@ def _build_layers(
     )
 
 
-def _build_layer1(
+def _build_layer1(  # noqa: C901
     layer_cfg: PatchLayoutConfig,
     data2d: AbstractSet[Coord2D],
     ancilla_x2d: AbstractSet[Coord2D],
@@ -202,7 +202,7 @@ def _build_layer1(
         scheduler.add_meas_at_time(layer_time + ANCILLA_LENGTH + 1, ancilla_z_coords)
 
 
-def _build_layer2(
+def _build_layer2(  # noqa: C901
     layer_cfg: PatchLayoutConfig,
     data2d: AbstractSet[Coord2D],
     ancilla_x2d: AbstractSet[Coord2D],

@@ -93,7 +93,9 @@ def test_skip_syndrome_disabled(tmp_path: Path) -> None:
     assert canvas.nodes, "Sanity: cube should materialize nodes"
     # With default flag (skip_syndrome=false), syndrome measurements
     # should be registered even without ancilla qubits
-    assert canvas.parity_accumulator.syndrome_meas != {}, "syndrome_meas should not be empty when skip_syndrome is disabled"
+    assert canvas.parity_accumulator.syndrome_meas != {}, (
+        "syndrome_meas should not be empty when skip_syndrome is disabled"
+    )
 
 
 def test_parity_reset_with_empty_syndrome_meas() -> None:

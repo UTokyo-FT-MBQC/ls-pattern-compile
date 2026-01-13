@@ -7,7 +7,6 @@ from graphqomb.common import Axis
 
 from lspattern.accumulator import CoordFlowAccumulator, CoordParityAccumulator, CoordScheduleAccumulator
 from lspattern.consts import BoundarySide, EdgeSpecValue
-from lspattern.fragment import Boundary, GraphSpec
 from lspattern.fragment_builder import build_patch_cube_fragment, build_patch_pipe_fragment
 from lspattern.layout import (
     ANCILLA_EDGE_X,
@@ -19,6 +18,7 @@ if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
 
     from lspattern.canvas_loader import CompositeLogicalObservableSpec, LogicalObservableSpec
+    from lspattern.fragment import Boundary, GraphSpec
     from lspattern.loader import BlockConfig
 
 
@@ -493,7 +493,7 @@ class Canvas:
 
         self.pipe_couts[global_edge] = cout_coords
 
-    def add_pipe(
+    def add_pipe(  # noqa: C901
         self,
         global_edge: tuple[Coord3D, Coord3D],
         block_config: BlockConfig,
