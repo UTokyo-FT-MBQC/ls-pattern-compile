@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `syndrome_meas_without_ancilla` YAML flag for controlling syndrome measurement registration when ancilla qubits are not present
+- Parity reset support via empty syndrome measurements for layers where data qubits are removed
 - Complete architecture overhaul with YAML-based declarative design system ([#81](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/81), [#79](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/79), [#75](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/75), [#67](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/67), [#66](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/66), [#62](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/62), [#51](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/51), [#33](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/33), [#32](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/32), [#22](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/22))
 - `lspattern/layout/rotated_surface_code.py`: Rotated Surface Code tiling logic with comprehensive boundary handling
 - `lspattern/importer/las.py`: LAS (Lattice Surgery Assembly) importer for external circuit specifications

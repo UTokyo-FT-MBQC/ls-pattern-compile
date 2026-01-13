@@ -183,9 +183,10 @@ class CoordParityAccumulator:
         """
         if xy not in self.syndrome_meas:
             self.syndrome_meas[xy] = {}
-        if z not in self.syndrome_meas[xy]:
-            self.syndrome_meas[xy][z] = set()
-        self.syndrome_meas[xy][z].update(involved_coords)
+        # Use direct assignment to make reset behavior explicit:
+        # - Empty set signals parity reset at this z-coordinate
+        # - Non-empty set overwrites any previous value for this (xy, z)
+        self.syndrome_meas[xy][z] = set(involved_coords)
 
     def add_remaining_parity(self, xy: Coord2D, z: int, involved_coords: Collection[Coord3D]) -> None:
         """Add remaining parity information at coordinate `coord`.

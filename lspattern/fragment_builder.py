@@ -165,6 +165,9 @@ def _build_layer1(
 
         # Parity check with data qubits (when no ancilla in this layer)
         if not layer_cfg.layer1.ancilla and layer_cfg.layer1.syndrome_meas_without_ancilla:
+            # parity_offset aligns data qubit parity with the corresponding ancilla layer:
+            # X-basis data contributes to Z-stabilizers (registered at z+1 where X-ancilla operates)
+            # Z-basis data contributes to X-stabilizers (registered at z where Z-ancilla operates)
             parity_offset = 1 if layer_cfg.layer1.basis == Axis.X else 0
             ancilla_2d = ancilla_z2d if layer_cfg.layer1.basis == Axis.Z else ancilla_x2d
             for x, y in ancilla_2d:
@@ -241,6 +244,9 @@ def _build_layer2(
 
         # Parity check with data qubits (when no ancilla in this layer)
         if not layer_cfg.layer2.ancilla and layer_cfg.layer2.syndrome_meas_without_ancilla:
+            # parity_offset aligns data qubit parity with the corresponding ancilla layer:
+            # X-basis data contributes to Z-stabilizers (registered at z+1 where Z-ancilla operates)
+            # Z-basis data contributes to X-stabilizers (registered at z+2 where X-ancilla operates)
             parity_offset = 0 if layer_cfg.layer2.basis == Axis.X else 1
             ancilla_2d = ancilla_z2d if layer_cfg.layer2.basis == Axis.Z else ancilla_x2d
             for x, y in ancilla_2d:
