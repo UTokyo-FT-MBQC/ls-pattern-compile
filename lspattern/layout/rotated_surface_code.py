@@ -8,7 +8,7 @@ corner components.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import AxisDIRECTION2D, Coord2D, Coord3D
@@ -997,6 +997,7 @@ class RotatedSurfaceCodeLayoutBuilder:
         code_distance: int,
         global_pos: Coord2D,
         boundary: Mapping[BoundarySide, EdgeSpecValue],
+        ancilla_type: Literal["X", "Z"],
     ) -> dict[Coord2D, set[Coord2D]]:
         """Get flow mapping for initial ancilla qubits.
 
@@ -1012,6 +1013,8 @@ class RotatedSurfaceCodeLayoutBuilder:
             Global (x, y) position of the cube.
         boundary : Mapping[BoundarySide, EdgeSpecValue]
             Boundary specifications for the cube.
+        ancilla_type : Literal["X", "Z"]
+            Type of ancilla qubit. "Z" for layer1 (Z-stabilizer), "X" for layer2 (X-stabilizer).
 
         Returns
         -------
