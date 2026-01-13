@@ -93,9 +93,7 @@ def test_enable_syndrome_meas_without_ancilla(tmp_path: Path) -> None:
     assert canvas.nodes, "Sanity: cube should materialize nodes"
     # With default flag (syndrome_meas_without_ancilla=true), syndrome measurements
     # should be registered even without ancilla qubits
-    assert canvas.parity_accumulator.syndrome_meas != {}, (
-        "syndrome_meas should not be empty when flag is enabled"
-    )
+    assert canvas.parity_accumulator.syndrome_meas != {}, "syndrome_meas should not be empty when flag is enabled"
 
 
 def test_parity_reset_with_empty_syndrome_meas() -> None:
