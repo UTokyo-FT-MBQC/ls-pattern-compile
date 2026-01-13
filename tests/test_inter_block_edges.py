@@ -83,8 +83,7 @@ def test_inter_block_temporal_edges_stacked_cubes(tmp_path: Path) -> None:
                 inter_block_edges_found.append(edge)
 
     assert inter_block_edges_found, (
-        f"Expected inter-block edges between z=5 and z=6. "
-        f"Nodes at z=5: {nodes_z5}, Nodes at z=6: {nodes_z6}"
+        f"Expected inter-block edges between z=5 and z=6. Nodes at z=5: {nodes_z5}, Nodes at z=6: {nodes_z6}"
     )
 
 
@@ -272,13 +271,9 @@ def test_inter_block_entanglement_scheduled(tmp_path: Path) -> None:
 
     # Find edges that span z=5 to z=6
     inter_block_edges_scheduled = [
-        edge
-        for edges in entangle_times.values()
-        for edge in edges
-        if edge[0].z == 5 and edge[1].z == 6
+        edge for edges in entangle_times.values() for edge in edges if edge[0].z == 5 and edge[1].z == 6
     ]
 
     assert inter_block_edges_scheduled, (
-        f"Inter-block edges (z=5 to z=6) should be scheduled for entanglement. "
-        f"All scheduled edges: {entangle_times}"
+        f"Inter-block edges (z=5 to z=6) should be scheduled for entanglement. All scheduled edges: {entangle_times}"
     )
