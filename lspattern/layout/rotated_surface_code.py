@@ -987,3 +987,37 @@ class RotatedSurfaceCodeLayoutBuilder:
         bounds = RotatedSurfaceCodeLayoutBuilder._pipe_bounds(code_distance, offset, pipe_dir)
         coords = RotatedSurfaceCodeLayoutBuilder.pipe(code_distance, global_pos_source, global_pos_target, boundary)
         return RotatedSurfaceCodeLayoutBuilder._boundary_path(coords.data, bounds, side_a, side_b)
+
+    # =========================================================================
+    # Initial Ancilla Flow
+    # =========================================================================
+
+    @staticmethod
+    def get_initial_ancilla_flow(
+        code_distance: int,
+        global_pos: Coord2D,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+    ) -> dict[Coord2D, set[Coord2D]]:
+        """Get flow mapping for initial ancilla qubits.
+
+        This method computes the flow relationships for ancilla qubits in
+        initialization layers. The flow determines the causal dependencies
+        between ancilla measurements.
+
+        Parameters
+        ----------
+        code_distance : int
+            Code distance of the surface code.
+        global_pos : Coord2D
+            Global (x, y) position of the cube.
+        boundary : Mapping[BoundarySide, EdgeSpecValue]
+            Boundary specifications for the cube.
+
+        Returns
+        -------
+        dict[Coord2D, set[Coord2D]]
+            Mapping from source 2D coordinate to target 2D coordinates for ancilla flow.
+            Each source coordinate maps to a set of target coordinates.
+        """
+        # TODO: Implement ancilla flow calculation
+        raise NotImplementedError

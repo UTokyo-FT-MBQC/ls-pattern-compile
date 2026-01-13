@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from graphqomb.common import Axis
 
 from lspattern.accumulator import CoordFlowAccumulator, CoordParityAccumulator, CoordScheduleAccumulator
-from lspattern.consts import BoundarySide
+from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.fragment import BlockFragment, Boundary, BoundaryFragment, GraphSpec
 from lspattern.layout import (
     ANCILLA_EDGE_X,
@@ -21,6 +21,7 @@ from lspattern.layout import (
 from lspattern.mytype import Coord2D, Coord3D, NodeRole
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from collections.abc import Set as AbstractSet
 
     from lspattern.loader import BlockConfig, PatchLayoutConfig
@@ -36,6 +37,8 @@ def _build_layers(
     ancilla_z2d: AbstractSet[Coord2D],
     offset_z: int,
     base_time: int,
+    code_distance: int,
+    boundary: Mapping[BoundarySide, EdgeSpecValue],
     *,
     include_remaining_parity: bool = True,
 ) -> GraphSpec:
@@ -57,6 +60,10 @@ def _build_layers(
         Z-coordinate offset (in local coordinates, typically 0).
     base_time : int
         Base time offset (in local coordinates, typically 0).
+    code_distance : int
+        Code distance of the surface code.
+    boundary : Mapping[BoundarySide, EdgeSpecValue]
+        Boundary specifications for the patch.
     include_remaining_parity : bool
         Whether to add remaining parity for ancilla qubits. True for cube,
         False for pipe (to match original behavior).
@@ -93,6 +100,8 @@ def _build_layers(
             flow,
             scheduler,
             parity,
+            code_distance,
+            boundary,
             include_remaining_parity=include_remaining_parity,
         )
 
@@ -110,6 +119,8 @@ def _build_layers(
             flow,
             scheduler,
             parity,
+            code_distance,
+            boundary,
             include_remaining_parity=include_remaining_parity,
         )
 
@@ -140,6 +151,8 @@ def _build_layer1(  # noqa: C901
     flow: CoordFlowAccumulator,
     scheduler: CoordScheduleAccumulator,
     parity: CoordParityAccumulator,
+    code_distance: int,
+    boundary: Mapping[BoundarySide, EdgeSpecValue],
     *,
     include_remaining_parity: bool,
 ) -> None:
@@ -201,6 +214,18 @@ def _build_layer1(  # noqa: C901
         scheduler.add_prep_at_time(layer_time, ancilla_z_coords)
         scheduler.add_meas_at_time(layer_time + ANCILLA_LENGTH + 1, ancilla_z_coords)
 
+        # Add flow for initialization layer ancilla Z qubits
+        if layer_cfg.layer1.init:
+            ancilla_flow = RotatedSurfaceCodeLayoutBuilder.get_initial_ancilla_flow(
+                code_distance, Coord2D(0, 0), boundary
+            )
+            for src_2d, tgt_2d_set in ancilla_flow.items():
+                src_coord = Coord3D(src_2d.x, src_2d.y, z)
+                for tgt_2d in tgt_2d_set:
+                    tgt_coord = Coord3D(tgt_2d.x, tgt_2d.y, z)
+                    if src_coord in nodes and tgt_coord in nodes:
+                        flow.add_flow(src_coord, tgt_coord)
+
 
 def _build_layer2(  # noqa: C901
     layer_cfg: PatchLayoutConfig,
@@ -216,6 +241,8 @@ def _build_layer2(  # noqa: C901
     flow: CoordFlowAccumulator,
     scheduler: CoordScheduleAccumulator,
     parity: CoordParityAccumulator,
+    code_distance: int,
+    boundary: Mapping[BoundarySide, EdgeSpecValue],
     *,
     include_remaining_parity: bool,
 ) -> None:
@@ -283,6 +310,18 @@ def _build_layer2(  # noqa: C901
         scheduler.add_prep_at_time(layer_time + _PHYSICAL_CLOCK + ANCILLA_LENGTH, ancilla_x_coords)
         scheduler.add_meas_at_time(layer_time + _PHYSICAL_CLOCK + 2 * ANCILLA_LENGTH + 1, ancilla_x_coords)
 
+        # Add flow for initialization layer ancilla X qubits
+        if layer_cfg.layer2.init:
+            ancilla_flow = RotatedSurfaceCodeLayoutBuilder.get_initial_ancilla_flow(
+                code_distance, Coord2D(0, 0), boundary
+            )
+            for src_2d, tgt_2d_set in ancilla_flow.items():
+                src_coord = Coord3D(src_2d.x, src_2d.y, z + 1)
+                for tgt_2d in tgt_2d_set:
+                    tgt_coord = Coord3D(tgt_2d.x, tgt_2d.y, z + 1)
+                    if src_coord in nodes and tgt_coord in nodes:
+                        flow.add_flow(src_coord, tgt_coord)
+
 
 def build_patch_cube_fragment(
     code_distance: int,
@@ -322,6 +361,8 @@ def build_patch_cube_fragment(
         ancilla_z2d,
         offset_z=0,
         base_time=0,
+        code_distance=code_distance,
+        boundary=block_config.boundary,
     )
 
     # Build boundary fragment
@@ -422,6 +463,8 @@ def build_patch_pipe_fragment(
         ancilla_z2d,
         offset_z=0,
         base_time=0,
+        code_distance=code_distance,
+        boundary=block_config.boundary,
         include_remaining_parity=False,
     )
 
