@@ -8,6 +8,7 @@ from graphqomb.common import Axis
 from lspattern.accumulator import CoordFlowAccumulator, CoordParityAccumulator, CoordScheduleAccumulator
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.fragment import Boundary, GraphSpec
+from lspattern.fragment_builder import build_patch_cube_fragment, build_patch_pipe_fragment
 from lspattern.layout import (
     ANCILLA_EDGE_X,
     RotatedSurfaceCodeLayoutBuilder,
@@ -338,8 +339,6 @@ class Canvas:
             return
 
         # Patch-based cube: use fragment builder
-        from lspattern.fragment_builder import build_patch_cube_fragment
-
         fragment = build_patch_cube_fragment(self.config.d, block_config)
 
         # Merge graph spec
@@ -536,8 +535,6 @@ class Canvas:
             return
 
         # Patch-based pipe: use fragment builder
-        from lspattern.fragment_builder import build_patch_pipe_fragment
-
         fragment = build_patch_pipe_fragment(self.config.d, pipe_dir, block_config)
 
         # Merge graph spec
