@@ -13,18 +13,18 @@ def _write_yaml(path: Path, content: str) -> None:
     path.write_text(dedent(content).strip() + "\n", encoding="utf-8")
 
 
-def test_disable_syndrome_meas_without_ancilla(tmp_path: Path) -> None:
+def test_skip_syndrome_enabled(tmp_path: Path) -> None:
     layer_yaml = """
     name: NoSyndromeMeas
-    description: Disable inferred syndrome measurements when ancilla=false
+    description: Skip inferred syndrome measurements when ancilla=false
     layer1:
       basis: X
       ancilla: false
-      syndrome_meas_without_ancilla: false
+      skip_syndrome: true
     layer2:
       basis: X
       ancilla: false
-      syndrome_meas_without_ancilla: false
+      skip_syndrome: true
     """
 
     block_yaml = """
@@ -54,11 +54,11 @@ def test_disable_syndrome_meas_without_ancilla(tmp_path: Path) -> None:
     assert canvas.parity_accumulator.syndrome_meas == {}
 
 
-def test_enable_syndrome_meas_without_ancilla(tmp_path: Path) -> None:
-    """Test that syndrome_meas is registered when flag is enabled (default)."""
+def test_skip_syndrome_disabled(tmp_path: Path) -> None:
+    """Test that syndrome_meas is registered when skip_syndrome is disabled (default)."""
     layer_yaml = """
     name: WithSyndromeMeas
-    description: Enable inferred syndrome measurements when ancilla=false (default)
+    description: Register inferred syndrome measurements when ancilla=false (default)
     layer1:
       basis: X
       ancilla: false
@@ -91,9 +91,9 @@ def test_enable_syndrome_meas_without_ancilla(tmp_path: Path) -> None:
     canvas, _spec = load_canvas(canvas_path, code_distance=3)
 
     assert canvas.nodes, "Sanity: cube should materialize nodes"
-    # With default flag (syndrome_meas_without_ancilla=true), syndrome measurements
+    # With default flag (skip_syndrome=false), syndrome measurements
     # should be registered even without ancilla qubits
-    assert canvas.parity_accumulator.syndrome_meas != {}, "syndrome_meas should not be empty when flag is enabled"
+    assert canvas.parity_accumulator.syndrome_meas != {}, "syndrome_meas should not be empty when skip_syndrome is disabled"
 
 
 def test_parity_reset_with_empty_syndrome_meas() -> None:

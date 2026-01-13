@@ -164,7 +164,7 @@ def _build_layer1(
         scheduler.add_meas_at_time(layer_time + _PHYSICAL_CLOCK + ANCILLA_LENGTH + 1, layer1_coords)
 
         # Parity check with data qubits (when no ancilla in this layer)
-        if not layer_cfg.layer1.ancilla and layer_cfg.layer1.syndrome_meas_without_ancilla:
+        if not layer_cfg.layer1.ancilla and not layer_cfg.layer1.skip_syndrome:
             # parity_offset aligns data qubit parity with the corresponding ancilla layer:
             # X-basis data contributes to Z-stabilizers (registered at z+1 where X-ancilla operates)
             # Z-basis data contributes to X-stabilizers (registered at z where Z-ancilla operates)
@@ -243,7 +243,7 @@ def _build_layer2(
         scheduler.add_meas_at_time(layer_time + 2 * (_PHYSICAL_CLOCK + ANCILLA_LENGTH) + 1, layer2_coords)
 
         # Parity check with data qubits (when no ancilla in this layer)
-        if not layer_cfg.layer2.ancilla and layer_cfg.layer2.syndrome_meas_without_ancilla:
+        if not layer_cfg.layer2.ancilla and not layer_cfg.layer2.skip_syndrome:
             # parity_offset aligns data qubit parity with the corresponding ancilla layer:
             # X-basis data contributes to Z-stabilizers (registered at z+1 where Z-ancilla operates)
             # Z-basis data contributes to X-stabilizers (registered at z+2 where X-ancilla operates)

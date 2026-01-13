@@ -32,14 +32,15 @@ class LayerConfig(NamedTuple):
         Common values: Axis.X, Axis.Y, Axis.Z, or None (no qubits present).
     ancilla : bool
         Whether ancilla qubits are prepared in this layer.
-    syndrome_meas_without_ancilla : bool
-        Whether to register syndrome measurements (detector candidates) even when
-        ``ancilla`` is ``false`` by inferring parity from neighboring data qubits.
+    skip_syndrome : bool
+        Whether to skip registering syndrome measurements (detector candidates)
+        when ``ancilla`` is ``false``. If False, syndrome measurements are inferred
+        from neighboring data qubits.
     """
 
     basis: Axis | None
     ancilla: bool
-    syndrome_meas_without_ancilla: bool
+    skip_syndrome: bool
 
 
 class PatchLayoutConfig(NamedTuple):
@@ -98,9 +99,9 @@ class LayerConfigValidator(BaseModel):
 
     basis: Axis | None = Field(default=Axis.X, description="Measurement basis for the layer")
     ancilla: bool = Field(default=True, description="Whether ancilla qubits are prepared")
-    syndrome_meas_without_ancilla: bool = Field(
-        default=True,
-        description="Whether to register syndrome measurements when ancilla=false",
+    skip_syndrome: bool = Field(
+        default=False,
+        description="Whether to skip syndrome measurements when ancilla=false",
     )
 
     @field_validator("basis", mode="before")
@@ -186,11 +187,11 @@ def load_patch_layout_from_yaml(yaml_path: Path) -> PatchLayoutConfig:
         layer1=LayerConfig(
             basis=validated.layer1.basis,
             ancilla=validated.layer1.ancilla,
-            syndrome_meas_without_ancilla=validated.layer1.syndrome_meas_without_ancilla,
+            skip_syndrome=validated.layer1.skip_syndrome,
         ),
         layer2=LayerConfig(
             basis=validated.layer2.basis,
             ancilla=validated.layer2.ancilla,
-            syndrome_meas_without_ancilla=validated.layer2.syndrome_meas_without_ancilla,
+            skip_syndrome=validated.layer2.skip_syndrome,
         ),
     )
