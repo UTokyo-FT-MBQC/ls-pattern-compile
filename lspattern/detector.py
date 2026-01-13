@@ -116,17 +116,29 @@ def construct_detector(parity_accumulator: CoordParityAccumulator) -> dict[Coord
     -------
     dict[Coord3D, set[Coord3D]]
         A mapping from detector coordinates to sets of involved qubit coordinates.
+
+    Notes
+    -----
+    An empty syndrome measurement at a given z-coordinate signals a parity reset.
+    This is used when data qubits are removed between layers.
     """
     detectors: dict[Coord3D, set[Coord3D]] = {}
     for xy, z_map in parity_accumulator.syndrome_meas.items():
         # reorder z_map keys
         sorted_z_keys = sorted(z_map.keys())
-        previous_meas = set()
+        previous_meas: set[Coord3D] = set()
         for z in sorted_z_keys:
+            current_meas = z_map[z]
+
+            # Empty syndrome_meas signals a parity reset
+            if not current_meas:
+                previous_meas = set()
+                continue
+
             if Coord3D(xy.x, xy.y, z) in parity_accumulator.non_deterministic_coords:
                 previous_meas = parity_accumulator.remaining_parity.get(xy, {}).get(z, set())
                 continue
 
-            detectors[Coord3D(xy.x, xy.y, z)] = previous_meas.symmetric_difference(z_map[z])
+            detectors[Coord3D(xy.x, xy.y, z)] = previous_meas.symmetric_difference(current_meas)
             previous_meas = parity_accumulator.remaining_parity.get(xy, {}).get(z, set())
     return detectors

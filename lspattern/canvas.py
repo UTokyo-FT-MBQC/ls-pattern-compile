@@ -7,7 +7,7 @@ from graphqomb.common import Axis
 
 from lspattern.accumulator import CoordFlowAccumulator, CoordParityAccumulator, CoordScheduleAccumulator
 from lspattern.consts import BoundarySide, EdgeSpecValue
-from lspattern.fragment import Boundary, GraphSpec
+from lspattern.fragment_builder import build_patch_cube_fragment, build_patch_pipe_fragment
 from lspattern.layout import (
     ANCILLA_EDGE_X,
     RotatedSurfaceCodeLayoutBuilder,
@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
 
     from lspattern.canvas_loader import CompositeLogicalObservableSpec, LogicalObservableSpec
+    from lspattern.fragment import Boundary, GraphSpec
     from lspattern.loader import BlockConfig
 
 
@@ -219,7 +220,7 @@ class Canvas:
     def parity_accumulator(self) -> CoordParityAccumulator:
         return self.__parity
 
-    def _merge_graph_spec(self, graph_spec: GraphSpec, *, coord_offset: Coord3D, time_offset: int) -> None:
+    def _merge_graph_spec(self, graph_spec: GraphSpec, *, coord_offset: Coord3D, time_offset: int) -> None:  # noqa: C901
         def translate_coord(coord: Coord3D) -> Coord3D:
             if graph_spec.coord_mode == "global":
                 return coord
@@ -241,11 +242,28 @@ class Canvas:
             return time + time_offset
 
         # Nodes, roles, measurement bases
+        translated_nodes: set[Coord3D] = set()
         for coord in graph_spec.nodes:
             translated = translate_coord(coord)
+            translated_nodes.add(translated)
             self.__nodes.add(translated)
             self.__coord2role[translated] = graph_spec.coord2role.get(coord, NodeRole.DATA)
             self.__pauli_axes[translated] = graph_spec.pauli_axes[coord]
+
+        # Inter-block temporal edges (z-direction edges connecting to previous blocks)
+        inter_block_edges: list[tuple[Coord3D, Coord3D]] = []
+        for translated in translated_nodes:
+            prev_coord = Coord3D(translated.x, translated.y, translated.z - 1)
+            # Connect if prev_coord exists in canvas but is not part of current fragment
+            if prev_coord in self.__nodes and prev_coord not in translated_nodes:
+                edge = (prev_coord, translated)
+                inter_block_edges.append(edge)
+                self.__edges.add(edge)
+                self.flow.add_flow(prev_coord, translated)
+
+        # Schedule inter-block entanglements at time_offset (start of this block)
+        if inter_block_edges:
+            self.scheduler.add_entangle_at_time(time_offset, inter_block_edges)
 
         # Physical edges
         for a, b in graph_spec.edges:
@@ -338,8 +356,6 @@ class Canvas:
             return
 
         # Patch-based cube: use fragment builder
-        from lspattern.fragment_builder import build_patch_cube_fragment
-
         fragment = build_patch_cube_fragment(self.config.d, block_config)
 
         # Merge graph spec
@@ -477,7 +493,7 @@ class Canvas:
 
         self.pipe_couts[global_edge] = cout_coords
 
-    def add_pipe(
+    def add_pipe(  # noqa: C901
         self,
         global_edge: tuple[Coord3D, Coord3D],
         block_config: BlockConfig,
@@ -536,8 +552,6 @@ class Canvas:
             return
 
         # Patch-based pipe: use fragment builder
-        from lspattern.fragment_builder import build_patch_pipe_fragment
-
         fragment = build_patch_pipe_fragment(self.config.d, pipe_dir, block_config)
 
         # Merge graph spec

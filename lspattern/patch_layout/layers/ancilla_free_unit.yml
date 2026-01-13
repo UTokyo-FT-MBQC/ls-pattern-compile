@@ -4,6 +4,8 @@ description: This patch layout specifies a layer without ancilla qubits
 layer1:
   basis: X
   ancilla: false # ancilla qubits are intentionally omitted
+  skip_syndrome: true
 layer2:
   basis: X
   ancilla: false
+  skip_syndrome: true

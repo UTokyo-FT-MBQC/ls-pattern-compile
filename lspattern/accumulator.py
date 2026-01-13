@@ -165,7 +165,6 @@ class CoordParityAccumulator:
     def add_syndrome_measurement(self, xy: Coord2D, z: int, involved_coords: Collection[Coord3D]) -> None:
         """Add a syndrome measurement at coordinate `coord`.
 
-
         Parameters
         ----------
         xy : Coord2D
@@ -174,17 +173,19 @@ class CoordParityAccumulator:
             The z-coordinate (layer) of the syndrome measurement.
         involved_coords : collections.abc.Collection[Coord3D]
             The coordinates involved in the syndrome measurement.
+            If empty, this signals a parity reset at this z-coordinate.
 
         Notes
         -----
         This is a pre-processing step before constructing parity checks.
+        An empty `involved_coords` is used to indicate that the parity
+        should be reset at this layer (e.g., when data qubits are removed).
         """
-        if not involved_coords:
-            return
         if xy not in self.syndrome_meas:
             self.syndrome_meas[xy] = {}
         if z not in self.syndrome_meas[xy]:
             self.syndrome_meas[xy][z] = set()
+        # Union with existing coords; empty set signals parity reset
         self.syndrome_meas[xy][z].update(involved_coords)
 
     def add_remaining_parity(self, xy: Coord2D, z: int, involved_coords: Collection[Coord3D]) -> None:

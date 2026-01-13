@@ -126,7 +126,7 @@ def _build_layers(
     )
 
 
-def _build_layer1(
+def _build_layer1(  # noqa: C901
     layer_cfg: PatchLayoutConfig,
     data2d: AbstractSet[Coord2D],
     ancilla_x2d: AbstractSet[Coord2D],
@@ -164,7 +164,10 @@ def _build_layer1(
         scheduler.add_meas_at_time(layer_time + _PHYSICAL_CLOCK + ANCILLA_LENGTH + 1, layer1_coords)
 
         # Parity check with data qubits (when no ancilla in this layer)
-        if not layer_cfg.layer1.ancilla:
+        if not layer_cfg.layer1.ancilla and not layer_cfg.layer1.skip_syndrome:
+            # parity_offset aligns data qubit parity with the corresponding ancilla layer:
+            # X-basis data contributes to Z-stabilizers (registered at z+1 where X-ancilla operates)
+            # Z-basis data contributes to X-stabilizers (registered at z where Z-ancilla operates)
             parity_offset = 1 if layer_cfg.layer1.basis == Axis.X else 0
             ancilla_2d = ancilla_z2d if layer_cfg.layer1.basis == Axis.Z else ancilla_x2d
             for x, y in ancilla_2d:
@@ -199,7 +202,7 @@ def _build_layer1(
         scheduler.add_meas_at_time(layer_time + ANCILLA_LENGTH + 1, ancilla_z_coords)
 
 
-def _build_layer2(
+def _build_layer2(  # noqa: C901
     layer_cfg: PatchLayoutConfig,
     data2d: AbstractSet[Coord2D],
     ancilla_x2d: AbstractSet[Coord2D],
@@ -240,7 +243,10 @@ def _build_layer2(
         scheduler.add_meas_at_time(layer_time + 2 * (_PHYSICAL_CLOCK + ANCILLA_LENGTH) + 1, layer2_coords)
 
         # Parity check with data qubits (when no ancilla in this layer)
-        if not layer_cfg.layer2.ancilla:
+        if not layer_cfg.layer2.ancilla and not layer_cfg.layer2.skip_syndrome:
+            # parity_offset aligns data qubit parity with the corresponding ancilla layer:
+            # X-basis data contributes to Z-stabilizers (registered at z+1 where Z-ancilla operates)
+            # Z-basis data contributes to X-stabilizers (registered at z+2 where X-ancilla operates)
             parity_offset = 0 if layer_cfg.layer2.basis == Axis.X else 1
             ancilla_2d = ancilla_z2d if layer_cfg.layer2.basis == Axis.Z else ancilla_x2d
             for x, y in ancilla_2d:
@@ -391,6 +397,21 @@ def build_patch_pipe_fragment(
     data2d, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.pipe(
         code_distance, local_start, local_end, block_config.boundary
     ).to_mutable_sets()
+
+    # Remove the offset that pipe() already computed, since canvas.add_pipe will add it again
+    # pipe() computes: offset_x = 2*d for RIGHT, offset_y = -2 for TOP, etc.
+    if direction == BoundarySide.RIGHT:
+        offset = Coord2D(2 * code_distance, 0)
+    elif direction == BoundarySide.LEFT:
+        offset = Coord2D(-2, 0)
+    elif direction == BoundarySide.TOP:
+        offset = Coord2D(0, -2)
+    else:  # BOTTOM
+        offset = Coord2D(0, 2 * code_distance)
+
+    data2d = {Coord2D(c.x - offset.x, c.y - offset.y) for c in data2d}
+    ancilla_x2d = {Coord2D(c.x - offset.x, c.y - offset.y) for c in ancilla_x2d}
+    ancilla_z2d = {Coord2D(c.x - offset.x, c.y - offset.y) for c in ancilla_z2d}
 
     # Build graph layers (using local coordinates: offset_z=0, base_time=0)
     # Note: include_remaining_parity=False to match original add_pipe behavior
