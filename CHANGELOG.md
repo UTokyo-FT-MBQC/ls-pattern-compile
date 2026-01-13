@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Fix duplicate offset calculation in pipe fragment generation that caused pipes to overlap with cube nodes
+
 ### Added
 - `skip_syndrome` YAML flag for skipping syndrome measurement registration when ancilla qubits are not present
 - Parity reset support via empty syndrome measurements for layers where data qubits are removed

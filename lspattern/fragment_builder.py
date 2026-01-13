@@ -398,6 +398,21 @@ def build_patch_pipe_fragment(
         code_distance, local_start, local_end, block_config.boundary
     ).to_mutable_sets()
 
+    # Remove the offset that pipe() already computed, since canvas.add_pipe will add it again
+    # pipe() computes: offset_x = 2*d for RIGHT, offset_y = -2 for TOP, etc.
+    if direction == BoundarySide.RIGHT:
+        offset = Coord2D(2 * code_distance, 0)
+    elif direction == BoundarySide.LEFT:
+        offset = Coord2D(-2, 0)
+    elif direction == BoundarySide.TOP:
+        offset = Coord2D(0, -2)
+    else:  # BOTTOM
+        offset = Coord2D(0, 2 * code_distance)
+
+    data2d = {Coord2D(c.x - offset.x, c.y - offset.y) for c in data2d}
+    ancilla_x2d = {Coord2D(c.x - offset.x, c.y - offset.y) for c in ancilla_x2d}
+    ancilla_z2d = {Coord2D(c.x - offset.x, c.y - offset.y) for c in ancilla_z2d}
+
     # Build graph layers (using local coordinates: offset_z=0, base_time=0)
     # Note: include_remaining_parity=False to match original add_pipe behavior
     graph_spec = _build_layers(
