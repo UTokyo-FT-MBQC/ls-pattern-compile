@@ -219,5 +219,8 @@ AGENTS.md
 CLAUDE.md
 tmp/*
 
+# Example output files (large JSON exports)
+examples/output/
+
 # Personal pyright configuration
 .pyrightconfig.json
