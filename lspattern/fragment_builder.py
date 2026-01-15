@@ -207,9 +207,10 @@ def _build_layer1(  # noqa: C901
                     edges.add((coord, neighbor))
                     scheduler.add_entangle_at_time(layer_time + 1 + i, {(coord, neighbor)})
 
-            parity.add_syndrome_measurement(Coord2D(x, y), z, {coord})
-            if include_remaining_parity:
-                parity.add_remaining_parity(Coord2D(x, y), z, {coord})
+            if not layer_cfg.layer1.init:
+                parity.add_syndrome_measurement(Coord2D(x, y), z, {coord})
+                if include_remaining_parity:
+                    parity.add_remaining_parity(Coord2D(x, y), z, {coord})
 
         scheduler.add_prep_at_time(layer_time, ancilla_z_coords)
         scheduler.add_meas_at_time(layer_time + ANCILLA_LENGTH + 1, ancilla_z_coords)
@@ -303,9 +304,10 @@ def _build_layer2(  # noqa: C901
                         {(coord, neighbor)},
                     )
 
-            parity.add_syndrome_measurement(Coord2D(x, y), z + 1, {coord})
-            if include_remaining_parity:
-                parity.add_remaining_parity(Coord2D(x, y), z + 1, {coord})
+            if not layer_cfg.layer2.init:
+                parity.add_syndrome_measurement(Coord2D(x, y), z + 1, {coord})
+                if include_remaining_parity:
+                    parity.add_remaining_parity(Coord2D(x, y), z + 1, {coord})
 
         scheduler.add_prep_at_time(layer_time + _PHYSICAL_CLOCK + ANCILLA_LENGTH, ancilla_x_coords)
         scheduler.add_meas_at_time(layer_time + _PHYSICAL_CLOCK + 2 * ANCILLA_LENGTH + 1, ancilla_x_coords)
