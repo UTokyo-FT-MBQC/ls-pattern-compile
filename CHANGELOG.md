@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix duplicate offset calculation in pipe fragment generation that caused pipes to overlap with cube nodes
 
 ### Added
+- `lspattern/exporter/` module for exporting Canvas data to graphqomb-studio JSON format
+  - `export_to_studio(canvas, name)`: Export Canvas to graphqomb-studio/v1 JSON dictionary
+  - `save_to_studio_json(canvas, name, path)`: Save Canvas to JSON file
+  - `ExportConfig`: Configuration class for customizing export (input/output nodes, qubit indices)
+  - Supports nodes, edges, flow (xflow with zflow="auto"), and schedule export
+  - Automatic output node detection from `canvas.couts` and `canvas.pipe_couts`
 - `skip_syndrome` YAML flag for skipping syndrome measurement registration when ancilla qubits are not present
 - Parity reset support via empty syndrome measurements for layers where data qubits are removed
 - Inter-block temporal edges: z-direction edges connecting stacked blocks are now generated automatically in `_merge_graph_spec`
