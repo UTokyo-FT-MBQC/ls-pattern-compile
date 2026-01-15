@@ -127,7 +127,7 @@ class TestExportConfig:
         """Test default configuration values."""
         config = ExportConfig()
         assert config.input_nodes == set()
-        assert config.output_nodes is None
+        assert config.output_nodes == set()
         assert config.qubit_index_map == {}
 
     def test_custom_values(self) -> None:
@@ -195,8 +195,8 @@ class TestExportToStudio:
         assert result["flow"]["zflow"] == "auto"
         assert isinstance(result["flow"]["xflow"], dict)
 
-    def test_output_nodes_from_couts(self) -> None:
-        """Test that couts are used as output nodes by default."""
+    def test_all_nodes_intermediate_by_default(self) -> None:
+        """Test that all nodes are intermediate by default."""
         from graphqomb.common import Axis
 
         from lspattern.canvas import Canvas, CanvasConfig
@@ -211,19 +211,59 @@ class TestExportToStudio:
         canvas._Canvas__pauli_axes[coord1] = Axis.Z  # type: ignore[attr-defined]
         canvas._Canvas__pauli_axes[coord2] = Axis.X  # type: ignore[attr-defined]
 
-        # Set coord1 as output via couts
-        canvas.couts[Coord3D(0, 0, 0)] = {coord1}
-
         result = export_to_studio(canvas, "test")
 
-        # Find output nodes
+        # All nodes should be intermediate by default
+        input_nodes = [n for n in result["nodes"] if n["role"] == "input"]
         output_nodes = [n for n in result["nodes"] if n["role"] == "output"]
         intermediate_nodes = [n for n in result["nodes"] if n["role"] == "intermediate"]
 
+        assert len(input_nodes) == 0
+        assert len(output_nodes) == 0
+        assert len(intermediate_nodes) == 2
+
+    def test_explicit_input_output_nodes(self) -> None:
+        """Test explicit input/output node specification via ExportConfig."""
+        from graphqomb.common import Axis
+
+        from lspattern.canvas import Canvas, CanvasConfig
+
+        config = CanvasConfig(name="test", description="test", d=3, tiling="rotated_surface_code")
+        canvas = Canvas(config)
+
+        coord1 = Coord3D(0, 0, 0)
+        coord2 = Coord3D(1, 1, 1)
+        coord3 = Coord3D(2, 2, 2)
+        canvas._Canvas__nodes.add(coord1)  # type: ignore[attr-defined]
+        canvas._Canvas__nodes.add(coord2)  # type: ignore[attr-defined]
+        canvas._Canvas__nodes.add(coord3)  # type: ignore[attr-defined]
+        canvas._Canvas__pauli_axes[coord1] = Axis.Z  # type: ignore[attr-defined]
+        canvas._Canvas__pauli_axes[coord2] = Axis.X  # type: ignore[attr-defined]
+        canvas._Canvas__pauli_axes[coord3] = Axis.Y  # type: ignore[attr-defined]
+
+        # Explicitly specify input and output nodes
+        export_config = ExportConfig(
+            input_nodes={coord1},
+            output_nodes={coord2},
+        )
+        result = export_to_studio(canvas, "test", config=export_config)
+
+        input_nodes = [n for n in result["nodes"] if n["role"] == "input"]
+        output_nodes = [n for n in result["nodes"] if n["role"] == "output"]
+        intermediate_nodes = [n for n in result["nodes"] if n["role"] == "intermediate"]
+
+        assert len(input_nodes) == 1
+        assert input_nodes[0]["id"] == "0_0_0"
+        assert "measBasis" in input_nodes[0]
+        assert "qubitIndex" in input_nodes[0]
+
         assert len(output_nodes) == 1
-        assert output_nodes[0]["id"] == "0_0_0"
+        assert output_nodes[0]["id"] == "1_1_1"
+        assert "measBasis" not in output_nodes[0] or output_nodes[0].get("measBasis") is None
+        assert "qubitIndex" in output_nodes[0]
+
         assert len(intermediate_nodes) == 1
-        assert intermediate_nodes[0]["id"] == "1_1_1"
+        assert intermediate_nodes[0]["id"] == "2_2_2"
 
 
 # =============================================================================

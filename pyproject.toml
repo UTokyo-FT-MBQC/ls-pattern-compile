@@ -134,6 +134,10 @@ docstring-code-format = true
   "D104",
   "D400",
   "PLR6301",
+  "PLC0415", # import not at top level (acceptable in tests)
+  "TC003",   # move stdlib import to TYPE_CHECKING block
+  "TC005",   # empty type-checking block
+  "F401",    # unused import
 ]
 "examples/*.py" = [
   "T201", # print

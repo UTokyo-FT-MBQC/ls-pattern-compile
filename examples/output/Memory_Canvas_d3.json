@@ -1003,8 +1003,12 @@
         "y": 0.0,
         "z": 12.0
       },
-      "role": "output",
-      "qubitIndex": 0
+      "role": "intermediate",
+      "measBasis": {
+        "type": "axis",
+        "axis": "X",
+        "sign": "PLUS"
+      }
     },
     {
       "id": "2_2_0",
@@ -1181,8 +1185,12 @@
         "y": 2.0,
         "z": 12.0
       },
-      "role": "output",
-      "qubitIndex": 1
+      "role": "intermediate",
+      "measBasis": {
+        "type": "axis",
+        "axis": "X",
+        "sign": "PLUS"
+      }
     },
     {
       "id": "2_4_0",
@@ -1359,8 +1367,12 @@
         "y": 4.0,
         "z": 12.0
       },
-      "role": "output",
-      "qubitIndex": 2
+      "role": "intermediate",
+      "measBasis": {
+        "type": "axis",
+        "axis": "X",
+        "sign": "PLUS"
+      }
     },
     {
       "id": "3_1_1",

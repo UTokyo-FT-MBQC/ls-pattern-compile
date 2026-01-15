@@ -116,37 +116,22 @@ class ExportConfig:
     ----------
     input_nodes : set[Coord3D]
         Set of coordinates to mark as input nodes.
-    output_nodes : set[Coord3D] | None
+        Input nodes require measBasis and qubitIndex.
+    output_nodes : set[Coord3D]
         Set of coordinates to mark as output nodes.
-        If None, uses canvas.couts and canvas.pipe_couts.
+        Output nodes have no measBasis and require qubitIndex.
     qubit_index_map : dict[Coord3D, int]
         Explicit qubit index assignments for input/output nodes.
+
+    Notes
+    -----
+    By default, all nodes are exported as intermediate nodes.
+    To specify input/output nodes, explicitly set input_nodes and output_nodes.
     """
 
     input_nodes: set[Coord3D] = field(default_factory=set)
-    output_nodes: set[Coord3D] | None = None
+    output_nodes: set[Coord3D] = field(default_factory=set)
     qubit_index_map: dict[Coord3D, int] = field(default_factory=dict)
-
-
-def _collect_output_nodes_from_couts(canvas: Canvas) -> set[Coord3D]:
-    """Collect output node candidates from canvas couts.
-
-    Parameters
-    ----------
-    canvas : Canvas
-        The canvas to collect output nodes from.
-
-    Returns
-    -------
-    set[Coord3D]
-        Set of output node coordinates.
-    """
-    output_nodes: set[Coord3D] = set()
-    for coords in canvas.couts.values():
-        output_nodes.update(coords)
-    for coords in canvas.pipe_couts.values():
-        output_nodes.update(coords)
-    return output_nodes
 
 
 def _convert_nodes(
@@ -171,13 +156,15 @@ def _convert_nodes(
     ------
     ValueError
         If a non-output node is missing measurement axis.
+
+    Notes
+    -----
+    By default, all nodes are exported as intermediate nodes.
+    To specify input/output nodes, use ExportConfig.
     """
     nodes: list[GraphNodeDict] = []
 
-    # Use couts as default output nodes if not explicitly specified
     output_nodes = config.output_nodes
-    if output_nodes is None:
-        output_nodes = _collect_output_nodes_from_couts(canvas)
     input_nodes = config.input_nodes
 
     # Auto-assign qubit indices if not provided
@@ -379,8 +366,9 @@ def export_to_studio(
         Name for the exported project.
     config : ExportConfig | None
         Optional export configuration. If None, uses defaults:
-        - output_nodes derived from canvas.couts/pipe_couts
-        - input_nodes empty (all non-output nodes become intermediate)
+        - All nodes become intermediate nodes
+        - To specify input/output nodes, provide ExportConfig with
+          input_nodes and output_nodes sets
 
     Returns
     -------

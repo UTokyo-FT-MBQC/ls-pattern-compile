@@ -30,8 +30,8 @@ print(f"  Cubes: {len(spec.cubes)}")
 
 # %%
 # Export to graphqomb-studio JSON format (using defaults)
-# - Output nodes are automatically detected from canvas.couts/pipe_couts
-# - All non-output nodes become intermediate nodes
+# - All nodes become intermediate nodes by default
+# - To specify input/output nodes, use ExportConfig
 # - zflow is set to "auto" for graphqomb-studio to compute
 
 data = export_to_studio(canvas, spec.name)
@@ -56,14 +56,17 @@ for role, count in roles.items():
     print(f"  {role}: {count}")
 
 # %%
-# Show output nodes (from couts)
-print("\n=== Output Nodes (from couts) ===")
+# Show output nodes (none by default, since we didn't specify any)
+print("\n=== Output Nodes ===")
 output_nodes = [n for n in data["nodes"] if n["role"] == "output"]
-for node in output_nodes[:5]:  # Show first 5
-    coord = node["coordinate"]
-    print(f"  {node['id']}: coordinate=({coord['x']}, {coord['y']}, {coord['z']})")
-if len(output_nodes) > 5:  # noqa: PLR2004
-    print(f"  ... and {len(output_nodes) - 5} more")
+if output_nodes:
+    for node in output_nodes[:5]:  # Show first 5
+        coord = node["coordinate"]
+        print(f"  {node['id']}: coordinate=({coord['x']}, {coord['y']}, {coord['z']})")
+    if len(output_nodes) > 5:  # noqa: PLR2004
+        print(f"  ... and {len(output_nodes) - 5} more")
+else:
+    print("  (None - all nodes are intermediate by default)")
 
 # %%
 # Show sample intermediate nodes with measurement bases
@@ -97,12 +100,13 @@ print(f"\n=== Saved to {output_path} ===")
 
 print("\n=== Custom Export Example ===")
 
-# Get first few nodes as example input nodes
+# Get first few nodes as example input/output nodes
 sample_input_nodes = set(list(canvas.nodes)[:2])
+sample_output_nodes = set(list(canvas.nodes)[2:4])  # Next 2 nodes as output
 
 config = ExportConfig(
     input_nodes=sample_input_nodes,
-    # output_nodes=None means use couts (default)
+    output_nodes=sample_output_nodes,
 )
 
 data_custom = export_to_studio(canvas, f"{spec.name}_custom", config=config)
@@ -111,7 +115,7 @@ roles_custom = {"input": 0, "output": 0, "intermediate": 0}
 for node in data_custom["nodes"]:
     roles_custom[node["role"]] += 1
 
-print("With custom config (2 input nodes):")
+print("With custom config (2 input nodes, 2 output nodes):")
 for role, count in roles_custom.items():
     print(f"  {role}: {count}")
 
