@@ -8,7 +8,7 @@ corner components.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import AxisDIRECTION2D, Coord2D, Coord3D
@@ -1034,7 +1034,7 @@ class RotatedSurfaceCodeLayoutBuilder:
 
         move_vec = RotatedSurfaceCodeLayoutBuilder._determine_move_vec(boundary, ancilla_type)
 
-        flow_map: dict[Coord2D, set[Coord2D]] = dict()
+        flow_map: dict[Coord2D, set[Coord2D]] = {}
         for node in ancilla_nodes:
             target = RotatedSurfaceCodeLayoutBuilder._determine_flow(
                 node,
