@@ -997,7 +997,7 @@ class RotatedSurfaceCodeLayoutBuilder:
         code_distance: int,
         global_pos: Coord2D,
         boundary: Mapping[BoundarySide, EdgeSpecValue],
-        ancilla_type: Literal["X", "Z"],
+        ancilla_type: EdgeSpecValue,
     ) -> dict[Coord2D, set[Coord2D]]:
         """Get flow mapping for initial ancilla qubits.
 
@@ -1013,7 +1013,7 @@ class RotatedSurfaceCodeLayoutBuilder:
             Global (x, y) position of the cube.
         boundary : Mapping[BoundarySide, EdgeSpecValue]
             Boundary specifications for the cube.
-        ancilla_type : Literal["X", "Z"]
+        ancilla_type : EdgeSpecValue
             Type of ancilla qubit. "Z" for layer1 (Z-stabilizer), "X" for layer2 (X-stabilizer).
 
         Returns
@@ -1022,8 +1022,29 @@ class RotatedSurfaceCodeLayoutBuilder:
             Mapping from source 2D coordinate to target 2D coordinates for ancilla flow.
             Each source coordinate maps to a set of target coordinates.
         """
-        # TODO: Implement ancilla flow calculation
-        raise NotImplementedError
+        coords = RotatedSurfaceCodeLayoutBuilder.cube(code_distance, global_pos, boundary)
+        data2d = coords.data
+        if ancilla_type == EdgeSpecValue.X:
+            ancilla_nodes = coords.ancilla_x
+        elif ancilla_type == EdgeSpecValue.Z:
+            ancilla_nodes = coords.ancilla_z
+        else:
+            msg = f"Invalid ancilla type for flow: {ancilla_type}."
+            raise ValueError(msg)
+
+        move_vec = RotatedSurfaceCodeLayoutBuilder._determine_move_vec(boundary, ancilla_type)
+
+        flow_map: dict[Coord2D, set[Coord2D]] = dict()
+        for node in ancilla_nodes:
+            target = RotatedSurfaceCodeLayoutBuilder._determine_flow(
+                node,
+                data2d,
+                ancilla_type,
+                move_vec,
+            )
+            flow_map.setdefault(node, set()).add(target)
+
+        return flow_map
 
     @staticmethod
     def _determine_move_vec(
