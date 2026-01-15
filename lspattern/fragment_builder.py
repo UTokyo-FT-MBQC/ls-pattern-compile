@@ -216,8 +216,8 @@ def _build_layer1(  # noqa: C901
 
         # Add flow for initialization layer ancilla Z qubits
         if layer_cfg.layer1.init:
-            ancilla_flow = RotatedSurfaceCodeLayoutBuilder.get_initial_ancilla_flow(
-                code_distance, Coord2D(0, 0), boundary, "Z"
+            ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
+                code_distance, Coord2D(0, 0), boundary, EdgeSpecValue.Z
             )
             for src_2d, tgt_2d_set in ancilla_flow.items():
                 src_coord = Coord3D(src_2d.x, src_2d.y, z)
@@ -312,8 +312,8 @@ def _build_layer2(  # noqa: C901
 
         # Add flow for initialization layer ancilla X qubits
         if layer_cfg.layer2.init:
-            ancilla_flow = RotatedSurfaceCodeLayoutBuilder.get_initial_ancilla_flow(
-                code_distance, Coord2D(0, 0), boundary, "X"
+            ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
+                code_distance, Coord2D(0, 0), boundary, EdgeSpecValue.X
             )
             for src_2d, tgt_2d_set in ancilla_flow.items():
                 src_coord = Coord3D(src_2d.x, src_2d.y, z + 1)
