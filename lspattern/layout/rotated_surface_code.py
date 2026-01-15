@@ -993,13 +993,13 @@ class RotatedSurfaceCodeLayoutBuilder:
     # =========================================================================
 
     @staticmethod
-    def get_initial_ancilla_flow(
+    def construct_initial_ancilla_flow(
         code_distance: int,
         global_pos: Coord2D,
         boundary: Mapping[BoundarySide, EdgeSpecValue],
         ancilla_type: EdgeSpecValue,
     ) -> dict[Coord2D, set[Coord2D]]:
-        """Get flow mapping for initial ancilla qubits.
+        """Construct flow mapping for initial ancilla qubits.
 
         This method computes the flow relationships for ancilla qubits in
         initialization layers. The flow determines the causal dependencies
