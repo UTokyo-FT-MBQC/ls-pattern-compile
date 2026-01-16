@@ -1057,32 +1057,56 @@ class RotatedSurfaceCodeLayoutBuilder:
         which axis the ancilla flow should move along. The flow moves orthogonally
         to the logical chain direction.
 
+        This method only supports standard rotated surface code boundaries where
+        X and Z are placed on opposite pairs of edges (e.g., TOP/BOTTOM=X and
+        LEFT/RIGHT=Z, or vice versa).
+
         Parameters
         ----------
         boundary : Mapping[BoundarySide, EdgeSpecValue]
             Boundary specifications for the cube.
         ancilla_type : EdgeSpecValue
             Type of ancilla (X or Z) to determine flow for.
-            Currently, open boundary is not supported.
 
         Returns
         -------
         AxisDIRECTION2D
-            H (horizontal) if logical chain is vertical (TOP/BOTTOM boundaries match),
-            V (vertical) if logical chain is horizontal (LEFT/RIGHT boundaries match).
+            H (horizontal) if TOP/BOTTOM boundaries match ancilla_type,
+            V (vertical) if LEFT/RIGHT boundaries match ancilla_type.
 
         Raises
         ------
         ValueError
-            If the boundary conditions do not form a valid logical chain
-            (neither TOP/BOTTOM nor LEFT/RIGHT pair matches the ancilla type).
+            If the boundary conditions are not standard rotated surface code
+            boundaries (X and Z on opposite pairs).
         """
-        if boundary[BoundarySide.TOP] == ancilla_type and boundary[BoundarySide.BOTTOM] == ancilla_type:
-            return AxisDIRECTION2D.H  # return orthogonal direction to the logical chain
-        if boundary[BoundarySide.LEFT] == ancilla_type and boundary[BoundarySide.RIGHT] == ancilla_type:
-            return AxisDIRECTION2D.V
-        msg = "The given boundary conditions is not currently supported"
-        raise ValueError(msg)
+        top = boundary[BoundarySide.TOP]
+        bottom = boundary[BoundarySide.BOTTOM]
+        left = boundary[BoundarySide.LEFT]
+        right = boundary[BoundarySide.RIGHT]
+
+        # Check for standard rotated surface code boundary:
+        # X and Z must each be on opposite pairs of edges
+        top_bottom_same = top == bottom
+        left_right_same = left == right
+        is_standard = (
+            top_bottom_same
+            and left_right_same
+            and {top, left} == {EdgeSpecValue.X, EdgeSpecValue.Z}
+        )
+
+        if not is_standard:
+            msg = (
+                "Only standard rotated surface code boundaries are supported: "
+                "X and Z must each be on opposite pairs of edges "
+                "(e.g., TOP/BOTTOM=X and LEFT/RIGHT=Z, or vice versa)."
+            )
+            raise ValueError(msg)
+
+        # Return movement direction based on ancilla type
+        if top == ancilla_type:
+            return AxisDIRECTION2D.H  # ancilla type matches TOP/BOTTOM, move horizontally
+        return AxisDIRECTION2D.V  # ancilla type matches LEFT/RIGHT, move vertically
 
     @staticmethod
     def _determine_flow(
