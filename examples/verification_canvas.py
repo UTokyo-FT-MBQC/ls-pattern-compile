@@ -17,7 +17,7 @@ from lspattern.visualizer import visualize_canvas_plotly, visualize_detectors_pl
 if TYPE_CHECKING:
     from lspattern.mytype import Coord3D
 
-spec_name = "design/ancilla_free_memory.yml"
+spec_name = "design/cnot.yml"
 code_distance = 3
 canvas, spec = load_canvas(spec_name, code_distance=code_distance)
 
