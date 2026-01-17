@@ -1089,11 +1089,7 @@ class RotatedSurfaceCodeLayoutBuilder:
         # X and Z must each be on opposite pairs of edges
         top_bottom_same = top == bottom
         left_right_same = left == right
-        is_standard = (
-            top_bottom_same
-            and left_right_same
-            and {top, left} == {EdgeSpecValue.X, EdgeSpecValue.Z}
-        )
+        is_standard = top_bottom_same and left_right_same and {top, left} == {EdgeSpecValue.X, EdgeSpecValue.Z}
 
         if not is_standard:
             msg = (
