@@ -380,10 +380,8 @@ class Canvas:
             _, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.cube(
                 self.config.d, Coord2D(global_pos.x, global_pos.y), block_config.boundary
             ).to_mutable_sets()
-            # BlockConfig contains PatchLayoutConfig items, each representing one unit layer
-            num_unit_layers = len(block_config)
             self._compute_cout_from_logical_observables(
-                global_pos, block_config, logical_observables, ancilla_x2d, ancilla_z2d, num_unit_layers
+                global_pos, block_config, logical_observables, ancilla_x2d, ancilla_z2d
             )
 
     def _compute_cout_from_logical_observables(
@@ -393,7 +391,6 @@ class Canvas:
         logical_observables: Sequence[LogicalObservableSpec],
         ancilla_x2d: AbstractSet[Coord2D],
         ancilla_z2d: AbstractSet[Coord2D],
-        num_unit_layers: int,
     ) -> None:
         """Compute cout coordinates from logical observable specifications.
 
@@ -402,15 +399,13 @@ class Canvas:
         global_pos : Coord3D
             The global position of the cube.
         block_config : BlockConfig
-            The block configuration.
+            The block configuration (length determines number of unit layers).
         logical_observables : Sequence[LogicalObservableSpec]
             The logical observable specifications (multiple supported).
         ancilla_x2d : collections.abc.Set[Coord2D]
             X ancilla 2D coordinates for this cube.
         ancilla_z2d : collections.abc.Set[Coord2D]
             Z ancilla 2D coordinates for this cube.
-        num_unit_layers : int
-            Number of unit layers in this block.
 
         Notes
         -----
@@ -426,6 +421,7 @@ class Canvas:
         """
         result: dict[str, set[Coord3D]] = {}
         block_base_z = global_pos.z * 2 * self.config.d
+        num_unit_layers = len(block_config)
 
         for idx, obs in enumerate(logical_observables):
             label = obs.label if obs.label is not None else str(idx)
@@ -485,7 +481,6 @@ class Canvas:
         logical_observables: Sequence[LogicalObservableSpec],
         ancilla_x2d: AbstractSet[Coord2D],
         ancilla_z2d: AbstractSet[Coord2D],
-        num_unit_layers: int,
     ) -> None:
         """Compute cout coordinates from logical observable specifications for pipe.
 
@@ -494,15 +489,13 @@ class Canvas:
         global_edge : tuple[Coord3D, Coord3D]
             The global edge (start, end) of the pipe.
         block_config : BlockConfig
-            The block configuration.
+            The block configuration (length determines number of unit layers).
         logical_observables : Sequence[LogicalObservableSpec]
             The logical observable specifications (multiple supported).
         ancilla_x2d : collections.abc.Set[Coord2D]
             X ancilla 2D coordinates for this pipe.
         ancilla_z2d : collections.abc.Set[Coord2D]
             Z ancilla 2D coordinates for this pipe.
-        num_unit_layers : int
-            Number of unit layers in this block.
 
         Notes
         -----
@@ -514,6 +507,7 @@ class Canvas:
         result: dict[str, set[Coord3D]] = {}
         start, end = global_edge
         block_base_z = start.z * 2 * self.config.d
+        num_unit_layers = len(block_config)
 
         for idx, obs in enumerate(logical_observables):
             label = obs.label if obs.label is not None else str(idx)
@@ -650,8 +644,6 @@ class Canvas:
             _, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.pipe(
                 self.config.d, start, end, block_config.boundary
             ).to_mutable_sets()
-            # BlockConfig contains PatchLayoutConfig items, each representing one unit layer
-            num_unit_layers = len(block_config)
             self._compute_pipe_cout_from_logical_observables(
-                global_edge, block_config, logical_observables, ancilla_x2d, ancilla_z2d, num_unit_layers
+                global_edge, block_config, logical_observables, ancilla_x2d, ancilla_z2d
             )
