@@ -44,16 +44,50 @@ _RESOURCE_PACKAGES = {
 
 @dataclass(frozen=True, slots=True)
 class LogicalObservableSpec:
+    """Specification for a logical observable within a block.
+
+    Attributes
+    ----------
+    token : str | None
+        Token string (e.g., 'TB', 'X', 'Z') for patch-based observables.
+    nodes : tuple[Coord3D, ...]
+        Explicit node coordinates for graph-based observables.
+    layer : int | None
+        Unit layer index (0-based, negative indices supported).
+        If None, defaults to 0 (first unit layer).
+    sublayer : int | None
+        Physical sublayer within the unit layer (1=layer1, 2=layer2).
+        If None, defaults based on token: X→layer2, Z/TB/etc→layer1.
+    label : str | None
+        Label for identifying this observable in multi-observable scenarios.
+        If None, uses index as string (e.g., "0", "1", ...).
+    """
+
     token: str | None = None
     nodes: tuple[Coord3D, ...] = ()
+    layer: int | None = None
+    sublayer: int | None = None
+    label: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class CompositeLogicalObservableSpec:
-    """Represents a logical observable spanning multiple cubes/pipes."""
+    """Represents a logical observable spanning multiple cubes/pipes.
+
+    Attributes
+    ----------
+    cubes : tuple[Coord3D, ...]
+        Global positions of cubes contributing to this observable.
+    pipes : tuple[tuple[Coord3D, Coord3D], ...]
+        Global edges of pipes contributing to this observable.
+    label : str | None
+        Label to reference specific couts within cubes/pipes.
+        If None, all couts from each cube/pipe are combined.
+    """
 
     cubes: tuple[Coord3D, ...]
     pipes: tuple[tuple[Coord3D, Coord3D], ...]
+    label: str | None = None
 
 
 def _normalize_paths(paths: Sequence[Path | str]) -> tuple[Path, ...]:
@@ -91,7 +125,7 @@ class CanvasCubeSpec:
     position: Coord3D
     block: str
     boundary: dict[BoundarySide, EdgeSpecValue]
-    logical_observable: LogicalObservableSpec | None
+    logical_observables: tuple[LogicalObservableSpec, ...] | None
 
 
 @dataclass
@@ -100,7 +134,7 @@ class CanvasPipeSpec:
     end: Coord3D
     block: str
     boundary: dict[BoundarySide, EdgeSpecValue]
-    logical_observable: LogicalObservableSpec | None
+    logical_observables: tuple[LogicalObservableSpec, ...] | None
 
 
 @dataclass
@@ -262,30 +296,111 @@ def _parse_boundary(
     raise TypeError(msg)
 
 
+def _parse_token_string(value: str) -> str | None:
+    """Parse and validate a token string.
+
+    Parameters
+    ----------
+    value : str
+        The token string to parse.
+
+    Returns
+    -------
+    str | None
+        The validated, normalized token string, or None if empty/null.
+
+    Raises
+    ------
+    ValueError
+        If the token is invalid.
+    """
+    cleaned = value.strip()
+    if cleaned.lower() in {"", "none", "null"}:
+        return None
+    token = cleaned.upper().replace("-", "").replace("_", "").replace(" ", "")
+    if len(token) == 1 and token in {"X", "Z"}:
+        return token
+    if len(token) == 2 and all(ch in {"T", "B", "L", "R"} for ch in token):  # noqa: PLR2004
+        if token[0] == token[1]:
+            msg = f"Logical observable sides must be distinct; got duplicate '{token[0]}'."
+            raise ValueError(msg)
+        return token
+    msg = f"Logical observable must be 'X', 'Z', or two distinct chars from T/B/L/R. Got: {value}"
+    raise ValueError(msg)
+
+
 def _parse_logical_observable(value: object | None) -> LogicalObservableSpec | None:  # noqa: C901
+    """Parse a single logical observable specification.
+
+    Parameters
+    ----------
+    value : object | None
+        The raw YAML value to parse.
+
+    Returns
+    -------
+    LogicalObservableSpec | None
+        The parsed specification, or None if the value is empty/null.
+
+    Raises
+    ------
+    ValueError, TypeError
+        If the value is invalid.
+    """
     if value is None:
         return None
+
+    # String form: "TB", "X", "Z", etc.
     if isinstance(value, str):
-        cleaned = value.strip()
-        if cleaned.lower() in {"", "none", "null"}:
+        token = _parse_token_string(value)
+        if token is None:
             return None
-        token = cleaned.upper().replace("-", "").replace("_", "").replace(" ", "")
-        if len(token) == 1 and token in {"X", "Z"}:
-            return LogicalObservableSpec(token=token)
-        if len(token) == 2 and all(ch in {"T", "B", "L", "R"} for ch in token):  # noqa: PLR2004
-            if token[0] == token[1]:
-                msg = f"Logical observable sides must be distinct; got duplicate '{token[0]}'."
-                raise ValueError(msg)
-            return LogicalObservableSpec(token=token)
-        msg = f"Logical observable must be 'X', 'Z', or two distinct chars from T/B/L/R. Got: {value}"
-        raise ValueError(msg)
+        return LogicalObservableSpec(token=token)
+
+    # Mapping form: {token: ..., layer: ..., sublayer: ..., label: ...}
     if isinstance(value, Mapping):
         if "token" in value:
             token_value = value["token"]
             if not isinstance(token_value, str):
                 msg = f"logical_observables.token must be a string, got: {type(token_value)}"
                 raise TypeError(msg)
-            return _parse_logical_observable(token_value)
+            token = _parse_token_string(token_value)
+            if token is None:
+                msg = "logical_observables.token must not be empty."
+                raise ValueError(msg)
+
+            # Parse optional layer, sublayer, and label
+            layer: int | None = None
+            sublayer: int | None = None
+            label: str | None = None
+
+            if "layer" in value:
+                layer_value = value["layer"]
+                if not isinstance(layer_value, int):
+                    msg = f"logical_observables.layer must be an integer, got: {type(layer_value)}"
+                    raise TypeError(msg)
+                layer = layer_value
+
+            if "sublayer" in value:
+                sublayer_value = value["sublayer"]
+                if not isinstance(sublayer_value, int):
+                    msg = f"logical_observables.sublayer must be an integer, got: {type(sublayer_value)}"
+                    raise TypeError(msg)
+                if sublayer_value not in {1, 2}:
+                    msg = f"logical_observables.sublayer must be 1 or 2, got: {sublayer_value}"
+                    raise ValueError(msg)
+                sublayer = sublayer_value
+
+            if "label" in value:
+                label_value = value["label"]
+                if label_value is not None and not isinstance(label_value, str):
+                    msg = f"logical_observables.label must be a string, got: {type(label_value)}"
+                    raise TypeError(msg)
+                label = label_value
+
+            return LogicalObservableSpec(token=token, layer=layer, sublayer=sublayer, label=label)
+
+        # Nodes-based specification
         raw_nodes = value.get("nodes", value.get("coords"))
         if raw_nodes is None:
             msg = "logical_observables mapping must provide 'token' or 'nodes'."
@@ -297,12 +412,101 @@ def _parse_logical_observable(value: object | None) -> LogicalObservableSpec | N
         if not coords:
             msg = "logical_observables.nodes must contain at least one coordinate."
             raise ValueError(msg)
-        return LogicalObservableSpec(nodes=coords)
+
+        # Parse optional label for nodes-based specification
+        label = None
+        if "label" in value:
+            label_value = value["label"]
+            if label_value is not None and not isinstance(label_value, str):
+                msg = f"logical_observables.label must be a string, got: {type(label_value)}"
+                raise TypeError(msg)
+            label = label_value
+
+        return LogicalObservableSpec(nodes=coords, label=label)
+
+    # Sequence form: [[x,y,z], [x,y,z], ...] - explicit coordinates
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
         coords = tuple(_parse_coord3d(coord) for coord in value)
         if not coords:
             return None
         return LogicalObservableSpec(nodes=coords)
+
+    msg = f"Unsupported logical_observables spec: {value!r}"
+    raise TypeError(msg)
+
+
+def _parse_logical_observables(value: object | None) -> tuple[LogicalObservableSpec, ...] | None:  # noqa: C901
+    """Parse logical observables (single or multiple).
+
+    Parameters
+    ----------
+    value : object | None
+        The raw YAML value. Can be:
+        - None: returns None
+        - str: single token (e.g., "TB")
+        - Mapping with 'token' or 'nodes': single observable
+        - Sequence of Mappings: multiple observables
+
+    Returns
+    -------
+    tuple[LogicalObservableSpec, ...] | None
+        Parsed observable specifications, or None if value is empty/null.
+    """
+    if value is None:
+        return None
+
+    # String form: single observable
+    if isinstance(value, str):
+        spec = _parse_logical_observable(value)
+        return (spec,) if spec is not None else None
+
+    # Mapping form: check if it's a single observable or needs further parsing
+    if isinstance(value, Mapping):
+        # If it has 'token' or 'nodes' key, it's a single observable
+        if "token" in value or "nodes" in value or "coords" in value:
+            spec = _parse_logical_observable(value)
+            return (spec,) if spec is not None else None
+        # Otherwise, it might be an invalid mapping
+        msg = f"logical_observables mapping must provide 'token' or 'nodes', got keys: {list(value.keys())}"
+        raise ValueError(msg)
+
+    # Sequence form: could be multiple observables or coordinate list
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        if not value:
+            return None
+
+        # Check first element to determine type
+        first = value[0]
+
+        # If first element is a Mapping, treat as list of observables
+        if isinstance(first, Mapping):
+            specs: list[LogicalObservableSpec] = []
+            for item in value:
+                spec = _parse_logical_observable(item)
+                if spec is not None:
+                    specs.append(spec)
+            return tuple(specs) if specs else None
+
+        # If first element is a Sequence (but not string), could be coordinates
+        if isinstance(first, Sequence) and not isinstance(first, (str, bytes)):
+            # Could be [[x,y,z], [x,y,z], ...] - single observable with explicit nodes
+            # Or could be [[[x,y,z],...], [[x,y,z],...]] - multiple observables
+            # Check if first element looks like a 3D coordinate
+            if len(first) == 3 and all(isinstance(v, (int, float)) for v in first):  # noqa: PLR2004
+                # It's a list of 3D coordinates - single observable
+                spec = _parse_logical_observable(value)
+                return (spec,) if spec is not None else None
+            # Otherwise, treat each as a separate observable
+            specs = []
+            for item in value:
+                spec = _parse_logical_observable(item)
+                if spec is not None:
+                    specs.append(spec)
+            return tuple(specs) if specs else None
+
+        msg = f"Unsupported logical_observables sequence: {value!r}"
+        raise TypeError(msg)
+
     msg = f"Unsupported logical_observables spec: {value!r}"
     raise TypeError(msg)
 
@@ -633,7 +837,16 @@ def _parse_composite_logical_observables(
         cubes = tuple(starmap(Coord3D, raw_cubes))
         pipes = tuple((Coord3D(*p[0]), Coord3D(*p[1])) for p in raw_pipes)
 
-        result.append(CompositeLogicalObservableSpec(cubes=cubes, pipes=pipes))
+        # Parse optional label
+        label: str | None = None
+        if "label" in entry:
+            label_value = entry["label"]
+            if label_value is not None and not isinstance(label_value, str):
+                msg = f"logical_observables.label must be a string, got: {type(label_value)}"
+                raise TypeError(msg)
+            label = label_value
+
+        result.append(CompositeLogicalObservableSpec(cubes=cubes, pipes=pipes, label=label))
 
     return tuple(result)
 
@@ -738,13 +951,13 @@ def load_canvas_spec(name: str | Path, *, extra_paths: Sequence[Path | str] = ()
         pos = Coord3D(*cube_cfg["position"])
         block = cube_cfg["block"]
         boundary = _parse_boundary(cube_cfg.get("boundary"), _DEFAULT_BOUNDARY)
-        logical = _parse_logical_observable(cube_cfg.get("logical_observables"))
+        logical = _parse_logical_observables(cube_cfg.get("logical_observables"))
         cubes.append(
             CanvasCubeSpec(
                 position=pos,
                 block=block,
                 boundary=boundary,
-                logical_observable=logical,
+                logical_observables=logical,
             )
         )
 
@@ -766,14 +979,14 @@ def load_canvas_spec(name: str | Path, *, extra_paths: Sequence[Path | str] = ()
         end = Coord3D(*cast("Sequence[int]", pipe_cfg["end"]))
         block = cast("str", pipe_cfg["block"])
         boundary = _parse_boundary(pipe_cfg.get("boundary"), _DEFAULT_BOUNDARY)
-        logical = _parse_logical_observable(pipe_cfg.get("logical_observables"))
+        logical = _parse_logical_observables(pipe_cfg.get("logical_observables"))
         pipes.append(
             CanvasPipeSpec(
                 start=start,
                 end=end,
                 block=block,
                 boundary=boundary,
-                logical_observable=logical,
+                logical_observables=logical,
             )
         )
 
@@ -801,7 +1014,7 @@ def build_canvas(spec: CanvasSpec, *, code_distance: int, extra_paths: Sequence[
             extra_paths=search_paths,
             boundary_override=cube.boundary,
         )
-        canvas.add_cube(cube.position, block_config, cube.logical_observable)
+        canvas.add_cube(cube.position, block_config, cube.logical_observables)
 
     for pipe in spec.pipes:
         block_config = load_block_config_from_name(
@@ -810,7 +1023,7 @@ def build_canvas(spec: CanvasSpec, *, code_distance: int, extra_paths: Sequence[
             extra_paths=search_paths,
             boundary_override=pipe.boundary,
         )
-        canvas.add_pipe((pipe.start, pipe.end), block_config, pipe.logical_observable)
+        canvas.add_pipe((pipe.start, pipe.end), block_config, pipe.logical_observables)
 
     canvas.logical_observables = spec.logical_observables
     return canvas
