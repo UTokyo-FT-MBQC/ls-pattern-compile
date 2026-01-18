@@ -380,8 +380,8 @@ class Canvas:
             _, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.cube(
                 self.config.d, Coord2D(global_pos.x, global_pos.y), block_config.boundary
             ).to_mutable_sets()
-            # Each unit layer has 2 physical layers (layer1 and layer2)
-            num_unit_layers = len(block_config) // 2
+            # BlockConfig contains PatchLayoutConfig items, each representing one unit layer
+            num_unit_layers = len(block_config)
             self._compute_cout_from_logical_observables(
                 global_pos, block_config, logical_observables, ancilla_x2d, ancilla_z2d, num_unit_layers
             )
@@ -650,8 +650,8 @@ class Canvas:
             _, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.pipe(
                 self.config.d, start, end, block_config.boundary
             ).to_mutable_sets()
-            # Each unit layer has 2 physical layers (layer1 and layer2)
-            num_unit_layers = len(block_config) // 2
+            # BlockConfig contains PatchLayoutConfig items, each representing one unit layer
+            num_unit_layers = len(block_config)
             self._compute_pipe_cout_from_logical_observables(
                 global_edge, block_config, logical_observables, ancilla_x2d, ancilla_z2d, num_unit_layers
             )
