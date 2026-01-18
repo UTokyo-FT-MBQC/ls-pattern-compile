@@ -8,9 +8,9 @@ cube:
   - position: [0, 0, 0]
     block: InitPlusBlock
     boundary: ZZXX
-  - position: [1, 0, 1]
+  - position: [1, 0, 0]
     block: InitPlusBlock
-    boundary: ZZxX
+    boundary: ZZXX
   - position: [1, 1, 0]
     block: InitZeroBlock
     boundary: ZZXX
