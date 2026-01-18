@@ -219,14 +219,16 @@ class CoordParityAccumulator:
         ----------
         coord : Coord3D
             The coordinate to mark as non-deterministic.
+
+        Notes
+        -----
+        If the coordinate is not in syndrome_meas (e.g., init layer ancillas),
+        this method silently returns without adding the coordinate.
+        Such coordinates are already excluded from detector construction.
         """
-        if Coord2D(coord.x, coord.y) not in self.syndrome_meas:
-            msg = (
-                f"Cannot add non-deterministic coord {coord} "
-                f"without existing syndrome measurement at (x={coord.x}, y={coord.y})"
-            )
-            raise KeyError(msg)
-        if coord.z not in self.syndrome_meas[Coord2D(coord.x, coord.y)]:
-            msg = f"Cannot add non-deterministic coord {coord} without existing syndrome measurement at z={coord.z}"
-            raise KeyError(msg)
+        xy = Coord2D(coord.x, coord.y)
+        if xy not in self.syndrome_meas:
+            return
+        if coord.z not in self.syndrome_meas[xy]:
+            return
         self.non_deterministic_coords.add(coord)
