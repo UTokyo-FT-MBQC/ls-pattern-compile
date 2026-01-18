@@ -36,14 +36,14 @@ for pos, coords in canvas.couts.items():
         print(f"    - {coord}")
 
 # # collect logical obs
-# idx = 0
-# logical_observables_spec = canvas.logical_observables[idx]
-# logical_obs_coords: set[Coord3D] = set()
-# for cube_coord in logical_observables_spec.cubes:
-#     logical_obs_coords |= canvas.couts[cube_coord]
-# for pipe_coord in logical_observables_spec.pipes:
-#     logical_obs_coords |= canvas.pipe_couts[pipe_coord]
+idx = 0
+logical_observables_spec = canvas.logical_observables[idx]
 logical_obs_coords: set[Coord3D] = set()
+for cube_coord in logical_observables_spec.cubes:
+    logical_obs_coords |= canvas.couts[cube_coord]
+for pipe_coord in logical_observables_spec.pipes:
+    logical_obs_coords |= canvas.pipe_couts[pipe_coord]
+# logical_obs_coords: set[Coord3D] = set()
 
 # %%
 fig = visualize_canvas_plotly(canvas, highlight_nodes=logical_obs_coords)

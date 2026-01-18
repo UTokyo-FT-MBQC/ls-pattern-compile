@@ -40,7 +40,7 @@ def _build_layers(
     code_distance: int,
     boundary: Mapping[BoundarySide, EdgeSpecValue],
     *,
-    include_remaining_parity: bool = True,
+    is_pipe: bool = False,
 ) -> GraphSpec:
     """Build graph layers from 2D coordinates and block configuration.
 
@@ -64,9 +64,9 @@ def _build_layers(
         Code distance of the surface code.
     boundary : Mapping[BoundarySide, EdgeSpecValue]
         Boundary specifications for the patch.
-    include_remaining_parity : bool
-        Whether to add remaining parity for ancilla qubits. True for cube,
-        False for pipe (to match original behavior).
+    is_pipe : bool
+        Whether this is a pipe fragment. When True, remaining parity and
+        initial ancilla flow are not added.
 
     Returns
     -------
@@ -102,7 +102,7 @@ def _build_layers(
             parity,
             code_distance,
             boundary,
-            include_remaining_parity=include_remaining_parity,
+            is_pipe=is_pipe,
         )
 
         _build_layer2(
@@ -121,7 +121,7 @@ def _build_layers(
             parity,
             code_distance,
             boundary,
-            include_remaining_parity=include_remaining_parity,
+            is_pipe=is_pipe,
         )
 
     return GraphSpec(
@@ -154,7 +154,7 @@ def _build_layer1(  # noqa: C901
     code_distance: int,
     boundary: Mapping[BoundarySide, EdgeSpecValue],
     *,
-    include_remaining_parity: bool,
+    is_pipe: bool,
 ) -> None:
     """Build layer1 (even z) of a layer pair."""
     if layer_cfg.layer1.basis is not None:
@@ -209,14 +209,14 @@ def _build_layer1(  # noqa: C901
 
             if not layer_cfg.layer1.init:
                 parity.add_syndrome_measurement(Coord2D(x, y), z, {coord})
-                if include_remaining_parity:
+                if not is_pipe:
                     parity.add_remaining_parity(Coord2D(x, y), z, {coord})
 
         scheduler.add_prep_at_time(layer_time, ancilla_z_coords)
         scheduler.add_meas_at_time(layer_time + ANCILLA_LENGTH + 1, ancilla_z_coords)
 
         # Add flow for initialization layer ancilla Z qubits
-        if layer_cfg.layer1.init:
+        if layer_cfg.layer1.init and not is_pipe:
             ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
                 code_distance, Coord2D(0, 0), boundary, EdgeSpecValue.Z
             )
@@ -245,7 +245,7 @@ def _build_layer2(  # noqa: C901
     code_distance: int,
     boundary: Mapping[BoundarySide, EdgeSpecValue],
     *,
-    include_remaining_parity: bool,
+    is_pipe: bool,
 ) -> None:
     """Build layer2 (odd z) of a layer pair."""
     if layer_cfg.layer2.basis is not None:
@@ -306,14 +306,14 @@ def _build_layer2(  # noqa: C901
 
             if not layer_cfg.layer2.init:
                 parity.add_syndrome_measurement(Coord2D(x, y), z + 1, {coord})
-                if include_remaining_parity:
+                if not is_pipe:
                     parity.add_remaining_parity(Coord2D(x, y), z + 1, {coord})
 
         scheduler.add_prep_at_time(layer_time + _PHYSICAL_CLOCK + ANCILLA_LENGTH, ancilla_x_coords)
         scheduler.add_meas_at_time(layer_time + _PHYSICAL_CLOCK + 2 * ANCILLA_LENGTH + 1, ancilla_x_coords)
 
         # Add flow for initialization layer ancilla X qubits
-        if layer_cfg.layer2.init:
+        if layer_cfg.layer2.init and not is_pipe:
             ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
                 code_distance, Coord2D(0, 0), boundary, EdgeSpecValue.X
             )
@@ -457,7 +457,7 @@ def build_patch_pipe_fragment(
     ancilla_z2d = {Coord2D(c.x - offset.x, c.y - offset.y) for c in ancilla_z2d}
 
     # Build graph layers (using local coordinates: offset_z=0, base_time=0)
-    # Note: include_remaining_parity=False to match original add_pipe behavior
+    # Note: is_pipe=True skips remaining parity and initial ancilla flow
     graph_spec = _build_layers(
         block_config,
         data2d,
@@ -467,7 +467,7 @@ def build_patch_pipe_fragment(
         base_time=0,
         code_distance=code_distance,
         boundary=block_config.boundary,
-        include_remaining_parity=False,
+        is_pipe=True,
     )
 
     # Build boundary fragment
