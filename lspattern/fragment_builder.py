@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from graphqomb.common import Axis
 
 from lspattern.accumulator import CoordFlowAccumulator, CoordParityAccumulator, CoordScheduleAccumulator
-from lspattern.consts import BoundarySide
+from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.fragment import BlockFragment, Boundary, BoundaryFragment, GraphSpec
 from lspattern.layout import (
     ANCILLA_EDGE_X,
@@ -21,6 +21,7 @@ from lspattern.layout import (
 from lspattern.mytype import Coord2D, Coord3D, NodeRole
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from collections.abc import Set as AbstractSet
 
     from lspattern.loader import BlockConfig, PatchLayoutConfig
@@ -36,8 +37,10 @@ def _build_layers(
     ancilla_z2d: AbstractSet[Coord2D],
     offset_z: int,
     base_time: int,
+    code_distance: int,
+    boundary: Mapping[BoundarySide, EdgeSpecValue],
     *,
-    include_remaining_parity: bool = True,
+    is_pipe: bool = False,
 ) -> GraphSpec:
     """Build graph layers from 2D coordinates and block configuration.
 
@@ -57,9 +60,13 @@ def _build_layers(
         Z-coordinate offset (in local coordinates, typically 0).
     base_time : int
         Base time offset (in local coordinates, typically 0).
-    include_remaining_parity : bool
-        Whether to add remaining parity for ancilla qubits. True for cube,
-        False for pipe (to match original behavior).
+    code_distance : int
+        Code distance of the surface code.
+    boundary : Mapping[BoundarySide, EdgeSpecValue]
+        Boundary specifications for the patch.
+    is_pipe : bool
+        Whether this is a pipe fragment. When True, remaining parity and
+        initial ancilla flow are not added.
 
     Returns
     -------
@@ -93,7 +100,9 @@ def _build_layers(
             flow,
             scheduler,
             parity,
-            include_remaining_parity=include_remaining_parity,
+            code_distance,
+            boundary,
+            is_pipe=is_pipe,
         )
 
         _build_layer2(
@@ -110,7 +119,9 @@ def _build_layers(
             flow,
             scheduler,
             parity,
-            include_remaining_parity=include_remaining_parity,
+            code_distance,
+            boundary,
+            is_pipe=is_pipe,
         )
 
     return GraphSpec(
@@ -140,8 +151,10 @@ def _build_layer1(  # noqa: C901
     flow: CoordFlowAccumulator,
     scheduler: CoordScheduleAccumulator,
     parity: CoordParityAccumulator,
+    code_distance: int,
+    boundary: Mapping[BoundarySide, EdgeSpecValue],
     *,
-    include_remaining_parity: bool,
+    is_pipe: bool,
 ) -> None:
     """Build layer1 (even z) of a layer pair."""
     if layer_cfg.layer1.basis is not None:
@@ -194,12 +207,25 @@ def _build_layer1(  # noqa: C901
                     edges.add((coord, neighbor))
                     scheduler.add_entangle_at_time(layer_time + 1 + i, {(coord, neighbor)})
 
-            parity.add_syndrome_measurement(Coord2D(x, y), z, {coord})
-            if include_remaining_parity:
-                parity.add_remaining_parity(Coord2D(x, y), z, {coord})
+            if not layer_cfg.layer1.init:
+                parity.add_syndrome_measurement(Coord2D(x, y), z, {coord})
+                if not is_pipe:
+                    parity.add_remaining_parity(Coord2D(x, y), z, {coord})
 
         scheduler.add_prep_at_time(layer_time, ancilla_z_coords)
         scheduler.add_meas_at_time(layer_time + ANCILLA_LENGTH + 1, ancilla_z_coords)
+
+        # Add flow for initialization layer ancilla Z qubits
+        if layer_cfg.layer1.init and not is_pipe:
+            ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
+                code_distance, Coord2D(0, 0), boundary, EdgeSpecValue.Z
+            )
+            for src_2d, tgt_2d_set in ancilla_flow.items():
+                src_coord = Coord3D(src_2d.x, src_2d.y, z)
+                for tgt_2d in tgt_2d_set:
+                    tgt_coord = Coord3D(tgt_2d.x, tgt_2d.y, z)
+                    if src_coord in nodes and tgt_coord in nodes:
+                        flow.add_flow(src_coord, tgt_coord)
 
 
 def _build_layer2(  # noqa: C901
@@ -216,8 +242,10 @@ def _build_layer2(  # noqa: C901
     flow: CoordFlowAccumulator,
     scheduler: CoordScheduleAccumulator,
     parity: CoordParityAccumulator,
+    code_distance: int,
+    boundary: Mapping[BoundarySide, EdgeSpecValue],
     *,
-    include_remaining_parity: bool,
+    is_pipe: bool,
 ) -> None:
     """Build layer2 (odd z) of a layer pair."""
     if layer_cfg.layer2.basis is not None:
@@ -276,12 +304,25 @@ def _build_layer2(  # noqa: C901
                         {(coord, neighbor)},
                     )
 
-            parity.add_syndrome_measurement(Coord2D(x, y), z + 1, {coord})
-            if include_remaining_parity:
-                parity.add_remaining_parity(Coord2D(x, y), z + 1, {coord})
+            if not layer_cfg.layer2.init:
+                parity.add_syndrome_measurement(Coord2D(x, y), z + 1, {coord})
+                if not is_pipe:
+                    parity.add_remaining_parity(Coord2D(x, y), z + 1, {coord})
 
         scheduler.add_prep_at_time(layer_time + _PHYSICAL_CLOCK + ANCILLA_LENGTH, ancilla_x_coords)
         scheduler.add_meas_at_time(layer_time + _PHYSICAL_CLOCK + 2 * ANCILLA_LENGTH + 1, ancilla_x_coords)
+
+        # Add flow for initialization layer ancilla X qubits
+        if layer_cfg.layer2.init and not is_pipe:
+            ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
+                code_distance, Coord2D(0, 0), boundary, EdgeSpecValue.X
+            )
+            for src_2d, tgt_2d_set in ancilla_flow.items():
+                src_coord = Coord3D(src_2d.x, src_2d.y, z + 1)
+                for tgt_2d in tgt_2d_set:
+                    tgt_coord = Coord3D(tgt_2d.x, tgt_2d.y, z + 1)
+                    if src_coord in nodes and tgt_coord in nodes:
+                        flow.add_flow(src_coord, tgt_coord)
 
 
 def build_patch_cube_fragment(
@@ -322,6 +363,8 @@ def build_patch_cube_fragment(
         ancilla_z2d,
         offset_z=0,
         base_time=0,
+        code_distance=code_distance,
+        boundary=block_config.boundary,
     )
 
     # Build boundary fragment
@@ -414,7 +457,7 @@ def build_patch_pipe_fragment(
     ancilla_z2d = {Coord2D(c.x - offset.x, c.y - offset.y) for c in ancilla_z2d}
 
     # Build graph layers (using local coordinates: offset_z=0, base_time=0)
-    # Note: include_remaining_parity=False to match original add_pipe behavior
+    # Note: is_pipe=True skips remaining parity and initial ancilla flow
     graph_spec = _build_layers(
         block_config,
         data2d,
@@ -422,7 +465,9 @@ def build_patch_pipe_fragment(
         ancilla_z2d,
         offset_z=0,
         base_time=0,
-        include_remaining_parity=False,
+        code_distance=code_distance,
+        boundary=block_config.boundary,
+        is_pipe=True,
     )
 
     # Build boundary fragment
