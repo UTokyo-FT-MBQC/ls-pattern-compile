@@ -26,23 +26,31 @@ canvas, spec = load_canvas(spec_name, code_distance=code_distance)
 print("\n=== Logical Observables ===")
 print("Cube logical observable specs:")
 for cube in spec.cubes:
-    lo = cube.logical_observable
-    print(f"  {cube.position}: {lo.token if lo else 'None'}")
+    lo = cube.logical_observables
+    if lo:
+        tokens = [obs.token for obs in lo]
+        print(f"  {cube.position}: {tokens}")
+    else:
+        print(f"  {cube.position}: None")
 
 print("\nComputed cube couts (physical coordinates):")
-for pos, coords in canvas.couts.items():
-    print(f"  {pos}: {len(coords)} coordinates")
-    for coord in sorted(coords, key=lambda c: (c.x, c.y, c.z)):
-        print(f"    - {coord}")
+for pos, label_coords in canvas.couts.items():
+    print(f"  {pos}:")
+    for label, coords in label_coords.items():
+        print(f"    [{label}]: {len(coords)} coordinates")
+        for coord in sorted(coords, key=lambda c: (c.x, c.y, c.z)):
+            print(f"      - {coord}")
 
 # # collect logical obs
 idx = 0
 logical_observables_spec = canvas.logical_observables[idx]
 logical_obs_coords: set[Coord3D] = set()
 for cube_coord in logical_observables_spec.cubes:
-    logical_obs_coords |= canvas.couts[cube_coord]
+    for coords in canvas.couts[cube_coord].values():
+        logical_obs_coords |= coords
 for pipe_coord in logical_observables_spec.pipes:
-    logical_obs_coords |= canvas.pipe_couts[pipe_coord]
+    for coords in canvas.pipe_couts[pipe_coord].values():
+        logical_obs_coords |= coords
 # logical_obs_coords: set[Coord3D] = set()
 
 # %%
