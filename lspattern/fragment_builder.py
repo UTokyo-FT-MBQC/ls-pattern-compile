@@ -184,14 +184,25 @@ def _build_layer1(  # noqa: C901
 
         # Parity check with data qubits (when no ancilla in this layer)
         if not layer_cfg.layer1.ancilla and not layer_cfg.layer1.skip_syndrome:
-            # parity_offset aligns data qubit parity with the corresponding ancilla layer:
-            # X-basis data contributes to Z-stabilizers (registered at z+1 where X-ancilla operates)
-            # Z-basis data contributes to X-stabilizers (registered at z where Z-ancilla operates)
-            parity_offset = 1 if layer_cfg.layer1.basis == Axis.X else 0
-            ancilla_2d = ancilla_z2d if layer_cfg.layer1.basis == Axis.Z else ancilla_x2d
+            # parity_offset aligns data qubit parity with the corresponding ancilla layer.
+            # The ancilla edges depend on whether ancilla order is inverted.
+            if invert_ancilla_order:
+                # Inverted: X-ancilla in layer1, Z-ancilla in layer2
+                # X-basis data -> X-stabilizer (Z-ancilla at z+1) -> parity_offset=0
+                # Z-basis data -> Z-stabilizer (X-ancilla at z) -> parity_offset=1
+                parity_offset = 0 if layer_cfg.layer1.basis == Axis.X else 1
+                ancilla_2d = ancilla_x2d if layer_cfg.layer1.basis == Axis.Z else ancilla_z2d
+                ancilla_edges = ANCILLA_EDGE_X
+            else:
+                # Standard: Z-ancilla in layer1, X-ancilla in layer2
+                # X-basis data -> Z-stabilizer (X-ancilla at z+1) -> parity_offset=1
+                # Z-basis data -> X-stabilizer (Z-ancilla at z) -> parity_offset=0
+                parity_offset = 1 if layer_cfg.layer1.basis == Axis.X else 0
+                ancilla_2d = ancilla_z2d if layer_cfg.layer1.basis == Axis.Z else ancilla_x2d
+                ancilla_edges = ANCILLA_EDGE_Z
             for x, y in ancilla_2d:
                 data_collection: set[Coord3D] = set()
-                for dx, dy in ANCILLA_EDGE_Z:
+                for dx, dy in ancilla_edges:
                     if Coord2D(x + dx, y + dy) in data2d:
                         data_collection.add(Coord3D(x + dx, y + dy, z))
                 if data_collection:
@@ -297,14 +308,25 @@ def _build_layer2(  # noqa: C901
 
         # Parity check with data qubits (when no ancilla in this layer)
         if not layer_cfg.layer2.ancilla and not layer_cfg.layer2.skip_syndrome:
-            # parity_offset aligns data qubit parity with the corresponding ancilla layer:
-            # X-basis data contributes to Z-stabilizers (registered at z+1 where Z-ancilla operates)
-            # Z-basis data contributes to X-stabilizers (registered at z+2 where X-ancilla operates)
-            parity_offset = 0 if layer_cfg.layer2.basis == Axis.X else 1
-            ancilla_2d = ancilla_z2d if layer_cfg.layer2.basis == Axis.Z else ancilla_x2d
+            # parity_offset aligns data qubit parity with the corresponding ancilla layer.
+            # The ancilla edges depend on whether ancilla order is inverted.
+            if invert_ancilla_order:
+                # Inverted: Z-ancilla in layer2, X-ancilla in layer1
+                # X-basis data -> X-stabilizer (Z-ancilla in this layer) -> parity_offset=1
+                # Z-basis data -> Z-stabilizer (X-ancilla in next layer1) -> parity_offset=0
+                parity_offset = 1 if layer_cfg.layer2.basis == Axis.X else 0
+                ancilla_2d = ancilla_x2d if layer_cfg.layer2.basis == Axis.Z else ancilla_z2d
+                ancilla_edges = ANCILLA_EDGE_Z
+            else:
+                # Standard: X-ancilla in layer2, Z-ancilla in layer1
+                # X-basis data -> Z-stabilizer (X-ancilla in this layer) -> parity_offset=0
+                # Z-basis data -> X-stabilizer (Z-ancilla in next layer1) -> parity_offset=1
+                parity_offset = 0 if layer_cfg.layer2.basis == Axis.X else 1
+                ancilla_2d = ancilla_z2d if layer_cfg.layer2.basis == Axis.Z else ancilla_x2d
+                ancilla_edges = ANCILLA_EDGE_X
             for x, y in ancilla_2d:
                 data_collection: set[Coord3D] = set()
-                for dx, dy in ANCILLA_EDGE_X:
+                for dx, dy in ancilla_edges:
                     if Coord2D(x + dx, y + dy) in data2d:
                         data_collection.add(Coord3D(x + dx, y + dy, z + 1))
                 if data_collection:
