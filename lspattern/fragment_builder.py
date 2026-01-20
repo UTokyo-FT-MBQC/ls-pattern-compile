@@ -43,25 +43,19 @@ def _get_syndrome_params(
     The pattern follows XOR logic: is_layer2 XOR invert_ancilla_order determines
     whether X-type or Z-type ancilla edges are used.
 
-    - Layer1 standard / Layer2 inverted: uses Z-type edges
-    - Layer1 inverted / Layer2 standard: uses X-type edges
+    - is_x_layer=False: uses same type as basis (X→X, Z→Z)
+    - is_x_layer=True: uses opposite type to basis (X→Z, Z→X)
     """
     is_x_layer = is_layer2 ^ invert_ancilla_order
     parity_offset = 0 if basis == Axis.Z else 1
-    if not is_x_layer:
-        if basis == Axis.X:
-            ancilla_2d = ancilla_x2d
-            ancilla_edges = ANCILLA_EDGE_X
-        else:
-            ancilla_2d = ancilla_z2d
-            ancilla_edges = ANCILLA_EDGE_Z
+    use_x_type = (basis == Axis.Z) == is_x_layer
+
+    if use_x_type:
+        ancilla_2d = ancilla_x2d
+        ancilla_edges = ANCILLA_EDGE_X
     else:
-        if basis == Axis.X:
-            ancilla_2d = ancilla_z2d
-            ancilla_edges = ANCILLA_EDGE_Z
-        else:
-            ancilla_2d = ancilla_x2d
-            ancilla_edges = ANCILLA_EDGE_X
+        ancilla_2d = ancilla_z2d
+        ancilla_edges = ANCILLA_EDGE_Z
 
     return parity_offset, ancilla_2d, ancilla_edges
 
