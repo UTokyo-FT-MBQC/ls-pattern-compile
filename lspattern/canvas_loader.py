@@ -924,6 +924,7 @@ def load_block_config_from_name(
         block_config = BlockConfig([])
         block_config.boundary = boundary
         block_config.graph_spec = graph_spec
+        block_config.invert_ancilla_order = cfg.get("invert_ancilla_order", False)
         return block_config
 
     patch_configs = []
@@ -937,6 +938,7 @@ def load_block_config_from_name(
 
     block_config = BlockConfig(patch_configs)
     block_config.boundary = boundary
+    block_config.invert_ancilla_order = cfg.get("invert_ancilla_order", False)
     return block_config
 
 

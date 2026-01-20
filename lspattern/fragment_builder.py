@@ -103,6 +103,7 @@ def _build_layers(
             code_distance,
             boundary,
             is_pipe=is_pipe,
+            invert_ancilla_order=block_config.invert_ancilla_order,
         )
 
         _build_layer2(
@@ -122,6 +123,7 @@ def _build_layers(
             code_distance,
             boundary,
             is_pipe=is_pipe,
+            invert_ancilla_order=block_config.invert_ancilla_order,
         )
 
     return GraphSpec(
@@ -155,8 +157,12 @@ def _build_layer1(  # noqa: C901
     boundary: Mapping[BoundarySide, EdgeSpecValue],
     *,
     is_pipe: bool,
+    invert_ancilla_order: bool = False,
 ) -> None:
-    """Build layer1 (even z) of a layer pair."""
+    """Build layer1 (even z) of a layer pair.
+
+    When invert_ancilla_order is True, X-ancilla is placed instead of Z-ancilla.
+    """
     if layer_cfg.layer1.basis is not None:
         layer1_coords: list[Coord3D] = []
         for x, y in data2d:
@@ -191,17 +197,32 @@ def _build_layer1(  # noqa: C901
                 if data_collection:
                     parity.add_syndrome_measurement(Coord2D(x, y), z + parity_offset, data_collection)
 
-    # Ancilla Z in layer1
+    # Ancilla in layer1 (Z-ancilla by default, X-ancilla if inverted)
     if layer_cfg.layer1.ancilla:
-        ancilla_z_coords: list[Coord3D] = []
-        for x, y in ancilla_z2d:
+        if invert_ancilla_order:
+            ancilla_role, ancilla_2d_source, ancilla_edges, edge_spec = (
+                NodeRole.ANCILLA_X,
+                ancilla_x2d,
+                ANCILLA_EDGE_X,
+                EdgeSpecValue.X,
+            )
+        else:
+            ancilla_role, ancilla_2d_source, ancilla_edges, edge_spec = (
+                NodeRole.ANCILLA_Z,
+                ancilla_z2d,
+                ANCILLA_EDGE_Z,
+                EdgeSpecValue.Z,
+            )
+
+        ancilla_coords: list[Coord3D] = []
+        for x, y in ancilla_2d_source:
             coord = Coord3D(x, y, z)
             nodes.add(coord)
-            coord2role[coord] = NodeRole.ANCILLA_Z
+            coord2role[coord] = ancilla_role
             pauli_axes[coord] = Axis.X
-            ancilla_z_coords.append(coord)
+            ancilla_coords.append(coord)
 
-            for i, (dx, dy) in enumerate(ANCILLA_EDGE_Z):
+            for i, (dx, dy) in enumerate(ancilla_edges):
                 neighbor = Coord3D(x + dx, y + dy, z)
                 if neighbor in nodes:
                     edges.add((coord, neighbor))
@@ -212,13 +233,13 @@ def _build_layer1(  # noqa: C901
                 if not is_pipe:
                     parity.add_remaining_parity(Coord2D(x, y), z, {coord})
 
-        scheduler.add_prep_at_time(layer_time, ancilla_z_coords)
-        scheduler.add_meas_at_time(layer_time + ANCILLA_LENGTH + 1, ancilla_z_coords)
+        scheduler.add_prep_at_time(layer_time, ancilla_coords)
+        scheduler.add_meas_at_time(layer_time + ANCILLA_LENGTH + 1, ancilla_coords)
 
-        # Add flow for initialization layer ancilla Z qubits
+        # Add flow for initialization layer ancilla qubits
         if layer_cfg.layer1.init and not is_pipe:
             ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
-                code_distance, Coord2D(0, 0), boundary, EdgeSpecValue.Z
+                code_distance, Coord2D(0, 0), boundary, edge_spec
             )
             for src_2d, tgt_2d_set in ancilla_flow.items():
                 src_coord = Coord3D(src_2d.x, src_2d.y, z)
@@ -246,8 +267,12 @@ def _build_layer2(  # noqa: C901
     boundary: Mapping[BoundarySide, EdgeSpecValue],
     *,
     is_pipe: bool,
+    invert_ancilla_order: bool = False,
 ) -> None:
-    """Build layer2 (odd z) of a layer pair."""
+    """Build layer2 (odd z) of a layer pair.
+
+    When invert_ancilla_order is True, Z-ancilla is placed instead of X-ancilla.
+    """
     if layer_cfg.layer2.basis is not None:
         layer2_coords: list[Coord3D] = []
         for x, y in data2d:
@@ -285,17 +310,32 @@ def _build_layer2(  # noqa: C901
                 if data_collection:
                     parity.add_syndrome_measurement(Coord2D(x, y), z + 1 + parity_offset, data_collection)
 
-    # Ancilla X in layer2
+    # Ancilla in layer2 (X-ancilla by default, Z-ancilla if inverted)
     if layer_cfg.layer2.ancilla:
-        ancilla_x_coords: list[Coord3D] = []
-        for x, y in ancilla_x2d:
+        if invert_ancilla_order:
+            ancilla_role, ancilla_2d_source, ancilla_edges, edge_spec = (
+                NodeRole.ANCILLA_Z,
+                ancilla_z2d,
+                ANCILLA_EDGE_Z,
+                EdgeSpecValue.Z,
+            )
+        else:
+            ancilla_role, ancilla_2d_source, ancilla_edges, edge_spec = (
+                NodeRole.ANCILLA_X,
+                ancilla_x2d,
+                ANCILLA_EDGE_X,
+                EdgeSpecValue.X,
+            )
+
+        ancilla_coords: list[Coord3D] = []
+        for x, y in ancilla_2d_source:
             coord = Coord3D(x, y, z + 1)
             nodes.add(coord)
-            coord2role[coord] = NodeRole.ANCILLA_X
+            coord2role[coord] = ancilla_role
             pauli_axes[coord] = Axis.X
-            ancilla_x_coords.append(coord)
+            ancilla_coords.append(coord)
 
-            for i, (dx, dy) in enumerate(ANCILLA_EDGE_X):
+            for i, (dx, dy) in enumerate(ancilla_edges):
                 neighbor = Coord3D(x + dx, y + dy, z + 1)
                 if neighbor in nodes:
                     edges.add((coord, neighbor))
@@ -309,13 +349,13 @@ def _build_layer2(  # noqa: C901
                 if not is_pipe:
                     parity.add_remaining_parity(Coord2D(x, y), z + 1, {coord})
 
-        scheduler.add_prep_at_time(layer_time + _PHYSICAL_CLOCK + ANCILLA_LENGTH, ancilla_x_coords)
-        scheduler.add_meas_at_time(layer_time + _PHYSICAL_CLOCK + 2 * ANCILLA_LENGTH + 1, ancilla_x_coords)
+        scheduler.add_prep_at_time(layer_time + _PHYSICAL_CLOCK + ANCILLA_LENGTH, ancilla_coords)
+        scheduler.add_meas_at_time(layer_time + _PHYSICAL_CLOCK + 2 * ANCILLA_LENGTH + 1, ancilla_coords)
 
-        # Add flow for initialization layer ancilla X qubits
+        # Add flow for initialization layer ancilla qubits
         if layer_cfg.layer2.init and not is_pipe:
             ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
-                code_distance, Coord2D(0, 0), boundary, EdgeSpecValue.X
+                code_distance, Coord2D(0, 0), boundary, edge_spec
             )
             for src_2d, tgt_2d_set in ancilla_flow.items():
                 src_coord = Coord3D(src_2d.x, src_2d.y, z + 1)

@@ -34,6 +34,39 @@ _PHYSICAL_CLOCK = 2
 ANCILLA_LENGTH = len(ANCILLA_EDGE_X)  # assuming both have the same length
 
 
+def _compute_sublayer_offset(
+    observable_token: str,
+    explicit_sublayer: int | None,
+    invert_ancilla_order: bool,
+) -> int:
+    """Compute sublayer offset for logical observable coordinate calculation.
+
+    Parameters
+    ----------
+    observable_token : str
+        The observable token (X, Z, TB, LR, etc.).
+    explicit_sublayer : int | None
+        Explicit sublayer specification (1 or 2), or None for default.
+    invert_ancilla_order : bool
+        Whether ancilla order is inverted.
+
+    Returns
+    -------
+    int
+        Sublayer offset (0 for layer1, 1 for layer2).
+    """
+    if explicit_sublayer is not None:
+        return explicit_sublayer - 1  # 1→0, 2→1
+    if observable_token == "X":  # noqa: S105
+        # X-ancilla: layer2 by default, layer1 if inverted
+        return 0 if invert_ancilla_order else 1
+    if observable_token == "Z":  # noqa: S105
+        # Z-ancilla: layer1 by default, layer2 if inverted
+        return 1 if invert_ancilla_order else 0
+    # TB, LR, etc. → layer1
+    return 0
+
+
 def _token_to_boundary_sides(token: str) -> tuple[BoundarySide, BoundarySide]:
     """Convert logical observable token (2-char) to boundary side pair.
 
@@ -446,14 +479,9 @@ class Canvas:
             else:
                 unit_layer_idx = 0  # Default: first unit layer
 
-            # Determine sublayer offset
-            if obs.sublayer is not None:
-                sublayer_offset = obs.sublayer - 1  # 1→0, 2→1
-            elif observable_token == "X":  # noqa: S105
-                sublayer_offset = 1  # X → layer2
-            else:
-                sublayer_offset = 0  # Z, TB, etc. → layer1
-
+            sublayer_offset = _compute_sublayer_offset(
+                observable_token, obs.sublayer, block_config.invert_ancilla_order
+            )
             offset_z = block_base_z + (unit_layer_idx * 2) + sublayer_offset
 
             if observable_token == "X":  # noqa: S105
@@ -536,14 +564,9 @@ class Canvas:
             else:
                 unit_layer_idx = 0  # Default: first unit layer
 
-            # Determine sublayer offset
-            if obs.sublayer is not None:
-                sublayer_offset = obs.sublayer - 1  # 1→0, 2→1
-            elif observable_token == "X":  # noqa: S105
-                sublayer_offset = 1  # X → layer2
-            else:
-                sublayer_offset = 0  # Z, TB, etc. → layer1
-
+            sublayer_offset = _compute_sublayer_offset(
+                observable_token, obs.sublayer, block_config.invert_ancilla_order
+            )
             offset_z = block_base_z + (unit_layer_idx * 2) + sublayer_offset
 
             if observable_token == "X":  # noqa: S105
