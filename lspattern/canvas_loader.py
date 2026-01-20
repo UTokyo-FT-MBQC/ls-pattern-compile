@@ -126,6 +126,7 @@ class CanvasCubeSpec:
     block: str
     boundary: dict[BoundarySide, EdgeSpecValue]
     logical_observables: tuple[LogicalObservableSpec, ...] | None
+    invert_ancilla_order: bool = False
 
 
 @dataclass
@@ -135,6 +136,7 @@ class CanvasPipeSpec:
     block: str
     boundary: dict[BoundarySide, EdgeSpecValue]
     logical_observables: tuple[LogicalObservableSpec, ...] | None
+    invert_ancilla_order: bool = False
 
 
 @dataclass
@@ -889,16 +891,11 @@ def load_block_config_from_name(
     *,
     code_distance: int,
     extra_paths: Sequence[Path | str] = (),
-    boundary_override: Mapping[BoundarySide, EdgeSpecValue] | None = None,
 ) -> BlockConfig:
     traversable = _resolve_yaml("blocks", name, extra_paths)
     search_paths = _augment_search_paths(traversable, extra_paths)
     with traversable.open("r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
-
-    boundary = _parse_boundary(cfg.get("boundary"), _DEFAULT_BOUNDARY)
-    if boundary_override is not None:
-        boundary = dict(boundary_override)
 
     if cfg.get("graph") is not None:
         if cfg.get("layers"):
@@ -922,9 +919,7 @@ def load_block_config_from_name(
 
         graph_spec = _parse_graph_spec(graph_cfg)
         block_config = BlockConfig([])
-        block_config.boundary = boundary
         block_config.graph_spec = graph_spec
-        block_config.invert_ancilla_order = cfg.get("invert_ancilla_order", False)
         return block_config
 
     patch_configs = []
@@ -936,10 +931,7 @@ def load_block_config_from_name(
         patch_configs.extend([patch_layout] * num_layers)
         consumed += num_layers
 
-    block_config = BlockConfig(patch_configs)
-    block_config.boundary = boundary
-    block_config.invert_ancilla_order = cfg.get("invert_ancilla_order", False)
-    return block_config
+    return BlockConfig(patch_configs)
 
 
 def load_canvas_spec(name: str | Path, *, extra_paths: Sequence[Path | str] = ()) -> CanvasSpec:
@@ -954,12 +946,14 @@ def load_canvas_spec(name: str | Path, *, extra_paths: Sequence[Path | str] = ()
         block = cube_cfg["block"]
         boundary = _parse_boundary(cube_cfg.get("boundary"), _DEFAULT_BOUNDARY)
         logical = _parse_logical_observables(cube_cfg.get("logical_observables"))
+        invert_ancilla = bool(cube_cfg.get("invert_ancilla_order", False))
         cubes.append(
             CanvasCubeSpec(
                 position=pos,
                 block=block,
                 boundary=boundary,
                 logical_observables=logical,
+                invert_ancilla_order=invert_ancilla,
             )
         )
 
@@ -982,6 +976,7 @@ def load_canvas_spec(name: str | Path, *, extra_paths: Sequence[Path | str] = ()
         block = cast("str", pipe_cfg["block"])
         boundary = _parse_boundary(pipe_cfg.get("boundary"), _DEFAULT_BOUNDARY)
         logical = _parse_logical_observables(pipe_cfg.get("logical_observables"))
+        invert_ancilla = bool(pipe_cfg.get("invert_ancilla_order", False))
         pipes.append(
             CanvasPipeSpec(
                 start=start,
@@ -989,6 +984,7 @@ def load_canvas_spec(name: str | Path, *, extra_paths: Sequence[Path | str] = ()
                 block=block,
                 boundary=boundary,
                 logical_observables=logical,
+                invert_ancilla_order=invert_ancilla,
             )
         )
 
@@ -1014,8 +1010,9 @@ def build_canvas(spec: CanvasSpec, *, code_distance: int, extra_paths: Sequence[
             cube.block,
             code_distance=code_distance,
             extra_paths=search_paths,
-            boundary_override=cube.boundary,
         )
+        block_config.boundary = cube.boundary
+        block_config.invert_ancilla_order = cube.invert_ancilla_order
         canvas.add_cube(cube.position, block_config, cube.logical_observables)
 
     for pipe in spec.pipes:
@@ -1023,8 +1020,9 @@ def build_canvas(spec: CanvasSpec, *, code_distance: int, extra_paths: Sequence[
             pipe.block,
             code_distance=code_distance,
             extra_paths=search_paths,
-            boundary_override=pipe.boundary,
         )
+        block_config.boundary = pipe.boundary
+        block_config.invert_ancilla_order = pipe.invert_ancilla_order
         canvas.add_pipe((pipe.start, pipe.end), block_config, pipe.logical_observables)
 
     canvas.logical_observables = spec.logical_observables

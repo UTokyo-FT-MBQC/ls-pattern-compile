@@ -94,10 +94,6 @@ layers:                             # List of unit layers in temporal order
 
 # Option 2: Graph-based definition (mutually exclusive with layers)
 graph: custom_graph.json            # Path to JSON file with explicit graph structure
-
-# Common options
-boundary: XXZZ                      # Optional: Boundary types (Top, Bottom, Left, Right)
-invert_ancilla_order: false         # Optional: Invert ancilla placement order
 ```
 
 ### Layer Repetition Options
@@ -121,38 +117,6 @@ num_layers_from_distance:
   offset: -1
 ```
 
-### Boundary Specification
-
-Boundaries define the edge types for each side of the patch.
-
-**String format** (order: Top, Bottom, Left, Right):
-```yaml
-boundary: XXZZ    # Top=X, Bottom=X, Left=Z, Right=Z (default)
-boundary: ZZZZ    # All Z boundaries
-```
-
-**Mapping format**:
-```yaml
-boundary:
-  top: X
-  bottom: X
-  left: Z
-  right: Z
-```
-
-### Ancilla Order Inversion
-
-The `invert_ancilla_order` flag controls ancilla placement:
-
-| Flag | layer1 (even z) | layer2 (odd z) |
-|------|-----------------|----------------|
-| `false` (default) | Z-ancilla | X-ancilla |
-| `true` | X-ancilla | Z-ancilla |
-
-```yaml
-invert_ancilla_order: true   # Swap ancilla types between sublayers
-```
-
 ### Graph-Based Blocks
 
 For custom graph structures, reference a JSON file instead of using layers:
@@ -161,8 +125,6 @@ For custom graph structures, reference a JSON file instead of using layers:
 name: CustomGraphBlock
 description: Block with explicit graph definition
 graph: my_graph.json          # Path relative to block YAML or search paths
-boundary: XXZZ
-invert_ancilla_order: false
 ```
 
 The JSON file must define nodes, edges, flow, schedule, and detector candidates.
@@ -185,20 +147,59 @@ layout: rotated_surface_code        # Optional: Layout type, default: rotated_su
 cube:                               # List of cube (patch) definitions
   - position: [0, 0, 0]             # Required: 3D position [x, y, z]
     block: MemoryBlock              # Required: Block name (from blocks/)
-    boundary: XXZZ                  # Optional: Override block boundary
+    boundary: XXZZ                  # Optional: Boundary types, default: XXZZ
+    invert_ancilla_order: false     # Optional: Invert ancilla placement order
     logical_observables: TB         # Optional: Logical observable specification
 
 pipe:                               # List of pipe (connection) definitions
   - start: [0, 0, 0]                # Required: Start cube position
     end: [1, 0, 0]                  # Required: End cube position
     block: MemoryBlock              # Required: Block name
-    boundary: XXZZ                  # Optional: Override block boundary
+    boundary: XXZZ                  # Optional: Boundary types, default: XXZZ
+    invert_ancilla_order: false     # Optional: Invert ancilla placement order
     logical_observables: null       # Optional: Logical observable specification
 
 logical_observables:                # Optional: Composite observables spanning multiple cubes/pipes
   - cube: [[0, 0, 0], [1, 0, 0]]
     pipe: []
     label: X_obs
+```
+
+### Boundary Specification
+
+Boundaries define the edge types for each side of the patch.
+Specified at the **cube/pipe level** in Canvas YAML.
+
+**String format** (order: Top, Bottom, Left, Right):
+```yaml
+boundary: XXZZ    # Top=X, Bottom=X, Left=Z, Right=Z (default)
+boundary: ZZZZ    # All Z boundaries
+```
+
+**Mapping format**:
+```yaml
+boundary:
+  top: X
+  bottom: X
+  left: Z
+  right: Z
+```
+
+### Ancilla Order Inversion
+
+The `invert_ancilla_order` flag controls ancilla placement.
+Specified at the **cube/pipe level** in Canvas YAML.
+
+| Flag | layer1 (even z) | layer2 (odd z) |
+|------|-----------------|----------------|
+| `false` (default) | Z-ancilla | X-ancilla |
+| `true` | X-ancilla | Z-ancilla |
+
+```yaml
+cube:
+  - position: [0, 0, 0]
+    block: MemoryBlock
+    invert_ancilla_order: true   # Swap ancilla types between sublayers
 ```
 
 ### Logical Observable Specification
@@ -294,5 +295,19 @@ description: Single patch memory experiment
 cube:
   - position: [0, 0, 0]
     block: MemoryBlock
+    logical_observables: TB
+```
+
+### Canvas with Ancilla Inversion
+
+```yaml
+# examples/inverted_ancilla.yml
+name: InvertedAncillaExample
+description: Example with inverted ancilla order
+cube:
+  - position: [0, 0, 0]
+    block: MemoryBlock
+    boundary: XXZZ
+    invert_ancilla_order: true
     logical_observables: TB
 ```
