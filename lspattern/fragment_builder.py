@@ -47,10 +47,21 @@ def _get_syndrome_params(
     - Layer1 inverted / Layer2 standard: uses X-type edges
     """
     is_x_layer = is_layer2 ^ invert_ancilla_order
-    print(f"  is_x_layer: {is_x_layer}, is_layer2: {is_layer2}, invert_ancilla_order: {invert_ancilla_order}")
     parity_offset = 0 if basis == Axis.Z else 1
-    ancilla_2d = ancilla_x2d if is_x_layer else ancilla_z2d
-    ancilla_edges = ANCILLA_EDGE_X if is_x_layer else ANCILLA_EDGE_Z
+    if not is_x_layer:
+        if basis == Axis.X:
+            ancilla_2d = ancilla_x2d
+            ancilla_edges = ANCILLA_EDGE_X
+        else:
+            ancilla_2d = ancilla_z2d
+            ancilla_edges = ANCILLA_EDGE_Z
+    else:
+        if basis == Axis.X:
+            ancilla_2d = ancilla_z2d
+            ancilla_edges = ANCILLA_EDGE_Z
+        else:
+            ancilla_2d = ancilla_x2d
+            ancilla_edges = ANCILLA_EDGE_X
 
     return parity_offset, ancilla_2d, ancilla_edges
 
