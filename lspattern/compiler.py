@@ -41,8 +41,13 @@ def _collect_logical_observable_nodes(
     for cube in composite_logical_obs.cubes:
         cube_couts = canvas.couts.get(cube, {})
         if composite_logical_obs.label is not None:
-            if composite_logical_obs.label in cube_couts:
-                nodes |= cube_couts[composite_logical_obs.label]
+            if composite_logical_obs.label not in cube_couts:
+                msg = (
+                    f"Label '{composite_logical_obs.label}' not found in cube {cube}. "
+                    f"Available labels: {sorted(cube_couts.keys())}"
+                )
+                raise KeyError(msg)
+            nodes |= cube_couts[composite_logical_obs.label]
         else:
             for cout_set in cube_couts.values():
                 nodes |= cout_set
@@ -50,8 +55,13 @@ def _collect_logical_observable_nodes(
     for pipe in composite_logical_obs.pipes:
         pipe_couts = canvas.pipe_couts.get(pipe, {})
         if composite_logical_obs.label is not None:
-            if composite_logical_obs.label in pipe_couts:
-                nodes |= pipe_couts[composite_logical_obs.label]
+            if composite_logical_obs.label not in pipe_couts:
+                msg = (
+                    f"Label '{composite_logical_obs.label}' not found in pipe {pipe}. "
+                    f"Available labels: {sorted(pipe_couts.keys())}"
+                )
+                raise KeyError(msg)
+            nodes |= pipe_couts[composite_logical_obs.label]
         else:
             for cout_set in pipe_couts.values():
                 nodes |= cout_set

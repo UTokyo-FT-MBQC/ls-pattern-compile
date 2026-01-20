@@ -437,7 +437,11 @@ class Canvas:
                 if unit_layer_idx < 0:
                     unit_layer_idx = num_unit_layers + unit_layer_idx
                 if unit_layer_idx < 0 or unit_layer_idx >= num_unit_layers:
-                    msg = f"layer index {obs.layer} out of range for block with {num_unit_layers} unit layers"
+                    msg = (
+                        f"layer index {obs.layer} (resolved to {unit_layer_idx}) out of range "
+                        f"for block with {num_unit_layers} unit layers. "
+                        f"Valid range: 0 to {num_unit_layers - 1} or -{num_unit_layers} to -1"
+                    )
                     raise ValueError(msg)
             else:
                 unit_layer_idx = 0  # Default: first unit layer
@@ -523,7 +527,11 @@ class Canvas:
                 if unit_layer_idx < 0:
                     unit_layer_idx = num_unit_layers + unit_layer_idx
                 if unit_layer_idx < 0 or unit_layer_idx >= num_unit_layers:
-                    msg = f"layer index {obs.layer} out of range for block with {num_unit_layers} unit layers"
+                    msg = (
+                        f"layer index {obs.layer} (resolved to {unit_layer_idx}) out of range "
+                        f"for block with {num_unit_layers} unit layers. "
+                        f"Valid range: 0 to {num_unit_layers - 1} or -{num_unit_layers} to -1"
+                    )
                     raise ValueError(msg)
             else:
                 unit_layer_idx = 0  # Default: first unit layer
