@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Fix `invert_ancilla_order` flag not being applied to syndrome measurement registration when `ancilla=false` and `skip_syndrome=false`
 - Fix duplicate offset calculation in pipe fragment generation that caused pipes to overlap with cube nodes
 
 ### Added
