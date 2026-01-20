@@ -3,6 +3,9 @@
 This feature allows inverting the ancilla placement order:
 - Default: layer1 (even z) = Z-ancilla, layer2 (odd z) = X-ancilla
 - Inverted: layer1 (even z) = X-ancilla, layer2 (odd z) = Z-ancilla
+
+Note: boundary and invert_ancilla_order are specified at the Canvas YAML level
+(cube/pipe), not in Block YAML.
 """
 
 from pathlib import Path
@@ -20,7 +23,6 @@ def test_default_ancilla_order(tmp_path: Path) -> None:
     """Default behavior: Z-ancilla in layer1, X-ancilla in layer2."""
     block_yaml = """
     name: DefaultOrderBlock
-    boundary: XXZZ
     layers:
       - type: MemoryUnit
         num_layers: 1
@@ -32,6 +34,7 @@ def test_default_ancilla_order(tmp_path: Path) -> None:
     cube:
       - position: [0, 0, 0]
         block: default_order_block
+        boundary: XXZZ
     """
 
     _write_yaml(tmp_path / "default_order_block.yml", block_yaml)
@@ -58,8 +61,6 @@ def test_inverted_ancilla_order_layer1(tmp_path: Path) -> None:
     """With invert_ancilla_order=true, layer1 gets X-ancilla."""
     block_yaml = """
     name: InvertedOrderBlock
-    boundary: XXZZ
-    invert_ancilla_order: true
     layers:
       - type: MemoryUnit
         num_layers: 1
@@ -71,6 +72,8 @@ def test_inverted_ancilla_order_layer1(tmp_path: Path) -> None:
     cube:
       - position: [0, 0, 0]
         block: inverted_order_block
+        boundary: XXZZ
+        invert_ancilla_order: true
     """
 
     _write_yaml(tmp_path / "inverted_order_block.yml", block_yaml)
@@ -92,8 +95,6 @@ def test_inverted_ancilla_order_layer2(tmp_path: Path) -> None:
     """With invert_ancilla_order=true, layer2 gets Z-ancilla."""
     block_yaml = """
     name: InvertedOrderBlock
-    boundary: XXZZ
-    invert_ancilla_order: true
     layers:
       - type: MemoryUnit
         num_layers: 1
@@ -105,6 +106,8 @@ def test_inverted_ancilla_order_layer2(tmp_path: Path) -> None:
     cube:
       - position: [0, 0, 0]
         block: inverted_order_block
+        boundary: XXZZ
+        invert_ancilla_order: true
     """
 
     _write_yaml(tmp_path / "inverted_order_block.yml", block_yaml)
@@ -126,8 +129,6 @@ def test_inverted_cout_x_observable(tmp_path: Path) -> None:
     """X observable goes to layer1 (z=0) when inverted."""
     block_yaml = """
     name: InvertedCoutBlock
-    boundary: XXZZ
-    invert_ancilla_order: true
     layers:
       - type: MemoryUnit
         num_layers: 1
@@ -139,6 +140,8 @@ def test_inverted_cout_x_observable(tmp_path: Path) -> None:
     cube:
       - position: [0, 0, 0]
         block: inverted_cout_block
+        boundary: XXZZ
+        invert_ancilla_order: true
         logical_observables:
           - token: X
             label: x_obs
@@ -161,8 +164,6 @@ def test_inverted_cout_z_observable(tmp_path: Path) -> None:
     """Z observable goes to layer2 (z=1) when inverted."""
     block_yaml = """
     name: InvertedCoutBlock
-    boundary: XXZZ
-    invert_ancilla_order: true
     layers:
       - type: MemoryUnit
         num_layers: 1
@@ -174,6 +175,8 @@ def test_inverted_cout_z_observable(tmp_path: Path) -> None:
     cube:
       - position: [0, 0, 0]
         block: inverted_cout_block
+        boundary: XXZZ
+        invert_ancilla_order: true
         logical_observables:
           - token: Z
             label: z_obs
@@ -196,8 +199,6 @@ def test_explicit_sublayer_overrides_inversion(tmp_path: Path) -> None:
     """Explicit sublayer specification takes precedence over invert_ancilla_order."""
     block_yaml = """
     name: OverrideBlock
-    boundary: XXZZ
-    invert_ancilla_order: true
     layers:
       - type: MemoryUnit
         num_layers: 1
@@ -209,6 +210,8 @@ def test_explicit_sublayer_overrides_inversion(tmp_path: Path) -> None:
     cube:
       - position: [0, 0, 0]
         block: override_block
+        boundary: XXZZ
+        invert_ancilla_order: true
         logical_observables:
           - token: X
             sublayer: 2
@@ -238,7 +241,6 @@ def test_invert_ancilla_order_default_false(tmp_path: Path) -> None:
     """invert_ancilla_order defaults to False when not specified."""
     block_yaml = """
     name: NoFlagBlock
-    boundary: XXZZ
     layers:
       - type: MemoryUnit
         num_layers: 1
@@ -250,6 +252,7 @@ def test_invert_ancilla_order_default_false(tmp_path: Path) -> None:
     cube:
       - position: [0, 0, 0]
         block: no_flag_block
+        boundary: XXZZ
         logical_observables:
           - token: X
             label: x_obs
@@ -276,8 +279,6 @@ def test_inverted_pipe_cout(tmp_path: Path) -> None:
     """Pipe couts respect invert_ancilla_order flag."""
     block_yaml = """
     name: InvertedPipeBlock
-    boundary: XXZZ
-    invert_ancilla_order: true
     layers:
       - type: MemoryUnit
         num_layers: 1
@@ -285,7 +286,6 @@ def test_inverted_pipe_cout(tmp_path: Path) -> None:
 
     cube_block_yaml = """
     name: CubeBlock
-    boundary: XXZZ
     layers:
       - type: MemoryUnit
         num_layers: 1
@@ -297,13 +297,16 @@ def test_inverted_pipe_cout(tmp_path: Path) -> None:
     cube:
       - position: [0, 0, 0]
         block: cube_block
+        boundary: XXZZ
       - position: [1, 0, 0]
         block: cube_block
+        boundary: XXZZ
     pipe:
       - start: [0, 0, 0]
         end: [1, 0, 0]
         block: inverted_pipe_block
         boundary: ZZOO
+        invert_ancilla_order: true
         logical_observables:
           - token: X
             label: pipe_x
