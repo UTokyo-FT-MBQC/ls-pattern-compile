@@ -72,14 +72,29 @@ class PatchLayoutConfig(NamedTuple):
 
 
 class BlockConfig(Sequence[PatchLayoutConfig]):
-    """Sequence of PatchLayoutConfig representing a block configuration."""
+    """Sequence of PatchLayoutConfig representing a block configuration.
+
+    Attributes
+    ----------
+    boundary : dict[BoundarySide, EdgeSpecValue]
+        Boundary specifications for each side of the block.
+    graph_spec : GraphSpec | None
+        Optional graph specification for graph-based blocks.
+    invert_ancilla_order : bool
+        If True, invert the ancilla placement order:
+        - layer1 (even z): X-ancilla instead of Z-ancilla
+        - layer2 (odd z): Z-ancilla instead of X-ancilla
+        Default is False (standard order: layer1=Z, layer2=X).
+    """
 
     boundary: dict[BoundarySide, EdgeSpecValue]
     graph_spec: GraphSpec | None
+    invert_ancilla_order: bool
 
     def __init__(self, configs: Sequence[PatchLayoutConfig]) -> None:
         self._configs = list(configs)
         self.graph_spec = None
+        self.invert_ancilla_order = False
 
     @overload
     def __getitem__(self, index: int) -> PatchLayoutConfig: ...

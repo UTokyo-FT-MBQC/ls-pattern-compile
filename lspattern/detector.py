@@ -63,41 +63,50 @@ def remove_non_deterministic_det(canvas: Canvas) -> CoordParityAccumulator:  # n
         for layer_idx, layer_cfg in enumerate(block_config):
             if layer_cfg.layer1.basis is not None:
                 z = target_coord.z * 2 * canvas.config.d + layer_idx * 2
-                for xy in ancilla_z2d:
+                # Default: Z-ancilla in layer1, X-ancilla if inverted
+                ancilla_coords = ancilla_x2d if block_config.invert_ancilla_order else ancilla_z2d
+                for xy in ancilla_coords:
                     new_parity_accumulator.add_non_deterministic_coord(Coord3D(xy.x, xy.y, z))
                 break
             if layer_cfg.layer2.basis is not None:
                 z = target_coord.z * 2 * canvas.config.d + layer_idx * 2 + 1
-                for xy in ancilla_x2d:
+                # Default: X-ancilla in layer2, Z-ancilla if inverted
+                ancilla_coords = ancilla_z2d if block_config.invert_ancilla_order else ancilla_x2d
+                for xy in ancilla_coords:
                     new_parity_accumulator.add_non_deterministic_coord(Coord3D(xy.x, xy.y, z))
                 break
 
     # process boundary init coords
     for target_coord, direction_map in boundary_init_info.items():  # noqa: PLR1702
         block_config = canvas.cube_config[target_coord]
+        invert = block_config.invert_ancilla_order
         for direction, axes in direction_map.items():
+            x_ancilla2d, z_ancilla2d = RotatedSurfaceCodeLayoutBuilder.cube_boundary_ancillas_for_side(
+                canvas.config.d,
+                Coord2D(target_coord.x, target_coord.y),
+                block_config.boundary,
+                direction,
+            )
             for axis in axes:
                 for layer_idx, layer_cfg in enumerate(block_config):
-                    if axis == Axis.Z and layer_cfg.layer1.ancilla:
+                    # Determine target sublayer and ancilla coords based on axis and inversion
+                    # Z-axis: default layer1, inverted layer2
+                    # X-axis: default layer2, inverted layer1
+                    if axis == Axis.Z:
+                        use_layer1 = not invert
+                        ancilla_2d = z_ancilla2d
+                    else:  # Axis.X
+                        use_layer1 = invert
+                        ancilla_2d = x_ancilla2d
+
+                    if use_layer1 and layer_cfg.layer1.ancilla:
                         z = target_coord.z * 2 * canvas.config.d + layer_idx * 2
-                        _, z_ancilla2d = RotatedSurfaceCodeLayoutBuilder.cube_boundary_ancillas_for_side(
-                            canvas.config.d,
-                            Coord2D(target_coord.x, target_coord.y),
-                            block_config.boundary,
-                            direction,
-                        )
-                        for xy in z_ancilla2d:
+                        for xy in ancilla_2d:
                             new_parity_accumulator.add_non_deterministic_coord(Coord3D(xy.x, xy.y, z))
                         break
-                    if axis == Axis.X and layer_cfg.layer2.ancilla:
+                    if not use_layer1 and layer_cfg.layer2.ancilla:
                         z = target_coord.z * 2 * canvas.config.d + layer_idx * 2 + 1
-                        x_ancilla2d, _ = RotatedSurfaceCodeLayoutBuilder.cube_boundary_ancillas_for_side(
-                            canvas.config.d,
-                            Coord2D(target_coord.x, target_coord.y),
-                            block_config.boundary,
-                            direction,
-                        )
-                        for xy in x_ancilla2d:
+                        for xy in ancilla_2d:
                             new_parity_accumulator.add_non_deterministic_coord(Coord3D(xy.x, xy.y, z))
                         break
 
