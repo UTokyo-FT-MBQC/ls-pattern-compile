@@ -638,14 +638,59 @@ def _parse_composite_logical_observables(
     return tuple(result)
 
 
-def _resolve_num_layers(layer_cfg: Mapping[str, object], distance: int, consumed_layers: int) -> int:
+def _analyze_layer_specs(
+    layers: Sequence[Mapping[str, object]],
+    distance: int,
+) -> tuple[int, int | None]:
+    """Pre-scan layer specs to calculate total fixed layers.
+
+    Returns:
+        A tuple of (total_fixed_layers, rest_index) where:
+        - total_fixed_layers: Sum of all fixed layer counts (excluding 'rest')
+        - rest_index: Index of the layer using 'rest' specification, or None if not found
+    """
+    total_fixed = 0
+    rest_index: int | None = None
+
+    for idx, layer_cfg in enumerate(layers):
+        if "num_layers" in layer_cfg:
+            total_fixed += int(cast("SupportsInt", layer_cfg["num_layers"]))
+            continue
+
+        if "num_layers_from_distance" in layer_cfg:
+            spec = layer_cfg["num_layers_from_distance"]
+            if isinstance(spec, str) and spec.lower() in {"rest", "remaining", "fill"}:
+                if rest_index is not None:
+                    msg = f"Multiple layers cannot use 'rest' specification. Found at indices {rest_index} and {idx}."
+                    raise ValueError(msg)
+                rest_index = idx
+                continue
+            if isinstance(spec, Mapping):
+                scale = int(spec.get("scale", 1))
+                offset = int(spec.get("offset", 0))
+                total_fixed += max(scale * distance + offset, 0)
+                continue
+            total_fixed += max(int(cast("SupportsInt", spec)), 0)
+            continue
+
+        params = layer_cfg.get("params", {})
+        if isinstance(params, Mapping) and "num_layers" in params:
+            total_fixed += int(params["num_layers"])
+            continue
+
+        total_fixed += 1  # Default: 1 layer
+
+    return total_fixed, rest_index
+
+
+def _resolve_num_layers(layer_cfg: Mapping[str, object], distance: int, total_fixed_layers: int) -> int:
     if "num_layers" in layer_cfg:
         return int(cast("SupportsInt", layer_cfg["num_layers"]))
 
     if "num_layers_from_distance" in layer_cfg:
         spec = layer_cfg["num_layers_from_distance"]
         if isinstance(spec, str) and spec.lower() in {"rest", "remaining", "fill"}:
-            return max(distance - consumed_layers, 0)
+            return max(distance - total_fixed_layers, 0)
         if isinstance(spec, Mapping):
             scale = int(spec.get("scale", 1))
             offset = int(spec.get("offset", 0))
@@ -713,14 +758,15 @@ def load_block_config_from_name(
         block_config.graph_spec = graph_spec
         return block_config
 
+    layers_cfg = cfg.get("layers", [])
+    total_fixed, _rest_index = _analyze_layer_specs(layers_cfg, code_distance)
+
     patch_configs = []
-    consumed = 0
-    for layer_cfg in cfg.get("layers", []):
+    for layer_cfg in layers_cfg:
         layer_name = layer_cfg["type"]
-        num_layers = _resolve_num_layers(layer_cfg, code_distance, consumed)
+        num_layers = _resolve_num_layers(layer_cfg, code_distance, total_fixed)
         patch_layout = _load_layer_config(layer_name, extra_paths=search_paths)
         patch_configs.extend([patch_layout] * num_layers)
-        consumed += num_layers
 
     block_config = BlockConfig(patch_configs)
     block_config.boundary = boundary
