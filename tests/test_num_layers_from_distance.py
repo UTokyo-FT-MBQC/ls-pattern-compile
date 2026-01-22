@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from textwrap import dedent
+from typing import Any
 
 import pytest
 
@@ -27,7 +28,7 @@ class TestAnalyzeLayerSpecs:
 
     def test_rest_layer_at_end(self) -> None:
         """When rest is at the end, fixed layers before it are counted."""
-        layers = [
+        layers: list[dict[str, Any]] = [
             {"type": "A", "num_layers": 1},
             {"type": "B", "num_layers_from_distance": "rest"},
         ]
@@ -37,7 +38,7 @@ class TestAnalyzeLayerSpecs:
 
     def test_rest_layer_in_middle(self) -> None:
         """When rest is in the middle, fixed layers before AND after are counted."""
-        layers = [
+        layers: list[dict[str, Any]] = [
             {"type": "A", "num_layers": 1},
             {"type": "B", "num_layers_from_distance": "rest"},
             {"type": "C", "num_layers": 1},
@@ -59,7 +60,7 @@ class TestAnalyzeLayerSpecs:
     def test_rest_synonyms(self) -> None:
         """Test that 'remaining' and 'fill' work as synonyms for 'rest'."""
         for synonym in ["rest", "remaining", "fill", "REST", "Remaining", "FILL"]:
-            layers = [
+            layers: list[dict[str, Any]] = [
                 {"type": "A", "num_layers": 2},
                 {"type": "B", "num_layers_from_distance": synonym},
             ]
@@ -88,7 +89,7 @@ class TestAnalyzeLayerSpecs:
 
     def test_default_layer_count(self) -> None:
         """Layers without explicit num_layers should default to 1."""
-        layers = [
+        layers: list[dict[str, Any]] = [
             {"type": "A"},  # No num_layers specified
             {"type": "B", "num_layers": 2},
         ]

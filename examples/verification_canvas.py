@@ -3,7 +3,7 @@
 # %%
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import stim
 from graphqomb.common import AxisMeasBasis, Sign
@@ -60,7 +60,7 @@ _graph, node_map = GraphState.from_graph(
 )
 node_index_to_coord = {idx: coord for coord, idx in node_map.items()}
 
-nodeidx_to_highlight = {}
+nodeidx_to_highlight: dict[int, Any] = {}
 inv_node_map = {v: k for k, v in node_map.items()}
 highlight_node = set()
 for idx in nodeidx_to_highlight:
