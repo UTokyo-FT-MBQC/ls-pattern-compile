@@ -10,7 +10,7 @@ from graphqomb.qompiler import qompile
 from graphqomb.scheduler import Scheduler
 from graphqomb.stim_compiler import stim_compile
 
-from lspattern.detector import construct_detector, remove_non_deterministic_det
+from lspattern.detector import construct_detector
 
 if TYPE_CHECKING:
     from lspattern.canvas import Canvas
@@ -89,8 +89,7 @@ def compile_canvas_to_stim(
     scheduler.manual_schedule(prep_time, meas_time, entangle_time)
 
     # construct detectors
-    deterministic_accumulator = remove_non_deterministic_det(canvas)
-    coord2detectors = construct_detector(deterministic_accumulator)
+    coord2detectors = construct_detector(canvas.parity_accumulator)
     detectors: list[frozenset[int]] = []
     for det_coords in coord2detectors.values():
         det_nodes = {node_map[coord] for coord in det_coords if coord in node_map}

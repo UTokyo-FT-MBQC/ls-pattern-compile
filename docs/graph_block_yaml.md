@@ -80,7 +80,7 @@ If you want absolute times, set `time_mode: global`.
 ## Current limitations
 
 - `cube.logical_observables` / `pipe.logical_observables` token form (`TB/LR/X/Z`) is not supported for `graph:` blocks; use an explicit `nodes:` list.
-- Boundary-based non-determinism removal (`remove_non_deterministic_det`) is skipped for `graph:` blocks (they don't register `bgraph` entries); use `detector_candidates.non_deterministic` instead.
+- For non-deterministic detector handling in `graph:` blocks, use `detector_candidates.non_deterministic` instead of relying on automatic detection.
 
 ## Canvas YAML: attach logical observables to cubes/pipes
 
