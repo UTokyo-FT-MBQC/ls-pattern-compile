@@ -68,7 +68,7 @@ _graph, node_map = GraphState.from_graph(
 )
 node_index_to_coord = {idx: coord for coord, idx in node_map.items()}
 
-nodeidx_to_highlight = {}
+nodeidx_to_highlight: dict[int, str] = {}
 inv_node_map = {v: k for k, v in node_map.items()}
 highlight_node = set()
 for idx in nodeidx_to_highlight:

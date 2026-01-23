@@ -497,17 +497,19 @@ class Canvas:
 
         self.pipe_couts[global_edge] = result
 
-    def _clear_cube_remaining_parity_for_pipe_init(
+    def _clear_cube_syndrome_meas_for_pipe_init(
         self,
         global_edge: tuple[Coord3D, Coord3D],
         block_config: BlockConfig,
         coord_offset: Coord3D,
     ) -> None:
-        """Clear cube's remaining_parity for pipe's init layer regions only.
+        """Clear cube's syndrome_meas entries for pipe's init layer regions.
 
         This is called before merging pipe's graph spec to ensure that cube's
-        remaining_parity entries are cleared for positions where the pipe has
-        init layers. The pipe will then register its own remaining_parity.
+        syndrome_meas entries are cleared for positions where the pipe has
+        init layers. Init layers should be excluded from detector construction.
+        Note: remaining_parity is NOT cleared here, as it is needed for parity
+        chain tracking.
 
         Parameters
         ----------
@@ -526,20 +528,20 @@ class Canvas:
         for layer_idx, layer_cfg in enumerate(block_config):
             z = coord_offset.z + layer_idx * 2
 
-            # Layer1: clear only if init=true
+            # Layer1: clear syndrome_meas only if init=true
             # Use appropriate ancilla set based on invert_ancilla_order
             if layer_cfg.layer1.init and layer_cfg.layer1.ancilla:
                 ancilla_2d = ancilla_x2d if block_config.invert_ancilla_order else ancilla_z2d
                 for coord in ancilla_2d:
                     xy = Coord2D(coord.x, coord.y)
-                    self.__parity.clear_remaining_parity_at(xy, z)
+                    self.__parity.clear_syndrome_measurement_at(xy, z)
 
-            # Layer2: clear only if init=true
+            # Layer2: clear syndrome_meas only if init=true
             if layer_cfg.layer2.init and layer_cfg.layer2.ancilla:
                 ancilla_2d = ancilla_z2d if block_config.invert_ancilla_order else ancilla_x2d
                 for coord in ancilla_2d:
                     xy = Coord2D(coord.x, coord.y)
-                    self.__parity.clear_remaining_parity_at(xy, z + 1)
+                    self.__parity.clear_syndrome_measurement_at(xy, z + 1)
 
     def add_pipe(  # noqa: C901
         self,
@@ -606,8 +608,8 @@ class Canvas:
         # Patch-based pipe: use fragment builder
         fragment = build_patch_pipe_fragment(self.config.d, pipe_dir, block_config)
 
-        # Clear cube's remaining_parity for pipe's init layer regions BEFORE merging pipe's parity
-        self._clear_cube_remaining_parity_for_pipe_init(global_edge, block_config, coord_offset)
+        # Clear cube's syndrome_meas for pipe's init layer regions BEFORE merging pipe's parity
+        self._clear_cube_syndrome_meas_for_pipe_init(global_edge, block_config, coord_offset)
 
         # Merge graph spec
         self._merge_graph_spec(fragment.graph, coord_offset=coord_offset, time_offset=time_offset)

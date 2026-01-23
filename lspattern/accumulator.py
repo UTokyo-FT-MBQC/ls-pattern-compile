@@ -227,6 +227,21 @@ class CoordParityAccumulator:
             if not self.remaining_parity[xy]:
                 del self.remaining_parity[xy]
 
+    def clear_syndrome_measurement_at(self, xy: Coord2D, z: int) -> None:
+        """Clear all syndrome_meas at (xy, z).
+
+        Parameters
+        ----------
+        xy : Coord2D
+            The (x, y) coordinate of the syndrome measurement to clear.
+        z : int
+            The z-coordinate (layer) of the syndrome measurement to clear.
+        """
+        if xy in self.syndrome_meas and z in self.syndrome_meas[xy]:
+            del self.syndrome_meas[xy][z]
+            if not self.syndrome_meas[xy]:
+                del self.syndrome_meas[xy]
+
     def add_non_deterministic_coord(self, coord: Coord3D) -> None:
         """Mark a coordinate as non-deterministic.
 
