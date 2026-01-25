@@ -4,6 +4,8 @@ description: This patch layout specifies an init plus unit layer
 layer1:
   basis: X # layer 1, transversally X basis, can be omitted, defaults to X
   ancilla: true # can be omitted, defaults to true
+  init: true # add flow for ancilla qubits
 layer2:
   basis: X # layer 2, transversally X basis, can be omitted, defaults to X
   ancilla: true
+  init: false # disable flow for ancilla qubits

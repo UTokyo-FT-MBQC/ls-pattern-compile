@@ -7,3 +7,4 @@ layer1:
 layer2:
   basis: X # layer 2, transversally X basis, can be omitted, defaults to X
   ancilla: true
+  init: true # add flow for ancilla qubits

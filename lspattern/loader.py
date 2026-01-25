@@ -36,11 +36,14 @@ class LayerConfig(NamedTuple):
         Whether to skip registering syndrome measurements (detector candidates)
         when ``ancilla`` is ``false``. If False, syndrome measurements are inferred
         from neighboring data qubits.
+    init : bool
+        Whether to add flow for ancilla qubits in initialization layers.
     """
 
     basis: Axis | None
     ancilla: bool
     skip_syndrome: bool
+    init: bool
 
 
 class PatchLayoutConfig(NamedTuple):
@@ -102,6 +105,10 @@ class LayerConfigValidator(BaseModel):
     skip_syndrome: bool = Field(
         default=False,
         description="Whether to skip syndrome measurements when ancilla=false",
+    )
+    init: bool = Field(
+        default=False,
+        description="Whether to add flow for ancilla qubits in initialization layers",
     )
 
     @field_validator("basis", mode="before")
@@ -188,10 +195,12 @@ def load_patch_layout_from_yaml(yaml_path: Path) -> PatchLayoutConfig:
             basis=validated.layer1.basis,
             ancilla=validated.layer1.ancilla,
             skip_syndrome=validated.layer1.skip_syndrome,
+            init=validated.layer1.init,
         ),
         layer2=LayerConfig(
             basis=validated.layer2.basis,
             ancilla=validated.layer2.ancilla,
             skip_syndrome=validated.layer2.skip_syndrome,
+            init=validated.layer2.init,
         ),
     )

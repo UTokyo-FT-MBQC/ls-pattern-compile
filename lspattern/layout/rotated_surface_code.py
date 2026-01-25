@@ -987,3 +987,177 @@ class RotatedSurfaceCodeLayoutBuilder:
         bounds = RotatedSurfaceCodeLayoutBuilder._pipe_bounds(code_distance, offset, pipe_dir)
         coords = RotatedSurfaceCodeLayoutBuilder.pipe(code_distance, global_pos_source, global_pos_target, boundary)
         return RotatedSurfaceCodeLayoutBuilder._boundary_path(coords.data, bounds, side_a, side_b)
+
+    # =========================================================================
+    # Initial Ancilla Flow
+    # =========================================================================
+
+    @staticmethod
+    def construct_initial_ancilla_flow(
+        code_distance: int,
+        global_pos: Coord2D,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+        ancilla_type: EdgeSpecValue,
+    ) -> dict[Coord2D, set[Coord2D]]:
+        """Construct flow mapping for initial ancilla qubits.
+
+        This method computes the flow relationships for ancilla qubits in
+        initialization layers. The flow determines the causal dependencies
+        between ancilla measurements.
+
+        Parameters
+        ----------
+        code_distance : int
+            Code distance of the surface code.
+        global_pos : Coord2D
+            Global (x, y) position of the cube.
+        boundary : Mapping[BoundarySide, EdgeSpecValue]
+            Boundary specifications for the cube.
+        ancilla_type : EdgeSpecValue
+            Type of ancilla qubit. "Z" for layer1 (Z-stabilizer), "X" for layer2 (X-stabilizer).
+
+        Returns
+        -------
+        dict[Coord2D, set[Coord2D]]
+            Mapping from source 2D coordinate to target 2D coordinates for ancilla flow.
+            Each source coordinate maps to a set of target coordinates.
+        """
+        coords = RotatedSurfaceCodeLayoutBuilder.cube(code_distance, global_pos, boundary)
+        data2d = coords.data
+        if ancilla_type == EdgeSpecValue.X:
+            ancilla_nodes = coords.ancilla_x
+        elif ancilla_type == EdgeSpecValue.Z:
+            ancilla_nodes = coords.ancilla_z
+        else:
+            msg = f"Invalid ancilla type for flow: {ancilla_type}."
+            raise ValueError(msg)
+
+        move_vec = RotatedSurfaceCodeLayoutBuilder._determine_move_vec(boundary, ancilla_type)
+
+        flow_map: dict[Coord2D, set[Coord2D]] = {}
+        for node in ancilla_nodes:
+            target = RotatedSurfaceCodeLayoutBuilder._determine_flow(
+                node,
+                data2d,
+                ancilla_type,
+                move_vec,
+            )
+            flow_map.setdefault(node, set()).add(target)
+
+        return flow_map
+
+    @staticmethod
+    def _determine_move_vec(
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+        ancilla_type: EdgeSpecValue,
+    ) -> AxisDIRECTION2D:
+        """Determine the global movement vector direction for ancilla flow.
+
+        Based on the boundary conditions and ancilla type, this method determines
+        which axis the ancilla flow should move along. The flow moves orthogonally
+        to the logical chain direction.
+
+        This method only supports standard rotated surface code boundaries where
+        X and Z are placed on opposite pairs of edges (e.g., TOP/BOTTOM=X and
+        LEFT/RIGHT=Z, or vice versa).
+
+        Parameters
+        ----------
+        boundary : Mapping[BoundarySide, EdgeSpecValue]
+            Boundary specifications for the cube.
+        ancilla_type : EdgeSpecValue
+            Type of ancilla (X or Z) to determine flow for.
+
+        Returns
+        -------
+        AxisDIRECTION2D
+            H (horizontal) if TOP/BOTTOM boundaries match ancilla_type,
+            V (vertical) if LEFT/RIGHT boundaries match ancilla_type.
+
+        Raises
+        ------
+        ValueError
+            If the boundary conditions are not standard rotated surface code
+            boundaries (X and Z on opposite pairs).
+        """
+        top = boundary[BoundarySide.TOP]
+        bottom = boundary[BoundarySide.BOTTOM]
+        left = boundary[BoundarySide.LEFT]
+        right = boundary[BoundarySide.RIGHT]
+
+        # Check for standard rotated surface code boundary:
+        # X and Z must each be on opposite pairs of edges
+        top_bottom_same = top == bottom
+        left_right_same = left == right
+        is_standard = top_bottom_same and left_right_same and {top, left} == {EdgeSpecValue.X, EdgeSpecValue.Z}
+
+        if not is_standard:
+            msg = (
+                "Only standard rotated surface code boundaries are supported: "
+                "X and Z must each be on opposite pairs of edges "
+                "(e.g., TOP/BOTTOM=X and LEFT/RIGHT=Z, or vice versa)."
+            )
+            raise ValueError(msg)
+
+        # Return movement direction based on ancilla type
+        if top == ancilla_type:
+            return AxisDIRECTION2D.H  # ancilla type matches TOP/BOTTOM, move horizontally
+        return AxisDIRECTION2D.V  # ancilla type matches LEFT/RIGHT, move vertically
+
+    @staticmethod
+    def _determine_flow(
+        node: Coord2D,
+        data2d: frozenset[Coord2D],
+        ancilla_type: EdgeSpecValue,
+        move_vec: AxisDIRECTION2D,
+    ) -> Coord2D:
+        """Determine the flow target for a single ancilla qubit.
+
+        Given an ancilla qubit position, this method finds a valid data qubit
+        target based on the ancilla type's edge pattern and movement direction.
+        The flow represents the causal dependency between ancilla measurements.
+
+        Parameters
+        ----------
+        node : Coord2D
+            The 2D coordinate of the ancilla qubit.
+        data2d : frozenset[Coord2D]
+            Set of all data qubit coordinates in the patch.
+        ancilla_type : EdgeSpecValue
+            Type of ancilla (X or Z), which determines the edge pattern used.
+        move_vec : AxisDIRECTION2D
+            The movement direction (H or V) that filters candidate targets.
+
+        Returns
+        -------
+        Coord2D
+            A valid data qubit coordinate that the ancilla flows to.
+
+        Raises
+        ------
+        ValueError
+            If ancilla_type is neither X nor Z.
+        ValueError
+            If no valid target data qubit is found for the given ancilla.
+        """
+        if ancilla_type == EdgeSpecValue.X:
+            edge_pattern = ANCILLA_EDGE_X
+        elif ancilla_type == EdgeSpecValue.Z:
+            edge_pattern = ANCILLA_EDGE_Z
+        else:
+            msg = f"Invalid ancilla type: {ancilla_type}."
+            raise ValueError(msg)
+
+        candidates = set()
+        for dx, dy in edge_pattern:
+            if move_vec == AxisDIRECTION2D.H and dx == 1:
+                candidates.add(Coord2D(node.x + dx, node.y + dy))
+            if move_vec == AxisDIRECTION2D.V and dy == 1:
+                candidates.add(Coord2D(node.x + dx, node.y + dy))
+
+        valid_targets = candidates.intersection(data2d)
+        if not valid_targets:
+            msg = f"No valid target found for ancilla at {node}."
+            raise ValueError(msg)
+
+        return valid_targets.pop()  # Return one of the valid targets
