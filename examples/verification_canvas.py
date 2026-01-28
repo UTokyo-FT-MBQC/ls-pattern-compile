@@ -10,7 +10,7 @@ from graphqomb.common import AxisMeasBasis, Sign
 from graphqomb.graphstate import GraphState
 
 from lspattern.canvas_loader import load_canvas
-from lspattern.compiler import compile_canvas_to_stim
+from lspattern.compiler import _collect_logical_observable_nodes, compile_canvas_to_stim
 from lspattern.detector import construct_detector, remove_non_deterministic_det
 from lspattern.visualizer import visualize_canvas_plotly, visualize_detectors_plotly
 
@@ -44,13 +44,7 @@ for pos, label_coords in canvas.couts.items():
 # # collect logical obs
 idx = 0
 logical_observables_spec = canvas.logical_observables[idx]
-logical_obs_coords: set[Coord3D] = set()
-for cube_coord in logical_observables_spec.cubes:
-    for coords in canvas.couts[cube_coord].values():
-        logical_obs_coords |= coords
-for pipe_coord in logical_observables_spec.pipes:
-    for coords in canvas.pipe_couts[pipe_coord].values():
-        logical_obs_coords |= coords
+logical_obs_coords = _collect_logical_observable_nodes(canvas, logical_observables_spec)
 # logical_obs_coords: set[Coord3D] = set()
 
 # %%

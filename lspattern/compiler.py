@@ -38,30 +38,31 @@ def _collect_logical_observable_nodes(
     """
     nodes: set[Coord3D] = set()
 
-    for cube in composite_logical_obs.cubes:
-        cube_couts = canvas.couts.get(cube, {})
-        if composite_logical_obs.label is not None:
-            if composite_logical_obs.label not in cube_couts:
+    for cube_ref in composite_logical_obs.cubes:
+        cube_couts = canvas.couts.get(cube_ref.position, {})
+        if cube_ref.label is not None:
+            if cube_ref.label not in cube_couts:
                 msg = (
-                    f"Label '{composite_logical_obs.label}' not found in cube {cube}. "
+                    f"Label '{cube_ref.label}' not found in cube {cube_ref.position}. "
                     f"Available labels: {sorted(cube_couts.keys())}"
                 )
                 raise KeyError(msg)
-            nodes |= cube_couts[composite_logical_obs.label]
+            nodes |= cube_couts[cube_ref.label]
         else:
             for cout_set in cube_couts.values():
                 nodes |= cout_set
 
-    for pipe in composite_logical_obs.pipes:
-        pipe_couts = canvas.pipe_couts.get(pipe, {})
-        if composite_logical_obs.label is not None:
-            if composite_logical_obs.label not in pipe_couts:
+    for pipe_ref in composite_logical_obs.pipes:
+        pipe_key = (pipe_ref.start, pipe_ref.end)
+        pipe_couts = canvas.pipe_couts.get(pipe_key, {})
+        if pipe_ref.label is not None:
+            if pipe_ref.label not in pipe_couts:
                 msg = (
-                    f"Label '{composite_logical_obs.label}' not found in pipe {pipe}. "
+                    f"Label '{pipe_ref.label}' not found in pipe {pipe_key}. "
                     f"Available labels: {sorted(pipe_couts.keys())}"
                 )
                 raise KeyError(msg)
-            nodes |= pipe_couts[composite_logical_obs.label]
+            nodes |= pipe_couts[pipe_ref.label]
         else:
             for cout_set in pipe_couts.values():
                 nodes |= cout_set
