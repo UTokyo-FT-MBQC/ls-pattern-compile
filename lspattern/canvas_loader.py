@@ -519,6 +519,15 @@ def _parse_logical_observables(value: object | None) -> tuple[LogicalObservableS
                     specs.append(spec)
             return tuple(specs) if specs else None
 
+        # If first element is a string, treat as list of token strings (e.g., [TB, X])
+        if isinstance(first, str):
+            specs = []
+            for item in value:
+                spec = _parse_logical_observable(item)
+                if spec is not None:
+                    specs.append(spec)
+            return tuple(specs) if specs else None
+
         # If first element is a Sequence (but not string), could be coordinates
         if isinstance(first, Sequence) and not isinstance(first, (str, bytes)):
             # Could be [[x,y,z], [x,y,z], ...] - single observable with explicit nodes

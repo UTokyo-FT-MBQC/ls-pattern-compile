@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from lspattern.mytype import Coord3D
 
 
-def _collect_logical_observable_nodes(
+def _collect_logical_observable_nodes(  # noqa: C901
     canvas: Canvas,
     composite_logical_obs: CompositeLogicalObservableSpec,
 ) -> set[Coord3D]:
@@ -39,7 +39,13 @@ def _collect_logical_observable_nodes(
     nodes: set[Coord3D] = set()
 
     for cube_ref in composite_logical_obs.cubes:
-        cube_couts = canvas.couts.get(cube_ref.position, {})
+        if cube_ref.position not in canvas.couts:
+            msg = (
+                f"Cube {cube_ref.position} not found in canvas.couts. "
+                f"Available cubes: {sorted(canvas.couts.keys())}"
+            )
+            raise KeyError(msg)
+        cube_couts = canvas.couts[cube_ref.position]
         if cube_ref.label is not None:
             if cube_ref.label not in cube_couts:
                 msg = (
@@ -54,7 +60,13 @@ def _collect_logical_observable_nodes(
 
     for pipe_ref in composite_logical_obs.pipes:
         pipe_key = (pipe_ref.start, pipe_ref.end)
-        pipe_couts = canvas.pipe_couts.get(pipe_key, {})
+        if pipe_key not in canvas.pipe_couts:
+            msg = (
+                f"Pipe {pipe_key} not found in canvas.pipe_couts. "
+                f"Available pipes: {sorted(canvas.pipe_couts.keys())}"
+            )
+            raise KeyError(msg)
+        pipe_couts = canvas.pipe_couts[pipe_key]
         if pipe_ref.label is not None:
             if pipe_ref.label not in pipe_couts:
                 msg = (
