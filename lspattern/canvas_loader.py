@@ -892,9 +892,7 @@ def _parse_pipe_observable_ref(entry: object) -> PipeObservableRef:
     """
     # Simple form: [[x1, y1, z1], [x2, y2, z2]]
     if (
-        isinstance(entry, Sequence)
-        and not isinstance(entry, (str, bytes))
-        and len(entry) == 2  # noqa: PLR2004
+        isinstance(entry, Sequence) and not isinstance(entry, (str, bytes)) and len(entry) == 2  # noqa: PLR2004
     ):
         first, second = entry
         if (
