@@ -40,10 +40,7 @@ def _collect_logical_observable_nodes(  # noqa: C901
 
     for cube_ref in composite_logical_obs.cubes:
         if cube_ref.position not in canvas.couts:
-            msg = (
-                f"Cube {cube_ref.position} not found in canvas.couts. "
-                f"Available cubes: {sorted(canvas.couts.keys())}"
-            )
+            msg = f"Cube {cube_ref.position} not found in canvas.couts. Available cubes: {sorted(canvas.couts.keys())}"
             raise KeyError(msg)
         cube_couts = canvas.couts[cube_ref.position]
         if cube_ref.label is not None:
@@ -61,10 +58,7 @@ def _collect_logical_observable_nodes(  # noqa: C901
     for pipe_ref in composite_logical_obs.pipes:
         pipe_key = (pipe_ref.start, pipe_ref.end)
         if pipe_key not in canvas.pipe_couts:
-            msg = (
-                f"Pipe {pipe_key} not found in canvas.pipe_couts. "
-                f"Available pipes: {sorted(canvas.pipe_couts.keys())}"
-            )
+            msg = f"Pipe {pipe_key} not found in canvas.pipe_couts. Available pipes: {sorted(canvas.pipe_couts.keys())}"
             raise KeyError(msg)
         pipe_couts = canvas.pipe_couts[pipe_key]
         if pipe_ref.label is not None:
