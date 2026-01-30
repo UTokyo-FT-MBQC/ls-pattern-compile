@@ -7,10 +7,12 @@ corner components.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from lspattern.consts import BoundarySide, EdgeSpecValue
+from lspattern.layout.base import TopologicalCodeLayoutBuilder
+from lspattern.layout.checkerboard import generate_checkerboard_coords
+from lspattern.layout.coordinates import PatchBounds, PatchCoordinates
 from lspattern.mytype import AxisDIRECTION2D, Coord2D, Coord3D
 
 if TYPE_CHECKING:
@@ -39,77 +41,6 @@ ANCILLA_EDGE_Z: tuple[tuple[int, int], ...] = (
 
 
 # =============================================================================
-# Data Structures
-# =============================================================================
-
-
-@dataclass(frozen=True, slots=True)
-class PatchBounds:
-    """Bounding box for a patch region in 2D coordinates.
-
-    Attributes
-    ----------
-    x_min : int
-        Minimum x coordinate (inclusive).
-    x_max : int
-        Maximum x coordinate (inclusive).
-    y_min : int
-        Minimum y coordinate (inclusive).
-    y_max : int
-        Maximum y coordinate (inclusive).
-    """
-
-    x_min: int
-    x_max: int
-    y_min: int
-    y_max: int
-
-    @property
-    def center_x(self) -> int:
-        """Center x coordinate (nearest even value for data qubits)."""
-        raw_center = (self.x_min + self.x_max) // 2
-        return raw_center if raw_center % 2 == 0 else raw_center + 1
-
-    @property
-    def center_y(self) -> int:
-        """Center y coordinate (nearest even value for data qubits)."""
-        raw_center = (self.y_min + self.y_max) // 2
-        return raw_center if raw_center % 2 == 0 else raw_center + 1
-
-
-@dataclass(frozen=True, slots=True)
-class PatchCoordinates:
-    """Complete coordinate sets for a patch region.
-
-    This immutable container holds the generated coordinates for
-    data qubits, X ancillas, and Z ancillas.
-
-    Attributes
-    ----------
-    data : frozenset[Coord2D]
-        Coordinates of data qubits.
-    ancilla_x : frozenset[Coord2D]
-        Coordinates of X-type ancilla qubits.
-    ancilla_z : frozenset[Coord2D]
-        Coordinates of Z-type ancilla qubits.
-    """
-
-    data: frozenset[Coord2D]
-    ancilla_x: frozenset[Coord2D]
-    ancilla_z: frozenset[Coord2D]
-
-    def to_mutable_sets(self) -> tuple[set[Coord2D], set[Coord2D], set[Coord2D]]:
-        """Convert to mutable sets for backward compatibility.
-
-        Returns
-        -------
-        tuple[set[Coord2D], set[Coord2D], set[Coord2D]]
-            (data_coords, x_ancilla_coords, z_ancilla_coords)
-        """
-        return set(self.data), set(self.ancilla_x), set(self.ancilla_z)
-
-
-# =============================================================================
 # Corner Rules (Module-level constants)
 # =============================================================================
 
@@ -134,37 +65,39 @@ _CORNER_POSITIONS: dict[tuple[BoundarySide, BoundarySide], tuple[str, str]] = {
 
 
 # =============================================================================
-# Rotated Surface Code Layout Builder
+# Rotated Surface Code Layout Implementation (Instance-based)
 # =============================================================================
 
 
-class RotatedSurfaceCodeLayoutBuilder:
-    """Builder for rotated surface code patch layouts.
+class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
+    """Instance-based implementation of rotated surface code layout builder.
 
-    This class provides static methods to generate qubit coordinates for
-    cube and pipe patches in a rotated surface code layout.
+    This class implements the TopologicalCodeLayoutBuilder interface for
+    rotated surface codes. It can be used directly or via the static
+    facade RotatedSurfaceCodeLayoutBuilder.
 
     Examples
     --------
     >>> from lspattern.consts import BoundarySide, EdgeSpecValue
-    >>> from lspattern.mytype import Coord2D, Coord3D
+    >>> from lspattern.mytype import Coord2D
+    >>> layout = RotatedSurfaceCodeLayout()
     >>> boundary = {
     ...     BoundarySide.TOP: EdgeSpecValue.X,
     ...     BoundarySide.BOTTOM: EdgeSpecValue.X,
     ...     BoundarySide.LEFT: EdgeSpecValue.Z,
     ...     BoundarySide.RIGHT: EdgeSpecValue.Z,
     ... }
-    >>> coords = RotatedSurfaceCodeLayoutBuilder.cube(
-    ...     code_distance=3,
-    ...     global_pos=Coord2D(0, 0),
-    ...     boundary=boundary,
-    ... )
+    >>> coords = layout.cube(code_distance=3, global_pos=Coord2D(0, 0), boundary=boundary)
     >>> len(coords.data) > 0
     True
     """
 
-    @staticmethod
+    # =========================================================================
+    # CoordinateGenerator Implementation
+    # =========================================================================
+
     def cube(
+        self,
         code_distance: int,
         global_pos: Coord2D,
         boundary: Mapping[BoundarySide, EdgeSpecValue],
@@ -188,14 +121,14 @@ class RotatedSurfaceCodeLayoutBuilder:
         PatchCoordinates
             Complete coordinate sets for the cube.
         """
-        offset = RotatedSurfaceCodeLayoutBuilder._compute_cube_offset(code_distance, global_pos)
-        bounds = RotatedSurfaceCodeLayoutBuilder._cube_bounds(code_distance, offset)
+        offset = self.cube_offset(code_distance, global_pos)
+        bounds = self.cube_bounds(code_distance, offset)
 
         # Generate components
-        bulk = RotatedSurfaceCodeLayoutBuilder._generate_bulk_coords(bounds)
-        corner_remove = RotatedSurfaceCodeLayoutBuilder._get_corner_data_to_remove(bounds, boundary)
-        boundary_x, boundary_z = RotatedSurfaceCodeLayoutBuilder._generate_cube_boundary_ancillas(bounds, boundary)
-        corner_x, corner_z = RotatedSurfaceCodeLayoutBuilder._get_corner_ancillas(bounds, boundary)
+        bulk = generate_checkerboard_coords(bounds)
+        corner_remove = self._get_corner_data_to_remove(bounds, boundary)
+        boundary_x, boundary_z = self._generate_cube_boundary_ancillas(bounds, boundary)
+        corner_x, corner_z = self._get_corner_ancillas(bounds, boundary)
 
         return PatchCoordinates(
             data=bulk.data - corner_remove,
@@ -203,8 +136,8 @@ class RotatedSurfaceCodeLayoutBuilder:
             ancilla_z=bulk.ancilla_z | boundary_z | corner_z,
         )
 
-    @staticmethod
     def pipe(
+        self,
         code_distance: int,
         global_pos_source: Coord3D,
         global_pos_target: Coord3D,
@@ -232,17 +165,15 @@ class RotatedSurfaceCodeLayoutBuilder:
             Complete coordinate sets for the pipe.
         """
         # Determine pipe direction from source/target positions
-        pipe_offset_dir = RotatedSurfaceCodeLayoutBuilder.pipe_offset(global_pos_source, global_pos_target)
-        pipe_dir = RotatedSurfaceCodeLayoutBuilder._pipe_axis_from_offset(pipe_offset_dir)
+        pipe_offset_dir = self.pipe_offset(global_pos_source, global_pos_target)
+        pipe_dir = self.pipe_axis_from_offset(pipe_offset_dir)
 
-        offset = RotatedSurfaceCodeLayoutBuilder._compute_pipe_offset(code_distance, global_pos_source, pipe_offset_dir)
-        bounds = RotatedSurfaceCodeLayoutBuilder._pipe_bounds(code_distance, offset, pipe_dir)
+        offset = self._compute_pipe_offset(code_distance, global_pos_source, pipe_offset_dir)
+        bounds = self.pipe_bounds(code_distance, offset, pipe_dir)
 
         # Generate components
-        bulk = RotatedSurfaceCodeLayoutBuilder._generate_bulk_coords(bounds)
-        boundary_x, boundary_z = RotatedSurfaceCodeLayoutBuilder._generate_pipe_boundary_ancillas(
-            bounds, boundary, pipe_dir
-        )
+        bulk = generate_checkerboard_coords(bounds)
+        boundary_x, boundary_z = self._generate_pipe_boundary_ancillas(bounds, boundary, pipe_dir)
 
         return PatchCoordinates(
             data=bulk.data,
@@ -251,11 +182,10 @@ class RotatedSurfaceCodeLayoutBuilder:
         )
 
     # =========================================================================
-    # Bounds Calculation
+    # BoundsCalculator Implementation
     # =========================================================================
 
-    @staticmethod
-    def _cube_bounds(code_distance: int, offset: Coord2D) -> PatchBounds:
+    def cube_bounds(self, code_distance: int, offset: Coord2D) -> PatchBounds:
         """Create bounds for a cube patch."""
         return PatchBounds(
             x_min=offset.x,
@@ -264,8 +194,8 @@ class RotatedSurfaceCodeLayoutBuilder:
             y_max=offset.y + 2 * (code_distance - 1),
         )
 
-    @staticmethod
-    def _pipe_bounds(
+    def pipe_bounds(
+        self,
         code_distance: int,
         offset: Coord2D,
         direction: AxisDIRECTION2D,
@@ -287,20 +217,277 @@ class RotatedSurfaceCodeLayoutBuilder:
             y_max=offset.y + 1,
         )
 
-    # =========================================================================
-    # Offset Calculation
-    # =========================================================================
-
-    @staticmethod
-    def _compute_cube_offset(code_distance: int, global_pos: Coord2D) -> Coord2D:
+    def cube_offset(self, code_distance: int, global_pos: Coord2D) -> Coord2D:
         """Compute the offset for a cube patch based on global position."""
         return Coord2D(
             x=2 * (code_distance + 1) * global_pos.x,
             y=2 * (code_distance + 1) * global_pos.y,
         )
 
-    @staticmethod
+    # =========================================================================
+    # BoundaryPathCalculator Implementation
+    # =========================================================================
+
+    def cube_boundary_path(
+        self,
+        code_distance: int,
+        global_pos: Coord2D,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+        side_a: BoundarySide,
+        side_b: BoundarySide,
+    ) -> list[Coord2D]:
+        """Get data-qubit path from side_a to side_b through cube center.
+
+        Parameters
+        ----------
+        code_distance : int
+            Code distance of the surface code.
+        global_pos : Coord2D
+            Global (x, y) position of the cube.
+        boundary : Mapping[BoundarySide, EdgeSpecValue]
+            Boundary specifications for the cube.
+        side_a : BoundarySide
+            Starting boundary side.
+        side_b : BoundarySide
+            Ending boundary side.
+
+        Returns
+        -------
+        list[Coord2D]
+            Ordered data-qubit coordinates from side_a to side_b.
+        """
+        offset = self.cube_offset(code_distance, global_pos)
+        bounds = self.cube_bounds(code_distance, offset)
+        coords = self.cube(code_distance, global_pos, boundary)
+        return self._boundary_path(coords.data, bounds, side_a, side_b)
+
+    def pipe_boundary_path(
+        self,
+        code_distance: int,
+        global_pos_source: Coord3D,
+        global_pos_target: Coord3D,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+        side_a: BoundarySide,
+        side_b: BoundarySide,
+    ) -> list[Coord2D]:
+        """Get data-qubit path from side_a to side_b through pipe center.
+
+        Parameters
+        ----------
+        code_distance : int
+            Code distance of the surface code.
+        global_pos_source : Coord3D
+            Global (x, y, z) position of the pipe source.
+        global_pos_target : Coord3D
+            Global (x, y, z) position of the pipe target.
+        boundary : Mapping[BoundarySide, EdgeSpecValue]
+            Boundary specifications for the pipe.
+        side_a : BoundarySide
+            Starting boundary side.
+        side_b : BoundarySide
+            Ending boundary side.
+
+        Returns
+        -------
+        list[Coord2D]
+            Ordered data-qubit coordinates from side_a to side_b.
+        """
+        pipe_offset_dir = self.pipe_offset(global_pos_source, global_pos_target)
+        pipe_dir = self.pipe_axis_from_offset(pipe_offset_dir)
+        offset = self._compute_pipe_offset(code_distance, global_pos_source, pipe_offset_dir)
+        bounds = self.pipe_bounds(code_distance, offset, pipe_dir)
+        coords = self.pipe(code_distance, global_pos_source, global_pos_target, boundary)
+        return self._boundary_path(coords.data, bounds, side_a, side_b)
+
+    # =========================================================================
+    # BoundaryAncillaRetriever Implementation
+    # =========================================================================
+
+    def cube_boundary_ancillas_for_side(
+        self,
+        code_distance: int,
+        global_pos: Coord2D,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+        side: BoundarySide,
+    ) -> tuple[frozenset[Coord2D], frozenset[Coord2D]]:
+        """Get ancilla coordinates for a specific boundary side of a cube.
+
+        This method returns all ancilla qubits located on the specified boundary
+        side, including corner ancillas. Each corner belongs to both adjacent
+        sides (e.g., top_left corner belongs to both TOP and LEFT sides).
+
+        Parameters
+        ----------
+        code_distance : int
+            Code distance of the surface code.
+        global_pos : Coord2D
+            Global (x, y) position of the cube.
+        boundary : Mapping[BoundarySide, EdgeSpecValue]
+            Boundary specifications for the cube.
+        side : BoundarySide
+            The boundary side to get ancillas for (TOP, BOTTOM, LEFT, RIGHT).
+
+        Returns
+        -------
+        tuple[frozenset[Coord2D], frozenset[Coord2D]]
+            (X ancillas, Z ancillas) for the specified boundary side,
+            including corner ancillas that belong to this side.
+
+        Examples
+        --------
+        >>> from lspattern.consts import BoundarySide, EdgeSpecValue
+        >>> from lspattern.mytype import Coord2D
+        >>> layout = RotatedSurfaceCodeLayout()
+        >>> boundary = {
+        ...     BoundarySide.TOP: EdgeSpecValue.X,
+        ...     BoundarySide.BOTTOM: EdgeSpecValue.X,
+        ...     BoundarySide.LEFT: EdgeSpecValue.Z,
+        ...     BoundarySide.RIGHT: EdgeSpecValue.Z,
+        ... }
+        >>> x_anc, z_anc = layout.cube_boundary_ancillas_for_side(
+        ...     code_distance=3,
+        ...     global_pos=Coord2D(0, 0),
+        ...     boundary=boundary,
+        ...     side=BoundarySide.TOP,
+        ... )
+        """
+        # Calculate bounds internally
+        offset = self.cube_offset(code_distance, global_pos)
+        bounds = self.cube_bounds(code_distance, offset)
+
+        # Get edge ancillas for this side
+        edge_x, edge_z = self._generate_boundary_ancillas_for_side(bounds, boundary, side)
+
+        # Get corner ancillas for this side
+        corner_x, corner_z = self._get_corner_ancillas_for_side(bounds, boundary, side)
+
+        # Combine edge and corner ancillas
+        return frozenset(edge_x | corner_x), frozenset(edge_z | corner_z)
+
+    # =========================================================================
+    # AncillaFlowConstructor Implementation
+    # =========================================================================
+
+    def construct_initial_ancilla_flow(
+        self,
+        code_distance: int,
+        global_pos: Coord2D,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+        ancilla_type: EdgeSpecValue,
+    ) -> dict[Coord2D, set[Coord2D]]:
+        """Construct flow mapping for initial ancilla qubits.
+
+        This method computes the flow relationships for ancilla qubits in
+        initialization layers. The flow determines the causal dependencies
+        between ancilla measurements.
+
+        Parameters
+        ----------
+        code_distance : int
+            Code distance of the surface code.
+        global_pos : Coord2D
+            Global (x, y) position of the cube.
+        boundary : Mapping[BoundarySide, EdgeSpecValue]
+            Boundary specifications for the cube.
+        ancilla_type : EdgeSpecValue
+            Type of ancilla qubit. "Z" for layer1 (Z-stabilizer), "X" for layer2 (X-stabilizer).
+
+        Returns
+        -------
+        dict[Coord2D, set[Coord2D]]
+            Mapping from source 2D coordinate to target 2D coordinates for ancilla flow.
+            Each source coordinate maps to a set of target coordinates.
+        """
+        coords = self.cube(code_distance, global_pos, boundary)
+        data2d = coords.data
+        if ancilla_type == EdgeSpecValue.X:
+            ancilla_nodes = coords.ancilla_x
+        elif ancilla_type == EdgeSpecValue.Z:
+            ancilla_nodes = coords.ancilla_z
+        else:
+            msg = f"Invalid ancilla type for flow: {ancilla_type}."
+            raise ValueError(msg)
+
+        move_vec = self._determine_move_vec(boundary, ancilla_type)
+
+        flow_map: dict[Coord2D, set[Coord2D]] = {}
+        for node in ancilla_nodes:
+            target = self._determine_flow(
+                node,
+                data2d,
+                ancilla_type,
+                move_vec,
+            )
+            flow_map.setdefault(node, set()).add(target)
+
+        return flow_map
+
+    # =========================================================================
+    # PipeDirectionHelper Implementation
+    # =========================================================================
+
+    def pipe_offset(
+        self,
+        global_pos_source: Coord3D,
+        global_pos_target: Coord3D,
+    ) -> BoundarySide:
+        """Calculate pipe offset direction from source to target positions.
+
+        Parameters
+        ----------
+        global_pos_source : Coord3D
+            Global (x, y, z) position of the pipe source.
+        global_pos_target : Coord3D
+            Global (x, y, z) position of the pipe target.
+
+        Returns
+        -------
+        BoundarySide
+            The direction from source to target.
+
+        Raises
+        ------
+        ValueError
+            If source and target positions don't form a valid pipe offset.
+        """
+        dx = global_pos_target.x - global_pos_source.x
+        dy = global_pos_target.y - global_pos_source.y
+
+        if dx == 1 and dy == 0:
+            return BoundarySide.RIGHT
+        if dx == -1 and dy == 0:
+            return BoundarySide.LEFT
+        if dx == 0 and dy == 1:
+            return BoundarySide.BOTTOM  # y increases toward BOTTOM (y_max side)
+        if dx == 0 and dy == -1:
+            return BoundarySide.TOP  # y decreases toward TOP (y_min side)
+
+        msg = f"Invalid pipe offset: source {global_pos_source}, target {global_pos_target}."
+        raise ValueError(msg)
+
+    def pipe_axis_from_offset(self, offset_dir: BoundarySide) -> AxisDIRECTION2D:
+        """Derive pipe axis direction from offset direction.
+
+        Parameters
+        ----------
+        offset_dir : BoundarySide
+            The direction from source to target (from pipe_offset()).
+
+        Returns
+        -------
+        AxisDIRECTION2D
+            H for horizontal pipe (RIGHT/LEFT), V for vertical pipe (TOP/BOTTOM).
+        """
+        if offset_dir in {BoundarySide.RIGHT, BoundarySide.LEFT}:
+            return AxisDIRECTION2D.H
+        return AxisDIRECTION2D.V
+
+    # =========================================================================
+    # Private Helper Methods
+    # =========================================================================
+
     def _compute_pipe_offset(
+        self,
         code_distance: int,
         global_pos_source: Coord3D,
         pipe_dir: BoundarySide,
@@ -320,47 +507,8 @@ class RotatedSurfaceCodeLayoutBuilder:
 
         return Coord2D(offset_x, offset_y)
 
-    # =========================================================================
-    # Bulk Coordinate Generation
-    # =========================================================================
-
-    @staticmethod
-    def _generate_bulk_coords(bounds: PatchBounds) -> PatchCoordinates:
-        """Generate bulk coordinates using the checkerboard pattern.
-
-        The checkerboard pattern places qubits as follows:
-        - Data qubits: absolute even x, absolute even y
-        - X ancillas: absolute odd x, absolute odd y, (rel_x + rel_y) % 4 == 0
-        - Z ancillas: absolute odd x, absolute odd y, (rel_x + rel_y) % 4 == 2
-        """
-        data: set[Coord2D] = set()
-        ancilla_x: set[Coord2D] = set()
-        ancilla_z: set[Coord2D] = set()
-
-        for x in range(bounds.x_min, bounds.x_max + 1):
-            for y in range(bounds.y_min, bounds.y_max + 1):
-                # Data qubits use absolute even coordinates
-                if x % 2 == 0 and y % 2 == 0:
-                    data.add(Coord2D(x, y))
-                # Ancillas use absolute odd coordinates but relative pattern for X/Z distinction
-                elif x % 2 == 1 and y % 2 == 1:
-                    if (x + y) % 4 == 0:
-                        ancilla_x.add(Coord2D(x, y))
-                    elif (x + y) % 4 == 2:  # noqa: PLR2004
-                        ancilla_z.add(Coord2D(x, y))
-
-        return PatchCoordinates(
-            data=frozenset(data),
-            ancilla_x=frozenset(ancilla_x),
-            ancilla_z=frozenset(ancilla_z),
-        )
-
-    # =========================================================================
-    # Corner Handling
-    # =========================================================================
-
-    @staticmethod
     def _get_corner_data_to_remove(
+        self,
         bounds: PatchBounds,
         boundary: Mapping[BoundarySide, EdgeSpecValue],
     ) -> frozenset[Coord2D]:
@@ -375,8 +523,8 @@ class RotatedSurfaceCodeLayoutBuilder:
 
         return frozenset(to_remove)
 
-    @staticmethod
     def _get_corner_ancillas(
+        self,
         bounds: PatchBounds,
         boundary: Mapping[BoundarySide, EdgeSpecValue],
     ) -> tuple[frozenset[Coord2D], frozenset[Coord2D]]:
@@ -421,8 +569,8 @@ class RotatedSurfaceCodeLayoutBuilder:
 
         return frozenset(x_ancillas), frozenset(z_ancillas)
 
-    @staticmethod
     def _get_corner_ancillas_for_side(
+        self,
         bounds: PatchBounds,
         boundary: Mapping[BoundarySide, EdgeSpecValue],
         side: BoundarySide,
@@ -500,12 +648,8 @@ class RotatedSurfaceCodeLayoutBuilder:
 
         return frozenset(x_ancillas), frozenset(z_ancillas)
 
-    # =========================================================================
-    # Boundary Ancilla Generation
-    # =========================================================================
-
-    @staticmethod
     def _should_add_boundary_ancilla(
+        self,
         edge_spec: EdgeSpecValue,
         target_type: EdgeSpecValue,
         position_mod4: int,
@@ -514,15 +658,15 @@ class RotatedSurfaceCodeLayoutBuilder:
         """Check if a boundary ancilla should be added at the given position."""
         return edge_spec in {target_type, EdgeSpecValue.O} and position_mod4 == expected_mod4
 
-    @staticmethod
     def _generate_cube_boundary_ancillas(  # noqa: C901
+        self,
         bounds: PatchBounds,
         boundary: Mapping[BoundarySide, EdgeSpecValue],
     ) -> tuple[frozenset[Coord2D], frozenset[Coord2D]]:
         """Generate boundary ancilla coordinates for a cube layout."""
         x_ancillas: set[Coord2D] = set()
         z_ancillas: set[Coord2D] = set()
-        check = RotatedSurfaceCodeLayoutBuilder._should_add_boundary_ancilla
+        check = self._should_add_boundary_ancilla
 
         # Horizontal boundaries (TOP and BOTTOM)
         for x in range(bounds.x_min + 1, bounds.x_max):
@@ -560,8 +704,8 @@ class RotatedSurfaceCodeLayoutBuilder:
 
         return frozenset(x_ancillas), frozenset(z_ancillas)
 
-    @staticmethod
     def _generate_boundary_ancillas_for_side(  # noqa: C901
+        self,
         bounds: PatchBounds,
         boundary: Mapping[BoundarySide, EdgeSpecValue],
         side: BoundarySide,
@@ -586,7 +730,7 @@ class RotatedSurfaceCodeLayoutBuilder:
         """
         x_ancillas: set[Coord2D] = set()
         z_ancillas: set[Coord2D] = set()
-        check = RotatedSurfaceCodeLayoutBuilder._should_add_boundary_ancilla
+        check = self._should_add_boundary_ancilla
         edge_spec = boundary[side]
 
         if side == BoundarySide.TOP:
@@ -635,8 +779,8 @@ class RotatedSurfaceCodeLayoutBuilder:
 
         return frozenset(x_ancillas), frozenset(z_ancillas)
 
-    @staticmethod
     def _generate_pipe_boundary_ancillas(  # noqa: C901
+        self,
         bounds: PatchBounds,
         boundary: Mapping[BoundarySide, EdgeSpecValue],
         direction: AxisDIRECTION2D,
@@ -680,73 +824,8 @@ class RotatedSurfaceCodeLayoutBuilder:
 
         return frozenset(x_ancillas), frozenset(z_ancillas)
 
-    # =========================================================================
-    # Pipe Direction Helpers
-    # =========================================================================
-
-    @staticmethod
-    def _pipe_axis_from_offset(offset_dir: BoundarySide) -> AxisDIRECTION2D:
-        """Derive pipe axis direction from offset direction.
-
-        Parameters
-        ----------
-        offset_dir : BoundarySide
-            The direction from source to target (from pipe_offset()).
-
-        Returns
-        -------
-        AxisDIRECTION2D
-            H for horizontal pipe (RIGHT/LEFT), V for vertical pipe (TOP/BOTTOM).
-        """
-        if offset_dir in {BoundarySide.RIGHT, BoundarySide.LEFT}:
-            return AxisDIRECTION2D.H
-        return AxisDIRECTION2D.V
-
-    @staticmethod
-    def pipe_offset(
-        global_pos_source: Coord3D,
-        global_pos_target: Coord3D,
-    ) -> BoundarySide:
-        """Calculate pipe offset direction from source to target positions.
-
-        Parameters
-        ----------
-        global_pos_source : Coord3D
-            Global (x, y, z) position of the pipe source.
-        global_pos_target : Coord3D
-            Global (x, y, z) position of the pipe target.
-
-        Returns
-        -------
-        BoundarySide
-            The direction from source to target.
-
-        Raises
-        ------
-        ValueError
-            If source and target positions don't form a valid pipe offset.
-        """
-        dx = global_pos_target.x - global_pos_source.x
-        dy = global_pos_target.y - global_pos_source.y
-
-        if dx == 1 and dy == 0:
-            return BoundarySide.RIGHT
-        if dx == -1 and dy == 0:
-            return BoundarySide.LEFT
-        if dx == 0 and dy == 1:
-            return BoundarySide.BOTTOM  # y increases toward BOTTOM (y_max side)
-        if dx == 0 and dy == -1:
-            return BoundarySide.TOP  # y decreases toward TOP (y_min side)
-
-        msg = f"Invalid pipe offset: source {global_pos_source}, target {global_pos_target}."
-        raise ValueError(msg)
-
-    # =========================================================================
-    # Boundary Path Methods
-    # =========================================================================
-
-    @staticmethod
     def _boundary_path(  # noqa: C901
+        self,
         data: frozenset[Coord2D],
         bounds: PatchBounds,
         side_a: BoundarySide,
@@ -857,197 +936,8 @@ class RotatedSurfaceCodeLayoutBuilder:
         msg = f"Unsupported boundary pair: {side_a}, {side_b}."
         raise ValueError(msg)
 
-    @staticmethod
-    def cube_boundary_path(
-        code_distance: int,
-        global_pos: Coord2D,
-        boundary: Mapping[BoundarySide, EdgeSpecValue],
-        side_a: BoundarySide,
-        side_b: BoundarySide,
-    ) -> list[Coord2D]:
-        """Get data-qubit path from side_a to side_b through cube center.
-
-        Parameters
-        ----------
-        code_distance : int
-            Code distance of the surface code.
-        global_pos : Coord2D
-            Global (x, y) position of the cube.
-        boundary : Mapping[BoundarySide, EdgeSpecValue]
-            Boundary specifications for the cube.
-        side_a : BoundarySide
-            Starting boundary side.
-        side_b : BoundarySide
-            Ending boundary side.
-
-        Returns
-        -------
-        list[Coord2D]
-            Ordered data-qubit coordinates from side_a to side_b.
-        """
-        offset = RotatedSurfaceCodeLayoutBuilder._compute_cube_offset(code_distance, global_pos)
-        bounds = RotatedSurfaceCodeLayoutBuilder._cube_bounds(code_distance, offset)
-        coords = RotatedSurfaceCodeLayoutBuilder.cube(code_distance, global_pos, boundary)
-        return RotatedSurfaceCodeLayoutBuilder._boundary_path(coords.data, bounds, side_a, side_b)
-
-    @staticmethod
-    def cube_boundary_ancillas_for_side(
-        code_distance: int,
-        global_pos: Coord2D,
-        boundary: Mapping[BoundarySide, EdgeSpecValue],
-        side: BoundarySide,
-    ) -> tuple[frozenset[Coord2D], frozenset[Coord2D]]:
-        """Get ancilla coordinates for a specific boundary side of a cube.
-
-        This method returns all ancilla qubits located on the specified boundary
-        side, including corner ancillas. Each corner belongs to both adjacent
-        sides (e.g., top_left corner belongs to both TOP and LEFT sides).
-
-        Parameters
-        ----------
-        code_distance : int
-            Code distance of the surface code.
-        global_pos : Coord2D
-            Global (x, y) position of the cube.
-        boundary : Mapping[BoundarySide, EdgeSpecValue]
-            Boundary specifications for the cube.
-        side : BoundarySide
-            The boundary side to get ancillas for (TOP, BOTTOM, LEFT, RIGHT).
-
-        Returns
-        -------
-        tuple[frozenset[Coord2D], frozenset[Coord2D]]
-            (X ancillas, Z ancillas) for the specified boundary side,
-            including corner ancillas that belong to this side.
-
-        Examples
-        --------
-        >>> from lspattern.consts import BoundarySide, EdgeSpecValue
-        >>> from lspattern.mytype import Coord2D
-        >>> boundary = {
-        ...     BoundarySide.TOP: EdgeSpecValue.X,
-        ...     BoundarySide.BOTTOM: EdgeSpecValue.X,
-        ...     BoundarySide.LEFT: EdgeSpecValue.Z,
-        ...     BoundarySide.RIGHT: EdgeSpecValue.Z,
-        ... }
-        >>> x_anc, z_anc = RotatedSurfaceCodeLayoutBuilder.cube_boundary_ancillas_for_side(
-        ...     code_distance=3,
-        ...     global_pos=Coord2D(0, 0),
-        ...     boundary=boundary,
-        ...     side=BoundarySide.TOP,
-        ... )
-        """
-        # Calculate bounds internally
-        offset = RotatedSurfaceCodeLayoutBuilder._compute_cube_offset(code_distance, global_pos)
-        bounds = RotatedSurfaceCodeLayoutBuilder._cube_bounds(code_distance, offset)
-
-        # Get edge ancillas for this side
-        edge_x, edge_z = RotatedSurfaceCodeLayoutBuilder._generate_boundary_ancillas_for_side(bounds, boundary, side)
-
-        # Get corner ancillas for this side
-        corner_x, corner_z = RotatedSurfaceCodeLayoutBuilder._get_corner_ancillas_for_side(bounds, boundary, side)
-
-        # Combine edge and corner ancillas
-        return frozenset(edge_x | corner_x), frozenset(edge_z | corner_z)
-
-    @staticmethod
-    def pipe_boundary_path(
-        code_distance: int,
-        global_pos_source: Coord3D,
-        global_pos_target: Coord3D,
-        boundary: Mapping[BoundarySide, EdgeSpecValue],
-        side_a: BoundarySide,
-        side_b: BoundarySide,
-    ) -> list[Coord2D]:
-        """Get data-qubit path from side_a to side_b through pipe center.
-
-        Parameters
-        ----------
-        code_distance : int
-            Code distance of the surface code.
-        global_pos_source : Coord3D
-            Global (x, y, z) position of the pipe source.
-        global_pos_target : Coord3D
-            Global (x, y, z) position of the pipe target.
-        boundary : Mapping[BoundarySide, EdgeSpecValue]
-            Boundary specifications for the pipe.
-        side_a : BoundarySide
-            Starting boundary side.
-        side_b : BoundarySide
-            Ending boundary side.
-
-        Returns
-        -------
-        list[Coord2D]
-            Ordered data-qubit coordinates from side_a to side_b.
-        """
-        pipe_offset_dir = RotatedSurfaceCodeLayoutBuilder.pipe_offset(global_pos_source, global_pos_target)
-        pipe_dir = RotatedSurfaceCodeLayoutBuilder._pipe_axis_from_offset(pipe_offset_dir)
-        offset = RotatedSurfaceCodeLayoutBuilder._compute_pipe_offset(code_distance, global_pos_source, pipe_offset_dir)
-        bounds = RotatedSurfaceCodeLayoutBuilder._pipe_bounds(code_distance, offset, pipe_dir)
-        coords = RotatedSurfaceCodeLayoutBuilder.pipe(code_distance, global_pos_source, global_pos_target, boundary)
-        return RotatedSurfaceCodeLayoutBuilder._boundary_path(coords.data, bounds, side_a, side_b)
-
-    # =========================================================================
-    # Initial Ancilla Flow
-    # =========================================================================
-
-    @staticmethod
-    def construct_initial_ancilla_flow(
-        code_distance: int,
-        global_pos: Coord2D,
-        boundary: Mapping[BoundarySide, EdgeSpecValue],
-        ancilla_type: EdgeSpecValue,
-    ) -> dict[Coord2D, set[Coord2D]]:
-        """Construct flow mapping for initial ancilla qubits.
-
-        This method computes the flow relationships for ancilla qubits in
-        initialization layers. The flow determines the causal dependencies
-        between ancilla measurements.
-
-        Parameters
-        ----------
-        code_distance : int
-            Code distance of the surface code.
-        global_pos : Coord2D
-            Global (x, y) position of the cube.
-        boundary : Mapping[BoundarySide, EdgeSpecValue]
-            Boundary specifications for the cube.
-        ancilla_type : EdgeSpecValue
-            Type of ancilla qubit. "Z" for layer1 (Z-stabilizer), "X" for layer2 (X-stabilizer).
-
-        Returns
-        -------
-        dict[Coord2D, set[Coord2D]]
-            Mapping from source 2D coordinate to target 2D coordinates for ancilla flow.
-            Each source coordinate maps to a set of target coordinates.
-        """
-        coords = RotatedSurfaceCodeLayoutBuilder.cube(code_distance, global_pos, boundary)
-        data2d = coords.data
-        if ancilla_type == EdgeSpecValue.X:
-            ancilla_nodes = coords.ancilla_x
-        elif ancilla_type == EdgeSpecValue.Z:
-            ancilla_nodes = coords.ancilla_z
-        else:
-            msg = f"Invalid ancilla type for flow: {ancilla_type}."
-            raise ValueError(msg)
-
-        move_vec = RotatedSurfaceCodeLayoutBuilder._determine_move_vec(boundary, ancilla_type)
-
-        flow_map: dict[Coord2D, set[Coord2D]] = {}
-        for node in ancilla_nodes:
-            target = RotatedSurfaceCodeLayoutBuilder._determine_flow(
-                node,
-                data2d,
-                ancilla_type,
-                move_vec,
-            )
-            flow_map.setdefault(node, set()).add(target)
-
-        return flow_map
-
-    @staticmethod
     def _determine_move_vec(
+        self,
         boundary: Mapping[BoundarySide, EdgeSpecValue],
         ancilla_type: EdgeSpecValue,
     ) -> AxisDIRECTION2D:
@@ -1104,8 +994,8 @@ class RotatedSurfaceCodeLayoutBuilder:
             return AxisDIRECTION2D.H  # ancilla type matches TOP/BOTTOM, move horizontally
         return AxisDIRECTION2D.V  # ancilla type matches LEFT/RIGHT, move vertically
 
-    @staticmethod
     def _determine_flow(
+        self,
         node: Coord2D,
         data2d: frozenset[Coord2D],
         ancilla_type: EdgeSpecValue,
@@ -1161,3 +1051,450 @@ class RotatedSurfaceCodeLayoutBuilder:
             raise ValueError(msg)
 
         return valid_targets.pop()  # Return one of the valid targets
+
+
+# =============================================================================
+# Singleton instance for backward compatibility
+# =============================================================================
+
+_default_layout = RotatedSurfaceCodeLayout()
+
+
+# =============================================================================
+# Static Facade (Backward Compatible API)
+# =============================================================================
+
+
+class RotatedSurfaceCodeLayoutBuilder:
+    """Builder for rotated surface code patch layouts.
+
+    This class provides static methods to generate qubit coordinates for
+    cube and pipe patches in a rotated surface code layout. It serves as
+    a backward-compatible facade delegating to RotatedSurfaceCodeLayout.
+
+    For new code, consider using RotatedSurfaceCodeLayout directly for
+    better testability and dependency injection.
+
+    Examples
+    --------
+    >>> from lspattern.consts import BoundarySide, EdgeSpecValue
+    >>> from lspattern.mytype import Coord2D, Coord3D
+    >>> boundary = {
+    ...     BoundarySide.TOP: EdgeSpecValue.X,
+    ...     BoundarySide.BOTTOM: EdgeSpecValue.X,
+    ...     BoundarySide.LEFT: EdgeSpecValue.Z,
+    ...     BoundarySide.RIGHT: EdgeSpecValue.Z,
+    ... }
+    >>> coords = RotatedSurfaceCodeLayoutBuilder.cube(
+    ...     code_distance=3,
+    ...     global_pos=Coord2D(0, 0),
+    ...     boundary=boundary,
+    ... )
+    >>> len(coords.data) > 0
+    True
+    """
+
+    @staticmethod
+    def cube(
+        code_distance: int,
+        global_pos: Coord2D,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+    ) -> PatchCoordinates:
+        """Build complete cube layout coordinates.
+
+        This method generates all qubit coordinates for a rotated surface code
+        cube patch, including bulk, boundary, and corner qubits.
+
+        Parameters
+        ----------
+        code_distance : int
+            Code distance of the surface code.
+        global_pos : Coord2D
+            Global (x, y) position of the cube.
+        boundary : Mapping[BoundarySide, EdgeSpecValue]
+            Boundary specifications for the cube.
+
+        Returns
+        -------
+        PatchCoordinates
+            Complete coordinate sets for the cube.
+        """
+        return _default_layout.cube(code_distance, global_pos, boundary)
+
+    @staticmethod
+    def pipe(
+        code_distance: int,
+        global_pos_source: Coord3D,
+        global_pos_target: Coord3D,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+    ) -> PatchCoordinates:
+        """Build complete pipe layout coordinates.
+
+        This method generates all qubit coordinates for a rotated surface code
+        pipe patch, including bulk and boundary qubits.
+
+        Parameters
+        ----------
+        code_distance : int
+            Code distance of the surface code.
+        global_pos_source : Coord3D
+            Global (x, y, z) position of the pipe source.
+        global_pos_target : Coord3D
+            Global (x, y, z) position of the pipe target.
+        boundary : Mapping[BoundarySide, EdgeSpecValue]
+            Boundary specifications for the pipe.
+
+        Returns
+        -------
+        PatchCoordinates
+            Complete coordinate sets for the pipe.
+        """
+        return _default_layout.pipe(code_distance, global_pos_source, global_pos_target, boundary)
+
+    # =========================================================================
+    # Bounds Calculation (Static methods for backward compatibility)
+    # =========================================================================
+
+    @staticmethod
+    def _cube_bounds(code_distance: int, offset: Coord2D) -> PatchBounds:
+        """Create bounds for a cube patch."""
+        return _default_layout.cube_bounds(code_distance, offset)
+
+    @staticmethod
+    def _pipe_bounds(
+        code_distance: int,
+        offset: Coord2D,
+        direction: AxisDIRECTION2D,
+    ) -> PatchBounds:
+        """Create bounds for a pipe patch."""
+        return _default_layout.pipe_bounds(code_distance, offset, direction)
+
+    # =========================================================================
+    # Offset Calculation (Static methods for backward compatibility)
+    # =========================================================================
+
+    @staticmethod
+    def _compute_cube_offset(code_distance: int, global_pos: Coord2D) -> Coord2D:
+        """Compute the offset for a cube patch based on global position."""
+        return _default_layout.cube_offset(code_distance, global_pos)
+
+    @staticmethod
+    def _compute_pipe_offset(
+        code_distance: int,
+        global_pos_source: Coord3D,
+        pipe_dir: BoundarySide,
+    ) -> Coord2D:
+        """Compute the offset for a pipe patch based on source position and direction."""
+        return _default_layout._compute_pipe_offset(code_distance, global_pos_source, pipe_dir)
+
+    # =========================================================================
+    # Bulk Coordinate Generation (Static methods for backward compatibility)
+    # =========================================================================
+
+    @staticmethod
+    def _generate_bulk_coords(bounds: PatchBounds) -> PatchCoordinates:
+        """Generate bulk coordinates using the checkerboard pattern.
+
+        The checkerboard pattern places qubits as follows:
+        - Data qubits: absolute even x, absolute even y
+        - X ancillas: absolute odd x, absolute odd y, (rel_x + rel_y) % 4 == 0
+        - Z ancillas: absolute odd x, absolute odd y, (rel_x + rel_y) % 4 == 2
+        """
+        return generate_checkerboard_coords(bounds)
+
+    # =========================================================================
+    # Corner Handling (Static methods for backward compatibility)
+    # =========================================================================
+
+    @staticmethod
+    def _get_corner_data_to_remove(
+        bounds: PatchBounds,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+    ) -> frozenset[Coord2D]:
+        """Determine which corner data qubits should be removed based on boundary conditions."""
+        return _default_layout._get_corner_data_to_remove(bounds, boundary)
+
+    @staticmethod
+    def _get_corner_ancillas(
+        bounds: PatchBounds,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+    ) -> tuple[frozenset[Coord2D], frozenset[Coord2D]]:
+        """Generate corner ancilla coordinates for 'O' (open) boundaries."""
+        return _default_layout._get_corner_ancillas(bounds, boundary)
+
+    @staticmethod
+    def _get_corner_ancillas_for_side(
+        bounds: PatchBounds,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+        side: BoundarySide,
+    ) -> tuple[frozenset[Coord2D], frozenset[Coord2D]]:
+        """Generate corner ancilla coordinates for a specific side."""
+        return _default_layout._get_corner_ancillas_for_side(bounds, boundary, side)
+
+    # =========================================================================
+    # Boundary Ancilla Generation (Static methods for backward compatibility)
+    # =========================================================================
+
+    @staticmethod
+    def _should_add_boundary_ancilla(
+        edge_spec: EdgeSpecValue,
+        target_type: EdgeSpecValue,
+        position_mod4: int,
+        expected_mod4: int,
+    ) -> bool:
+        """Check if a boundary ancilla should be added at the given position."""
+        return _default_layout._should_add_boundary_ancilla(edge_spec, target_type, position_mod4, expected_mod4)
+
+    @staticmethod
+    def _generate_cube_boundary_ancillas(
+        bounds: PatchBounds,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+    ) -> tuple[frozenset[Coord2D], frozenset[Coord2D]]:
+        """Generate boundary ancilla coordinates for a cube layout."""
+        return _default_layout._generate_cube_boundary_ancillas(bounds, boundary)
+
+    @staticmethod
+    def _generate_boundary_ancillas_for_side(
+        bounds: PatchBounds,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+        side: BoundarySide,
+    ) -> tuple[frozenset[Coord2D], frozenset[Coord2D]]:
+        """Generate boundary ancilla coordinates for a specific side of a cube."""
+        return _default_layout._generate_boundary_ancillas_for_side(bounds, boundary, side)
+
+    @staticmethod
+    def _generate_pipe_boundary_ancillas(
+        bounds: PatchBounds,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+        direction: AxisDIRECTION2D,
+    ) -> tuple[frozenset[Coord2D], frozenset[Coord2D]]:
+        """Generate boundary ancilla coordinates for a pipe layout."""
+        return _default_layout._generate_pipe_boundary_ancillas(bounds, boundary, direction)
+
+    # =========================================================================
+    # Pipe Direction Helpers (Static methods for backward compatibility)
+    # =========================================================================
+
+    @staticmethod
+    def _pipe_axis_from_offset(offset_dir: BoundarySide) -> AxisDIRECTION2D:
+        """Derive pipe axis direction from offset direction.
+
+        Parameters
+        ----------
+        offset_dir : BoundarySide
+            The direction from source to target (from pipe_offset()).
+
+        Returns
+        -------
+        AxisDIRECTION2D
+            H for horizontal pipe (RIGHT/LEFT), V for vertical pipe (TOP/BOTTOM).
+        """
+        return _default_layout.pipe_axis_from_offset(offset_dir)
+
+    @staticmethod
+    def pipe_offset(
+        global_pos_source: Coord3D,
+        global_pos_target: Coord3D,
+    ) -> BoundarySide:
+        """Calculate pipe offset direction from source to target positions.
+
+        Parameters
+        ----------
+        global_pos_source : Coord3D
+            Global (x, y, z) position of the pipe source.
+        global_pos_target : Coord3D
+            Global (x, y, z) position of the pipe target.
+
+        Returns
+        -------
+        BoundarySide
+            The direction from source to target.
+
+        Raises
+        ------
+        ValueError
+            If source and target positions don't form a valid pipe offset.
+        """
+        return _default_layout.pipe_offset(global_pos_source, global_pos_target)
+
+    # =========================================================================
+    # Boundary Path Methods (Static methods for backward compatibility)
+    # =========================================================================
+
+    @staticmethod
+    def _boundary_path(
+        data: frozenset[Coord2D],
+        bounds: PatchBounds,
+        side_a: BoundarySide,
+        side_b: BoundarySide,
+    ) -> list[Coord2D]:
+        """Compute path between two boundaries using bounds for center calculation."""
+        return _default_layout._boundary_path(data, bounds, side_a, side_b)
+
+    @staticmethod
+    def cube_boundary_path(
+        code_distance: int,
+        global_pos: Coord2D,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+        side_a: BoundarySide,
+        side_b: BoundarySide,
+    ) -> list[Coord2D]:
+        """Get data-qubit path from side_a to side_b through cube center.
+
+        Parameters
+        ----------
+        code_distance : int
+            Code distance of the surface code.
+        global_pos : Coord2D
+            Global (x, y) position of the cube.
+        boundary : Mapping[BoundarySide, EdgeSpecValue]
+            Boundary specifications for the cube.
+        side_a : BoundarySide
+            Starting boundary side.
+        side_b : BoundarySide
+            Ending boundary side.
+
+        Returns
+        -------
+        list[Coord2D]
+            Ordered data-qubit coordinates from side_a to side_b.
+        """
+        return _default_layout.cube_boundary_path(code_distance, global_pos, boundary, side_a, side_b)
+
+    @staticmethod
+    def cube_boundary_ancillas_for_side(
+        code_distance: int,
+        global_pos: Coord2D,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+        side: BoundarySide,
+    ) -> tuple[frozenset[Coord2D], frozenset[Coord2D]]:
+        """Get ancilla coordinates for a specific boundary side of a cube.
+
+        This method returns all ancilla qubits located on the specified boundary
+        side, including corner ancillas. Each corner belongs to both adjacent
+        sides (e.g., top_left corner belongs to both TOP and LEFT sides).
+
+        Parameters
+        ----------
+        code_distance : int
+            Code distance of the surface code.
+        global_pos : Coord2D
+            Global (x, y) position of the cube.
+        boundary : Mapping[BoundarySide, EdgeSpecValue]
+            Boundary specifications for the cube.
+        side : BoundarySide
+            The boundary side to get ancillas for (TOP, BOTTOM, LEFT, RIGHT).
+
+        Returns
+        -------
+        tuple[frozenset[Coord2D], frozenset[Coord2D]]
+            (X ancillas, Z ancillas) for the specified boundary side,
+            including corner ancillas that belong to this side.
+
+        Examples
+        --------
+        >>> from lspattern.consts import BoundarySide, EdgeSpecValue
+        >>> from lspattern.mytype import Coord2D
+        >>> boundary = {
+        ...     BoundarySide.TOP: EdgeSpecValue.X,
+        ...     BoundarySide.BOTTOM: EdgeSpecValue.X,
+        ...     BoundarySide.LEFT: EdgeSpecValue.Z,
+        ...     BoundarySide.RIGHT: EdgeSpecValue.Z,
+        ... }
+        >>> x_anc, z_anc = RotatedSurfaceCodeLayoutBuilder.cube_boundary_ancillas_for_side(
+        ...     code_distance=3,
+        ...     global_pos=Coord2D(0, 0),
+        ...     boundary=boundary,
+        ...     side=BoundarySide.TOP,
+        ... )
+        """
+        return _default_layout.cube_boundary_ancillas_for_side(code_distance, global_pos, boundary, side)
+
+    @staticmethod
+    def pipe_boundary_path(
+        code_distance: int,
+        global_pos_source: Coord3D,
+        global_pos_target: Coord3D,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+        side_a: BoundarySide,
+        side_b: BoundarySide,
+    ) -> list[Coord2D]:
+        """Get data-qubit path from side_a to side_b through pipe center.
+
+        Parameters
+        ----------
+        code_distance : int
+            Code distance of the surface code.
+        global_pos_source : Coord3D
+            Global (x, y, z) position of the pipe source.
+        global_pos_target : Coord3D
+            Global (x, y, z) position of the pipe target.
+        boundary : Mapping[BoundarySide, EdgeSpecValue]
+            Boundary specifications for the pipe.
+        side_a : BoundarySide
+            Starting boundary side.
+        side_b : BoundarySide
+            Ending boundary side.
+
+        Returns
+        -------
+        list[Coord2D]
+            Ordered data-qubit coordinates from side_a to side_b.
+        """
+        return _default_layout.pipe_boundary_path(
+            code_distance, global_pos_source, global_pos_target, boundary, side_a, side_b
+        )
+
+    # =========================================================================
+    # Initial Ancilla Flow (Static methods for backward compatibility)
+    # =========================================================================
+
+    @staticmethod
+    def construct_initial_ancilla_flow(
+        code_distance: int,
+        global_pos: Coord2D,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+        ancilla_type: EdgeSpecValue,
+    ) -> dict[Coord2D, set[Coord2D]]:
+        """Construct flow mapping for initial ancilla qubits.
+
+        This method computes the flow relationships for ancilla qubits in
+        initialization layers. The flow determines the causal dependencies
+        between ancilla measurements.
+
+        Parameters
+        ----------
+        code_distance : int
+            Code distance of the surface code.
+        global_pos : Coord2D
+            Global (x, y) position of the cube.
+        boundary : Mapping[BoundarySide, EdgeSpecValue]
+            Boundary specifications for the cube.
+        ancilla_type : EdgeSpecValue
+            Type of ancilla qubit. "Z" for layer1 (Z-stabilizer), "X" for layer2 (X-stabilizer).
+
+        Returns
+        -------
+        dict[Coord2D, set[Coord2D]]
+            Mapping from source 2D coordinate to target 2D coordinates for ancilla flow.
+            Each source coordinate maps to a set of target coordinates.
+        """
+        return _default_layout.construct_initial_ancilla_flow(code_distance, global_pos, boundary, ancilla_type)
+
+    @staticmethod
+    def _determine_move_vec(
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+        ancilla_type: EdgeSpecValue,
+    ) -> AxisDIRECTION2D:
+        """Determine the global movement vector direction for ancilla flow."""
+        return _default_layout._determine_move_vec(boundary, ancilla_type)
+
+    @staticmethod
+    def _determine_flow(
+        node: Coord2D,
+        data2d: frozenset[Coord2D],
+        ancilla_type: EdgeSpecValue,
+        move_vec: AxisDIRECTION2D,
+    ) -> Coord2D:
+        """Determine the flow target for a single ancilla qubit."""
+        return _default_layout._determine_flow(node, data2d, ancilla_type, move_vec)

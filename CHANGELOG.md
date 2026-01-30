@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix duplicate offset calculation in pipe fragment generation that caused pipes to overlap with cube nodes
 
 ### Added
+- Abstract Base Classes (ABCs) for topological code layout builders in `lspattern/layout/base.py`:
+  - `CoordinateGenerator`, `BoundsCalculator`, `BoundaryPathCalculator`, `BoundaryAncillaRetriever`, `AncillaFlowConstructor`, `PipeDirectionHelper`
+  - `TopologicalCodeLayoutBuilder`: Combined interface for complete layout builders
+- `lspattern/layout/coordinates.py`: Extracted `PatchBounds` and `PatchCoordinates` data classes with `width`/`height` properties
+- `lspattern/layout/checkerboard.py`: Shared checkerboard coordinate generation utility
+- `RotatedSurfaceCodeLayout`: Instance-based implementation of `TopologicalCodeLayoutBuilder`
+- ABC inheritance and instance-based API tests in `tests/test_rotated_surface_code.py`
 - `skip_syndrome` YAML flag for skipping syndrome measurement registration when ancilla qubits are not present
 - Parity reset support via empty syndrome measurements for layers where data qubits are removed
 - Inter-block temporal edges: z-direction edges connecting stacked blocks are now generated automatically in `_merge_graph_spec`
@@ -29,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tests/test_canvas_loader_paths.py`: Canvas loader path resolution tests
 
 ### Changed
+- Refactored `lspattern/layout/rotated_surface_code.py` to use ABC architecture while maintaining backward-compatible static facade (`RotatedSurfaceCodeLayoutBuilder`)
 - **BREAKING**: Complete API redesign - consolidated `lspattern/canvas/` module structure into single `lspattern/canvas.py`
 - **BREAKING**: Removed entire `lspattern/blocks/` hierarchy (cubes, pipes, layers, unit_layer)
 - **BREAKING**: Removed `lspattern/consts/` directory and legacy constant definitions
