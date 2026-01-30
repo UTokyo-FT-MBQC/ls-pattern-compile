@@ -14,6 +14,66 @@ from lspattern.detector import construct_detector, remove_non_deterministic_det
 
 if TYPE_CHECKING:
     from lspattern.canvas import Canvas
+    from lspattern.canvas_loader import CompositeLogicalObservableSpec
+    from lspattern.mytype import Coord3D
+
+
+def _collect_logical_observable_nodes(  # noqa: C901
+    canvas: Canvas,
+    composite_logical_obs: CompositeLogicalObservableSpec,
+) -> set[Coord3D]:
+    """Collect all node coordinates for a composite logical observable.
+
+    Parameters
+    ----------
+    canvas : Canvas
+        The canvas containing couts data.
+    composite_logical_obs : CompositeLogicalObservableSpec
+        The composite observable specifying cubes and pipes.
+
+    Returns
+    -------
+    set[Coord3D]
+        All node coordinates contributing to this logical observable.
+    """
+    nodes: set[Coord3D] = set()
+
+    for cube_ref in composite_logical_obs.cubes:
+        if cube_ref.position not in canvas.couts:
+            msg = f"Cube {cube_ref.position} not found in canvas.couts. Available cubes: {sorted(canvas.couts.keys())}"
+            raise KeyError(msg)
+        cube_couts = canvas.couts[cube_ref.position]
+        if cube_ref.label is not None:
+            if cube_ref.label not in cube_couts:
+                msg = (
+                    f"Label '{cube_ref.label}' not found in cube {cube_ref.position}. "
+                    f"Available labels: {sorted(cube_couts.keys())}"
+                )
+                raise KeyError(msg)
+            nodes |= cube_couts[cube_ref.label]
+        else:
+            for cout_set in cube_couts.values():
+                nodes |= cout_set
+
+    for pipe_ref in composite_logical_obs.pipes:
+        pipe_key = (pipe_ref.start, pipe_ref.end)
+        if pipe_key not in canvas.pipe_couts:
+            msg = f"Pipe {pipe_key} not found in canvas.pipe_couts. Available pipes: {sorted(canvas.pipe_couts.keys())}"
+            raise KeyError(msg)
+        pipe_couts = canvas.pipe_couts[pipe_key]
+        if pipe_ref.label is not None:
+            if pipe_ref.label not in pipe_couts:
+                msg = (
+                    f"Label '{pipe_ref.label}' not found in pipe {pipe_key}. "
+                    f"Available labels: {sorted(pipe_couts.keys())}"
+                )
+                raise KeyError(msg)
+            nodes |= pipe_couts[pipe_ref.label]
+        else:
+            for cout_set in pipe_couts.values():
+                nodes |= cout_set
+
+    return nodes
 
 
 def compile_canvas_to_stim(
@@ -46,14 +106,9 @@ def compile_canvas_to_stim(
     pattern = qompile(graph, flow, parity_check_group=detectors, scheduler=scheduler)
 
     # extract logical observables from canvas
-    logical_observables = dict(enumerate(canvas.logical_observables))
     logical_observables_nodes: dict[int, set[int]] = {}
-    for key, composite_logical_obs in logical_observables.items():
-        nodes = set()
-        for cube in composite_logical_obs.cubes:
-            nodes |= canvas.couts[cube]
-        for pipe in composite_logical_obs.pipes:
-            nodes |= canvas.pipe_couts[pipe]
+    for key, composite_logical_obs in enumerate(canvas.logical_observables):
+        nodes = _collect_logical_observable_nodes(canvas, composite_logical_obs)
         logical_observables_nodes[key] = {node_map[coord] for coord in nodes}
 
     result: str = stim_compile(

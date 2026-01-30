@@ -10,7 +10,7 @@ from graphqomb.common import AxisMeasBasis, Sign
 from graphqomb.graphstate import GraphState
 
 from lspattern.canvas_loader import load_canvas
-from lspattern.compiler import compile_canvas_to_stim
+from lspattern.compiler import _collect_logical_observable_nodes, compile_canvas_to_stim
 from lspattern.detector import construct_detector, remove_non_deterministic_det
 from lspattern.visualizer import visualize_canvas_plotly, visualize_detectors_plotly
 
@@ -26,23 +26,25 @@ canvas, spec = load_canvas(spec_name, code_distance=code_distance)
 print("\n=== Logical Observables ===")
 print("Cube logical observable specs:")
 for cube in spec.cubes:
-    lo = cube.logical_observable
-    print(f"  {cube.position}: {lo.token if lo else 'None'}")
+    lo = cube.logical_observables
+    if lo:
+        tokens = [obs.token for obs in lo]
+        print(f"  {cube.position}: {tokens}")
+    else:
+        print(f"  {cube.position}: None")
 
 print("\nComputed cube couts (physical coordinates):")
-for pos, coords in canvas.couts.items():
-    print(f"  {pos}: {len(coords)} coordinates")
-    for coord in sorted(coords, key=lambda c: (c.x, c.y, c.z)):
-        print(f"    - {coord}")
+for pos, label_coords in canvas.couts.items():
+    print(f"  {pos}:")
+    for label, coords in label_coords.items():
+        print(f"    [{label}]: {len(coords)} coordinates")
+        for coord in sorted(coords, key=lambda c: (c.x, c.y, c.z)):
+            print(f"      - {coord}")
 
 # # collect logical obs
 idx = 0
 logical_observables_spec = canvas.logical_observables[idx]
-logical_obs_coords: set[Coord3D] = set()
-for cube_coord in logical_observables_spec.cubes:
-    logical_obs_coords |= canvas.couts[cube_coord]
-for pipe_coord in logical_observables_spec.pipes:
-    logical_obs_coords |= canvas.pipe_couts[pipe_coord]
+logical_obs_coords = _collect_logical_observable_nodes(canvas, logical_observables_spec)
 # logical_obs_coords: set[Coord3D] = set()
 
 # %%
