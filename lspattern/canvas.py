@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
     from lspattern.canvas_loader import CompositeLogicalObservableSpec, LogicalObservableSpec
     from lspattern.fragment import GraphSpec
-    from lspattern.init_flow_analysis import InitFlowOverrides
+    from lspattern.init_flow_analysis import InitFlowDirections
     from lspattern.loader import BlockConfig
 
 
@@ -132,7 +132,7 @@ class Canvas:
     pipe_config: dict[tuple[Coord3D, Coord3D], BlockConfig]
 
     logical_observables: tuple[CompositeLogicalObservableSpec, ...]
-    init_flow_overrides: InitFlowOverrides | None
+    init_flow_directions: InitFlowDirections | None
 
     def __init__(self, config: CanvasConfig) -> None:
         self.config = config
@@ -149,7 +149,7 @@ class Canvas:
         self.cube_config = {}
         self.pipe_config = {}
         self.logical_observables = ()
-        self.init_flow_overrides = None
+        self.init_flow_directions = None
 
     @property
     def nodes(self) -> set[Coord3D]:

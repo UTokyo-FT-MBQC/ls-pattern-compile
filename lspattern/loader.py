@@ -19,7 +19,8 @@ if TYPE_CHECKING:
 
     from lspattern.consts import BoundarySide, EdgeSpecValue
     from lspattern.fragment import GraphSpec
-    from lspattern.init_flow_analysis import InitFlowLayerKey, InitFlowMap
+    from lspattern.init_flow_analysis import InitFlowLayerKey
+    from lspattern.mytype import Coord2D
 
 
 class LayerConfig(NamedTuple):
@@ -88,21 +89,21 @@ class BlockConfig(Sequence[PatchLayoutConfig]):
         - layer2 (odd z): Z-ancilla instead of X-ancilla
         Default is False (standard order: layer1=Z, layer2=X).
         Set from Canvas YAML (cube/pipe level), not from Block YAML.
-    init_flow_overrides : dict[InitFlowLayerKey, InitFlowMap] | None
-        Optional per-layer flow overrides for init layers; set from canvas analysis.
+    init_flow_directions : dict[InitFlowLayerKey, Coord2D] | None
+        Optional per-layer flow directions for init layers; set from canvas analysis.
     """
 
     boundary: dict[BoundarySide, EdgeSpecValue]
     graph_spec: GraphSpec | None
     invert_ancilla_order: bool
-    init_flow_overrides: dict[InitFlowLayerKey, InitFlowMap] | None
+    init_flow_directions: dict[InitFlowLayerKey, Coord2D] | None
 
     def __init__(self, configs: Sequence[PatchLayoutConfig]) -> None:
         self._configs = list(configs)
         self.boundary = {}
         self.graph_spec = None
         self.invert_ancilla_order = False
-        self.init_flow_overrides = None
+        self.init_flow_directions = None
 
     @overload
     def __getitem__(self, index: int) -> PatchLayoutConfig: ...

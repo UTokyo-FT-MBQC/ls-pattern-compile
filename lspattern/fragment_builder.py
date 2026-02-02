@@ -13,7 +13,7 @@ from graphqomb.common import Axis
 from lspattern.accumulator import CoordFlowAccumulator, CoordParityAccumulator, CoordScheduleAccumulator
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.fragment import BlockFragment, Boundary, BoundaryFragment, GraphSpec
-from lspattern.init_flow_analysis import InitFlowLayerKey, InitFlowMap
+from lspattern.init_flow_analysis import InitFlowLayerKey
 from lspattern.layout import (
     ANCILLA_EDGE_X,
     ANCILLA_EDGE_Z,
@@ -71,7 +71,7 @@ def _build_layers(
     code_distance: int,
     boundary: Mapping[BoundarySide, EdgeSpecValue],
     *,
-    init_flow_overrides: Mapping[InitFlowLayerKey, InitFlowMap] | None = None,
+    init_flow_directions: Mapping[InitFlowLayerKey, Coord2D] | None = None,
     is_pipe: bool = False,
 ) -> GraphSpec:
     """Build graph layers from 2D coordinates and block configuration.
@@ -96,8 +96,8 @@ def _build_layers(
         Code distance of the surface code.
     boundary : Mapping[BoundarySide, EdgeSpecValue]
         Boundary specifications for the patch.
-    init_flow_overrides : Mapping[InitFlowLayerKey, InitFlowMap] | None
-        Optional per-layer flow overrides for init layers (local coordinates).
+    init_flow_directions : Mapping[InitFlowLayerKey, Coord2D] | None
+        Optional per-layer flow directions for init layers (local coordinates).
     is_pipe : bool
         Whether this is a pipe fragment. When True, remaining parity and
         initial ancilla flow are not added.
@@ -115,8 +115,8 @@ def _build_layers(
     flow = CoordFlowAccumulator()
     scheduler = CoordScheduleAccumulator()
     parity = CoordParityAccumulator()
-    if init_flow_overrides is None:
-        init_flow_overrides = block_config.init_flow_overrides
+    if init_flow_directions is None:
+        init_flow_directions = block_config.init_flow_directions
 
     for layer_idx, layer_cfg in enumerate(block_config):
         z = offset_z + layer_idx * 2
@@ -139,7 +139,7 @@ def _build_layers(
             code_distance,
             boundary,
             layer_idx=layer_idx,
-            init_flow_overrides=init_flow_overrides,
+            init_flow_directions=init_flow_directions,
             is_pipe=is_pipe,
             invert_ancilla_order=block_config.invert_ancilla_order,
         )
@@ -161,7 +161,7 @@ def _build_layers(
             code_distance,
             boundary,
             layer_idx=layer_idx,
-            init_flow_overrides=init_flow_overrides,
+            init_flow_directions=init_flow_directions,
             is_pipe=is_pipe,
             invert_ancilla_order=block_config.invert_ancilla_order,
         )
@@ -197,7 +197,7 @@ def _build_layer1(  # noqa: C901
     boundary: Mapping[BoundarySide, EdgeSpecValue],
     *,
     layer_idx: int,
-    init_flow_overrides: Mapping[InitFlowLayerKey, InitFlowMap] | None = None,
+    init_flow_directions: Mapping[InitFlowLayerKey, Coord2D] | None = None,
     is_pipe: bool,
     invert_ancilla_order: bool = False,
 ) -> None:
@@ -286,15 +286,15 @@ def _build_layer1(  # noqa: C901
 
         # Add flow for initialization layer ancilla qubits
         if layer_cfg.layer1.init and not is_pipe:
-            override_flow = None
-            if init_flow_overrides is not None:
-                override_flow = init_flow_overrides.get(InitFlowLayerKey(layer_idx, 1))
-            if override_flow is None:
-                ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
-                    code_distance, Coord2D(0, 0), boundary, edge_spec
-                )
-            else:
-                ancilla_flow = override_flow
+            move_vec = None
+            if init_flow_directions is not None:
+                move_vec = init_flow_directions.get(InitFlowLayerKey(layer_idx, 1))
+            if move_vec is None:
+                msg = f"Missing init flow direction for layer1 (unit={layer_idx})."
+                raise ValueError(msg)
+            ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
+                code_distance, Coord2D(0, 0), boundary, edge_spec, move_vec
+            )
             for src_2d, tgt_2d_set in ancilla_flow.items():
                 src_coord = Coord3D(src_2d.x, src_2d.y, z)
                 for tgt_2d in tgt_2d_set:
@@ -321,7 +321,7 @@ def _build_layer2(  # noqa: C901
     boundary: Mapping[BoundarySide, EdgeSpecValue],
     *,
     layer_idx: int,
-    init_flow_overrides: Mapping[InitFlowLayerKey, InitFlowMap] | None = None,
+    init_flow_directions: Mapping[InitFlowLayerKey, Coord2D] | None = None,
     is_pipe: bool,
     invert_ancilla_order: bool = False,
 ) -> None:
@@ -416,15 +416,15 @@ def _build_layer2(  # noqa: C901
 
         # Add flow for initialization layer ancilla qubits
         if layer_cfg.layer2.init and not is_pipe:
-            override_flow = None
-            if init_flow_overrides is not None:
-                override_flow = init_flow_overrides.get(InitFlowLayerKey(layer_idx, 2))
-            if override_flow is None:
-                ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
-                    code_distance, Coord2D(0, 0), boundary, edge_spec
-                )
-            else:
-                ancilla_flow = override_flow
+            move_vec = None
+            if init_flow_directions is not None:
+                move_vec = init_flow_directions.get(InitFlowLayerKey(layer_idx, 2))
+            if move_vec is None:
+                msg = f"Missing init flow direction for layer2 (unit={layer_idx})."
+                raise ValueError(msg)
+            ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
+                code_distance, Coord2D(0, 0), boundary, edge_spec, move_vec
+            )
             for src_2d, tgt_2d_set in ancilla_flow.items():
                 src_coord = Coord3D(src_2d.x, src_2d.y, z + 1)
                 for tgt_2d in tgt_2d_set:

@@ -5,13 +5,6 @@ from __future__ import annotations
 
 import enum
 
-DIRECTIONS2D: list[tuple[int, int]] = [
-    (-1, -1),  # down left
-    (-1, +1),  # down right
-    (+1, -1),  # up left
-    (+1, +1),  # up right
-]
-
 # Tuple size constant for pipe coordinates
 EDGE_TUPLE_SIZE = 2
 DATA_PARITIES = [(0, 0, 0), (1, 1, 0), (0, 0, 1), (1, 1, 1)]

@@ -998,6 +998,7 @@ class RotatedSurfaceCodeLayoutBuilder:
         global_pos: Coord2D,
         boundary: Mapping[BoundarySide, EdgeSpecValue],
         ancilla_type: EdgeSpecValue,
+        move_vec: Coord2D,
     ) -> dict[Coord2D, set[Coord2D]]:
         """Construct flow mapping for initial ancilla qubits.
 
@@ -1015,6 +1016,8 @@ class RotatedSurfaceCodeLayoutBuilder:
             Boundary specifications for the cube.
         ancilla_type : EdgeSpecValue
             Type of ancilla qubit. "Z" for layer1 (Z-stabilizer), "X" for layer2 (X-stabilizer).
+        move_vec : Coord2D
+            Signed movement direction (one of (0, 1), (0, -1), (-1, 0), (1, 0)).
 
         Returns
         -------
@@ -1032,7 +1035,9 @@ class RotatedSurfaceCodeLayoutBuilder:
             msg = f"Invalid ancilla type for flow: {ancilla_type}."
             raise ValueError(msg)
 
-        move_vec = RotatedSurfaceCodeLayoutBuilder._determine_move_vec(boundary, ancilla_type)
+        if (move_vec.x, move_vec.y) not in {(0, 1), (0, -1), (-1, 0), (1, 0)}:
+            msg = f"Invalid move_vec for init flow: {move_vec}."
+            raise ValueError(msg)
 
         flow_map: dict[Coord2D, set[Coord2D]] = {}
         for node in ancilla_nodes:
@@ -1047,69 +1052,11 @@ class RotatedSurfaceCodeLayoutBuilder:
         return flow_map
 
     @staticmethod
-    def _determine_move_vec(
-        boundary: Mapping[BoundarySide, EdgeSpecValue],
-        ancilla_type: EdgeSpecValue,
-    ) -> AxisDIRECTION2D:
-        """Determine the global movement vector direction for ancilla flow.
-
-        Based on the boundary conditions and ancilla type, this method determines
-        which axis the ancilla flow should move along. The flow moves orthogonally
-        to the logical chain direction.
-
-        This method only supports standard rotated surface code boundaries where
-        X and Z are placed on opposite pairs of edges (e.g., TOP/BOTTOM=X and
-        LEFT/RIGHT=Z, or vice versa).
-
-        Parameters
-        ----------
-        boundary : Mapping[BoundarySide, EdgeSpecValue]
-            Boundary specifications for the cube.
-        ancilla_type : EdgeSpecValue
-            Type of ancilla (X or Z) to determine flow for.
-
-        Returns
-        -------
-        AxisDIRECTION2D
-            H (horizontal) if TOP/BOTTOM boundaries match ancilla_type,
-            V (vertical) if LEFT/RIGHT boundaries match ancilla_type.
-
-        Raises
-        ------
-        ValueError
-            If the boundary conditions are not standard rotated surface code
-            boundaries (X and Z on opposite pairs).
-        """
-        top = boundary[BoundarySide.TOP]
-        bottom = boundary[BoundarySide.BOTTOM]
-        left = boundary[BoundarySide.LEFT]
-        right = boundary[BoundarySide.RIGHT]
-
-        # Check for standard rotated surface code boundary:
-        # X and Z must each be on opposite pairs of edges
-        top_bottom_same = top == bottom
-        left_right_same = left == right
-        is_standard = top_bottom_same and left_right_same and {top, left} == {EdgeSpecValue.X, EdgeSpecValue.Z}
-
-        if not is_standard:
-            msg = (
-                "Only standard rotated surface code boundaries are supported: "
-                "X and Z must each be on opposite pairs of edges "
-                "(e.g., TOP/BOTTOM=X and LEFT/RIGHT=Z, or vice versa)."
-            )
-            raise ValueError(msg)
-
-        # Return movement direction based on ancilla type
-        if top == ancilla_type:
-            return AxisDIRECTION2D.H  # ancilla type matches TOP/BOTTOM, move horizontally
-        return AxisDIRECTION2D.V  # ancilla type matches LEFT/RIGHT, move vertically
-
-    @staticmethod
     def _determine_flow(
         node: Coord2D,
         data2d: frozenset[Coord2D],
         ancilla_type: EdgeSpecValue,
-        move_vec: AxisDIRECTION2D,
+        move_vec: Coord2D,
     ) -> Coord2D:
         """Determine the flow target for a single ancilla qubit.
 
@@ -1125,8 +1072,8 @@ class RotatedSurfaceCodeLayoutBuilder:
             Set of all data qubit coordinates in the patch.
         ancilla_type : EdgeSpecValue
             Type of ancilla (X or Z), which determines the edge pattern used.
-        move_vec : AxisDIRECTION2D
-            The movement direction (H or V) that filters candidate targets.
+        move_vec : Coord2D
+            Signed movement direction (one of (0, 1), (0, -1), (-1, 0), (1, 0)).
 
         Returns
         -------
@@ -1150,9 +1097,9 @@ class RotatedSurfaceCodeLayoutBuilder:
 
         candidates = set()
         for dx, dy in edge_pattern:
-            if move_vec == AxisDIRECTION2D.H and dx == 1:
+            if move_vec.x != 0 and dx == move_vec.x:
                 candidates.add(Coord2D(node.x + dx, node.y + dy))
-            if move_vec == AxisDIRECTION2D.V and dy == 1:
+            if move_vec.y != 0 and dy == move_vec.y:
                 candidates.add(Coord2D(node.x + dx, node.y + dy))
 
         valid_targets = candidates.intersection(data2d)
