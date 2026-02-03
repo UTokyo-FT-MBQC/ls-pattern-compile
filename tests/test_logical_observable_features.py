@@ -5,7 +5,12 @@ from textwrap import dedent
 
 import pytest
 
-from lspattern.canvas_loader import CompositeLogicalObservableSpec, load_canvas
+from lspattern.canvas_loader import (
+    CompositeLogicalObservableSpec,
+    CubeObservableRef,
+    PipeObservableRef,
+    load_canvas,
+)
 from lspattern.compiler import _collect_logical_observable_nodes
 from lspattern.mytype import Coord3D
 
@@ -186,8 +191,9 @@ def test_label_based_cout_collection(tmp_path: Path) -> None:
           - token: X
             label: other
     logical_observables:
-      - cube: [[0, 0, 0]]
-        label: target
+      - cube:
+          - position: [0, 0, 0]
+            label: target
     """
 
     _write_yaml(tmp_path / "label_collect_block.yml", block_yaml)
@@ -198,7 +204,8 @@ def test_label_based_cout_collection(tmp_path: Path) -> None:
 
     # Get the composite observable
     composite_obs = canvas.logical_observables[0]
-    assert composite_obs.label == "target"
+    assert len(composite_obs.cubes) == 1
+    assert composite_obs.cubes[0].label == "target"
 
     # Collect nodes using the compiler function
     nodes = _collect_logical_observable_nodes(canvas, composite_obs)
@@ -240,9 +247,8 @@ def test_missing_label_error(tmp_path: Path) -> None:
 
     # Create a composite observable with a non-existent label
     composite_obs = CompositeLogicalObservableSpec(
-        cubes=(Coord3D(0, 0, 0),),
+        cubes=(CubeObservableRef(position=Coord3D(0, 0, 0), label="nonexistent"),),
         pipes=(),
-        label="nonexistent",
     )
 
     with pytest.raises(KeyError, match=r"Label 'nonexistent' not found.*Available labels: \['existing'\]"):
@@ -284,11 +290,15 @@ def test_pipe_missing_label_error(tmp_path: Path) -> None:
     canvas, _ = load_canvas(canvas_path, code_distance=3)
 
     # Create a composite observable with a non-existent label for pipe
-    pipe_edge = (Coord3D(0, 0, 0), Coord3D(1, 0, 0))
     composite_obs = CompositeLogicalObservableSpec(
         cubes=(),
-        pipes=(pipe_edge,),
-        label="wrong_label",
+        pipes=(
+            PipeObservableRef(
+                start=Coord3D(0, 0, 0),
+                end=Coord3D(1, 0, 0),
+                label="wrong_label",
+            ),
+        ),
     )
 
     with pytest.raises(KeyError, match=r"Label 'wrong_label' not found in pipe.*Available labels: \['pipe_obs'\]"):
@@ -326,9 +336,10 @@ def test_label_none_collects_all(tmp_path: Path) -> None:
 
     canvas, _ = load_canvas(canvas_path, code_distance=3)
 
-    # Get the composite observable (no label specified)
+    # Get the composite observable (no label specified in any cube)
     composite_obs = canvas.logical_observables[0]
-    assert composite_obs.label is None
+    assert len(composite_obs.cubes) == 1
+    assert composite_obs.cubes[0].label is None
 
     # Collect nodes using the compiler function
     nodes = _collect_logical_observable_nodes(canvas, composite_obs)

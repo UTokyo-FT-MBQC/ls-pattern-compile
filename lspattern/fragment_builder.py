@@ -284,6 +284,18 @@ def _build_layer1(  # noqa: C901
                     if src_coord in nodes and tgt_coord in nodes:
                         flow.add_flow(src_coord, tgt_coord)
 
+        # Add flow for initialization layer ancilla Z qubits
+        if layer_cfg.layer1.init and not is_pipe:
+            ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
+                code_distance, Coord2D(0, 0), boundary, EdgeSpecValue.Z
+            )
+            for src_2d, tgt_2d_set in ancilla_flow.items():
+                src_coord = Coord3D(src_2d.x, src_2d.y, z)
+                for tgt_2d in tgt_2d_set:
+                    tgt_coord = Coord3D(tgt_2d.x, tgt_2d.y, z)
+                    if src_coord in nodes and tgt_coord in nodes:
+                        flow.add_flow(src_coord, tgt_coord)
+
 
 def _build_layer2(  # noqa: C901
     layer_cfg: PatchLayoutConfig,
@@ -398,6 +410,18 @@ def _build_layer2(  # noqa: C901
         if layer_cfg.layer2.init and not is_pipe:
             ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
                 code_distance, Coord2D(0, 0), boundary, edge_spec
+            )
+            for src_2d, tgt_2d_set in ancilla_flow.items():
+                src_coord = Coord3D(src_2d.x, src_2d.y, z + 1)
+                for tgt_2d in tgt_2d_set:
+                    tgt_coord = Coord3D(tgt_2d.x, tgt_2d.y, z + 1)
+                    if src_coord in nodes and tgt_coord in nodes:
+                        flow.add_flow(src_coord, tgt_coord)
+
+        # Add flow for initialization layer ancilla X qubits
+        if layer_cfg.layer2.init and not is_pipe:
+            ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
+                code_distance, Coord2D(0, 0), boundary, EdgeSpecValue.X
             )
             for src_2d, tgt_2d_set in ancilla_flow.items():
                 src_coord = Coord3D(src_2d.x, src_2d.y, z + 1)
