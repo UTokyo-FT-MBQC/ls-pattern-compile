@@ -7,8 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **BREAKING**: Removed `BoundaryGraph` class and simplified detector handling
+  - Deleted `analyze_non_deterministic_regions()` and `remove_non_deterministic_det()` functions from `lspattern/detector.py`
+  - Simplified `construct_detector()` to initialize previous measurements from `remaining_parity` at z-1 for init layers
+  - Non-deterministic detector removal is now handled implicitly through proper parity tracking
+- Moved `boundary` and `invert_ancilla_order` configuration from Block YAML to Canvas YAML for centralized control
+- Refactored syndrome measurement parameter handling into dedicated helper functions in `fragment_builder.py`
+- Simplified `num_unit_layers` handling in cout computation methods
+
 ### Fixed
+- Fix detector position logic for transversal measurement layers
+- Fix `invert_ancilla_order` flag not being applied to syndrome measurement registration when `ancilla=false` and `skip_syndrome=false`
 - Fix duplicate offset calculation in pipe fragment generation that caused pipes to overlap with cube nodes
+- Fix CNOT compilation case (#100)
 
 ### Added
 - Abstract Base Classes (ABCs) for topological code layout builders in `lspattern/layout/base.py`:
@@ -18,9 +30,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `lspattern/layout/checkerboard.py`: Shared checkerboard coordinate generation utility
 - `RotatedSurfaceCodeLayout`: Instance-based implementation of `TopologicalCodeLayoutBuilder`
 - ABC inheritance and instance-based API tests in `tests/test_rotated_surface_code.py`
+- `invert_ancilla_order` flag to `BlockConfig` for per-block ancilla placement control
+- Improved error messages and validation for logical observable labels
+- Extended logical observable specification with `layer`, `sublayer`, and `label` support
+- Initial ancilla flow mapping functions for initialization layer support
+  - `get_initial_ancilla_flow()` function for generating correction flows from initial ancilla qubits
+  - Helper functions for init flow construction with `layer_parity` (formerly `ancilla_type`) parameter
 - `skip_syndrome` YAML flag for skipping syndrome measurement registration when ancilla qubits are not present
 - Parity reset support via empty syndrome measurements for layers where data qubits are removed
 - Inter-block temporal edges: z-direction edges connecting stacked blocks are now generated automatically in `_merge_graph_spec`
+- README documentation for patch layout YAML configuration (`lspattern/patch_layout/README.md`)
+- New test files:
+  - `tests/test_invert_ancilla_order.py`: Tests for ancilla order inversion functionality
+  - `tests/test_logical_observable_features.py`: Tests for logical observable specification features
 - Complete architecture overhaul with YAML-based declarative design system ([#81](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/81), [#79](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/79), [#75](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/75), [#67](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/67), [#66](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/66), [#62](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/62), [#51](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/51), [#33](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/33), [#32](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/32), [#22](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/22))
 - `lspattern/layout/rotated_surface_code.py`: Rotated Surface Code tiling logic with comprehensive boundary handling
 - `lspattern/importer/las.py`: LAS (Lattice Surgery Assembly) importer for external circuit specifications

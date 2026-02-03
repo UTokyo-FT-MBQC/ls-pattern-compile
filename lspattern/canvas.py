@@ -3,10 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from graphqomb.common import Axis
-
 from lspattern.accumulator import CoordFlowAccumulator, CoordParityAccumulator, CoordScheduleAccumulator
-from lspattern.consts import BoundarySide, EdgeSpecValue
+from lspattern.consts import BoundarySide
 from lspattern.fragment_builder import build_patch_cube_fragment, build_patch_pipe_fragment
 from lspattern.layout import (
     ANCILLA_EDGE_X,
@@ -15,10 +13,13 @@ from lspattern.layout import (
 from lspattern.mytype import Coord2D, Coord3D, NodeRole
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from collections.abc import Set as AbstractSet
 
+    from graphqomb.common import Axis
+
     from lspattern.canvas_loader import CompositeLogicalObservableSpec, LogicalObservableSpec
-    from lspattern.fragment import Boundary, GraphSpec
+    from lspattern.fragment import GraphSpec
     from lspattern.loader import BlockConfig
 
 
@@ -31,6 +32,39 @@ _TOKEN_TO_SIDES: dict[str, BoundarySide] = {
 
 _PHYSICAL_CLOCK = 2
 ANCILLA_LENGTH = len(ANCILLA_EDGE_X)  # assuming both have the same length
+
+
+def _compute_sublayer_offset(
+    observable_token: str,
+    explicit_sublayer: int | None,
+    invert_ancilla_order: bool,
+) -> int:
+    """Compute sublayer offset for logical observable coordinate calculation.
+
+    Parameters
+    ----------
+    observable_token : str
+        The observable token (X, Z, TB, LR, etc.).
+    explicit_sublayer : int | None
+        Explicit sublayer specification (1 or 2), or None for default.
+    invert_ancilla_order : bool
+        Whether ancilla order is inverted.
+
+    Returns
+    -------
+    int
+        Sublayer offset (0 for layer1, 1 for layer2).
+    """
+    if explicit_sublayer is not None:
+        return explicit_sublayer - 1  # 1→0, 2→1
+    if observable_token == "X":  # noqa: S105
+        # X-ancilla: layer2 by default, layer1 if inverted
+        return 0 if invert_ancilla_order else 1
+    if observable_token == "Z":  # noqa: S105
+        # Z-ancilla: layer1 by default, layer2 if inverted
+        return 1 if invert_ancilla_order else 0
+    # TB, LR, etc. → layer1
+    return 0
 
 
 def _token_to_boundary_sides(token: str) -> tuple[BoundarySide, BoundarySide]:
@@ -57,29 +91,6 @@ def _token_to_boundary_sides(token: str) -> tuple[BoundarySide, BoundarySide]:
     raise ValueError(msg)
 
 
-def _edge_spec_to_pauli_set(edge_spec: EdgeSpecValue) -> frozenset[Axis]:
-    """Convert EdgeSpecValue to a set of Pauli axes.
-
-    O boundary contains both X and Z.
-
-    Parameters
-    ----------
-    edge_spec : EdgeSpecValue
-        The edge specification value (X, Z, or O).
-
-    Returns
-    -------
-    frozenset[Axis]
-        The set of Pauli axes contained in this boundary type.
-    """
-    if edge_spec == EdgeSpecValue.X:
-        return frozenset({Axis.X})
-    if edge_spec == EdgeSpecValue.Z:
-        return frozenset({Axis.Z})
-    # O boundary contains both X and Z
-    return frozenset({Axis.X, Axis.Z})
-
-
 @dataclass
 class CanvasConfig:
     """Configuration for a canvas.
@@ -102,66 +113,6 @@ class CanvasConfig:
     tiling: str
 
 
-@dataclass
-class BoundaryGraph:
-    """Graph representing boundary conditions."""
-
-    boundary_map: dict[Coord3D, Boundary]
-
-    def add_boundary(self, coord: Coord3D, boundary: Boundary) -> None:
-        self.boundary_map[coord] = boundary
-
-    def check_bulk_init(self, coord: Coord3D) -> bool:
-        """Check if the coordinate is in the bulk for initialization."""
-        return Coord3D(coord.x, coord.y, coord.z - 1) not in self.boundary_map
-
-    def check_boundary_init(self, coord: Coord3D) -> dict[BoundarySide, frozenset[Axis]]:
-        """Check boundary changes and return added Pauli axes for each direction.
-
-        Parameters
-        ----------
-        coord : Coord3D
-            The coordinate to check.
-
-        Returns
-        -------
-        dict[BoundarySide, frozenset[Axis]]
-            A dictionary mapping each changed direction to the set of Pauli axes
-            that were added in the transition. Only directions with added Paulis
-            are included (e.g., O->X transitions are excluded since no Pauli is added).
-
-        Raises
-        ------
-        KeyError
-            If boundary info is missing for the coordinate or its predecessor.
-        """
-        prev_boundary = self.boundary_map.get(Coord3D(coord.x, coord.y, coord.z - 1), None)
-        if prev_boundary is None:
-            msg = f"No boundary info for coordinate {Coord3D(coord.x, coord.y, coord.z - 1)}"
-            raise KeyError(msg)
-        current_boundary = self.boundary_map.get(coord, None)
-        if current_boundary is None:
-            msg = f"No boundary info for coordinate {coord}"
-            raise KeyError(msg)
-
-        result: dict[BoundarySide, frozenset[Axis]] = {}
-
-        directions_and_boundaries = [
-            (BoundarySide.TOP, prev_boundary.top, current_boundary.top),
-            (BoundarySide.BOTTOM, prev_boundary.bottom, current_boundary.bottom),
-            (BoundarySide.LEFT, prev_boundary.left, current_boundary.left),
-            (BoundarySide.RIGHT, prev_boundary.right, current_boundary.right),
-        ]
-
-        for direction, prev_edge, current_edge in directions_and_boundaries:
-            if prev_edge != current_edge:
-                added = _edge_spec_to_pauli_set(current_edge) - _edge_spec_to_pauli_set(prev_edge)
-                if added:
-                    result[direction] = added
-
-        return result
-
-
 class Canvas:
     config: CanvasConfig
     __nodes: set[Coord3D]
@@ -169,8 +120,8 @@ class Canvas:
     __pauli_axes: dict[Coord3D, Axis]
     __coord2role: dict[Coord3D, NodeRole]
 
-    couts: dict[Coord3D, set[Coord3D]]
-    pipe_couts: dict[tuple[Coord3D, Coord3D], set[Coord3D]]
+    couts: dict[Coord3D, dict[str, set[Coord3D]]]
+    pipe_couts: dict[tuple[Coord3D, Coord3D], dict[str, set[Coord3D]]]
 
     __parity: CoordParityAccumulator
     flow: CoordFlowAccumulator
@@ -178,8 +129,6 @@ class Canvas:
 
     cube_config: dict[Coord3D, BlockConfig]
     pipe_config: dict[tuple[Coord3D, Coord3D], BlockConfig]
-
-    bgraph: BoundaryGraph  # NOTE: boundary info is duplicated in configs
 
     logical_observables: tuple[CompositeLogicalObservableSpec, ...]
 
@@ -197,7 +146,6 @@ class Canvas:
 
         self.cube_config = {}
         self.pipe_config = {}
-        self.bgraph = BoundaryGraph(boundary_map={})
         self.logical_observables = ()
 
     @property
@@ -311,7 +259,7 @@ class Canvas:
         self,
         global_pos: Coord3D,
         block_config: BlockConfig,
-        logical_observable: LogicalObservableSpec | None = None,
+        logical_observables: Sequence[LogicalObservableSpec] | None = None,
     ) -> None:
         """Add a cube block to the canvas.
 
@@ -321,8 +269,8 @@ class Canvas:
             Global (x, y, z) position of the cube in slot coordinates.
         block_config : BlockConfig
             Block configuration containing boundary and layer definitions.
-        logical_observable : LogicalObservableSpec | None
-            Optional logical observable specification.
+        logical_observables : Sequence[LogicalObservableSpec] | None
+            Optional logical observable specifications (multiple supported).
         """
         self.cube_config[global_pos] = block_config
 
@@ -337,22 +285,26 @@ class Canvas:
         # Handle user-supplied graph spec
         if block_config.graph_spec is not None:
             self._merge_graph_spec(block_config.graph_spec, coord_offset=coord_offset, time_offset=time_offset)
-            if logical_observable is not None:
-                if logical_observable.nodes:
-                    unknown = set(logical_observable.nodes) - block_config.graph_spec.nodes
-                    if unknown:
-                        msg = f"logical_observables.nodes references undefined graph nodes: {sorted(unknown)}"
-                        raise ValueError(msg)
-                    if block_config.graph_spec.coord_mode == "global":
-                        self.couts[global_pos] = set(logical_observable.nodes)
+            if logical_observables is not None:
+                result: dict[str, set[Coord3D]] = {}
+                for idx, obs in enumerate(logical_observables):
+                    label = obs.label if obs.label is not None else str(idx)
+                    if obs.nodes:
+                        unknown = set(obs.nodes) - block_config.graph_spec.nodes
+                        if unknown:
+                            msg = f"logical_observables.nodes references undefined graph nodes: {sorted(unknown)}"
+                            raise ValueError(msg)
+                        if block_config.graph_spec.coord_mode == "global":
+                            result[label] = set(obs.nodes)
+                        else:
+                            result[label] = {
+                                Coord3D(coord.x + coord_offset.x, coord.y + coord_offset.y, coord.z + coord_offset.z)
+                                for coord in obs.nodes
+                            }
                     else:
-                        self.couts[global_pos] = {
-                            Coord3D(coord.x + coord_offset.x, coord.y + coord_offset.y, coord.z + coord_offset.z)
-                            for coord in logical_observable.nodes
-                        }
-                else:
-                    msg = "graph-based blocks require logical_observables.nodes (list of node coordinates)."
-                    raise ValueError(msg)
+                        msg = "graph-based blocks require logical_observables.nodes (list of node coordinates)."
+                        raise ValueError(msg)
+                self.couts[global_pos] = result
             return
 
         # Patch-based cube: use fragment builder
@@ -361,42 +313,33 @@ class Canvas:
         # Merge graph spec
         self._merge_graph_spec(fragment.graph, coord_offset=coord_offset, time_offset=time_offset)
 
-        # Merge boundary fragment into bgraph
-        for local_coord, boundary in fragment.boundary.boundaries.items():
-            global_coord = Coord3D(
-                global_pos.x + local_coord.x,
-                global_pos.y + local_coord.y,
-                global_pos.z + local_coord.z,
-            )
-            self.bgraph.add_boundary(global_coord, boundary)
-
-        # Compute couts if logical_observable is specified
-        if logical_observable is not None:
+        # Compute couts if logical_observables is specified
+        if logical_observables is not None:
             _, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.cube(
                 self.config.d, Coord2D(global_pos.x, global_pos.y), block_config.boundary
             ).to_mutable_sets()
-            self._compute_cout_from_logical_observable(
-                global_pos, block_config, logical_observable, ancilla_x2d, ancilla_z2d
+            self._compute_cout_from_logical_observables(
+                global_pos, block_config, logical_observables, ancilla_x2d, ancilla_z2d
             )
 
-    def _compute_cout_from_logical_observable(
+    def _compute_cout_from_logical_observables(
         self,
         global_pos: Coord3D,
         block_config: BlockConfig,
-        logical_observable: LogicalObservableSpec,
+        logical_observables: Sequence[LogicalObservableSpec],
         ancilla_x2d: AbstractSet[Coord2D],
         ancilla_z2d: AbstractSet[Coord2D],
     ) -> None:
-        """Compute cout coordinates from logical observable specification.
+        """Compute cout coordinates from logical observable specifications.
 
         Parameters
         ----------
         global_pos : Coord3D
             The global position of the cube.
         block_config : BlockConfig
-            The block configuration.
-        logical_observable : LogicalObservableSpec
-            The logical observable specification.
+            The block configuration (length determines number of unit layers).
+        logical_observables : Sequence[LogicalObservableSpec]
+            The logical observable specifications (multiple supported).
         ancilla_x2d : collections.abc.Set[Coord2D]
             X ancilla 2D coordinates for this cube.
         ancilla_z2d : collections.abc.Set[Coord2D]
@@ -406,53 +349,86 @@ class Canvas:
         -----
         Token types:
         - "TB", "LR", etc. (2-char): Use boundary_data_path_cube() to get data qubit path
-        - "X": Select all ANCILLA_X nodes in the cube's final layer
-        - "Z": Select all ANCILLA_Z nodes in the cube's final layer
+        - "X": Select all ANCILLA_X nodes at the specified layer
+        - "Z": Select all ANCILLA_Z nodes at the specified layer
+
+        Physical z coordinate calculation:
+        - block_base_z = global_pos.z * 2 * d
+        - physical_z = block_base_z + (unit_layer_idx * 2) + sublayer_offset
+        - sublayer_offset: 0 for layer1, 1 for layer2
         """
-        observable_token = logical_observable.token
-        if observable_token is None:
-            msg = "Patch-based logical_observables must be specified as a token string (e.g. 'TB', 'X', 'Z')."
-            raise ValueError(msg)
-        offset_z = global_pos.z * 2 * self.config.d
+        result: dict[str, set[Coord3D]] = {}
+        block_base_z = global_pos.z * 2 * self.config.d
+        num_unit_layers = len(block_config)
 
-        if observable_token == "X":  # noqa: S105
-            # Select ANCILLA_X nodes at final layer within cube's XY range
-            cout_coords = {Coord3D(c.x, c.y, offset_z + 1) for c in ancilla_x2d}
-        elif observable_token == "Z":  # noqa: S105
-            # Select ANCILLA_Z nodes at final layer within cube's XY range
-            cout_coords = {Coord3D(c.x, c.y, offset_z) for c in ancilla_z2d}
-        else:
-            # TB, LR, etc. - use cube_boundary_path for data qubit path
-            side_a, side_b = _token_to_boundary_sides(observable_token)
-            path_2d = RotatedSurfaceCodeLayoutBuilder.cube_boundary_path(
-                self.config.d,
-                Coord2D(global_pos.x, global_pos.y),
-                block_config.boundary,
-                side_a,
-                side_b,
+        for idx, obs in enumerate(logical_observables):
+            label = obs.label if obs.label is not None else str(idx)
+            observable_token = obs.token
+
+            if observable_token is None:
+                msg = "Patch-based logical_observables must be specified as a token string (e.g. 'TB', 'X', 'Z')."
+                raise ValueError(msg)
+
+            # Determine unit layer index
+            if obs.layer is not None:
+                unit_layer_idx = obs.layer
+                if unit_layer_idx < 0:
+                    unit_layer_idx = num_unit_layers + unit_layer_idx
+                if unit_layer_idx < 0 or unit_layer_idx >= num_unit_layers:
+                    msg = (
+                        f"layer index {obs.layer} (resolved to {unit_layer_idx}) out of range "
+                        f"for block with {num_unit_layers} unit layers. "
+                        f"Valid range: 0 to {num_unit_layers - 1} or -{num_unit_layers} to -1"
+                    )
+                    raise ValueError(msg)
+            else:
+                unit_layer_idx = 0  # Default: first unit layer
+
+            sublayer_offset = _compute_sublayer_offset(
+                observable_token, obs.sublayer, block_config.invert_ancilla_order
             )
-            cout_coords = {Coord3D(c.x, c.y, offset_z) for c in path_2d}
+            offset_z = block_base_z + (unit_layer_idx * 2) + sublayer_offset
 
-        self.couts[global_pos] = cout_coords
+            if observable_token == "X":  # noqa: S105
+                # Select ANCILLA_X nodes at specified layer within cube's XY range
+                cout_coords = {Coord3D(c.x, c.y, offset_z) for c in ancilla_x2d}
+            elif observable_token == "Z":  # noqa: S105
+                # Select ANCILLA_Z nodes at specified layer within cube's XY range
+                cout_coords = {Coord3D(c.x, c.y, offset_z) for c in ancilla_z2d}
+            else:
+                # TB, LR, etc. - use cube_boundary_path for data qubit path
+                side_a, side_b = _token_to_boundary_sides(observable_token)
+                path_2d = RotatedSurfaceCodeLayoutBuilder.cube_boundary_path(
+                    self.config.d,
+                    Coord2D(global_pos.x, global_pos.y),
+                    block_config.boundary,
+                    side_a,
+                    side_b,
+                )
+                cout_coords = {Coord3D(c.x, c.y, offset_z) for c in path_2d}
 
-    def compute_pipe_cout_from_logical_observable(
+            result[label] = cout_coords
+
+        self.couts[global_pos] = result
+
+    def _compute_pipe_cout_from_logical_observables(
         self,
         global_edge: tuple[Coord3D, Coord3D],
         block_config: BlockConfig,
-        logical_observable: LogicalObservableSpec,
+        logical_observables: Sequence[LogicalObservableSpec],
         ancilla_x2d: AbstractSet[Coord2D],
         ancilla_z2d: AbstractSet[Coord2D],
     ) -> None:
-        """Compute cout coordinates from logical observable specification for pipe.
+        """Compute cout coordinates from logical observable specifications for pipe.
 
         Parameters
         ----------
         global_edge : tuple[Coord3D, Coord3D]
             The global edge (start, end) of the pipe.
         block_config : BlockConfig
-            The block configuration.
-        logical_observable : LogicalObservableSpec
-            The logical observable specification.
+            The block configuration (length determines number of unit layers).
+        logical_observables : Sequence[LogicalObservableSpec]
+            The logical observable specifications (multiple supported).
         ancilla_x2d : collections.abc.Set[Coord2D]
             X ancilla 2D coordinates for this pipe.
         ancilla_z2d : collections.abc.Set[Coord2D]
@@ -462,42 +438,116 @@ class Canvas:
         -----
         Token types:
         - "RL", "TB", etc. (2-char): Use pipe_boundary_path() to get data qubit path
-        - "X": Select all ANCILLA_X nodes in the pipe's first layer
-        - "Z": Select all ANCILLA_Z nodes in the pipe's first layer
+        - "X": Select all ANCILLA_X nodes at the specified layer
+        - "Z": Select all ANCILLA_Z nodes at the specified layer
         """
-        observable_token = logical_observable.token
-        if observable_token is None:
-            msg = "Patch-based logical_observables must be specified as a token string (e.g. 'TB', 'X', 'Z')."
-            raise ValueError(msg)
+        result: dict[str, set[Coord3D]] = {}
         start, end = global_edge
-        offset_z = start.z * 2 * self.config.d
+        block_base_z = start.z * 2 * self.config.d
+        num_unit_layers = len(block_config)
 
-        if observable_token == "X":  # noqa: S105
-            # Select ANCILLA_X nodes at first layer within pipe's XY range
-            cout_coords = {Coord3D(c.x, c.y, offset_z + 1) for c in ancilla_x2d}
-        elif observable_token == "Z":  # noqa: S105
-            # Select ANCILLA_Z nodes at first layer within pipe's XY range
-            cout_coords = {Coord3D(c.x, c.y, offset_z) for c in ancilla_z2d}
-        else:
-            # RL, TB, etc. - use pipe_boundary_path for data qubit path
-            side_a, side_b = _token_to_boundary_sides(observable_token)
-            path_2d = RotatedSurfaceCodeLayoutBuilder.pipe_boundary_path(
-                self.config.d,
-                start,
-                end,
-                block_config.boundary,
-                side_a,
-                side_b,
+        for idx, obs in enumerate(logical_observables):
+            label = obs.label if obs.label is not None else str(idx)
+            observable_token = obs.token
+
+            if observable_token is None:
+                msg = "Patch-based logical_observables must be specified as a token string (e.g. 'TB', 'X', 'Z')."
+                raise ValueError(msg)
+
+            # Determine unit layer index
+            if obs.layer is not None:
+                unit_layer_idx = obs.layer
+                if unit_layer_idx < 0:
+                    unit_layer_idx = num_unit_layers + unit_layer_idx
+                if unit_layer_idx < 0 or unit_layer_idx >= num_unit_layers:
+                    msg = (
+                        f"layer index {obs.layer} (resolved to {unit_layer_idx}) out of range "
+                        f"for block with {num_unit_layers} unit layers. "
+                        f"Valid range: 0 to {num_unit_layers - 1} or -{num_unit_layers} to -1"
+                    )
+                    raise ValueError(msg)
+            else:
+                unit_layer_idx = 0  # Default: first unit layer
+
+            sublayer_offset = _compute_sublayer_offset(
+                observable_token, obs.sublayer, block_config.invert_ancilla_order
             )
-            cout_coords = {Coord3D(c.x, c.y, offset_z) for c in path_2d}
+            offset_z = block_base_z + (unit_layer_idx * 2) + sublayer_offset
 
-        self.pipe_couts[global_edge] = cout_coords
+            if observable_token == "X":  # noqa: S105
+                # Select ANCILLA_X nodes at specified layer within pipe's XY range
+                cout_coords = {Coord3D(c.x, c.y, offset_z) for c in ancilla_x2d}
+            elif observable_token == "Z":  # noqa: S105
+                # Select ANCILLA_Z nodes at specified layer within pipe's XY range
+                cout_coords = {Coord3D(c.x, c.y, offset_z) for c in ancilla_z2d}
+            else:
+                # RL, TB, etc. - use pipe_boundary_path for data qubit path
+                side_a, side_b = _token_to_boundary_sides(observable_token)
+                path_2d = RotatedSurfaceCodeLayoutBuilder.pipe_boundary_path(
+                    self.config.d,
+                    start,
+                    end,
+                    block_config.boundary,
+                    side_a,
+                    side_b,
+                )
+                cout_coords = {Coord3D(c.x, c.y, offset_z) for c in path_2d}
+
+            result[label] = cout_coords
+
+        self.pipe_couts[global_edge] = result
+
+    def _clear_cube_syndrome_meas_for_pipe_init(
+        self,
+        global_edge: tuple[Coord3D, Coord3D],
+        block_config: BlockConfig,
+        coord_offset: Coord3D,
+    ) -> None:
+        """Clear cube's syndrome_meas entries for pipe's init layer regions.
+
+        This is called before merging pipe's graph spec to ensure that cube's
+        syndrome_meas entries are cleared for positions where the pipe has
+        init layers. Init layers should be excluded from detector construction.
+        Note: remaining_parity is NOT cleared here, as it is needed for parity
+        chain tracking.
+
+        Parameters
+        ----------
+        global_edge : tuple[Coord3D, Coord3D]
+            The global edge (start, end) of the pipe.
+        block_config : BlockConfig
+            Block configuration containing layer definitions.
+        coord_offset : Coord3D
+            Coordinate offset for translating local to global coordinates.
+        """
+        start, end = global_edge
+        _, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.pipe(
+            self.config.d, start, end, block_config.boundary
+        ).to_mutable_sets()
+
+        for layer_idx, layer_cfg in enumerate(block_config):
+            z = coord_offset.z + layer_idx * 2
+
+            # Layer1: clear syndrome_meas only if init=true
+            # Use appropriate ancilla set based on invert_ancilla_order
+            if layer_cfg.layer1.init and layer_cfg.layer1.ancilla:
+                ancilla_2d = ancilla_x2d if block_config.invert_ancilla_order else ancilla_z2d
+                for coord in ancilla_2d:
+                    xy = Coord2D(coord.x, coord.y)
+                    self.__parity.clear_syndrome_measurement_at(xy, z)
+
+            # Layer2: clear syndrome_meas only if init=true
+            if layer_cfg.layer2.init and layer_cfg.layer2.ancilla:
+                ancilla_2d = ancilla_z2d if block_config.invert_ancilla_order else ancilla_x2d
+                for coord in ancilla_2d:
+                    xy = Coord2D(coord.x, coord.y)
+                    self.__parity.clear_syndrome_measurement_at(xy, z + 1)
 
     def add_pipe(  # noqa: C901
         self,
         global_edge: tuple[Coord3D, Coord3D],
         block_config: BlockConfig,
-        logical_observable: LogicalObservableSpec | None = None,
+        logical_observables: Sequence[LogicalObservableSpec] | None = None,
     ) -> None:
         """Add a pipe to the canvas.
 
@@ -507,8 +557,8 @@ class Canvas:
             The global edge (start, end) of the pipe.
         block_config : BlockConfig
             The block configuration for the pipe.
-        logical_observable : LogicalObservableSpec | None
-            Optional logical observable specification.
+        logical_observables : Sequence[LogicalObservableSpec] | None
+            Optional logical observable specifications (multiple supported).
         """
         start, end = global_edge
 
@@ -533,45 +583,42 @@ class Canvas:
         # Handle user-supplied graph spec
         if block_config.graph_spec is not None:
             self._merge_graph_spec(block_config.graph_spec, coord_offset=coord_offset, time_offset=time_offset)
-            if logical_observable is not None:
-                if logical_observable.nodes:
-                    unknown = set(logical_observable.nodes) - block_config.graph_spec.nodes
-                    if unknown:
-                        msg = f"logical_observables.nodes references undefined graph nodes: {sorted(unknown)}"
-                        raise ValueError(msg)
-                    if block_config.graph_spec.coord_mode == "global":
-                        self.pipe_couts[global_edge] = set(logical_observable.nodes)
+            if logical_observables is not None:
+                result: dict[str, set[Coord3D]] = {}
+                for idx, obs in enumerate(logical_observables):
+                    label = obs.label if obs.label is not None else str(idx)
+                    if obs.nodes:
+                        unknown = set(obs.nodes) - block_config.graph_spec.nodes
+                        if unknown:
+                            msg = f"logical_observables.nodes references undefined graph nodes: {sorted(unknown)}"
+                            raise ValueError(msg)
+                        if block_config.graph_spec.coord_mode == "global":
+                            result[label] = set(obs.nodes)
+                        else:
+                            result[label] = {
+                                Coord3D(coord.x + coord_offset.x, coord.y + coord_offset.y, coord.z + coord_offset.z)
+                                for coord in obs.nodes
+                            }
                     else:
-                        self.pipe_couts[global_edge] = {
-                            Coord3D(coord.x + coord_offset.x, coord.y + coord_offset.y, coord.z + coord_offset.z)
-                            for coord in logical_observable.nodes
-                        }
-                else:
-                    msg = "graph-based blocks require logical_observables.nodes (list of node coordinates)."
-                    raise ValueError(msg)
+                        msg = "graph-based blocks require logical_observables.nodes (list of node coordinates)."
+                        raise ValueError(msg)
+                self.pipe_couts[global_edge] = result
             return
 
         # Patch-based pipe: use fragment builder
         fragment = build_patch_pipe_fragment(self.config.d, pipe_dir, block_config)
 
+        # Clear cube's syndrome_meas for pipe's init layer regions BEFORE merging pipe's parity
+        self._clear_cube_syndrome_meas_for_pipe_init(global_edge, block_config, coord_offset)
+
         # Merge graph spec
         self._merge_graph_spec(fragment.graph, coord_offset=coord_offset, time_offset=time_offset)
 
-        # Merge boundary fragment into bgraph
-        # For pipe, boundaries are stored at start and end positions
-        for local_coord, boundary in fragment.boundary.boundaries.items():
-            global_coord = Coord3D(
-                start.x + local_coord.x,
-                start.y + local_coord.y,
-                start.z + local_coord.z,
-            )
-            self.bgraph.add_boundary(global_coord, boundary)
-
-        # Compute couts if logical_observable is specified
-        if logical_observable is not None:
+        # Compute couts if logical_observables is specified
+        if logical_observables is not None:
             _, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.pipe(
                 self.config.d, start, end, block_config.boundary
             ).to_mutable_sets()
-            self.compute_pipe_cout_from_logical_observable(
-                global_edge, block_config, logical_observable, ancilla_x2d, ancilla_z2d
+            self._compute_pipe_cout_from_logical_observables(
+                global_edge, block_config, logical_observables, ancilla_x2d, ancilla_z2d
             )

@@ -12,7 +12,7 @@ from graphqomb.graphstate import GraphState
 from lspattern.consts import BoundarySide
 from lspattern.canvas_loader import load_canvas
 from lspattern.compiler import compile_canvas_to_stim
-from lspattern.detector import construct_detector, remove_non_deterministic_det
+from lspattern.detector import construct_detector
 from lspattern.layout import RotatedSurfaceCodeLayoutBuilder
 from lspattern.mytype import Coord2D, Coord3D
 from lspattern.visualizer import visualize_canvas_plotly, visualize_detectors_plotly
@@ -39,13 +39,13 @@ fig.show()
 print("\n=== Logical Observables ===")
 print("Cube logical observable specs:")
 for cube in spec.cubes:
-    lo = cube.logical_observable
-    print(f"  {cube.position}: {lo.token if lo else 'None'}")
+    lo = cube.logical_observables
+    print(f"  {cube.position}: {[obs.token for obs in lo] if lo else 'None'}")
 
 print("\nComputed couts (physical coordinates):")
 for pos, coords in canvas.couts.items():
     print(f"  {pos}: {len(coords)} coordinates")
-    for coord in sorted(coords, key=lambda c: (c.x, c.y, c.z)):
+    for coord in sorted(coords, key=lambda c: (c.x, c.y, c.z) if isinstance(c, Coord3D) else (0, 0, 0)):
         print(f"    - {coord}")
 
 
@@ -76,8 +76,7 @@ _graph, node_map = GraphState.from_graph(
 node_index_to_coord = {idx: coord for coord, idx in node_map.items()}
 
 # 2) build detectors (Coord3D -> set[Coord3D]) then convert to node indices
-det_acc = remove_non_deterministic_det(canvas)
-coord2det_coords = construct_detector(det_acc)
+coord2det_coords = construct_detector(canvas.parity_accumulator)
 coord2det_nodes: dict[Coord3D, set[int]] = {}
 for det_coord, involved_coords in coord2det_coords.items():
     mapped = {node_map[c] for c in involved_coords if c in node_map}

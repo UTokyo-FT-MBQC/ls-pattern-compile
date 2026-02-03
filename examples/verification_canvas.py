@@ -3,15 +3,15 @@
 # %%
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import stim
 from graphqomb.common import AxisMeasBasis, Sign
 from graphqomb.graphstate import GraphState
 
 from lspattern.canvas_loader import load_canvas
-from lspattern.compiler import compile_canvas_to_stim
-from lspattern.detector import construct_detector, remove_non_deterministic_det
+from lspattern.compiler import _collect_logical_observable_nodes, compile_canvas_to_stim
+from lspattern.detector import construct_detector
 from lspattern.visualizer import visualize_canvas_plotly, visualize_detectors_plotly
 
 if TYPE_CHECKING:
@@ -26,23 +26,25 @@ canvas, spec = load_canvas(spec_name, code_distance=code_distance)
 print("\n=== Logical Observables ===")
 print("Cube logical observable specs:")
 for cube in spec.cubes:
-    lo = cube.logical_observable
-    print(f"  {cube.position}: {lo.token if lo else 'None'}")
+    lo = cube.logical_observables
+    if lo:
+        tokens = [obs.token for obs in lo]
+        print(f"  {cube.position}: {tokens}")
+    else:
+        print(f"  {cube.position}: None")
 
 print("\nComputed cube couts (physical coordinates):")
-for pos, coords in canvas.couts.items():
-    print(f"  {pos}: {len(coords)} coordinates")
-    for coord in sorted(coords, key=lambda c: (c.x, c.y, c.z)):
-        print(f"    - {coord}")
+for pos, label_coords in canvas.couts.items():
+    print(f"  {pos}:")
+    for label, coords in label_coords.items():
+        print(f"    [{label}]: {len(coords)} coordinates")
+        for coord in sorted(coords, key=lambda c: (c.x, c.y, c.z)):
+            print(f"      - {coord}")
 
 # # collect logical obs
 idx = 0
 logical_observables_spec = canvas.logical_observables[idx]
-logical_obs_coords: set[Coord3D] = set()
-for cube_coord in logical_observables_spec.cubes:
-    logical_obs_coords |= canvas.couts[cube_coord]
-for pipe_coord in logical_observables_spec.pipes:
-    logical_obs_coords |= canvas.pipe_couts[pipe_coord]
+logical_obs_coords = _collect_logical_observable_nodes(canvas, logical_observables_spec)
 # logical_obs_coords: set[Coord3D] = set()
 
 # %%
@@ -60,7 +62,7 @@ _graph, node_map = GraphState.from_graph(
 )
 node_index_to_coord = {idx: coord for coord, idx in node_map.items()}
 
-nodeidx_to_highlight = {}
+nodeidx_to_highlight: dict[int, Any] = {}
 inv_node_map = {v: k for k, v in node_map.items()}
 highlight_node = set()
 for idx in nodeidx_to_highlight:
@@ -68,8 +70,7 @@ for idx in nodeidx_to_highlight:
         highlight_node.add(inv_node_map[idx])
 
 # 2) build detectors (Coord3D -> set[Coord3D]) then convert to node indices
-det_acc = remove_non_deterministic_det(canvas)
-coord2det_coords = construct_detector(det_acc)
+coord2det_coords = construct_detector(canvas.parity_accumulator)
 coord2det_nodes: dict[Coord3D, set[int]] = {}
 for det_coord, involved_coords in coord2det_coords.items():
     mapped = {node_map[c] for c in involved_coords if c in node_map}
