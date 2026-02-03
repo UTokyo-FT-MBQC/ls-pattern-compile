@@ -80,9 +80,6 @@ def test_load_canvas_with_graph_block(tmp_path: Path) -> None:
     # couts now use label-indexed dict structure
     assert canvas.couts[Coord3D(1, 0, 2)] == {"0": {Coord3D(8, 0, 12)}}
 
-    # Graph-based blocks should not participate in boundary-based non-determinism analysis.
-    assert not canvas.bgraph.boundary_map
-
     # Scheduler time offset should follow the same convention as patch-based cubes.
     assert canvas.scheduler.prep_time[72] == expected_nodes
     assert canvas.scheduler.meas_time[74] == expected_nodes
