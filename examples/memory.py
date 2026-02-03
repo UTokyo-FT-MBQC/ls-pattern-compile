@@ -43,10 +43,12 @@ for cube in spec.cubes:
     print(f"  {cube.position}: {[obs.token for obs in lo] if lo else 'None'}")
 
 print("\nComputed couts (physical coordinates):")
-for pos, coords in canvas.couts.items():
-    print(f"  {pos}: {len(coords)} coordinates")
-    for coord in sorted(coords, key=lambda c: (c.x, c.y, c.z) if isinstance(c, Coord3D) else (0, 0, 0)):
-        print(f"    - {coord}")
+for pos, label_coords in canvas.couts.items():
+    print(f"  {pos}:")
+    for label, coords in label_coords.items():
+        print(f"    [{label}]: {len(coords)} coordinates")
+        for coord in sorted(coords, key=lambda c: (c.x, c.y, c.z)):
+            print(f"      - {coord}")
 
 
 # %%

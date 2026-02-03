@@ -1055,7 +1055,7 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
             msg = f"No valid target found for ancilla at {node}."
             raise ValueError(msg)
 
-        return valid_targets.pop()  # Return one of the valid targets
+        return min(valid_targets)  # Return deterministic result
 
 
 # =============================================================================
@@ -1569,4 +1569,4 @@ class RotatedSurfaceCodeLayoutBuilder:
             msg = f"No valid target found for ancilla at {node}."
             raise ValueError(msg)
 
-        return valid_targets.pop()  # Return one of the valid targets
+        return min(valid_targets)  # Return deterministic result

@@ -36,8 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved error messages and validation for logical observable labels
 - Extended logical observable specification with `layer`, `sublayer`, and `label` support
 - Initial ancilla flow mapping functions for initialization layer support
-  - `get_initial_ancilla_flow()` function for generating correction flows from initial ancilla qubits
-  - Helper functions for init flow construction with `layer_parity` (formerly `ancilla_type`) parameter
+  - `construct_initial_ancilla_flow()` function for generating correction flows from initial ancilla qubits
+  - Helper functions for init flow construction with `ancilla_type` parameter
 - `skip_syndrome` YAML flag for skipping syndrome measurement registration when ancilla qubits are not present
 - Parity reset support via empty syndrome measurements for layers where data qubits are removed
 - Inter-block temporal edges: z-direction edges connecting stacked blocks are now generated automatically in `_merge_graph_spec`
@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New test files:
   - `tests/test_invert_ancilla_order.py`: Tests for ancilla order inversion functionality
   - `tests/test_logical_observable_features.py`: Tests for logical observable specification features
+  - `tests/test_init_flow_direction_analysis.py`: Tests for init flow direction analysis functionality
 - Complete architecture overhaul with YAML-based declarative design system ([#81](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/81), [#79](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/79), [#75](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/75), [#67](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/67), [#66](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/66), [#62](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/62), [#51](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/51), [#33](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/33), [#32](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/32), [#22](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile/issues/22))
 - `lspattern/layout/rotated_surface_code.py`: Rotated Surface Code tiling logic with comprehensive boundary handling
 - `lspattern/importer/las.py`: LAS (Lattice Surgery Assembly) importer for external circuit specifications

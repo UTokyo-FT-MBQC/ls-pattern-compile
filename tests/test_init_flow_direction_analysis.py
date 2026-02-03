@@ -239,10 +239,11 @@ class TestAdjacentPairs:
         assert result[0] == (Coord3D(0, 0, 0), Coord3D(1, 0, 0), BoundarySide.RIGHT)
 
     def test_vertical_adjacent_pair(self) -> None:
+        # y+1 is BOTTOM direction (TOP is y-1 per _SIDE_TO_VEC)
         positions = {Coord3D(0, 0, 0), Coord3D(0, 1, 0)}
         result = _adjacent_pairs(positions)
         assert len(result) == 1
-        assert result[0] == (Coord3D(0, 0, 0), Coord3D(0, 1, 0), BoundarySide.TOP)
+        assert result[0] == (Coord3D(0, 0, 0), Coord3D(0, 1, 0), BoundarySide.BOTTOM)
 
     def test_non_adjacent_positions(self) -> None:
         positions = {Coord3D(0, 0, 0), Coord3D(2, 0, 0)}
@@ -279,10 +280,12 @@ class TestViolatesPair:
         assert not _violates_pair(BoundarySide.RIGHT, BoundarySide.RIGHT, BoundarySide.RIGHT)
 
     def test_vertical_opposing_violates(self) -> None:
-        assert _violates_pair(BoundarySide.TOP, BoundarySide.BOTTOM, BoundarySide.TOP)
+        # dir_a_to_b is BOTTOM (y+1 direction), violation if a=BOTTOM, b=TOP
+        assert _violates_pair(BoundarySide.BOTTOM, BoundarySide.TOP, BoundarySide.BOTTOM)
 
     def test_vertical_same_direction_not_violates(self) -> None:
-        assert not _violates_pair(BoundarySide.TOP, BoundarySide.TOP, BoundarySide.TOP)
+        # dir_a_to_b is BOTTOM; same direction doesn't violate
+        assert not _violates_pair(BoundarySide.BOTTOM, BoundarySide.BOTTOM, BoundarySide.BOTTOM)
 
     def test_orthogonal_directions_not_violates(self) -> None:
         assert not _violates_pair(BoundarySide.LEFT, BoundarySide.TOP, BoundarySide.RIGHT)
@@ -335,13 +338,15 @@ class TestSolveDirectionAssignment:
         assert not (result[Coord3D(0, 0, 0)] == BoundarySide.RIGHT and result[Coord3D(1, 0, 0)] == BoundarySide.LEFT)
 
     def test_vertically_adjacent_avoids_conflict(self) -> None:
+        # (0,0,0) is at y+1 direction (BOTTOM) from perspective of (0,0,0) to (0,1,0)
+        # Conflict occurs when (0,0,0) points BOTTOM and (0,1,0) points TOP
         candidates = {
-            Coord3D(0, 0, 0): {BoundarySide.TOP, BoundarySide.LEFT},
-            Coord3D(0, 1, 0): {BoundarySide.BOTTOM, BoundarySide.RIGHT},
+            Coord3D(0, 0, 0): {BoundarySide.BOTTOM, BoundarySide.LEFT},
+            Coord3D(0, 1, 0): {BoundarySide.TOP, BoundarySide.RIGHT},
         }
         result = _solve_direction_assignment(candidates, label="test")
         # Should not have both pointing at each other
-        assert not (result[Coord3D(0, 0, 0)] == BoundarySide.TOP and result[Coord3D(0, 1, 0)] == BoundarySide.BOTTOM)
+        assert not (result[Coord3D(0, 0, 0)] == BoundarySide.BOTTOM and result[Coord3D(0, 1, 0)] == BoundarySide.TOP)
 
     def test_no_solution_raises_value_error(self) -> None:
         # Two horizontally adjacent positions, but both can only point inward

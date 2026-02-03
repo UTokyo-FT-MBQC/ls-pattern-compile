@@ -80,17 +80,18 @@ def _adjacent_pairs(positions: set[Coord3D]) -> list[tuple[Coord3D, Coord3D, Bou
         right = Coord3D(pos.x + 1, pos.y, pos.z)
         if right in positions:
             pairs.append((pos, right, BoundarySide.RIGHT))
-        top = Coord3D(pos.x, pos.y + 1, pos.z)
-        if top in positions:
-            pairs.append((pos, top, BoundarySide.TOP))
+        # y+1 is BOTTOM direction (TOP is y-1 per _SIDE_TO_VEC)
+        bottom = Coord3D(pos.x, pos.y + 1, pos.z)
+        if bottom in positions:
+            pairs.append((pos, bottom, BoundarySide.BOTTOM))
     return pairs
 
 
 def _violates_pair(dir_a: BoundarySide, dir_b: BoundarySide, dir_a_to_b: BoundarySide) -> bool:
     if dir_a_to_b == BoundarySide.RIGHT:
         return dir_a == BoundarySide.RIGHT and dir_b == BoundarySide.LEFT
-    if dir_a_to_b == BoundarySide.TOP:
-        return dir_a == BoundarySide.TOP and dir_b == BoundarySide.BOTTOM
+    if dir_a_to_b == BoundarySide.BOTTOM:
+        return dir_a == BoundarySide.BOTTOM and dir_b == BoundarySide.TOP
     return False
 
 
