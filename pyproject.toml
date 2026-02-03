@@ -139,6 +139,10 @@ docstring-code-format = true
   "T201", # print
   "D",
 ]
+"lspattern/layout/rotated_surface_code.py" = [
+  "PLR6301",  # method could be static - needed for ABC implementation
+  "SLF001",   # private member access - static facade pattern
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["lspattern"]

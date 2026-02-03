@@ -6,11 +6,19 @@ import pytest
 
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.layout import (
+    AncillaFlowConstructor,
+    BoundaryAncillaRetriever,
+    BoundaryPathCalculator,
+    BoundsCalculator,
+    CoordinateGenerator,
     PatchBounds,
     PatchCoordinates,
+    PipeDirectionHelper,
+    RotatedSurfaceCodeLayout,
     RotatedSurfaceCodeLayoutBuilder,
+    TopologicalCodeLayoutBuilder,
 )
-from lspattern.mytype import Coord2D, Coord3D
+from lspattern.mytype import AxisDIRECTION2D, Coord2D, Coord3D
 
 # Alias for shorter test code
 Builder = RotatedSurfaceCodeLayoutBuilder
@@ -628,3 +636,211 @@ class TestBuilderCubeBoundaryAncillasForSide:
         shift = 2 * (3 + 1)
         shifted_x = frozenset(Coord2D(c.x + shift, c.y) for c in x_anc_0)
         assert shifted_x == x_anc_1
+
+
+# =============================================================================
+# Tests for ABC inheritance and interface compliance
+# =============================================================================
+
+
+class TestABCInheritance:
+    """Tests for ABC inheritance structure."""
+
+    def test_rotated_surface_code_layout_inherits_combined_abc(self) -> None:
+        """Test that RotatedSurfaceCodeLayout inherits from TopologicalCodeLayoutBuilder."""
+        assert issubclass(RotatedSurfaceCodeLayout, TopologicalCodeLayoutBuilder)
+
+    def test_rotated_surface_code_layout_inherits_coordinate_generator(self) -> None:
+        """Test inheritance from CoordinateGenerator ABC."""
+        assert issubclass(RotatedSurfaceCodeLayout, CoordinateGenerator)
+
+    def test_rotated_surface_code_layout_inherits_bounds_calculator(self) -> None:
+        """Test inheritance from BoundsCalculator ABC."""
+        assert issubclass(RotatedSurfaceCodeLayout, BoundsCalculator)
+
+    def test_rotated_surface_code_layout_inherits_boundary_path_calculator(self) -> None:
+        """Test inheritance from BoundaryPathCalculator ABC."""
+        assert issubclass(RotatedSurfaceCodeLayout, BoundaryPathCalculator)
+
+    def test_rotated_surface_code_layout_inherits_boundary_ancilla_retriever(self) -> None:
+        """Test inheritance from BoundaryAncillaRetriever ABC."""
+        assert issubclass(RotatedSurfaceCodeLayout, BoundaryAncillaRetriever)
+
+    def test_rotated_surface_code_layout_inherits_ancilla_flow_constructor(self) -> None:
+        """Test inheritance from AncillaFlowConstructor ABC."""
+        assert issubclass(RotatedSurfaceCodeLayout, AncillaFlowConstructor)
+
+    def test_rotated_surface_code_layout_inherits_pipe_direction_helper(self) -> None:
+        """Test inheritance from PipeDirectionHelper ABC."""
+        assert issubclass(RotatedSurfaceCodeLayout, PipeDirectionHelper)
+
+
+class TestInstanceBasedAPI:
+    """Tests for the instance-based RotatedSurfaceCodeLayout API."""
+
+    @pytest.fixture
+    def layout(self) -> RotatedSurfaceCodeLayout:
+        """Create a layout instance for testing."""
+        return RotatedSurfaceCodeLayout()
+
+    @pytest.fixture
+    def standard_boundary(self) -> dict[BoundarySide, EdgeSpecValue]:
+        """Standard boundary configuration for tests."""
+        return {
+            BoundarySide.TOP: EdgeSpecValue.X,
+            BoundarySide.BOTTOM: EdgeSpecValue.X,
+            BoundarySide.LEFT: EdgeSpecValue.Z,
+            BoundarySide.RIGHT: EdgeSpecValue.Z,
+        }
+
+    def test_instance_cube_matches_static(
+        self,
+        layout: RotatedSurfaceCodeLayout,
+        standard_boundary: dict[BoundarySide, EdgeSpecValue],
+    ) -> None:
+        """Test that instance.cube() produces same result as static Builder.cube()."""
+        instance_result = layout.cube(
+            code_distance=3,
+            global_pos=Coord2D(0, 0),
+            boundary=standard_boundary,
+        )
+        static_result = Builder.cube(
+            code_distance=3,
+            global_pos=Coord2D(0, 0),
+            boundary=standard_boundary,
+        )
+        assert instance_result == static_result
+
+    def test_instance_pipe_matches_static(
+        self,
+        layout: RotatedSurfaceCodeLayout,
+    ) -> None:
+        """Test that instance.pipe() produces same result as static Builder.pipe()."""
+        boundary = {
+            BoundarySide.TOP: EdgeSpecValue.O,
+            BoundarySide.BOTTOM: EdgeSpecValue.O,
+            BoundarySide.LEFT: EdgeSpecValue.X,
+            BoundarySide.RIGHT: EdgeSpecValue.Z,
+        }
+        source = Coord3D(0, 0, 0)
+        target = Coord3D(0, 1, 0)
+
+        instance_result = layout.pipe(
+            code_distance=3,
+            global_pos_source=source,
+            global_pos_target=target,
+            boundary=boundary,
+        )
+        static_result = Builder.pipe(
+            code_distance=3,
+            global_pos_source=source,
+            global_pos_target=target,
+            boundary=boundary,
+        )
+        assert instance_result == static_result
+
+    def test_instance_cube_bounds(
+        self,
+        layout: RotatedSurfaceCodeLayout,
+    ) -> None:
+        """Test that instance.cube_bounds() returns valid PatchBounds."""
+        result = layout.cube_bounds(code_distance=3, offset=Coord2D(0, 0))
+        assert isinstance(result, PatchBounds)
+        # Verify the bounds have expected dimensions for code_distance=3
+        # Width = 2*(d-1) + 1 = 2*d - 1 = 5 for d=3
+        assert result.width == 2 * 3 - 1
+        assert result.height == 2 * 3 - 1
+
+    def test_instance_cube_boundary_path_matches_static(
+        self,
+        layout: RotatedSurfaceCodeLayout,
+        standard_boundary: dict[BoundarySide, EdgeSpecValue],
+    ) -> None:
+        """Test that instance.cube_boundary_path() produces same result as static."""
+        instance_result = layout.cube_boundary_path(
+            code_distance=3,
+            global_pos=Coord2D(0, 0),
+            boundary=standard_boundary,
+            side_a=BoundarySide.TOP,
+            side_b=BoundarySide.BOTTOM,
+        )
+        static_result = Builder.cube_boundary_path(
+            code_distance=3,
+            global_pos=Coord2D(0, 0),
+            boundary=standard_boundary,
+            side_a=BoundarySide.TOP,
+            side_b=BoundarySide.BOTTOM,
+        )
+        assert instance_result == static_result
+
+    def test_instance_is_topological_code_layout_builder(
+        self,
+        layout: RotatedSurfaceCodeLayout,
+    ) -> None:
+        """Test that isinstance check works for TopologicalCodeLayoutBuilder."""
+        assert isinstance(layout, TopologicalCodeLayoutBuilder)
+
+    def test_instance_is_coordinate_generator(
+        self,
+        layout: RotatedSurfaceCodeLayout,
+    ) -> None:
+        """Test that isinstance check works for CoordinateGenerator."""
+        assert isinstance(layout, CoordinateGenerator)
+
+    def test_instance_is_bounds_calculator(
+        self,
+        layout: RotatedSurfaceCodeLayout,
+    ) -> None:
+        """Test that isinstance check works for BoundsCalculator."""
+        assert isinstance(layout, BoundsCalculator)
+
+    def test_construct_initial_ancilla_flow(
+        self,
+        layout: RotatedSurfaceCodeLayout,
+        standard_boundary: dict[BoundarySide, EdgeSpecValue],
+    ) -> None:
+        """Test construct_initial_ancilla_flow instance method."""
+        flow = layout.construct_initial_ancilla_flow(
+            code_distance=3,
+            global_pos=Coord2D(0, 0),
+            boundary=standard_boundary,
+            ancilla_type=EdgeSpecValue.X,
+            move_vec=Coord2D(1, 0),  # Move right
+        )
+        assert isinstance(flow, dict)
+        # Flow should have Coord2D keys and set[Coord2D] values
+        for key, value in flow.items():
+            assert isinstance(key, Coord2D)
+            assert isinstance(value, set)
+
+    def test_pipe_offset(
+        self,
+        layout: RotatedSurfaceCodeLayout,
+    ) -> None:
+        """Test pipe_offset instance method."""
+        # y increases -> BOTTOM (y_max side)
+        offset = layout.pipe_offset(
+            global_pos_source=Coord3D(0, 0, 0),
+            global_pos_target=Coord3D(0, 1, 0),
+        )
+        assert offset == BoundarySide.BOTTOM
+
+        # x increases -> RIGHT
+        offset = layout.pipe_offset(
+            global_pos_source=Coord3D(0, 0, 0),
+            global_pos_target=Coord3D(1, 0, 0),
+        )
+        assert offset == BoundarySide.RIGHT
+
+    def test_pipe_axis_from_offset(
+        self,
+        layout: RotatedSurfaceCodeLayout,
+    ) -> None:
+        """Test pipe_axis_from_offset instance method."""
+        # RIGHT/LEFT -> H (horizontal)
+        axis_h = layout.pipe_axis_from_offset(BoundarySide.RIGHT)
+        assert axis_h == AxisDIRECTION2D.H
+
+        # TOP/BOTTOM -> V (vertical)
+        axis_v = layout.pipe_axis_from_offset(BoundarySide.BOTTOM)
+        assert axis_v == AxisDIRECTION2D.V

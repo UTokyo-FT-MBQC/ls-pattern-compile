@@ -12,7 +12,6 @@ import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from importlib import resources
-from itertools import starmap
 from pathlib import Path
 from typing import TYPE_CHECKING, SupportsInt, cast
 
@@ -72,23 +71,56 @@ class LogicalObservableSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class CubeObservableRef:
+    """Reference to a cube's logical observable.
+
+    Attributes
+    ----------
+    position : Coord3D
+        Global position of the cube.
+    label : str | None
+        Label to reference specific couts within the cube.
+        If None, all couts from the cube are combined.
+    """
+
+    position: Coord3D
+    label: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PipeObservableRef:
+    """Reference to a pipe's logical observable.
+
+    Attributes
+    ----------
+    start : Coord3D
+        Start position of the pipe.
+    end : Coord3D
+        End position of the pipe.
+    label : str | None
+        Label to reference specific couts within the pipe.
+        If None, all couts from the pipe are combined.
+    """
+
+    start: Coord3D
+    end: Coord3D
+    label: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class CompositeLogicalObservableSpec:
     """Represents a logical observable spanning multiple cubes/pipes.
 
     Attributes
     ----------
-    cubes : tuple[Coord3D, ...]
-        Global positions of cubes contributing to this observable.
-    pipes : tuple[tuple[Coord3D, Coord3D], ...]
-        Global edges of pipes contributing to this observable.
-    label : str | None
-        Label to reference specific couts within cubes/pipes.
-        If None, all couts from each cube/pipe are combined.
+    cubes : tuple[CubeObservableRef, ...]
+        References to cubes contributing to this observable.
+    pipes : tuple[PipeObservableRef, ...]
+        References to pipes contributing to this observable.
     """
 
-    cubes: tuple[Coord3D, ...]
-    pipes: tuple[tuple[Coord3D, Coord3D], ...]
-    label: str | None = None
+    cubes: tuple[CubeObservableRef, ...]
+    pipes: tuple[PipeObservableRef, ...]
 
 
 def _normalize_paths(paths: Sequence[Path | str]) -> tuple[Path, ...]:
@@ -490,6 +522,15 @@ def _parse_logical_observables(value: object | None) -> tuple[LogicalObservableS
                     specs.append(spec)
             return tuple(specs) if specs else None
 
+        # If first element is a string, treat as list of token strings (e.g., [TB, X])
+        if isinstance(first, str):
+            specs = []
+            for item in value:
+                spec = _parse_logical_observable(item)
+                if spec is not None:
+                    specs.append(spec)
+            return tuple(specs) if specs else None
+
         # If first element is a Sequence (but not string), could be coordinates
         if isinstance(first, Sequence) and not isinstance(first, (str, bytes)):
             # Could be [[x,y,z], [x,y,z], ...] - single observable with explicit nodes
@@ -807,6 +848,93 @@ def _parse_graph_spec(value: object) -> GraphSpec:  # noqa: C901
     return spec
 
 
+def _parse_cube_observable_ref(entry: object) -> CubeObservableRef:
+    """Parse a single cube observable reference.
+
+    Parameters
+    ----------
+    entry : object
+        Either a coordinate list [x, y, z] or a mapping with position and optional label.
+
+    Returns
+    -------
+    CubeObservableRef
+        Parsed cube reference.
+    """
+    # Simple form: [x, y, z]
+    if (
+        isinstance(entry, Sequence)
+        and not isinstance(entry, (str, bytes))
+        and len(entry) == 3  # noqa: PLR2004
+        and all(isinstance(v, (int, float)) for v in entry)
+    ):
+        return CubeObservableRef(position=_parse_coord3d(entry))
+
+    # Mapping form: {position: [x, y, z], label: ...}
+    if isinstance(entry, Mapping):
+        if "position" not in entry:
+            msg = f"Cube observable reference must have 'position', got keys: {list(entry.keys())}"
+            raise ValueError(msg)
+        position = _parse_coord3d(entry["position"])
+        label: str | None = None
+        if "label" in entry:
+            label_value = entry["label"]
+            if label_value is not None and not isinstance(label_value, str):
+                msg = f"cube.label must be a string, got: {type(label_value)}"
+                raise TypeError(msg)
+            label = label_value
+        return CubeObservableRef(position=position, label=label)
+
+    msg = f"Invalid cube observable reference: {entry!r}"
+    raise TypeError(msg)
+
+
+def _parse_pipe_observable_ref(entry: object) -> PipeObservableRef:
+    """Parse a single pipe observable reference.
+
+    Parameters
+    ----------
+    entry : object
+        Either a coordinate pair [[x1,y1,z1], [x2,y2,z2]] or a mapping with start/end and optional label.
+
+    Returns
+    -------
+    PipeObservableRef
+        Parsed pipe reference.
+    """
+    # Simple form: [[x1, y1, z1], [x2, y2, z2]]
+    if (
+        isinstance(entry, Sequence) and not isinstance(entry, (str, bytes)) and len(entry) == 2  # noqa: PLR2004
+    ):
+        first, second = entry
+        if (
+            isinstance(first, Sequence)
+            and not isinstance(first, (str, bytes))
+            and isinstance(second, Sequence)
+            and not isinstance(second, (str, bytes))
+        ):
+            return PipeObservableRef(start=_parse_coord3d(first), end=_parse_coord3d(second))
+
+    # Mapping form: {start: [x, y, z], end: [x, y, z], label: ...}
+    if isinstance(entry, Mapping):
+        if "start" not in entry or "end" not in entry:
+            msg = f"Pipe observable reference must have 'start' and 'end', got keys: {list(entry.keys())}"
+            raise ValueError(msg)
+        start = _parse_coord3d(entry["start"])
+        end = _parse_coord3d(entry["end"])
+        label: str | None = None
+        if "label" in entry:
+            label_value = entry["label"]
+            if label_value is not None and not isinstance(label_value, str):
+                msg = f"pipe.label must be a string, got: {type(label_value)}"
+                raise TypeError(msg)
+            label = label_value
+        return PipeObservableRef(start=start, end=end, label=label)
+
+    msg = f"Invalid pipe observable reference: {entry!r}"
+    raise TypeError(msg)
+
+
 def _parse_composite_logical_observables(
     spec: object | None,
 ) -> tuple[CompositeLogicalObservableSpec, ...]:
@@ -821,6 +949,25 @@ def _parse_composite_logical_observables(
     -------
     tuple[CompositeLogicalObservableSpec, ...]
         Parsed composite logical observable specifications.
+
+    Notes
+    -----
+    Supports two formats for cube/pipe entries:
+
+    Simple format (coordinates only, no label):
+        cube: [[0, 0, 5], [1, 1, 5]]
+        pipe: [[[0, 0, 1], [1, 0, 1]]]
+
+    Detailed format (with per-entry labels):
+        cube:
+          - position: [0, 0, 5]
+            label: obs_z
+          - position: [1, 1, 5]
+            label: obs_x
+        pipe:
+          - start: [0, 0, 1]
+            end: [1, 0, 1]
+            label: pipe_obs
     """
     if spec is None:
         return ()
@@ -837,31 +984,79 @@ def _parse_composite_logical_observables(
         raw_cubes = entry.get("cube", [])
         raw_pipes = entry.get("pipe", [])
 
-        cubes = tuple(starmap(Coord3D, raw_cubes))
-        pipes = tuple((Coord3D(*p[0]), Coord3D(*p[1])) for p in raw_pipes)
+        if raw_cubes is None:
+            raw_cubes = []
+        if raw_pipes is None:
+            raw_pipes = []
 
-        # Parse optional label
-        label: str | None = None
-        if "label" in entry:
-            label_value = entry["label"]
-            if label_value is not None and not isinstance(label_value, str):
-                msg = f"logical_observables.label must be a string, got: {type(label_value)}"
-                raise TypeError(msg)
-            label = label_value
+        if not isinstance(raw_cubes, Sequence) or isinstance(raw_cubes, (str, bytes)):
+            msg = f"logical_observables.cube must be a list, got: {type(raw_cubes)}"
+            raise TypeError(msg)
+        if not isinstance(raw_pipes, Sequence) or isinstance(raw_pipes, (str, bytes)):
+            msg = f"logical_observables.pipe must be a list, got: {type(raw_pipes)}"
+            raise TypeError(msg)
 
-        result.append(CompositeLogicalObservableSpec(cubes=cubes, pipes=pipes, label=label))
+        cubes = tuple(_parse_cube_observable_ref(c) for c in raw_cubes)
+        pipes = tuple(_parse_pipe_observable_ref(p) for p in raw_pipes)
+
+        result.append(CompositeLogicalObservableSpec(cubes=cubes, pipes=pipes))
 
     return tuple(result)
 
 
-def _resolve_num_layers(layer_cfg: Mapping[str, object], distance: int, consumed_layers: int) -> int:
+def _analyze_layer_specs(
+    layers: Sequence[Mapping[str, object]],
+    distance: int,
+) -> tuple[int, int | None]:
+    """Pre-scan layer specs to calculate total fixed layers.
+
+    Returns:
+        A tuple of (total_fixed_layers, rest_index) where:
+        - total_fixed_layers: Sum of all fixed layer counts (excluding 'rest')
+        - rest_index: Index of the layer using 'rest' specification, or None if not found
+    """
+    total_fixed = 0
+    rest_index: int | None = None
+
+    for idx, layer_cfg in enumerate(layers):
+        if "num_layers" in layer_cfg:
+            total_fixed += int(cast("SupportsInt", layer_cfg["num_layers"]))
+            continue
+
+        if "num_layers_from_distance" in layer_cfg:
+            spec = layer_cfg["num_layers_from_distance"]
+            if isinstance(spec, str) and spec.lower() in {"rest", "remaining", "fill"}:
+                if rest_index is not None:
+                    msg = f"Multiple layers cannot use 'rest' specification. Found at indices {rest_index} and {idx}."
+                    raise ValueError(msg)
+                rest_index = idx
+                continue
+            if isinstance(spec, Mapping):
+                scale = int(spec.get("scale", 1))
+                offset = int(spec.get("offset", 0))
+                total_fixed += max(scale * distance + offset, 0)
+                continue
+            total_fixed += max(int(cast("SupportsInt", spec)), 0)
+            continue
+
+        params = layer_cfg.get("params", {})
+        if isinstance(params, Mapping) and "num_layers" in params:
+            total_fixed += int(params["num_layers"])
+            continue
+
+        total_fixed += 1  # Default: 1 layer
+
+    return total_fixed, rest_index
+
+
+def _resolve_num_layers(layer_cfg: Mapping[str, object], distance: int, total_fixed_layers: int) -> int:
     if "num_layers" in layer_cfg:
         return int(cast("SupportsInt", layer_cfg["num_layers"]))
 
     if "num_layers_from_distance" in layer_cfg:
         spec = layer_cfg["num_layers_from_distance"]
         if isinstance(spec, str) and spec.lower() in {"rest", "remaining", "fill"}:
-            return max(distance - consumed_layers, 0)
+            return max(distance - total_fixed_layers, 0)
         if isinstance(spec, Mapping):
             scale = int(spec.get("scale", 1))
             offset = int(spec.get("offset", 0))
@@ -923,14 +1118,15 @@ def load_block_config_from_name(
         block_config.graph_spec = graph_spec
         return block_config
 
+    layers_cfg = cfg.get("layers", [])
+    total_fixed, _rest_index = _analyze_layer_specs(layers_cfg, code_distance)
+
     patch_configs = []
-    consumed = 0
-    for layer_cfg in cfg.get("layers", []):
+    for layer_cfg in layers_cfg:
         layer_name = layer_cfg["type"]
-        num_layers = _resolve_num_layers(layer_cfg, code_distance, consumed)
+        num_layers = _resolve_num_layers(layer_cfg, code_distance, total_fixed)
         patch_layout = _load_layer_config(layer_name, extra_paths=search_paths)
         patch_configs.extend([patch_layout] * num_layers)
-        consumed += num_layers
 
     return BlockConfig(patch_configs)
 

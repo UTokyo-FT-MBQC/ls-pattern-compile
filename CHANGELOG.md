@@ -23,6 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix CNOT compilation case (#100)
 
 ### Added
+- Abstract Base Classes (ABCs) for topological code layout builders in `lspattern/layout/base.py`:
+  - `CoordinateGenerator`, `BoundsCalculator`, `BoundaryPathCalculator`, `BoundaryAncillaRetriever`, `AncillaFlowConstructor`, `PipeDirectionHelper`
+  - `TopologicalCodeLayoutBuilder`: Combined interface for complete layout builders
+- `lspattern/layout/coordinates.py`: Extracted `PatchBounds` and `PatchCoordinates` data classes with `width`/`height` properties
+- `lspattern/layout/checkerboard.py`: Shared checkerboard coordinate generation utility
+- `RotatedSurfaceCodeLayout`: Instance-based implementation of `TopologicalCodeLayoutBuilder`
+- ABC inheritance and instance-based API tests in `tests/test_rotated_surface_code.py`
+- Generalized init flow analysis with direction-based constraint solving (`lspattern/init_flow_analysis.py`)
+- `init_flow_directions` support in `BlockConfig` for per-layer flow direction specification
 - `invert_ancilla_order` flag to `BlockConfig` for per-block ancilla placement control
 - Improved error messages and validation for logical observable labels
 - Extended logical observable specification with `layer`, `sublayer`, and `label` support
@@ -51,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tests/test_canvas_loader_paths.py`: Canvas loader path resolution tests
 
 ### Changed
+- Refactored `lspattern/layout/rotated_surface_code.py` to use ABC architecture while maintaining backward-compatible static facade (`RotatedSurfaceCodeLayoutBuilder`)
 - **BREAKING**: Complete API redesign - consolidated `lspattern/canvas/` module structure into single `lspattern/canvas.py`
 - **BREAKING**: Removed entire `lspattern/blocks/` hierarchy (cubes, pipes, layers, unit_layer)
 - **BREAKING**: Removed `lspattern/consts/` directory and legacy constant definitions
