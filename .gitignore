@@ -219,5 +219,8 @@ AGENTS.md
 CLAUDE.md
 tmp/*
 
+# Output directory for generated files (e.g., GraphQOMB Studio JSON exports)
+output/
+
 # Personal pyright configuration
 .pyrightconfig.json
