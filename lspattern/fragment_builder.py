@@ -264,9 +264,25 @@ def _build_layer1(  # noqa: C901
                 parity.add_syndrome_measurement(Coord2D(x, y), z, {coord})
                 if not is_pipe:
                     parity.add_remaining_parity(Coord2D(x, y), z, {coord})
+            elif is_pipe:
+                # Init layer for pipe: register remaining_parity only (no syndrome_meas)
+                # Cube's init layer does not register remaining_parity
+                parity.add_remaining_parity(Coord2D(x, y), z, {coord})
 
         scheduler.add_prep_at_time(layer_time, ancilla_coords)
         scheduler.add_meas_at_time(layer_time + ANCILLA_LENGTH + 1, ancilla_coords)
+
+        # Add flow for initialization layer ancilla qubits
+        if layer_cfg.layer1.init and not is_pipe:
+            ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
+                code_distance, Coord2D(0, 0), boundary, edge_spec
+            )
+            for src_2d, tgt_2d_set in ancilla_flow.items():
+                src_coord = Coord3D(src_2d.x, src_2d.y, z)
+                for tgt_2d in tgt_2d_set:
+                    tgt_coord = Coord3D(tgt_2d.x, tgt_2d.y, z)
+                    if src_coord in nodes and tgt_coord in nodes:
+                        flow.add_flow(src_coord, tgt_coord)
 
         # Add flow for initialization layer ancilla qubits
         if layer_cfg.layer1.init and not is_pipe:
@@ -382,9 +398,25 @@ def _build_layer2(  # noqa: C901
                 parity.add_syndrome_measurement(Coord2D(x, y), z + 1, {coord})
                 if not is_pipe:
                     parity.add_remaining_parity(Coord2D(x, y), z + 1, {coord})
+            elif is_pipe:
+                # Init layer for pipe: register remaining_parity only (no syndrome_meas)
+                # Cube's init layer does not register remaining_parity
+                parity.add_remaining_parity(Coord2D(x, y), z + 1, {coord})
 
         scheduler.add_prep_at_time(layer_time + _PHYSICAL_CLOCK + ANCILLA_LENGTH, ancilla_coords)
         scheduler.add_meas_at_time(layer_time + _PHYSICAL_CLOCK + 2 * ANCILLA_LENGTH + 1, ancilla_coords)
+
+        # Add flow for initialization layer ancilla qubits
+        if layer_cfg.layer2.init and not is_pipe:
+            ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
+                code_distance, Coord2D(0, 0), boundary, edge_spec
+            )
+            for src_2d, tgt_2d_set in ancilla_flow.items():
+                src_coord = Coord3D(src_2d.x, src_2d.y, z + 1)
+                for tgt_2d in tgt_2d_set:
+                    tgt_coord = Coord3D(tgt_2d.x, tgt_2d.y, z + 1)
+                    if src_coord in nodes and tgt_coord in nodes:
+                        flow.add_flow(src_coord, tgt_coord)
 
         # Add flow for initialization layer ancilla qubits
         if layer_cfg.layer2.init and not is_pipe:

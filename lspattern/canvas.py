@@ -3,10 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from graphqomb.common import Axis
-
 from lspattern.accumulator import CoordFlowAccumulator, CoordParityAccumulator, CoordScheduleAccumulator
-from lspattern.consts import BoundarySide, EdgeSpecValue
+from lspattern.consts import BoundarySide
 from lspattern.fragment_builder import build_patch_cube_fragment, build_patch_pipe_fragment
 from lspattern.layout import (
     ANCILLA_EDGE_X,
@@ -18,8 +16,10 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from collections.abc import Set as AbstractSet
 
+    from graphqomb.common import Axis
+
     from lspattern.canvas_loader import CompositeLogicalObservableSpec, LogicalObservableSpec
-    from lspattern.fragment import Boundary, GraphSpec
+    from lspattern.fragment import GraphSpec
     from lspattern.loader import BlockConfig
 
 
@@ -91,29 +91,6 @@ def _token_to_boundary_sides(token: str) -> tuple[BoundarySide, BoundarySide]:
     raise ValueError(msg)
 
 
-def _edge_spec_to_pauli_set(edge_spec: EdgeSpecValue) -> frozenset[Axis]:
-    """Convert EdgeSpecValue to a set of Pauli axes.
-
-    O boundary contains both X and Z.
-
-    Parameters
-    ----------
-    edge_spec : EdgeSpecValue
-        The edge specification value (X, Z, or O).
-
-    Returns
-    -------
-    frozenset[Axis]
-        The set of Pauli axes contained in this boundary type.
-    """
-    if edge_spec == EdgeSpecValue.X:
-        return frozenset({Axis.X})
-    if edge_spec == EdgeSpecValue.Z:
-        return frozenset({Axis.Z})
-    # O boundary contains both X and Z
-    return frozenset({Axis.X, Axis.Z})
-
-
 @dataclass
 class CanvasConfig:
     """Configuration for a canvas.
@@ -136,66 +113,6 @@ class CanvasConfig:
     tiling: str
 
 
-@dataclass
-class BoundaryGraph:
-    """Graph representing boundary conditions."""
-
-    boundary_map: dict[Coord3D, Boundary]
-
-    def add_boundary(self, coord: Coord3D, boundary: Boundary) -> None:
-        self.boundary_map[coord] = boundary
-
-    def check_bulk_init(self, coord: Coord3D) -> bool:
-        """Check if the coordinate is in the bulk for initialization."""
-        return Coord3D(coord.x, coord.y, coord.z - 1) not in self.boundary_map
-
-    def check_boundary_init(self, coord: Coord3D) -> dict[BoundarySide, frozenset[Axis]]:
-        """Check boundary changes and return added Pauli axes for each direction.
-
-        Parameters
-        ----------
-        coord : Coord3D
-            The coordinate to check.
-
-        Returns
-        -------
-        dict[BoundarySide, frozenset[Axis]]
-            A dictionary mapping each changed direction to the set of Pauli axes
-            that were added in the transition. Only directions with added Paulis
-            are included (e.g., O->X transitions are excluded since no Pauli is added).
-
-        Raises
-        ------
-        KeyError
-            If boundary info is missing for the coordinate or its predecessor.
-        """
-        prev_boundary = self.boundary_map.get(Coord3D(coord.x, coord.y, coord.z - 1), None)
-        if prev_boundary is None:
-            msg = f"No boundary info for coordinate {Coord3D(coord.x, coord.y, coord.z - 1)}"
-            raise KeyError(msg)
-        current_boundary = self.boundary_map.get(coord, None)
-        if current_boundary is None:
-            msg = f"No boundary info for coordinate {coord}"
-            raise KeyError(msg)
-
-        result: dict[BoundarySide, frozenset[Axis]] = {}
-
-        directions_and_boundaries = [
-            (BoundarySide.TOP, prev_boundary.top, current_boundary.top),
-            (BoundarySide.BOTTOM, prev_boundary.bottom, current_boundary.bottom),
-            (BoundarySide.LEFT, prev_boundary.left, current_boundary.left),
-            (BoundarySide.RIGHT, prev_boundary.right, current_boundary.right),
-        ]
-
-        for direction, prev_edge, current_edge in directions_and_boundaries:
-            if prev_edge != current_edge:
-                added = _edge_spec_to_pauli_set(current_edge) - _edge_spec_to_pauli_set(prev_edge)
-                if added:
-                    result[direction] = added
-
-        return result
-
-
 class Canvas:
     config: CanvasConfig
     __nodes: set[Coord3D]
@@ -213,8 +130,6 @@ class Canvas:
     cube_config: dict[Coord3D, BlockConfig]
     pipe_config: dict[tuple[Coord3D, Coord3D], BlockConfig]
 
-    bgraph: BoundaryGraph  # NOTE: boundary info is duplicated in configs
-
     logical_observables: tuple[CompositeLogicalObservableSpec, ...]
 
     def __init__(self, config: CanvasConfig) -> None:
@@ -231,7 +146,6 @@ class Canvas:
 
         self.cube_config = {}
         self.pipe_config = {}
-        self.bgraph = BoundaryGraph(boundary_map={})
         self.logical_observables = ()
 
     @property
@@ -398,15 +312,6 @@ class Canvas:
 
         # Merge graph spec
         self._merge_graph_spec(fragment.graph, coord_offset=coord_offset, time_offset=time_offset)
-
-        # Merge boundary fragment into bgraph
-        for local_coord, boundary in fragment.boundary.boundaries.items():
-            global_coord = Coord3D(
-                global_pos.x + local_coord.x,
-                global_pos.y + local_coord.y,
-                global_pos.z + local_coord.z,
-            )
-            self.bgraph.add_boundary(global_coord, boundary)
 
         # Compute couts if logical_observables is specified
         if logical_observables is not None:
@@ -592,6 +497,52 @@ class Canvas:
 
         self.pipe_couts[global_edge] = result
 
+    def _clear_cube_syndrome_meas_for_pipe_init(
+        self,
+        global_edge: tuple[Coord3D, Coord3D],
+        block_config: BlockConfig,
+        coord_offset: Coord3D,
+    ) -> None:
+        """Clear cube's syndrome_meas entries for pipe's init layer regions.
+
+        This is called before merging pipe's graph spec to ensure that cube's
+        syndrome_meas entries are cleared for positions where the pipe has
+        init layers. Init layers should be excluded from detector construction.
+        Note: remaining_parity is NOT cleared here, as it is needed for parity
+        chain tracking.
+
+        Parameters
+        ----------
+        global_edge : tuple[Coord3D, Coord3D]
+            The global edge (start, end) of the pipe.
+        block_config : BlockConfig
+            Block configuration containing layer definitions.
+        coord_offset : Coord3D
+            Coordinate offset for translating local to global coordinates.
+        """
+        start, end = global_edge
+        _, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.pipe(
+            self.config.d, start, end, block_config.boundary
+        ).to_mutable_sets()
+
+        for layer_idx, layer_cfg in enumerate(block_config):
+            z = coord_offset.z + layer_idx * 2
+
+            # Layer1: clear syndrome_meas only if init=true
+            # Use appropriate ancilla set based on invert_ancilla_order
+            if layer_cfg.layer1.init and layer_cfg.layer1.ancilla:
+                ancilla_2d = ancilla_x2d if block_config.invert_ancilla_order else ancilla_z2d
+                for coord in ancilla_2d:
+                    xy = Coord2D(coord.x, coord.y)
+                    self.__parity.clear_syndrome_measurement_at(xy, z)
+
+            # Layer2: clear syndrome_meas only if init=true
+            if layer_cfg.layer2.init and layer_cfg.layer2.ancilla:
+                ancilla_2d = ancilla_z2d if block_config.invert_ancilla_order else ancilla_x2d
+                for coord in ancilla_2d:
+                    xy = Coord2D(coord.x, coord.y)
+                    self.__parity.clear_syndrome_measurement_at(xy, z + 1)
+
     def add_pipe(  # noqa: C901
         self,
         global_edge: tuple[Coord3D, Coord3D],
@@ -657,18 +608,11 @@ class Canvas:
         # Patch-based pipe: use fragment builder
         fragment = build_patch_pipe_fragment(self.config.d, pipe_dir, block_config)
 
+        # Clear cube's syndrome_meas for pipe's init layer regions BEFORE merging pipe's parity
+        self._clear_cube_syndrome_meas_for_pipe_init(global_edge, block_config, coord_offset)
+
         # Merge graph spec
         self._merge_graph_spec(fragment.graph, coord_offset=coord_offset, time_offset=time_offset)
-
-        # Merge boundary fragment into bgraph
-        # For pipe, boundaries are stored at start and end positions
-        for local_coord, boundary in fragment.boundary.boundaries.items():
-            global_coord = Coord3D(
-                start.x + local_coord.x,
-                start.y + local_coord.y,
-                start.z + local_coord.z,
-            )
-            self.bgraph.add_boundary(global_coord, boundary)
 
         # Compute couts if logical_observables is specified
         if logical_observables is not None:
