@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
     from lspattern.consts import BoundarySide, EdgeSpecValue
     from lspattern.fragment import GraphSpec
-    from lspattern.init_flow_analysis import InitFlowLayerKey
+    from lspattern.init_flow_analysis import AdjacentPipeData, InitFlowLayerKey
     from lspattern.mytype import Coord2D
 
 
@@ -91,12 +91,16 @@ class BlockConfig(Sequence[PatchLayoutConfig]):
         Set from Canvas YAML (cube/pipe level), not from Block YAML.
     init_flow_directions : dict[InitFlowLayerKey, Coord2D] | None
         Optional per-layer flow directions for init layers; set from canvas analysis.
+    adjacent_pipe_data : AdjacentPipeData | None
+        Optional per-boundary-side data qubit coordinates from adjacent pipes.
+        Used for cubes with O (open) boundaries to find flow targets in pipes.
     """
 
     boundary: dict[BoundarySide, EdgeSpecValue]
     graph_spec: GraphSpec | None
     invert_ancilla_order: bool
     init_flow_directions: dict[InitFlowLayerKey, Coord2D] | None
+    adjacent_pipe_data: AdjacentPipeData | None
 
     def __init__(self, configs: Sequence[PatchLayoutConfig]) -> None:
         self._configs = list(configs)
@@ -104,6 +108,7 @@ class BlockConfig(Sequence[PatchLayoutConfig]):
         self.graph_spec = None
         self.invert_ancilla_order = False
         self.init_flow_directions = None
+        self.adjacent_pipe_data = None
 
     @overload
     def __getitem__(self, index: int) -> PatchLayoutConfig: ...

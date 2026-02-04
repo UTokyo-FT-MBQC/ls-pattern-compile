@@ -18,6 +18,8 @@ from lspattern.mytype import AxisDIRECTION2D, Coord2D, Coord3D
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from lspattern.init_flow_analysis import AdjacentPipeData
+
 
 # =============================================================================
 # Constants
@@ -375,6 +377,8 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
         boundary: Mapping[BoundarySide, EdgeSpecValue],
         ancilla_type: EdgeSpecValue,
         move_vec: Coord2D,
+        *,
+        adjacent_data: AdjacentPipeData | None = None,
     ) -> dict[Coord2D, set[Coord2D]]:
         """Construct flow mapping for initial ancilla qubits.
 
@@ -394,6 +398,9 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
             Type of ancilla qubit. "Z" for layer1 (Z-stabilizer), "X" for layer2 (X-stabilizer).
         move_vec : Coord2D
             Signed movement direction (one of (0, 1), (0, -1), (-1, 0), (1, 0)).
+        adjacent_data : AdjacentPipeData | None
+            Optional per-boundary-side data qubit coordinates from adjacent pipes.
+            Used for cubes with O (open) boundaries to find flow targets in pipes.
 
         Returns
         -------
@@ -402,7 +409,14 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
             Each source coordinate maps to a set of target coordinates.
         """
         coords = self.cube(code_distance, global_pos, boundary)
-        data2d = coords.data
+        data2d = set(coords.data)
+
+        # Merge adjacent pipe data for the target boundary side
+        if adjacent_data:
+            target_side = self._move_vec_to_side(move_vec)
+            if target_side is not None and target_side in adjacent_data:
+                data2d |= adjacent_data[target_side]
+
         if ancilla_type == EdgeSpecValue.X:
             ancilla_nodes = coords.ancilla_x
         elif ancilla_type == EdgeSpecValue.Z:
@@ -419,13 +433,34 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
         for node in ancilla_nodes:
             target = self._determine_flow(
                 node,
-                data2d,
+                frozenset(data2d),
                 ancilla_type,
                 move_vec,
             )
             flow_map.setdefault(node, set()).add(target)
 
         return flow_map
+
+    def _move_vec_to_side(self, move_vec: Coord2D) -> BoundarySide | None:
+        """Convert movement vector to boundary side.
+
+        Parameters
+        ----------
+        move_vec : Coord2D
+            Movement direction vector.
+
+        Returns
+        -------
+        BoundarySide | None
+            The boundary side corresponding to the move direction, or None.
+        """
+        mapping: dict[tuple[int, int], BoundarySide] = {
+            (0, -1): BoundarySide.TOP,
+            (0, 1): BoundarySide.BOTTOM,
+            (-1, 0): BoundarySide.LEFT,
+            (1, 0): BoundarySide.RIGHT,
+        }
+        return mapping.get((move_vec.x, move_vec.y))
 
     # =========================================================================
     # PipeDirectionHelper Implementation
@@ -1461,6 +1496,8 @@ class RotatedSurfaceCodeLayoutBuilder:
         boundary: Mapping[BoundarySide, EdgeSpecValue],
         ancilla_type: EdgeSpecValue,
         move_vec: Coord2D,
+        *,
+        adjacent_data: AdjacentPipeData | None = None,
     ) -> dict[Coord2D, set[Coord2D]]:
         """Construct flow mapping for initial ancilla qubits.
 
@@ -1480,6 +1517,9 @@ class RotatedSurfaceCodeLayoutBuilder:
             Type of ancilla qubit. "Z" for layer1 (Z-stabilizer), "X" for layer2 (X-stabilizer).
         move_vec : Coord2D
             Signed movement direction (one of (0, 1), (0, -1), (-1, 0), (1, 0)).
+        adjacent_data : AdjacentPipeData | None
+            Optional per-boundary-side data qubit coordinates from adjacent pipes.
+            Used for cubes with O (open) boundaries to find flow targets in pipes.
 
         Returns
         -------
@@ -1487,31 +1527,10 @@ class RotatedSurfaceCodeLayoutBuilder:
             Mapping from source 2D coordinate to target 2D coordinates for ancilla flow.
             Each source coordinate maps to a set of target coordinates.
         """
-        coords = RotatedSurfaceCodeLayoutBuilder.cube(code_distance, global_pos, boundary)
-        data2d = coords.data
-        if ancilla_type == EdgeSpecValue.X:
-            ancilla_nodes = coords.ancilla_x
-        elif ancilla_type == EdgeSpecValue.Z:
-            ancilla_nodes = coords.ancilla_z
-        else:
-            msg = f"Invalid ancilla type for flow: {ancilla_type}."
-            raise ValueError(msg)
-
-        if (move_vec.x, move_vec.y) not in {(0, 1), (0, -1), (-1, 0), (1, 0)}:
-            msg = f"Invalid move_vec for init flow: {move_vec}."
-            raise ValueError(msg)
-
-        flow_map: dict[Coord2D, set[Coord2D]] = {}
-        for node in ancilla_nodes:
-            target = RotatedSurfaceCodeLayoutBuilder._determine_flow(
-                node,
-                data2d,
-                ancilla_type,
-                move_vec,
-            )
-            flow_map.setdefault(node, set()).add(target)
-
-        return flow_map
+        return _default_layout.construct_initial_ancilla_flow(
+            code_distance, global_pos, boundary, ancilla_type, move_vec,
+            adjacent_data=adjacent_data,
+        )
 
     @staticmethod
     def _determine_flow(

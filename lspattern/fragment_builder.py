@@ -25,10 +25,44 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
     from collections.abc import Set as AbstractSet
 
+    from lspattern.init_flow_analysis import AdjacentPipeData
     from lspattern.loader import BlockConfig, PatchLayoutConfig
 
 _PHYSICAL_CLOCK = 2
 ANCILLA_LENGTH = len(ANCILLA_EDGE_X)
+
+
+def _validate_flow_target(
+    tgt_2d: Coord2D,
+    tgt_coord: Coord3D,
+    data2d: AbstractSet[Coord2D],
+    adjacent_pipe_data: AdjacentPipeData | None,
+) -> None:
+    """Validate that flow target exists in cube data or adjacent pipe data.
+
+    Parameters
+    ----------
+    tgt_2d : Coord2D
+        Target 2D coordinate.
+    tgt_coord : Coord3D
+        Target 3D coordinate (for error message).
+    data2d : AbstractSet[Coord2D]
+        Cube data qubit coordinates.
+    adjacent_pipe_data : AdjacentPipeData | None
+        Optional per-boundary-side data qubit coordinates from adjacent pipes.
+
+    Raises
+    ------
+    ValueError
+        If target is not found in cube or adjacent pipe data.
+    """
+    tgt_in_cube = tgt_2d in data2d
+    tgt_in_adjacent = adjacent_pipe_data is not None and any(
+        tgt_2d in pipe_data for pipe_data in adjacent_pipe_data.values()
+    )
+    if not (tgt_in_cube or tgt_in_adjacent):
+        msg = f"Flow target {tgt_coord} not found in cube or adjacent pipe data."
+        raise ValueError(msg)
 
 
 def _get_syndrome_params(
@@ -72,6 +106,7 @@ def _build_layers(
     boundary: Mapping[BoundarySide, EdgeSpecValue],
     *,
     init_flow_directions: Mapping[InitFlowLayerKey, Coord2D] | None = None,
+    adjacent_pipe_data: AdjacentPipeData | None = None,
     is_pipe: bool = False,
 ) -> GraphSpec:
     """Build graph layers from 2D coordinates and block configuration.
@@ -98,6 +133,9 @@ def _build_layers(
         Boundary specifications for the patch.
     init_flow_directions : Mapping[InitFlowLayerKey, Coord2D] | None
         Optional per-layer flow directions for init layers (local coordinates).
+    adjacent_pipe_data : AdjacentPipeData | None
+        Optional per-boundary-side data qubit coordinates from adjacent pipes.
+        Used for cubes with O (open) boundaries to find flow targets in pipes.
     is_pipe : bool
         Whether this is a pipe fragment. When True, remaining parity and
         initial ancilla flow are not added.
@@ -140,6 +178,7 @@ def _build_layers(
             boundary,
             layer_idx=layer_idx,
             init_flow_directions=init_flow_directions,
+            adjacent_pipe_data=adjacent_pipe_data,
             is_pipe=is_pipe,
             invert_ancilla_order=block_config.invert_ancilla_order,
         )
@@ -162,6 +201,7 @@ def _build_layers(
             boundary,
             layer_idx=layer_idx,
             init_flow_directions=init_flow_directions,
+            adjacent_pipe_data=adjacent_pipe_data,
             is_pipe=is_pipe,
             invert_ancilla_order=block_config.invert_ancilla_order,
         )
@@ -198,6 +238,7 @@ def _build_layer1(  # noqa: C901
     *,
     layer_idx: int,
     init_flow_directions: Mapping[InitFlowLayerKey, Coord2D] | None = None,
+    adjacent_pipe_data: AdjacentPipeData | None = None,
     is_pipe: bool,
     invert_ancilla_order: bool = False,
 ) -> None:
@@ -293,13 +334,17 @@ def _build_layer1(  # noqa: C901
                 msg = f"Missing init flow direction for layer1 (unit={layer_idx})."
                 raise ValueError(msg)
             ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
-                code_distance, Coord2D(0, 0), boundary, edge_spec, move_vec
+                code_distance, Coord2D(0, 0), boundary, edge_spec, move_vec,
+                adjacent_data=adjacent_pipe_data,
             )
             for src_2d, tgt_2d_set in ancilla_flow.items():
                 src_coord = Coord3D(src_2d.x, src_2d.y, z)
                 for tgt_2d in tgt_2d_set:
                     tgt_coord = Coord3D(tgt_2d.x, tgt_2d.y, z)
-                    if src_coord in nodes and tgt_coord in nodes:
+                    # Only check src_coord in nodes; tgt_coord may be in adjacent pipe
+                    # for cubes with O (open) boundaries
+                    if src_coord in nodes:
+                        _validate_flow_target(tgt_2d, tgt_coord, data2d, adjacent_pipe_data)
                         flow.add_flow(src_coord, tgt_coord)
 
 
@@ -322,6 +367,7 @@ def _build_layer2(  # noqa: C901
     *,
     layer_idx: int,
     init_flow_directions: Mapping[InitFlowLayerKey, Coord2D] | None = None,
+    adjacent_pipe_data: AdjacentPipeData | None = None,
     is_pipe: bool,
     invert_ancilla_order: bool = False,
 ) -> None:
@@ -423,13 +469,17 @@ def _build_layer2(  # noqa: C901
                 msg = f"Missing init flow direction for layer2 (unit={layer_idx})."
                 raise ValueError(msg)
             ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
-                code_distance, Coord2D(0, 0), boundary, edge_spec, move_vec
+                code_distance, Coord2D(0, 0), boundary, edge_spec, move_vec,
+                adjacent_data=adjacent_pipe_data,
             )
             for src_2d, tgt_2d_set in ancilla_flow.items():
                 src_coord = Coord3D(src_2d.x, src_2d.y, z + 1)
                 for tgt_2d in tgt_2d_set:
                     tgt_coord = Coord3D(tgt_2d.x, tgt_2d.y, z + 1)
-                    if src_coord in nodes and tgt_coord in nodes:
+                    # Only check src_coord in nodes; tgt_coord may be in adjacent pipe
+                    # for cubes with O (open) boundaries
+                    if src_coord in nodes:
+                        _validate_flow_target(tgt_2d, tgt_coord, data2d, adjacent_pipe_data)
                         flow.add_flow(src_coord, tgt_coord)
 
 
@@ -473,6 +523,7 @@ def build_patch_cube_fragment(
         base_time=0,
         code_distance=code_distance,
         boundary=block_config.boundary,
+        adjacent_pipe_data=block_config.adjacent_pipe_data,
     )
 
     # Build boundary fragment

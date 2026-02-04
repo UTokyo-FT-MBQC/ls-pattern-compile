@@ -1213,6 +1213,7 @@ def build_canvas(spec: CanvasSpec, *, code_distance: int, extra_paths: Sequence[
         block_config.boundary = cube.boundary
         block_config.invert_ancilla_order = cube.invert_ancilla_order
         block_config.init_flow_directions = init_flow_directions.cube_directions(cube.position)
+        block_config.adjacent_pipe_data = init_flow_directions.cube_adjacent_data(cube.position) or None
         canvas.add_cube(cube.position, block_config, cube.logical_observables)
 
     for pipe in spec.pipes:

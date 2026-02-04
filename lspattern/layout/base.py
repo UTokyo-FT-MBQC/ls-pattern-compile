@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from lspattern.consts import BoundarySide, EdgeSpecValue
+    from lspattern.init_flow_analysis import AdjacentPipeData
     from lspattern.layout.coordinates import PatchBounds, PatchCoordinates
     from lspattern.mytype import AxisDIRECTION2D, Coord2D, Coord3D
 
@@ -268,6 +269,8 @@ class AncillaFlowConstructor(ABC):
         boundary: Mapping[BoundarySide, EdgeSpecValue],
         ancilla_type: EdgeSpecValue,
         move_vec: Coord2D,
+        *,
+        adjacent_data: AdjacentPipeData | None = None,
     ) -> dict[Coord2D, set[Coord2D]]:
         """Construct flow mapping for initial ancilla qubits.
 
@@ -283,6 +286,9 @@ class AncillaFlowConstructor(ABC):
             Type of ancilla qubit (X or Z).
         move_vec : Coord2D
             Signed movement direction (one of (0, 1), (0, -1), (-1, 0), (1, 0)).
+        adjacent_data : AdjacentPipeData | None
+            Optional per-boundary-side data qubit coordinates from adjacent pipes.
+            Used for cubes with O (open) boundaries to find flow targets in pipes.
 
         Returns
         -------

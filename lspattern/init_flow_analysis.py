@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
     from pathlib import Path
 
-    from lspattern.canvas_loader import CanvasSpec
+    from lspattern.canvas_loader import CanvasPipeSpec, CanvasSpec
     from lspattern.loader import BlockConfig
 
 
@@ -25,6 +25,9 @@ class InitFlowLayerKey(NamedTuple):
 
 InitFlowDirectionMap = dict[InitFlowLayerKey, Coord2D]
 
+# Per-boundary-side set of data qubit coordinates in adjacent pipe
+AdjacentPipeData = dict[BoundarySide, frozenset[Coord2D]]
+
 
 @dataclass(slots=True)
 class InitFlowDirections:
@@ -32,12 +35,17 @@ class InitFlowDirections:
 
     cube: dict[Coord3D, InitFlowDirectionMap] = field(default_factory=dict)
     pipe: dict[tuple[Coord3D, Coord3D], InitFlowDirectionMap] = field(default_factory=dict)
+    cube_adjacent_pipe_data: dict[Coord3D, AdjacentPipeData] = field(default_factory=dict)
 
     def cube_directions(self, position: Coord3D) -> InitFlowDirectionMap:
         return self.cube.get(position, {})
 
     def pipe_directions(self, start: Coord3D, end: Coord3D) -> InitFlowDirectionMap:
         return self.pipe.get((start, end), {})
+
+    def cube_adjacent_data(self, position: Coord3D) -> AdjacentPipeData:
+        """Return adjacent pipe data for a cube, or empty dict if none."""
+        return self.cube_adjacent_pipe_data.get(position, {})
 
 
 _SIDE_ORDER = (
@@ -163,6 +171,119 @@ def _register_init_layer_candidates(
     group_candidates.setdefault(key, {})[cube_position] = candidates
 
 
+def _find_adjacent_pipe(
+    cube_pos: Coord3D,
+    direction: BoundarySide,
+    pipes: Sequence[CanvasPipeSpec],
+) -> CanvasPipeSpec | None:
+    """Find pipe adjacent to cube in given direction.
+
+    Parameters
+    ----------
+    cube_pos : Coord3D
+        Position of the cube.
+    direction : BoundarySide
+        Direction to search for adjacent pipe (TOP, BOTTOM, LEFT, RIGHT).
+    pipes : Sequence[CanvasPipeSpec]
+        List of all pipes in the canvas.
+
+    Returns
+    -------
+    CanvasPipeSpec | None
+        The adjacent pipe if found, None otherwise.
+    """
+    # Compute the neighbor position based on direction
+    if direction == BoundarySide.TOP:
+        neighbor = Coord3D(cube_pos.x, cube_pos.y - 1, cube_pos.z)
+    elif direction == BoundarySide.BOTTOM:
+        neighbor = Coord3D(cube_pos.x, cube_pos.y + 1, cube_pos.z)
+    elif direction == BoundarySide.LEFT:
+        neighbor = Coord3D(cube_pos.x - 1, cube_pos.y, cube_pos.z)
+    else:  # BoundarySide.RIGHT
+        neighbor = Coord3D(cube_pos.x + 1, cube_pos.y, cube_pos.z)
+
+    # Find a pipe connecting cube_pos and neighbor
+    for pipe in pipes:
+        if (pipe.start == cube_pos and pipe.end == neighbor) or (pipe.start == neighbor and pipe.end == cube_pos):
+            return pipe
+    return None
+
+
+def _compute_pipe_data_for_direction(
+    code_distance: int,
+    direction: BoundarySide,
+    pipe: CanvasPipeSpec,
+) -> frozenset[Coord2D]:
+    """Compute pipe data in cube-local coordinates.
+
+    The pipe data is computed using local endpoints (as if the cube is at origin).
+    This ensures the coordinates can be merged directly with the cube's data
+    in construct_initial_ancilla_flow().
+
+    Parameters
+    ----------
+    code_distance : int
+        Code distance of the surface code.
+    direction : BoundarySide
+        Direction from cube to pipe.
+    pipe : CanvasPipeSpec
+        The pipe specification.
+
+    Returns
+    -------
+    frozenset[Coord2D]
+        Set of data qubit coordinates in cube-local 2D coordinates.
+    """
+    from lspattern.layout import RotatedSurfaceCodeLayoutBuilder  # noqa: PLC0415
+
+    # Use local endpoints: cube at origin, neighbor at +/-1 in direction
+    local_start = Coord3D(0, 0, 0)
+    if direction == BoundarySide.TOP:
+        local_end = Coord3D(0, -1, 0)
+    elif direction == BoundarySide.BOTTOM:
+        local_end = Coord3D(0, 1, 0)
+    elif direction == BoundarySide.LEFT:
+        local_end = Coord3D(-1, 0, 0)
+    else:  # BoundarySide.RIGHT
+        local_end = Coord3D(1, 0, 0)
+
+    # Get pipe coordinates using local endpoints
+    pipe_coords = RotatedSurfaceCodeLayoutBuilder.pipe(code_distance, local_start, local_end, pipe.boundary)
+    return pipe_coords.data
+
+
+def _collect_cube_adjacent_pipe_data(
+    spec: CanvasSpec,
+    code_distance: int,
+) -> dict[Coord3D, AdjacentPipeData]:
+    """Collect adjacent pipe data for all cubes with O (open) boundaries.
+
+    Parameters
+    ----------
+    spec : CanvasSpec
+        Canvas specification containing cubes and pipes.
+    code_distance : int
+        Code distance of the surface code.
+
+    Returns
+    -------
+    dict[Coord3D, AdjacentPipeData]
+        Mapping from cube position to adjacent pipe data by boundary side.
+    """
+    result: dict[Coord3D, AdjacentPipeData] = {}
+    for cube in spec.cubes:
+        adjacent_data: AdjacentPipeData = {}
+        for side in _SIDE_ORDER:
+            if cube.boundary.get(side) == EdgeSpecValue.O:
+                pipe = _find_adjacent_pipe(cube.position, side, spec.pipes)
+                if pipe is not None:
+                    pipe_data = _compute_pipe_data_for_direction(code_distance, side, pipe)
+                    adjacent_data[side] = pipe_data
+        if adjacent_data:
+            result[cube.position] = adjacent_data
+    return result
+
+
 def analyze_init_flow_directions(
     spec: CanvasSpec,
     *,
@@ -207,5 +328,8 @@ def analyze_init_flow_directions(
         )
         for pos, side in assignment.items():
             directions.cube.setdefault(pos, {})[key] = _SIDE_TO_VEC[side]
+
+    # Phase 3: Compute adjacent pipe data for cubes with O (open) boundaries
+    directions.cube_adjacent_pipe_data = _collect_cube_adjacent_pipe_data(spec, code_distance)
 
     return directions
