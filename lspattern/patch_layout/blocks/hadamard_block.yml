@@ -1,5 +1,8 @@
 name: HadamardBlock
-description: This block represents an Hadamard block
+description: |
+  This block represents a Hadamard block.
+  Components: YYUnit, YXUnit, MemoryUnit
+  Used by: hadamard_canvas.yml
 
 layers: # list of layers in this block
   - type: YYUnit

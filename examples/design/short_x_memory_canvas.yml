@@ -1,5 +1,7 @@
 name: ShortXMemoryCanvas
-description: Global config for rotated surface code based blocks
+description: |
+  Short X memory canvas example.
+  Blocks: ShortXMemoryBlock
 
 layout: rotated_surface_code # required
 

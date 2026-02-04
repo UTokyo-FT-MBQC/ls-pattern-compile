@@ -1,5 +1,7 @@
 name: YYUnit
-description: This patch layout specifies a YY unit layer
+description: |
+  This patch layout specifies a YY unit layer.
+  Used by: HadamardBlock
 
 layer1:
   basis: Y

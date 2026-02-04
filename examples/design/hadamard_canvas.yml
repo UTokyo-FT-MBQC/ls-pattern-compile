@@ -1,5 +1,7 @@
 name: HadamardCube
-description: Global config for rotated surface code based blocks
+description: |
+  Hadamard gate canvas example.
+  Blocks: InitPlusBlock, HadamardBlock, MeasureZBlock
 
 layout: rotated_surface_code # required
 

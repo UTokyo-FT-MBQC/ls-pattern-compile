@@ -1,5 +1,8 @@
 name: ShortZMemoryBlock
-description: This block represents a short memory block
+description: |
+  This block represents a short Z memory block.
+  Components: InitZeroUnit, MemoryUnit, MeasureZShiftedUnit
+  Used by: short_z_memory_canvas.yml
 
 layers: # list of layers in this block
   - type: InitZeroUnit

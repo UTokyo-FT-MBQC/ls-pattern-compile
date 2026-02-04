@@ -1,5 +1,7 @@
 name: MeasureZPartialAncillaUnit
-description: This patch layout specifies a logical Z measurement unit layer with ancilla in layer1 only
+description: |
+  This patch layout specifies a logical Z measurement unit layer with ancilla in layer1 only.
+  Used by: MeasureZPartialAncillaBlock
 
 layer1:
   basis: X

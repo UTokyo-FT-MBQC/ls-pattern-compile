@@ -1,5 +1,8 @@
 name: ShortXMemoryBlock
-description: This block represents a short memory block
+description: |
+  This block represents a short X memory block.
+  Components: InitPlusUnit, MemoryUnit, MeasureXUnit
+  Used by: short_x_memory_canvas.yml
 
 layers: # list of layers in this block
   - type: InitPlusUnit
