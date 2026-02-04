@@ -1,0 +1,52 @@
+name: L-shaped Patch Canvas
+description: Global config for rotated surface code based blocks
+
+layout: rotated_surface_code # required
+
+cube:
+  - position: [0, 0, 0]
+    block: InitPlusBlock
+    boundary: XOZZ
+  - position: [0, 1, 0]
+    block: InitPlusBlock
+    boundary: OZZO
+  - position: [1, 1, 0]
+    block: InitPlusBlock
+    boundary: ZZOX
+  - position: [0, 0, 1]
+    block: MeasureXBlock
+    boundary: XOZZ
+    logical_observables: TB
+  - position: [0, 1, 1]
+    block: MeasureXBlock
+    boundary: OZZO
+    logical_observables: TR
+  - position: [1, 1, 1]
+    block: MeasureXBlock
+    boundary: ZZOX
+    logical_observables: LR
+
+pipe:
+  - start: [0, 1, 0]
+    end: [1, 1, 0]
+    block: InitPlusBlock
+    boundary: ZZOO
+  - start: [0, 0, 0]
+    end: [0, 1, 0]
+    block: InitPlusBlock
+    boundary: OOZZ
+  - start: [0, 1, 1]
+    end: [1, 1, 1]
+    block: MeasureXBlock
+    boundary: ZZOO
+    logical_observables: RL
+  - start: [0, 0, 1]
+    end: [0, 1, 1]
+    block: MeasureXBlock
+    boundary: OOZZ
+    logical_observables: TB
+
+
+logical_observables:
+  - cube: [[0, 0, 1], [0, 1, 1], [1, 1, 1]]
+    pipe: [[[0, 1, 1], [1, 1, 1]], [[0, 0, 1], [0, 1, 1]]]
