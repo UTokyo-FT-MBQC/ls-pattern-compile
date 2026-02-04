@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `lspattern/export.py`: Export Canvas to GraphQOMB Studio JSON format
+  - `export_canvas_to_graphqomb_studio()`: Export canvas to JSON file
+  - `canvas_to_graphqomb_studio_dict()`: Convert canvas to JSON-serializable dictionary
+  - Supports nodes, edges, X-flow, detectors (parity checks), logical observables, and scheduling
+- `examples/export_to_graphqomb_studio.py`: Example script for exporting Canvas to GraphQOMB Studio JSON
+- `tests/test_export.py`: Comprehensive unit tests for export functionality
+
 ### Changed
 - **BREAKING**: Removed `BoundaryGraph` class and simplified detector handling
   - Deleted `analyze_non_deterministic_regions()` and `remove_non_deterministic_det()` functions from `lspattern/detector.py`
