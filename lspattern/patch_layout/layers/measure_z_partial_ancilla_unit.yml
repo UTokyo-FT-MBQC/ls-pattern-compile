@@ -1,0 +1,12 @@
+name: MeasureZPartialAncillaUnit
+description: |
+  This patch layout specifies a logical Z measurement unit layer with ancilla in layer1 only.
+  Used by: MeasureZPartialAncillaBlock
+
+layer1:
+  basis: X
+  ancilla: true  # Ancilla qubits prepared in layer1
+layer2:
+  basis: X
+  ancilla: false  # No ancilla qubits in layer2
+  skip_syndrome: true

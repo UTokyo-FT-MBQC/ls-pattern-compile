@@ -1,0 +1,9 @@
+name: MeasureZPartialAncillaBlock
+description: |
+  This block performs logical Z measurement with partial ancilla (ancilla in layer1 only).
+  Components: MeasureZPartialAncillaUnit
+  Used by: (reserved for future use)
+
+layers:
+  - type: MeasureZPartialAncillaUnit
+    num_layers_from_distance: 1

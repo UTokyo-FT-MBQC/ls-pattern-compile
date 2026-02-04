@@ -1,0 +1,20 @@
+name: ShortXMemoryCanvas
+description: |
+  Short X memory canvas example.
+  Blocks: ShortXMemoryBlock
+
+layout: rotated_surface_code # required
+
+cube:
+  - position: [0, 0, 0]
+    block: ShortXMemoryBlock
+    boundary: XXZZ
+    logical_observables:
+      - token: TB
+        layer: -1
+        sublayer: 1
+
+pipe: []
+
+logical_observables:
+  - cube: [[0, 0, 0]] # can be combinations of coordinates

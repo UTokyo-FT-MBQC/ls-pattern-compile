@@ -1,0 +1,20 @@
+name: ShortZMemoryCanvas
+description: |
+  Short Z memory canvas example.
+  Blocks: ShortZMemoryBlock
+
+layout: rotated_surface_code # required
+
+cube:
+  - position: [0, 0, 0]
+    block: ShortZMemoryBlock
+    boundary: XXZZ
+    logical_observables:
+      - token: RL
+        layer: -1
+        sublayer: 2
+
+pipe: []
+
+logical_observables:
+  - cube: [[0, 0, 0]] # can be combinations of coordinates

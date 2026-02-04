@@ -1,0 +1,13 @@
+name: YYUnit
+description: |
+  This patch layout specifies a YY unit layer.
+  Used by: HadamardBlock
+
+layer1:
+  basis: Y
+  ancilla: false
+  skip_syndrome: true
+layer2:
+  basis: Y
+  ancilla: false
+  skip_syndrome: true

@@ -1,0 +1,11 @@
+name: MeasureZShiftedUnit
+description: |
+  This patch layout specifies a Z measurement unit layer.
+  Used by: ShortZMemoryBlock
+
+layer1:
+  basis: X # layer 1
+  ancilla: true
+layer2:
+  basis: X # layer 2, logical Z measurement shifted to X basis
+  ancilla: false # no ancilla qubits prepared at logical measurement layer

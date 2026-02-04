@@ -1,0 +1,13 @@
+name: YXUnit
+description: |
+  This patch layout specifies a YX unit layer.
+  Used by: HadamardBlock
+
+layer1:
+  basis: Y
+  ancilla: false
+  skip_syndrome: true
+layer2:
+  basis: X
+  ancilla: false
+  skip_syndrome: true
