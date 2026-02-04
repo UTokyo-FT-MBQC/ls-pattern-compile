@@ -1,0 +1,10 @@
+name: HadamardBlock
+description: This block represents an Hadamard block
+
+layers: # list of layers in this block
+  - type: YYUnit
+    num_layers: 1
+  - type: YXUnit
+    num_layers: 1
+  - type: MemoryUnit
+    num_layers_from_distance: rest

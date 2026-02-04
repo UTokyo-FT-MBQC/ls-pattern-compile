@@ -1,0 +1,28 @@
+name: HadamardCube
+description: Global config for rotated surface code based blocks
+
+layout: rotated_surface_code # required
+
+cube:
+  - position: [0, 0, 0]
+    block: InitPlusBlock
+    boundary: XXZZ
+    logical_observables: null
+  - position: [0, 0, 1]
+    block: HadamardBlock
+    boundary: XXZZ
+    logical_observables: null
+    invert_ancilla_order: true
+  - position: [0, 0, 2]
+    block: MeasureZBlock
+    boundary: XXZZ
+    invert_ancilla_order: true
+    logical_observables:
+      - token: TB
+        layer: 0
+        sublayer: 1
+
+pipe: []
+
+logical_observables:
+  - cube: [[0, 0, 2]] # can be combinations of coordinates

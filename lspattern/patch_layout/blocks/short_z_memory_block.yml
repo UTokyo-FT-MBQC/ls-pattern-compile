@@ -1,0 +1,10 @@
+name: ShortZMemoryBlock
+description: This block represents a short memory block
+
+layers: # list of layers in this block
+  - type: InitZeroUnit
+    num_layers: 1
+  - type: MemoryUnit
+    num_layers_from_distance: rest
+  - type: MeasureZShiftedUnit
+    num_layers: 1
