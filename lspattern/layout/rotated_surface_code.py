@@ -1528,7 +1528,11 @@ class RotatedSurfaceCodeLayoutBuilder:
             Each source coordinate maps to a set of target coordinates.
         """
         return _default_layout.construct_initial_ancilla_flow(
-            code_distance, global_pos, boundary, ancilla_type, move_vec,
+            code_distance,
+            global_pos,
+            boundary,
+            ancilla_type,
+            move_vec,
             adjacent_data=adjacent_data,
         )
 

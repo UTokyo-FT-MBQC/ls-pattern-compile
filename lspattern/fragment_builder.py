@@ -334,7 +334,11 @@ def _build_layer1(  # noqa: C901
                 msg = f"Missing init flow direction for layer1 (unit={layer_idx})."
                 raise ValueError(msg)
             ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
-                code_distance, Coord2D(0, 0), boundary, edge_spec, move_vec,
+                code_distance,
+                Coord2D(0, 0),
+                boundary,
+                edge_spec,
+                move_vec,
                 adjacent_data=adjacent_pipe_data,
             )
             for src_2d, tgt_2d_set in ancilla_flow.items():
@@ -469,7 +473,11 @@ def _build_layer2(  # noqa: C901
                 msg = f"Missing init flow direction for layer2 (unit={layer_idx})."
                 raise ValueError(msg)
             ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
-                code_distance, Coord2D(0, 0), boundary, edge_spec, move_vec,
+                code_distance,
+                Coord2D(0, 0),
+                boundary,
+                edge_spec,
+                move_vec,
                 adjacent_data=adjacent_pipe_data,
             )
             for src_2d, tgt_2d_set in ancilla_flow.items():
