@@ -18,6 +18,8 @@ from lspattern.mytype import AxisDIRECTION2D, Coord2D, Coord3D
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from lspattern.init_flow_analysis import AdjacentPipeData
+
 
 # =============================================================================
 # Constants
@@ -374,6 +376,9 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
         global_pos: Coord2D,
         boundary: Mapping[BoundarySide, EdgeSpecValue],
         ancilla_type: EdgeSpecValue,
+        move_vec: Coord2D,
+        *,
+        adjacent_data: AdjacentPipeData | None = None,
     ) -> dict[Coord2D, set[Coord2D]]:
         """Construct flow mapping for initial ancilla qubits.
 
@@ -391,6 +396,11 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
             Boundary specifications for the cube.
         ancilla_type : EdgeSpecValue
             Type of ancilla qubit. "Z" for layer1 (Z-stabilizer), "X" for layer2 (X-stabilizer).
+        move_vec : Coord2D
+            Signed movement direction (one of (0, 1), (0, -1), (-1, 0), (1, 0)).
+        adjacent_data : AdjacentPipeData | None
+            Optional per-boundary-side data qubit coordinates from adjacent pipes.
+            Used for cubes with O (open) boundaries to find flow targets in pipes.
 
         Returns
         -------
@@ -399,7 +409,14 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
             Each source coordinate maps to a set of target coordinates.
         """
         coords = self.cube(code_distance, global_pos, boundary)
-        data2d = coords.data
+        data2d = set(coords.data)
+
+        # Merge adjacent pipe data for the target boundary side
+        if adjacent_data:
+            target_side = self._move_vec_to_side(move_vec)
+            if target_side is not None and target_side in adjacent_data:
+                data2d |= adjacent_data[target_side]
+
         if ancilla_type == EdgeSpecValue.X:
             ancilla_nodes = coords.ancilla_x
         elif ancilla_type == EdgeSpecValue.Z:
@@ -408,19 +425,42 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
             msg = f"Invalid ancilla type for flow: {ancilla_type}."
             raise ValueError(msg)
 
-        move_vec = self._determine_move_vec(boundary, ancilla_type)
+        if (move_vec.x, move_vec.y) not in {(0, 1), (0, -1), (-1, 0), (1, 0)}:
+            msg = f"Invalid move_vec for init flow: {move_vec}."
+            raise ValueError(msg)
 
         flow_map: dict[Coord2D, set[Coord2D]] = {}
         for node in ancilla_nodes:
             target = self._determine_flow(
                 node,
-                data2d,
+                frozenset(data2d),
                 ancilla_type,
                 move_vec,
             )
             flow_map.setdefault(node, set()).add(target)
 
         return flow_map
+
+    def _move_vec_to_side(self, move_vec: Coord2D) -> BoundarySide | None:
+        """Convert movement vector to boundary side.
+
+        Parameters
+        ----------
+        move_vec : Coord2D
+            Movement direction vector.
+
+        Returns
+        -------
+        BoundarySide | None
+            The boundary side corresponding to the move direction, or None.
+        """
+        mapping: dict[tuple[int, int], BoundarySide] = {
+            (0, -1): BoundarySide.TOP,
+            (0, 1): BoundarySide.BOTTOM,
+            (-1, 0): BoundarySide.LEFT,
+            (1, 0): BoundarySide.RIGHT,
+        }
+        return mapping.get((move_vec.x, move_vec.y))
 
     # =========================================================================
     # PipeDirectionHelper Implementation
@@ -999,7 +1039,7 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
         node: Coord2D,
         data2d: frozenset[Coord2D],
         ancilla_type: EdgeSpecValue,
-        move_vec: AxisDIRECTION2D,
+        move_vec: Coord2D,
     ) -> Coord2D:
         """Determine the flow target for a single ancilla qubit.
 
@@ -1015,8 +1055,8 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
             Set of all data qubit coordinates in the patch.
         ancilla_type : EdgeSpecValue
             Type of ancilla (X or Z), which determines the edge pattern used.
-        move_vec : AxisDIRECTION2D
-            The movement direction (H or V) that filters candidate targets.
+        move_vec : Coord2D
+            Signed movement direction (one of (0, 1), (0, -1), (-1, 0), (1, 0)).
 
         Returns
         -------
@@ -1040,9 +1080,9 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
 
         candidates = set()
         for dx, dy in edge_pattern:
-            if move_vec == AxisDIRECTION2D.H and dx == 1:
+            if move_vec.x != 0 and dx == move_vec.x:
                 candidates.add(Coord2D(node.x + dx, node.y + dy))
-            if move_vec == AxisDIRECTION2D.V and dy == 1:
+            if move_vec.y != 0 and dy == move_vec.y:
                 candidates.add(Coord2D(node.x + dx, node.y + dy))
 
         valid_targets = candidates.intersection(data2d)
@@ -1050,7 +1090,7 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
             msg = f"No valid target found for ancilla at {node}."
             raise ValueError(msg)
 
-        return valid_targets.pop()  # Return one of the valid targets
+        return min(valid_targets)  # Return deterministic result
 
 
 # =============================================================================
@@ -1455,6 +1495,9 @@ class RotatedSurfaceCodeLayoutBuilder:
         global_pos: Coord2D,
         boundary: Mapping[BoundarySide, EdgeSpecValue],
         ancilla_type: EdgeSpecValue,
+        move_vec: Coord2D,
+        *,
+        adjacent_data: AdjacentPipeData | None = None,
     ) -> dict[Coord2D, set[Coord2D]]:
         """Construct flow mapping for initial ancilla qubits.
 
@@ -1472,6 +1515,11 @@ class RotatedSurfaceCodeLayoutBuilder:
             Boundary specifications for the cube.
         ancilla_type : EdgeSpecValue
             Type of ancilla qubit. "Z" for layer1 (Z-stabilizer), "X" for layer2 (X-stabilizer).
+        move_vec : Coord2D
+            Signed movement direction (one of (0, 1), (0, -1), (-1, 0), (1, 0)).
+        adjacent_data : AdjacentPipeData | None
+            Optional per-boundary-side data qubit coordinates from adjacent pipes.
+            Used for cubes with O (open) boundaries to find flow targets in pipes.
 
         Returns
         -------
@@ -1479,22 +1527,69 @@ class RotatedSurfaceCodeLayoutBuilder:
             Mapping from source 2D coordinate to target 2D coordinates for ancilla flow.
             Each source coordinate maps to a set of target coordinates.
         """
-        return _default_layout.construct_initial_ancilla_flow(code_distance, global_pos, boundary, ancilla_type)
-
-    @staticmethod
-    def _determine_move_vec(
-        boundary: Mapping[BoundarySide, EdgeSpecValue],
-        ancilla_type: EdgeSpecValue,
-    ) -> AxisDIRECTION2D:
-        """Determine the global movement vector direction for ancilla flow."""
-        return _default_layout._determine_move_vec(boundary, ancilla_type)
+        return _default_layout.construct_initial_ancilla_flow(
+            code_distance,
+            global_pos,
+            boundary,
+            ancilla_type,
+            move_vec,
+            adjacent_data=adjacent_data,
+        )
 
     @staticmethod
     def _determine_flow(
         node: Coord2D,
         data2d: frozenset[Coord2D],
         ancilla_type: EdgeSpecValue,
-        move_vec: AxisDIRECTION2D,
+        move_vec: Coord2D,
     ) -> Coord2D:
-        """Determine the flow target for a single ancilla qubit."""
-        return _default_layout._determine_flow(node, data2d, ancilla_type, move_vec)
+        """Determine the flow target for a single ancilla qubit.
+
+        Given an ancilla qubit position, this method finds a valid data qubit
+        target based on the ancilla type's edge pattern and movement direction.
+        The flow represents the causal dependency between ancilla measurements.
+
+        Parameters
+        ----------
+        node : Coord2D
+            The 2D coordinate of the ancilla qubit.
+        data2d : frozenset[Coord2D]
+            Set of all data qubit coordinates in the patch.
+        ancilla_type : EdgeSpecValue
+            Type of ancilla (X or Z), which determines the edge pattern used.
+        move_vec : Coord2D
+            Signed movement direction (one of (0, 1), (0, -1), (-1, 0), (1, 0)).
+
+        Returns
+        -------
+        Coord2D
+            A valid data qubit coordinate that the ancilla flows to.
+
+        Raises
+        ------
+        ValueError
+            If ancilla_type is neither X nor Z.
+        ValueError
+            If no valid target data qubit is found for the given ancilla.
+        """
+        if ancilla_type == EdgeSpecValue.X:
+            edge_pattern = ANCILLA_EDGE_X
+        elif ancilla_type == EdgeSpecValue.Z:
+            edge_pattern = ANCILLA_EDGE_Z
+        else:
+            msg = f"Invalid ancilla type: {ancilla_type}."
+            raise ValueError(msg)
+
+        candidates = set()
+        for dx, dy in edge_pattern:
+            if move_vec.x != 0 and dx == move_vec.x:
+                candidates.add(Coord2D(node.x + dx, node.y + dy))
+            if move_vec.y != 0 and dy == move_vec.y:
+                candidates.add(Coord2D(node.x + dx, node.y + dy))
+
+        valid_targets = candidates.intersection(data2d)
+        if not valid_targets:
+            msg = f"No valid target found for ancilla at {node}."
+            raise ValueError(msg)
+
+        return min(valid_targets)  # Return deterministic result

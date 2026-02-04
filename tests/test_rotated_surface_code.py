@@ -805,6 +805,7 @@ class TestInstanceBasedAPI:
             global_pos=Coord2D(0, 0),
             boundary=standard_boundary,
             ancilla_type=EdgeSpecValue.X,
+            move_vec=Coord2D(1, 0),  # Move right
         )
         assert isinstance(flow, dict)
         # Flow should have Coord2D keys and set[Coord2D] values
