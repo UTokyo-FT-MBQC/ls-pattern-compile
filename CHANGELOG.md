@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `tests/test_design_yaml_integration.py`: End-to-end integration tests for all `examples/design/*.yml` canvas files
+  - Validates full pipeline: YAML load → GraphState → detectors → Stim circuit → DEM → shortest graphlike error
+  - Dynamically collects canvas YAMLs via glob (no code changes needed when new YAMLs are added)
+- `examples/design/blocks/` subdirectory for block definition files (separated from canvas YAMLs)
+
+### Changed
+- `_candidate_filenames()` in `canvas_loader.py` now preserves directory prefixes in candidate paths (e.g. `blocks/graph_block` resolves to `blocks/graph_block.yml`)
+- Moved `examples/design/graph_block.yml` and `graph_block.json` to `examples/design/blocks/`
+- Updated `examples/design/graph_block_canvas.yml` block reference to `blocks/graph_block`
+
+### Added
 - `lspattern/export.py`: Export Canvas to GraphQOMB Studio JSON format
   - `export_canvas_to_graphqomb_studio()`: Export canvas to JSON file
   - `canvas_to_graphqomb_studio_dict()`: Convert canvas to JSON-serializable dictionary

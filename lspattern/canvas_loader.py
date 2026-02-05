@@ -195,6 +195,7 @@ def _snakeify(name: str) -> str:
 
 def _candidate_filenames(name: str) -> list[str]:  # noqa: C901
     path = Path(name)
+    parent = path.parent
     stem = path.stem
     ext = path.suffix
     base_candidates: set[str] = set()
@@ -228,7 +229,7 @@ def _candidate_filenames(name: str) -> list[str]:  # noqa: C901
     candidates: list[str] = []
     for base in base_candidates:
         for suffix in exts:
-            candidate = f"{base}{suffix}"
+            candidate = str(parent / f"{base}{suffix}") if parent != Path() else f"{base}{suffix}"
             if candidate not in candidates:
                 candidates.append(candidate)
     return candidates

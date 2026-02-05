@@ -4,7 +4,7 @@ layout: rotated_surface_code
 
 cube:
   - position: [1, 0, 2]
-    block: graph_block
+    block: blocks/graph_block
     logical_observables:
       nodes:
         - [0, 0, 0]
