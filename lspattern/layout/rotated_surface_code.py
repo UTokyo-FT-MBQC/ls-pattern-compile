@@ -57,6 +57,30 @@ _CORNER_DATA_REMOVAL_RULES: dict[
     (BoundarySide.BOTTOM, BoundarySide.RIGHT): (EdgeSpecValue.X, EdgeSpecValue.X),
 }
 
+# Corner ancilla removal offsets: (side1, side2) -> list of ((dx, dy), ancilla_type)
+# dx, dy are relative offsets from the corner data coordinate
+_CORNER_ANCILLA_REMOVAL_OFFSETS: dict[
+    tuple[BoundarySide, BoundarySide],
+    list[tuple[tuple[int, int], str]],
+] = {
+    (BoundarySide.TOP, BoundarySide.RIGHT): [
+        ((-1, -1), "z"),
+        ((1, 1), "z"),
+    ],
+    (BoundarySide.BOTTOM, BoundarySide.LEFT): [
+        ((-1, -1), "z"),
+        ((1, 1), "z"),
+    ],
+    (BoundarySide.TOP, BoundarySide.LEFT): [
+        ((1, -1), "x"),
+        ((-1, 1), "x"),
+    ],
+    (BoundarySide.BOTTOM, BoundarySide.RIGHT): [
+        ((-1, 1), "x"),
+        ((1, -1), "x"),
+    ],
+}
+
 # Corner coordinate positions relative to bounds: (x_attr, y_attr)
 _CORNER_POSITIONS: dict[tuple[BoundarySide, BoundarySide], tuple[str, str]] = {
     (BoundarySide.TOP, BoundarySide.RIGHT): ("x_max", "y_min"),
@@ -128,14 +152,15 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
 
         # Generate components
         bulk = generate_checkerboard_coords(bounds)
-        corner_remove = self._get_corner_data_to_remove(bounds, boundary)
+        corner_data_remove = self._get_corner_data_to_remove(bounds, boundary)
+        corner_x_remove, corner_z_remove = self._get_corner_ancillas_to_remove(bounds, boundary)
         boundary_x, boundary_z = self._generate_cube_boundary_ancillas(bounds, boundary)
         corner_x, corner_z = self._get_corner_ancillas(bounds, boundary)
 
         return PatchCoordinates(
-            data=bulk.data - corner_remove,
-            ancilla_x=bulk.ancilla_x | boundary_x | corner_x,
-            ancilla_z=bulk.ancilla_z | boundary_z | corner_z,
+            data=bulk.data - corner_data_remove,
+            ancilla_x=(bulk.ancilla_x | boundary_x | corner_x) - corner_x_remove,
+            ancilla_z=(bulk.ancilla_z | boundary_z | corner_z) - corner_z_remove,
         )
 
     def pipe(
@@ -562,6 +587,38 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
                 to_remove.add(coord)
 
         return frozenset(to_remove)
+
+    def _get_corner_ancillas_to_remove(
+        self,
+        bounds: PatchBounds,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+    ) -> tuple[frozenset[Coord2D], frozenset[Coord2D]]:
+        """Determine which corner ancilla qubits should be removed based on boundary conditions.
+
+        Returns
+        -------
+        tuple[frozenset[Coord2D], frozenset[Coord2D]]
+            (X ancillas to remove, Z ancillas to remove)
+        """
+        x_to_remove: set[Coord2D] = set()
+        z_to_remove: set[Coord2D] = set()
+
+        for (side1, side2), (expected1, expected2) in _CORNER_DATA_REMOVAL_RULES.items():
+            if (boundary[side1], boundary[side2]) == (expected1, expected2):
+                # Get corner data coordinate
+                x_attr, y_attr = _CORNER_POSITIONS[side1, side2]
+                corner_x = getattr(bounds, x_attr)
+                corner_y = getattr(bounds, y_attr)
+
+                # Apply offsets to get ancilla coordinates
+                for (dx, dy), ancilla_type in _CORNER_ANCILLA_REMOVAL_OFFSETS[side1, side2]:
+                    coord = Coord2D(corner_x + dx, corner_y + dy)
+                    if ancilla_type == "x":
+                        x_to_remove.add(coord)
+                    else:
+                        z_to_remove.add(coord)
+
+        return frozenset(x_to_remove), frozenset(z_to_remove)
 
     def _get_corner_ancillas(
         self,
@@ -1261,6 +1318,14 @@ class RotatedSurfaceCodeLayoutBuilder:
     ) -> tuple[frozenset[Coord2D], frozenset[Coord2D]]:
         """Generate corner ancilla coordinates for 'O' (open) boundaries."""
         return _default_layout._get_corner_ancillas(bounds, boundary)
+
+    @staticmethod
+    def _get_corner_ancillas_to_remove(
+        bounds: PatchBounds,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+    ) -> tuple[frozenset[Coord2D], frozenset[Coord2D]]:
+        """Determine which corner ancilla qubits should be removed based on boundary conditions."""
+        return _default_layout._get_corner_ancillas_to_remove(bounds, boundary)
 
     @staticmethod
     def _get_corner_ancillas_for_side(
