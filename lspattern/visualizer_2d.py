@@ -5,6 +5,13 @@ from typing import TYPE_CHECKING, TypedDict
 import matplotlib.pyplot as plt
 
 from lspattern.canvas_loader import CanvasCubeSpec, CanvasPipeSpec, load_canvas_spec
+from lspattern.corner_analysis import (
+    CornerAncillaDecision,
+    CornerPosition,
+    analyze_corner_ancillas,
+    get_cube_corner_decisions,
+    get_pipe_corner_decisions,
+)
 from lspattern.layout import PatchCoordinates, RotatedSurfaceCodeLayoutBuilder
 from lspattern.mytype import Coord2D, Coord3D, NodeRole
 
@@ -281,6 +288,7 @@ def _collect_blocks_at_z(
 def _generate_cube_coordinates(
     cube: CanvasCubeSpec,
     code_distance: int,
+    corner_decisions: Mapping[CornerPosition, CornerAncillaDecision] | None = None,
 ) -> PatchCoordinates:
     """Generate PatchCoordinates for a cube.
 
@@ -290,6 +298,9 @@ def _generate_cube_coordinates(
         The cube specification.
     code_distance : int
         Code distance of the surface code.
+    corner_decisions : Mapping[CornerPosition, CornerAncillaDecision] | None, optional
+        Global corner ancilla decisions for this cube. If None, falls back to
+        local corner logic.
 
     Returns
     -------
@@ -297,12 +308,15 @@ def _generate_cube_coordinates(
         Coordinate sets for the cube.
     """
     global_pos = Coord2D(cube.position.x, cube.position.y)
-    return RotatedSurfaceCodeLayoutBuilder.cube(code_distance, global_pos, cube.boundary)
+    return RotatedSurfaceCodeLayoutBuilder.cube(
+        code_distance, global_pos, cube.boundary, corner_decisions=corner_decisions
+    )
 
 
 def _generate_pipe_coordinates(
     pipe: CanvasPipeSpec,
     code_distance: int,
+    corner_decisions: Mapping[CornerPosition, CornerAncillaDecision] | None = None,
 ) -> PatchCoordinates:
     """Generate PatchCoordinates for a pipe.
 
@@ -312,13 +326,18 @@ def _generate_pipe_coordinates(
         The pipe specification.
     code_distance : int
         Code distance of the surface code.
+    corner_decisions : Mapping[CornerPosition, CornerAncillaDecision] | None, optional
+        Global corner ancilla decisions for this pipe. If None, falls back to
+        local corner logic.
 
     Returns
     -------
     PatchCoordinates
         Coordinate sets for the pipe.
     """
-    return RotatedSurfaceCodeLayoutBuilder.pipe(code_distance, pipe.start, pipe.end, pipe.boundary)
+    return RotatedSurfaceCodeLayoutBuilder.pipe(
+        code_distance, pipe.start, pipe.end, pipe.boundary, corner_decisions=corner_decisions
+    )
 
 
 def _merge_patch_coordinates(coords_list: Sequence[PatchCoordinates]) -> PatchCoordinates:
@@ -529,6 +548,9 @@ def visualize_canvas_layout(
     # Load canvas spec from YAML
     spec = load_canvas_spec(yaml_path)
 
+    # Analyze corner ancillas globally
+    corner_analysis = analyze_corner_ancillas(spec, code_distance=code_distance)
+
     # Collect blocks at target z
     cubes_at_z, pipes_at_z = _collect_blocks_at_z(spec.cubes, spec.pipes, target_z)
 
@@ -536,11 +558,13 @@ def visualize_canvas_layout(
     all_coords: list[PatchCoordinates] = []
 
     for cube in cubes_at_z:
-        coords = _generate_cube_coordinates(cube, code_distance)
+        cube_corner_decisions = get_cube_corner_decisions(corner_analysis, cube.position)
+        coords = _generate_cube_coordinates(cube, code_distance, cube_corner_decisions)
         all_coords.append(coords)
 
     for pipe in pipes_at_z:
-        coords = _generate_pipe_coordinates(pipe, code_distance)
+        pipe_corner_decisions = get_pipe_corner_decisions(corner_analysis, pipe.start, pipe.end)
+        coords = _generate_pipe_coordinates(pipe, code_distance, pipe_corner_decisions)
         all_coords.append(coords)
 
     # Merge all coordinates

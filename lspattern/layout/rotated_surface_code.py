@@ -18,6 +18,7 @@ from lspattern.mytype import AxisDIRECTION2D, Coord2D, Coord3D
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from lspattern.corner_analysis import CornerAncillaDecision, CornerPosition
     from lspattern.init_flow_analysis import AdjacentPipeData
 
 
@@ -127,6 +128,8 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
         code_distance: int,
         global_pos: Coord2D,
         boundary: Mapping[BoundarySide, EdgeSpecValue],
+        *,
+        corner_decisions: Mapping[CornerPosition, CornerAncillaDecision] | None = None,
     ) -> PatchCoordinates:
         """Build complete cube layout coordinates.
 
@@ -141,6 +144,10 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
             Global (x, y) position of the cube.
         boundary : Mapping[BoundarySide, EdgeSpecValue]
             Boundary specifications for the cube.
+        corner_decisions : Mapping[CornerPosition, CornerAncillaDecision] | None
+            Optional global corner ancilla decisions. If provided and non-empty,
+            these override local corner removal logic. If None or empty,
+            fall back to existing local logic.
 
         Returns
         -------
@@ -153,14 +160,27 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
         # Generate components
         bulk = generate_checkerboard_coords(bounds)
         corner_data_remove = self._get_corner_data_to_remove(bounds, boundary)
-        corner_x_remove, corner_z_remove = self._get_corner_ancillas_to_remove(bounds, boundary)
+
+        # Use global decisions if provided, otherwise fall back to local logic
+        if corner_decisions:
+            corner_x_add, corner_z_add, corner_x_remove, corner_z_remove = self._apply_global_corner_decisions(
+                bounds, boundary, corner_decisions
+            )
+            # When using global decisions, don't add local corner ancillas
+            corner_x = frozenset[Coord2D]()
+            corner_z = frozenset[Coord2D]()
+        else:
+            corner_x_add = frozenset[Coord2D]()
+            corner_z_add = frozenset[Coord2D]()
+            corner_x_remove, corner_z_remove = self._get_corner_ancillas_to_remove(bounds, boundary)
+            corner_x, corner_z = self._get_corner_ancillas(bounds, boundary)
+
         boundary_x, boundary_z = self._generate_cube_boundary_ancillas(bounds, boundary)
-        corner_x, corner_z = self._get_corner_ancillas(bounds, boundary)
 
         return PatchCoordinates(
             data=bulk.data - corner_data_remove,
-            ancilla_x=(bulk.ancilla_x | boundary_x | corner_x) - corner_x_remove,
-            ancilla_z=(bulk.ancilla_z | boundary_z | corner_z) - corner_z_remove,
+            ancilla_x=(bulk.ancilla_x | boundary_x | corner_x | corner_x_add) - corner_x_remove,
+            ancilla_z=(bulk.ancilla_z | boundary_z | corner_z | corner_z_add) - corner_z_remove,
         )
 
     def pipe(
@@ -169,6 +189,8 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
         global_pos_source: Coord3D,
         global_pos_target: Coord3D,
         boundary: Mapping[BoundarySide, EdgeSpecValue],
+        *,
+        corner_decisions: Mapping[CornerPosition, CornerAncillaDecision] | None = None,
     ) -> PatchCoordinates:
         """Build complete pipe layout coordinates.
 
@@ -185,6 +207,9 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
             Global (x, y, z) position of the pipe target.
         boundary : Mapping[BoundarySide, EdgeSpecValue]
             Boundary specifications for the pipe.
+        corner_decisions : Mapping[CornerPosition, CornerAncillaDecision] | None, optional
+            Global corner ancilla decisions from canvas analysis. If None, no
+            corner modifications are applied.
 
         Returns
         -------
@@ -202,10 +227,21 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
         bulk = generate_checkerboard_coords(bounds)
         boundary_x, boundary_z = self._generate_pipe_boundary_ancillas(bounds, boundary, pipe_dir)
 
+        # Apply global corner decisions if provided
+        if corner_decisions:
+            corner_x_add, corner_z_add, corner_x_remove, corner_z_remove = self._apply_global_corner_decisions(
+                bounds, boundary, corner_decisions
+            )
+        else:
+            corner_x_add = frozenset[Coord2D]()
+            corner_z_add = frozenset[Coord2D]()
+            corner_x_remove = frozenset[Coord2D]()
+            corner_z_remove = frozenset[Coord2D]()
+
         return PatchCoordinates(
             data=bulk.data,
-            ancilla_x=bulk.ancilla_x | boundary_x,
-            ancilla_z=bulk.ancilla_z | boundary_z,
+            ancilla_x=(bulk.ancilla_x | boundary_x | corner_x_add) - corner_x_remove,
+            ancilla_z=(bulk.ancilla_z | boundary_z | corner_z_add) - corner_z_remove,
         )
 
     # =========================================================================
@@ -625,6 +661,99 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
                                 z_to_remove.add(coord)
 
         return frozenset(x_to_remove), frozenset(z_to_remove)
+
+    def _apply_global_corner_decisions(
+        self,
+        bounds: PatchBounds,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+        corner_decisions: Mapping[CornerPosition, CornerAncillaDecision],
+    ) -> tuple[frozenset[Coord2D], frozenset[Coord2D], frozenset[Coord2D], frozenset[Coord2D]]:
+        """Apply global corner decisions to determine ancilla additions and removals.
+
+        This method uses globally-determined decisions to:
+        1. Add corner ancillas based on has_x_ancilla/has_z_ancilla flags
+        2. Remove corner ancillas based on remove_far_x_ancilla/remove_far_z_ancilla flags
+
+        Parameters
+        ----------
+        bounds : PatchBounds
+            Bounding box for the patch region.
+        boundary : Mapping[BoundarySide, EdgeSpecValue]
+            Boundary specifications for the cube.
+        corner_decisions : Mapping[CornerPosition, CornerAncillaDecision]
+            Global corner ancilla decisions from canvas analysis.
+
+        Returns
+        -------
+        tuple[frozenset[Coord2D], frozenset[Coord2D], frozenset[Coord2D], frozenset[Coord2D]]
+            (X ancillas to add, Z ancillas to add, X ancillas to remove, Z ancillas to remove)
+        """
+        # Import here to avoid circular dependency
+        from lspattern.corner_analysis import (  # noqa: PLC0415
+            CORNER_BOTTOM_LEFT,
+            CORNER_BOTTOM_RIGHT,
+            CORNER_TOP_LEFT,
+            CORNER_TOP_RIGHT,
+        )
+
+        x_to_add: set[Coord2D] = set()
+        z_to_add: set[Coord2D] = set()
+        x_to_remove: set[Coord2D] = set()
+        z_to_remove: set[Coord2D] = set()
+
+        # Map corners to their far ancilla positions relative to bounds
+        # Far ancilla = the position farthest from the cube center
+        corner_far_positions: dict[tuple[BoundarySide, BoundarySide], Coord2D] = {
+            (BoundarySide.TOP, BoundarySide.LEFT): Coord2D(bounds.x_min - 1, bounds.y_min - 1),
+            (BoundarySide.TOP, BoundarySide.RIGHT): Coord2D(bounds.x_max + 1, bounds.y_min - 1),
+            (BoundarySide.BOTTOM, BoundarySide.LEFT): Coord2D(bounds.x_min - 1, bounds.y_max + 1),
+            (BoundarySide.BOTTOM, BoundarySide.RIGHT): Coord2D(bounds.x_max + 1, bounds.y_max + 1),
+        }
+
+        # Map CornerPosition to tuple keys
+        corner_to_key = {
+            CORNER_TOP_LEFT: (BoundarySide.TOP, BoundarySide.LEFT),
+            CORNER_TOP_RIGHT: (BoundarySide.TOP, BoundarySide.RIGHT),
+            CORNER_BOTTOM_LEFT: (BoundarySide.BOTTOM, BoundarySide.LEFT),
+            CORNER_BOTTOM_RIGHT: (BoundarySide.BOTTOM, BoundarySide.RIGHT),
+        }
+
+        for corner_pos, decision in corner_decisions.items():
+            key = corner_to_key.get(corner_pos.normalized())
+            if key is None:
+                continue
+
+            far_coord = corner_far_positions.get(key)
+            if far_coord is None:
+                continue
+
+            # Handle ancilla additions (from global analysis)
+            if decision.has_x_ancilla:
+                x_to_add.add(far_coord)
+            if decision.has_z_ancilla:
+                z_to_add.add(far_coord)
+
+            # Handle ancilla removals (for O boundary cases)
+            side1, side2 = key
+            has_o_boundary = boundary[side1] == EdgeSpecValue.O or boundary[side2] == EdgeSpecValue.O
+
+            if has_o_boundary:
+                if decision.remove_far_x_ancilla:
+                    x_to_remove.add(far_coord)
+                if decision.remove_far_z_ancilla:
+                    z_to_remove.add(far_coord)
+
+        # Also include removals from local logic for corners without global decisions
+        # This ensures we don't accidentally keep ancillas that should be removed
+        local_x_remove, local_z_remove = self._get_corner_ancillas_to_remove(bounds, boundary)
+
+        # Merge: local removals for corners not handled by global decisions
+        return (
+            frozenset(x_to_add),
+            frozenset(z_to_add),
+            frozenset(x_to_remove | local_x_remove),
+            frozenset(z_to_remove | local_z_remove),
+        )
 
     def _get_corner_ancillas(
         self,
@@ -1202,6 +1331,8 @@ class RotatedSurfaceCodeLayoutBuilder:
         code_distance: int,
         global_pos: Coord2D,
         boundary: Mapping[BoundarySide, EdgeSpecValue],
+        *,
+        corner_decisions: Mapping[CornerPosition, CornerAncillaDecision] | None = None,
     ) -> PatchCoordinates:
         """Build complete cube layout coordinates.
 
@@ -1216,13 +1347,17 @@ class RotatedSurfaceCodeLayoutBuilder:
             Global (x, y) position of the cube.
         boundary : Mapping[BoundarySide, EdgeSpecValue]
             Boundary specifications for the cube.
+        corner_decisions : Mapping[CornerPosition, CornerAncillaDecision] | None
+            Optional global corner ancilla decisions. If provided and non-empty,
+            these override local corner removal logic. If None or empty,
+            fall back to existing local logic.
 
         Returns
         -------
         PatchCoordinates
             Complete coordinate sets for the cube.
         """
-        return _default_layout.cube(code_distance, global_pos, boundary)
+        return _default_layout.cube(code_distance, global_pos, boundary, corner_decisions=corner_decisions)
 
     @staticmethod
     def pipe(
@@ -1230,6 +1365,8 @@ class RotatedSurfaceCodeLayoutBuilder:
         global_pos_source: Coord3D,
         global_pos_target: Coord3D,
         boundary: Mapping[BoundarySide, EdgeSpecValue],
+        *,
+        corner_decisions: Mapping[CornerPosition, CornerAncillaDecision] | None = None,
     ) -> PatchCoordinates:
         """Build complete pipe layout coordinates.
 
@@ -1246,13 +1383,22 @@ class RotatedSurfaceCodeLayoutBuilder:
             Global (x, y, z) position of the pipe target.
         boundary : Mapping[BoundarySide, EdgeSpecValue]
             Boundary specifications for the pipe.
+        corner_decisions : Mapping[CornerPosition, CornerAncillaDecision] | None, optional
+            Global corner ancilla decisions from canvas analysis. If None, no
+            corner modifications are applied.
 
         Returns
         -------
         PatchCoordinates
             Complete coordinate sets for the pipe.
         """
-        return _default_layout.pipe(code_distance, global_pos_source, global_pos_target, boundary)
+        return _default_layout.pipe(
+            code_distance,
+            global_pos_source,
+            global_pos_target,
+            boundary,
+            corner_decisions=corner_decisions,
+        )
 
     # =========================================================================
     # Bounds Calculation (Static methods for backward compatibility)

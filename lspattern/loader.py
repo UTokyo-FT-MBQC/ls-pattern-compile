@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from lspattern.consts import BoundarySide, EdgeSpecValue
+    from lspattern.corner_analysis import CornerAncillaDecision, CornerPosition
     from lspattern.fragment import GraphSpec
     from lspattern.init_flow_analysis import AdjacentPipeData, InitFlowLayerKey
     from lspattern.mytype import Coord2D
@@ -94,6 +95,9 @@ class BlockConfig(Sequence[PatchLayoutConfig]):
     adjacent_pipe_data : AdjacentPipeData | None
         Optional per-boundary-side data qubit coordinates from adjacent pipes.
         Used for cubes with O (open) boundaries to find flow targets in pipes.
+    corner_decisions : dict[CornerPosition, CornerAncillaDecision] | None
+        Optional per-corner decisions for which far ancillas to remove.
+        Set from canvas-wide corner analysis. If None, use existing local logic.
     """
 
     boundary: dict[BoundarySide, EdgeSpecValue]
@@ -101,6 +105,7 @@ class BlockConfig(Sequence[PatchLayoutConfig]):
     invert_ancilla_order: bool
     init_flow_directions: dict[InitFlowLayerKey, Coord2D] | None
     adjacent_pipe_data: AdjacentPipeData | None
+    corner_decisions: dict[CornerPosition, CornerAncillaDecision] | None
 
     def __init__(self, configs: Sequence[PatchLayoutConfig]) -> None:
         self._configs = list(configs)
@@ -109,6 +114,7 @@ class BlockConfig(Sequence[PatchLayoutConfig]):
         self.invert_ancilla_order = False
         self.init_flow_directions = None
         self.adjacent_pipe_data = None
+        self.corner_decisions = None
 
     @overload
     def __getitem__(self, index: int) -> PatchLayoutConfig: ...

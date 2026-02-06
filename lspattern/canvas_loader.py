@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 
 from lspattern.canvas import Canvas, CanvasConfig
 from lspattern.consts import BoundarySide, EdgeSpecValue
+from lspattern.corner_analysis import analyze_corner_ancillas, get_cube_corner_decisions, get_pipe_corner_decisions
 from lspattern.fragment import GraphSpec
 from lspattern.init_flow_analysis import analyze_init_flow_directions
 from lspattern.loader import BlockConfig, PatchLayoutConfig, load_patch_layout_from_yaml
@@ -1205,6 +1206,9 @@ def build_canvas(spec: CanvasSpec, *, code_distance: int, extra_paths: Sequence[
     init_flow_directions = analyze_init_flow_directions(spec, code_distance=code_distance, extra_paths=extra_paths)
     canvas.init_flow_directions = init_flow_directions
 
+    # Analyze corner ancillas globally
+    corner_analysis = analyze_corner_ancillas(spec, code_distance=code_distance)
+
     for cube in spec.cubes:
         block_config = load_block_config_from_name(
             cube.block,
@@ -1215,6 +1219,9 @@ def build_canvas(spec: CanvasSpec, *, code_distance: int, extra_paths: Sequence[
         block_config.invert_ancilla_order = cube.invert_ancilla_order
         block_config.init_flow_directions = init_flow_directions.cube_directions(cube.position)
         block_config.adjacent_pipe_data = init_flow_directions.cube_adjacent_data(cube.position) or None
+        # Set corner decisions if available (empty dict means use local logic)
+        cube_corner_decisions = get_cube_corner_decisions(corner_analysis, cube.position)
+        block_config.corner_decisions = cube_corner_decisions or None
         canvas.add_cube(cube.position, block_config, cube.logical_observables)
 
     for pipe in spec.pipes:
@@ -1226,6 +1233,9 @@ def build_canvas(spec: CanvasSpec, *, code_distance: int, extra_paths: Sequence[
         block_config.boundary = pipe.boundary
         block_config.invert_ancilla_order = pipe.invert_ancilla_order
         block_config.init_flow_directions = init_flow_directions.pipe_directions(pipe.start, pipe.end)
+        # Set corner decisions if available (empty dict means use local logic)
+        pipe_corner_decisions = get_pipe_corner_decisions(corner_analysis, pipe.start, pipe.end)
+        block_config.corner_decisions = pipe_corner_decisions or None
         canvas.add_pipe((pipe.start, pipe.end), block_config, pipe.logical_observables)
 
     canvas.logical_observables = spec.logical_observables

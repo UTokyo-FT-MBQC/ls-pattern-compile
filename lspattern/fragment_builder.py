@@ -518,7 +518,10 @@ def build_patch_cube_fragment(
     # Get 2D coordinates from layout builder using origin position
     # This gives us local coordinates starting from (0, 0)
     data2d, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.cube(
-        code_distance, Coord2D(0, 0), block_config.boundary
+        code_distance,
+        Coord2D(0, 0),
+        block_config.boundary,
+        corner_decisions=block_config.corner_decisions,
     ).to_mutable_sets()
 
     # Build graph layers (using local coordinates: offset_z=0, base_time=0)
@@ -605,7 +608,11 @@ def build_patch_pipe_fragment(
 
     # Get 2D coordinates from layout builder using local edge
     data2d, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.pipe(
-        code_distance, local_start, local_end, block_config.boundary
+        code_distance,
+        local_start,
+        local_end,
+        block_config.boundary,
+        corner_decisions=block_config.corner_decisions,
     ).to_mutable_sets()
 
     # Remove the offset that pipe() already computed, since canvas.add_pipe will add it again
