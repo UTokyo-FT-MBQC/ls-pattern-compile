@@ -7,7 +7,7 @@ corner components.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.layout.base import TopologicalCodeLayoutBuilder
@@ -49,35 +49,35 @@ ANCILLA_EDGE_Z: tuple[tuple[int, int], ...] = (
 # Corner removal rules: (side1, side2) -> required EdgeSpecValue pairs
 _CORNER_DATA_REMOVAL_RULES: dict[
     tuple[BoundarySide, BoundarySide],
-    tuple[EdgeSpecValue, EdgeSpecValue],
+    list[tuple[EdgeSpecValue, EdgeSpecValue]],
 ] = {
-    (BoundarySide.TOP, BoundarySide.RIGHT): (EdgeSpecValue.Z, EdgeSpecValue.Z),
-    (BoundarySide.BOTTOM, BoundarySide.LEFT): (EdgeSpecValue.Z, EdgeSpecValue.Z),
-    (BoundarySide.TOP, BoundarySide.LEFT): (EdgeSpecValue.X, EdgeSpecValue.X),
-    (BoundarySide.BOTTOM, BoundarySide.RIGHT): (EdgeSpecValue.X, EdgeSpecValue.X),
+    (BoundarySide.TOP, BoundarySide.RIGHT): [(EdgeSpecValue.Z, EdgeSpecValue.Z), (EdgeSpecValue.X, EdgeSpecValue.X)],
+    (BoundarySide.BOTTOM, BoundarySide.LEFT): [(EdgeSpecValue.Z, EdgeSpecValue.Z), (EdgeSpecValue.X, EdgeSpecValue.X)],
+    (BoundarySide.TOP, BoundarySide.LEFT): [(EdgeSpecValue.Z, EdgeSpecValue.Z), (EdgeSpecValue.X, EdgeSpecValue.X)],
+    (BoundarySide.BOTTOM, BoundarySide.RIGHT): [(EdgeSpecValue.Z, EdgeSpecValue.Z), (EdgeSpecValue.X, EdgeSpecValue.X)],
 }
 
-# Corner ancilla removal offsets: (side1, side2) -> list of ((dx, dy), ancilla_type)
+# Corner ancilla removal offsets: (side1, side2, ancilla_type) -> list of (dx, dy)
 # dx, dy are relative offsets from the corner data coordinate
 _CORNER_ANCILLA_REMOVAL_OFFSETS: dict[
-    tuple[BoundarySide, BoundarySide],
-    list[tuple[tuple[int, int], str]],
+    tuple[BoundarySide, BoundarySide, Literal["x", "z"]],
+    list[tuple[int, int]],
 ] = {
-    (BoundarySide.TOP, BoundarySide.RIGHT): [
-        ((-1, -1), "z"),
-        ((1, 1), "z"),
+    (BoundarySide.TOP, BoundarySide.RIGHT, "z"): [
+        (-1, -1),
+        (1, 1),
     ],
-    (BoundarySide.BOTTOM, BoundarySide.LEFT): [
-        ((-1, -1), "z"),
-        ((1, 1), "z"),
+    (BoundarySide.BOTTOM, BoundarySide.LEFT, "z"): [
+        (-1, -1),
+        (1, 1),
     ],
-    (BoundarySide.TOP, BoundarySide.LEFT): [
-        ((1, -1), "x"),
-        ((-1, 1), "x"),
+    (BoundarySide.TOP, BoundarySide.LEFT, "x"): [
+        (1, -1),
+        (-1, 1),
     ],
-    (BoundarySide.BOTTOM, BoundarySide.RIGHT): [
-        ((-1, 1), "x"),
-        ((1, -1), "x"),
+    (BoundarySide.BOTTOM, BoundarySide.RIGHT, "x"): [
+        (-1, 1),
+        (1, -1),
     ],
 }
 
@@ -580,11 +580,12 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
         """Determine which corner data qubits should be removed based on boundary conditions."""
         to_remove: set[Coord2D] = set()
 
-        for (side1, side2), (expected1, expected2) in _CORNER_DATA_REMOVAL_RULES.items():
-            if (boundary[side1], boundary[side2]) == (expected1, expected2):
-                x_attr, y_attr = _CORNER_POSITIONS[side1, side2]
-                coord = Coord2D(getattr(bounds, x_attr), getattr(bounds, y_attr))
-                to_remove.add(coord)
+        for (side1, side2), rules in _CORNER_DATA_REMOVAL_RULES.items():
+            for expected1, expected2 in rules:
+                if (boundary[side1], boundary[side2]) == (expected1, expected2):
+                    x_attr, y_attr = _CORNER_POSITIONS[side1, side2]
+                    coord = Coord2D(getattr(bounds, x_attr), getattr(bounds, y_attr))
+                    to_remove.add(coord)
 
         return frozenset(to_remove)
 
@@ -603,20 +604,25 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
         x_to_remove: set[Coord2D] = set()
         z_to_remove: set[Coord2D] = set()
 
-        for (side1, side2), (expected1, expected2) in _CORNER_DATA_REMOVAL_RULES.items():
-            if (boundary[side1], boundary[side2]) == (expected1, expected2):
-                # Get corner data coordinate
-                x_attr, y_attr = _CORNER_POSITIONS[side1, side2]
-                corner_x = getattr(bounds, x_attr)
-                corner_y = getattr(bounds, y_attr)
+        for (side1, side2), rules in _CORNER_DATA_REMOVAL_RULES.items():
+            for expected1, expected2 in rules:
+                if (boundary[side1], boundary[side2]) == (expected1, expected2):
+                    # Get corner data coordinate
+                    x_attr, y_attr = _CORNER_POSITIONS[side1, side2]
+                    corner_x = getattr(bounds, x_attr)
+                    corner_y = getattr(bounds, y_attr)
 
-                # Apply offsets to get ancilla coordinates
-                for (dx, dy), ancilla_type in _CORNER_ANCILLA_REMOVAL_OFFSETS[side1, side2]:
-                    coord = Coord2D(corner_x + dx, corner_y + dy)
-                    if ancilla_type == "x":
-                        x_to_remove.add(coord)
-                    else:
-                        z_to_remove.add(coord)
+                    # Apply offsets to get ancilla coordinates
+                    for ancilla_type in ("x", "z"):
+                        key = (side1, side2, ancilla_type)
+                        if key not in _CORNER_ANCILLA_REMOVAL_OFFSETS:
+                            continue
+                        for dx, dy in _CORNER_ANCILLA_REMOVAL_OFFSETS[key]:
+                            coord = Coord2D(corner_x + dx, corner_y + dy)
+                            if ancilla_type == "x":
+                                x_to_remove.add(coord)
+                            else:
+                                z_to_remove.add(coord)
 
         return frozenset(x_to_remove), frozenset(z_to_remove)
 
