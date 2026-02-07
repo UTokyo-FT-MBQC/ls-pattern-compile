@@ -642,23 +642,26 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
 
         for (side1, side2), rules in _CORNER_DATA_REMOVAL_RULES.items():
             for expected1, expected2 in rules:
-                if (boundary[side1], boundary[side2]) == (expected1, expected2):
-                    # Get corner data coordinate
-                    x_attr, y_attr = _CORNER_POSITIONS[side1, side2]
-                    corner_x = getattr(bounds, x_attr)
-                    corner_y = getattr(bounds, y_attr)
+                if (boundary[side1], boundary[side2]) != (expected1, expected2):
+                    continue
 
-                    # Apply offsets to get ancilla coordinates
-                    for ancilla_type in ("x", "z"):
-                        key = (side1, side2, ancilla_type)
-                        if key not in _CORNER_ANCILLA_REMOVAL_OFFSETS:
-                            continue
-                        for dx, dy in _CORNER_ANCILLA_REMOVAL_OFFSETS[key]:
-                            coord = Coord2D(corner_x + dx, corner_y + dy)
-                            if ancilla_type == "x":
-                                x_to_remove.add(coord)
-                            else:
-                                z_to_remove.add(coord)
+                # Get corner data coordinate
+                x_attr, y_attr = _CORNER_POSITIONS[side1, side2]
+                corner_x = getattr(bounds, x_attr)
+                corner_y = getattr(bounds, y_attr)
+
+                # Apply offsets to get ancilla coordinates
+                ancilla_type: Literal["x", "z"]
+                for ancilla_type in ("x", "z"):
+                    key = (side1, side2, ancilla_type)
+                    if key not in _CORNER_ANCILLA_REMOVAL_OFFSETS:
+                        continue
+                    for dx, dy in _CORNER_ANCILLA_REMOVAL_OFFSETS[key]:
+                        coord = Coord2D(corner_x + dx, corner_y + dy)
+                        if ancilla_type == "x":
+                            x_to_remove.add(coord)
+                        else:
+                            z_to_remove.add(coord)
 
         return frozenset(x_to_remove), frozenset(z_to_remove)
 
