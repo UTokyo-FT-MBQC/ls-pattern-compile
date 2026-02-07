@@ -317,10 +317,6 @@ def _build_layer1(  # noqa: C901
                 parity.add_syndrome_measurement(Coord2D(x, y), z, {coord})
                 if not is_pipe:
                     parity.add_remaining_parity(Coord2D(x, y), z, {coord})
-            elif is_pipe:
-                # Init layer for pipe: register remaining_parity only (no syndrome_meas)
-                # Cube's init layer does not register remaining_parity
-                parity.add_remaining_parity(Coord2D(x, y), z, {coord})
 
         scheduler.add_prep_at_time(layer_time, ancilla_coords)
         scheduler.add_meas_at_time(layer_time + ANCILLA_LENGTH + 1, ancilla_coords)
@@ -456,10 +452,6 @@ def _build_layer2(  # noqa: C901
                 parity.add_syndrome_measurement(Coord2D(x, y), z + 1, {coord})
                 if not is_pipe:
                     parity.add_remaining_parity(Coord2D(x, y), z + 1, {coord})
-            elif is_pipe:
-                # Init layer for pipe: register remaining_parity only (no syndrome_meas)
-                # Cube's init layer does not register remaining_parity
-                parity.add_remaining_parity(Coord2D(x, y), z + 1, {coord})
 
         scheduler.add_prep_at_time(layer_time + _PHYSICAL_CLOCK + ANCILLA_LENGTH, ancilla_coords)
         scheduler.add_meas_at_time(layer_time + _PHYSICAL_CLOCK + 2 * ANCILLA_LENGTH + 1, ancilla_coords)

@@ -537,11 +537,14 @@ def _evaluate_corner(
     """Evaluate a corner to determine if ancillas should exist there.
 
     The decision is based on:
-    1. Combination of boundaries from the two sides of the corner
-       - (cube, cube): Both sides are cube boundaries -> no ancilla
-       - (cube, pipe) or (pipe, pipe): At least one pipe boundary -> possible ancilla
-    2. Both boundaries must be the same type (XX or ZZ)
-    3. Corner coordinate must satisfy parity condition for that ancilla type
+    1. For each side of the corner, find the "effective" non-O boundary:
+       - If cube's boundary is non-O -> use cube's boundary (source = "cube")
+       - If cube's boundary is O -> use pipe's conjugate boundary (source = "pipe")
+    2. Source combination determines if ancilla is needed:
+       - (cube, cube): Both from cube -> no ancilla
+       - (cube, pipe) or (pipe, pipe): At least one from pipe -> possible ancilla
+    3. Both effective boundaries must be the same type (XX or ZZ)
+    4. Corner coordinate must satisfy parity condition for that ancilla type
 
     Parameters
     ----------
@@ -562,31 +565,40 @@ def _evaluate_corner(
     normalized = corner.normalized()
     side1, side2 = normalized.side1, normalized.side2
 
-    # Get boundary values for each side
-    # If side has adjacent pipe, use pipe's boundary (perpendicular direction)
-    # Otherwise, use cube's boundary
+    # Get cube's original boundaries
+    cube_boundary1 = cube.boundary[side1]
+    cube_boundary2 = cube.boundary[side2]
     pipe1 = adjacent_pipes.get(side1)
     pipe2 = adjacent_pipes.get(side2)
 
-    boundary1 = (
-        _get_pipe_boundary_for_corner(pipe1, side1, corner) if pipe1 is not None else cube.boundary[side1]
-    )
-    boundary2 = (
-        _get_pipe_boundary_for_corner(pipe2, side2, corner) if pipe2 is not None else cube.boundary[side2]
-    )
+    # For each side, determine effective boundary and source
+    # If cube boundary is O, use pipe's conjugate boundary
+    # Otherwise, use cube's boundary
+    if cube_boundary1 == EdgeSpecValue.O:
+        if pipe1 is None:
+            msg = f"Cube {cube.position} has O boundary on {side1} but no adjacent pipe."
+            raise ValueError(msg)
+        boundary1 = _get_pipe_boundary_for_corner(pipe1, side1, corner)
+        source1 = "pipe"
+    else:
+        boundary1 = cube_boundary1
+        source1 = "cube"
 
-    # Check combination: need at least one pipe for ancilla to exist
-    has_pipe = pipe1 is not None or pipe2 is not None
+    if cube_boundary2 == EdgeSpecValue.O:
+        if pipe2 is None:
+            msg = f"Cube {cube.position} has O boundary on {side2} but no adjacent pipe."
+            raise ValueError(msg)
+        boundary2 = _get_pipe_boundary_for_corner(pipe2, side2, corner)
+        source2 = "pipe"
+    else:
+        boundary2 = cube_boundary2
+        source2 = "cube"
 
-    if not has_pipe:
-        # (cube, cube) combination -> no corner ancilla added
+    # (cube, cube) combination -> no corner ancilla added
+    if source1 == "cube" and source2 == "cube":
         return CornerAncillaDecision()
 
-    # Skip if either boundary is O (open - handled separately)
-    if EdgeSpecValue.O in {boundary1, boundary2}:
-        return CornerAncillaDecision()
-
-    # Check if boundaries are the same type
+    # (cube, pipe) or (pipe, pipe): Check if boundaries match
     if boundary1 != boundary2:
         # Different types (XZ or ZX) -> no ancilla
         return CornerAncillaDecision()

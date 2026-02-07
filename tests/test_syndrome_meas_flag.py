@@ -98,6 +98,65 @@ def test_skip_syndrome_disabled(tmp_path: Path) -> None:
     )
 
 
+def test_pipe_init_layer_does_not_modify_remaining_parity(tmp_path: Path) -> None:
+    """Adding a pipe with init=true must not alter cube-registered remaining_parity."""
+    cube_block_yaml = """
+    name: CubeMemoryBlock
+    layers:
+      - type: MemoryUnit
+        num_layers: 1
+    """
+
+    pipe_block_yaml = """
+    name: PipeInitBlock
+    layers:
+      - type: InitPlusUnit
+        num_layers: 1
+    """
+
+    cubes_only_canvas_yaml = """
+    name: CubesOnlyCanvas
+    layout: rotated_surface_code
+    cube:
+      - position: [0, 0, 0]
+        block: cube_memory_block
+        boundary: XXZZ
+      - position: [1, 0, 0]
+        block: cube_memory_block
+        boundary: XXZZ
+    """
+
+    with_pipe_canvas_yaml = """
+    name: WithPipeCanvas
+    layout: rotated_surface_code
+    cube:
+      - position: [0, 0, 0]
+        block: cube_memory_block
+        boundary: XXZZ
+      - position: [1, 0, 0]
+        block: cube_memory_block
+        boundary: XXZZ
+    pipe:
+      - start: [0, 0, 0]
+        end: [1, 0, 0]
+        block: pipe_init_block
+        boundary: ZZOO
+    """
+
+    _write_yaml(tmp_path / "cube_memory_block.yml", cube_block_yaml)
+    _write_yaml(tmp_path / "pipe_init_block.yml", pipe_block_yaml)
+
+    cubes_only_path = tmp_path / "cubes_only_canvas.yml"
+    _write_yaml(cubes_only_path, cubes_only_canvas_yaml)
+    with_pipe_path = tmp_path / "with_pipe_canvas.yml"
+    _write_yaml(with_pipe_path, with_pipe_canvas_yaml)
+
+    canvas_cubes_only, _ = load_canvas(cubes_only_path, code_distance=3)
+    canvas_with_pipe, _ = load_canvas(with_pipe_path, code_distance=3)
+
+    assert canvas_with_pipe.parity_accumulator.remaining_parity == canvas_cubes_only.parity_accumulator.remaining_parity
+
+
 def test_parity_reset_with_empty_syndrome_meas() -> None:
     """Test that empty syndrome_meas signals parity reset in detector construction."""
     parity = CoordParityAccumulator()

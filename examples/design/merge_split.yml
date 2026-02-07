@@ -40,7 +40,7 @@ pipe:
   - start: [0, 0, 2]
     end: [1, 0, 2]
     block: MeasureXBlock
-    boundary: ZZOO
+    boundary: ZZXX
     logical_observables: TB
 
 logical_observables:
