@@ -36,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simplified `num_unit_layers` handling in cout computation methods
 
 ### Fixed
+- Fix patch expansion X and Z boundary YAML configurations
+  - Corrected block types and logical observable settings in `patch_expansion_x.yml`
+  - Fixed Z boundary expansion configuration in `patch_expansion_z.yml`
+  - Minimized depth from z=3 to z=2 for both configurations
 - Fix detector position logic for transversal measurement layers
 - Fix `invert_ancilla_order` flag not being applied to syndrome measurement registration when `ancilla=false` and `skip_syndrome=false`
 - Fix duplicate offset calculation in pipe fragment generation that caused pipes to overlap with cube nodes
