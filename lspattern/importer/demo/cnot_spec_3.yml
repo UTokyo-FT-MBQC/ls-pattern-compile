@@ -13,7 +13,7 @@ cube:
   - 1
   - 0
   block: InitPlusBlock
-  boundary: ZZXX
+  boundary: XXZZ
 - position:
   - 0
   - 0
@@ -24,38 +24,35 @@ cube:
   - 1
   - 0
   - 1
-  block: MemoryBlock
-  boundary: ZZOX
+  block: HadamardBlock
+  boundary: XXOZ
+  invert_ancilla_order: true
 - position:
   - 0
   - 1
   - 1
-  block: MemoryBlock
-  boundary: ZZXX
+  block: HadamardBlock
+  boundary: XXZZ
+  invert_ancilla_order: true
 - position:
   - 0
   - 0
   - 2
-  block: MemoryBlock
+  block: MeasureBulkXBlock
   boundary: ZOXX
 - position:
   - 1
   - 0
   - 2
-  block: MemoryBlock
-  boundary: ZZXX
+  block: HadamardBlock
+  boundary: XXZZ
 - position:
   - 0
   - 1
   - 2
   block: MemoryBlock
   boundary: OZXX
-- position:
-  - 0
-  - 0
-  - 3
-  block: MeasureXBlock
-  boundary: ZZXX
+  invert_ancilla_order: true
 - position:
   - 1
   - 0
@@ -67,7 +64,9 @@ cube:
   - 1
   - 3
   block: MeasureXBlock
-  boundary: ZZXX
+  boundary: XXZZ
+  invert_ancilla_order: true
+  logical_observables: RL
 pipe:
 - start:
   - 0
@@ -77,7 +76,7 @@ pipe:
   - 1
   - 0
   - 1
-  block: ShortXMemoryBlock
+  block: ShortZMemoryBlock
   boundary: ZZOO
 - start:
   - 0
@@ -87,5 +86,10 @@ pipe:
   - 0
   - 1
   - 2
-  block: ShortZMemoryBlock
+  block: ShortXMemoryBlock
   boundary: OOXX
+logical_observables:
+- cube:
+  - - 0
+    - 1
+    - 3
