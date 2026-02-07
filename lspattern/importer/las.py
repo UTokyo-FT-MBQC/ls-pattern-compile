@@ -80,28 +80,19 @@ def _color_to_axis(color: int | bool) -> str:
     raise LasImportError(msg)
 
 
-def _init_pipe_block(axis: str, color: int) -> str:
-    """Return init block type for pipe based on axis and color.
+def _short_memory_pipe_block(axis: str, color: int) -> str:
+    """Return short memory block type for pipe based on axis and color.
 
-    ColorI: 0 -> InitZero, 1 -> InitPlus
-    ColorJ: 0 -> InitPlus, 1 -> InitZero
+    Mapping:
+        I axis, color=0 -> ShortZMemoryBlock (InitZero + MeasureZ)
+        I axis, color=1 -> ShortXMemoryBlock (InitPlus + MeasureX)
+        J axis, color=0 -> ShortXMemoryBlock (InitPlus + MeasureX)
+        J axis, color=1 -> ShortZMemoryBlock (InitZero + MeasureZ)
     """
     if axis == "I":
-        return "InitPlusBlock" if color == 1 else "InitZeroBlock"
+        return "ShortXMemoryBlock" if color == 1 else "ShortZMemoryBlock"
     # axis == "J"
-    return "InitZeroBlock" if color == 1 else "InitPlusBlock"
-
-
-def _meas_pipe_block(axis: str, color: int) -> str:
-    """Return measure block type for pipe based on axis and color.
-
-    ColorI: 0 -> MeasureZ, 1 -> MeasureX
-    ColorJ: 0 -> MeasureX, 1 -> MeasureZ
-    """
-    if axis == "I":
-        return "MeasureXBlock" if color == 1 else "MeasureZBlock"
-    # axis == "J"
-    return "MeasureZBlock" if color == 1 else "MeasureXBlock"
+    return "ShortZMemoryBlock" if color == 1 else "ShortXMemoryBlock"
 
 
 def _init_block(ch: str) -> str:
@@ -224,40 +215,6 @@ def _pipe_boundary(axis: str, color: int) -> str:
         return f"OO{axis_char}{axis_char}"
     msg = f"Unknown pipe axis {axis}"
     raise LasImportError(msg)
-
-
-def _check_pipe_stacking_conflicts(pipes: list[Pipe]) -> None:
-    """Check if pipe stacking (z -> z+1) creates conflicts.
-
-    Each pipe at z is expanded to occupy both z and z+1. If another pipe
-    already exists at z+1 position, this is a conflict.
-
-    Parameters
-    ----------
-    pipes : list[Pipe]
-        List of (axis, start, end, color) tuples.
-
-    Raises
-    ------
-    LasImportError
-        If any pipe's z+1 position conflicts with another pipe.
-    """
-    # Build set of all pipe positions keyed by (axis, i, j, k)
-    pipe_positions: set[tuple[str, int, int, int]] = set()
-    for axis, start, _end, _color in pipes:
-        i, j, k = start
-        pipe_positions.add((axis, i, j, k))
-
-    # Check z+1 conflicts
-    for axis, start, end, _color in pipes:
-        i, j, k = start
-        z_plus_1_pos = (axis, i, j, k + 1)
-        if z_plus_1_pos in pipe_positions:
-            msg = (
-                f"Pipe stacking conflict: pipe at {start}->{end} would place "
-                f"measure block at z={k + 1}, but another pipe already exists there."
-            )
-            raise LasImportError(msg)
 
 
 def _k_color_to_init_block(color: int) -> str:
@@ -503,32 +460,16 @@ def convert_lasre_to_yamls(
             for coord in sorted(all_cubes, key=operator.itemgetter(2, 1, 0))
         ]
 
-        # Check for pipe stacking conflicts
-        _check_pipe_stacking_conflicts(pipes)
-
-        # Generate two-layer pipe structure: Init at z, Measure at z+1
+        # Generate single-layer pipe structure using short memory blocks
         pipe_entries: list[dict[str, Any]] = []
         for axis, start, end, color in pipes:
             boundary = _pipe_boundary(axis, color)
-            i, j, k = start
-
-            # Two-layer structure: Init at z, Measure at z+1
-            pipe_entries.extend(
-                [
-                    {
-                        "start": list(start),
-                        "end": list(end),
-                        "block": _init_pipe_block(axis, color),
-                        "boundary": boundary,
-                    },
-                    {
-                        "start": [i, j, k + 1],
-                        "end": [end[0], end[1], k + 1],
-                        "block": _meas_pipe_block(axis, color),
-                        "boundary": boundary,
-                    },
-                ]
-            )
+            pipe_entries.append({
+                "start": list(start),
+                "end": list(end),
+                "block": _short_memory_pipe_block(axis, color),
+                "boundary": boundary,
+            })
 
         desc_base = description or name_prefix
         canvas_dict: dict[str, Any] = {
