@@ -319,7 +319,10 @@ class Canvas:
         # Compute couts if logical_observables is specified
         if logical_observables is not None:
             _, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.cube(
-                self.config.d, Coord2D(global_pos.x, global_pos.y), block_config.boundary
+                self.config.d,
+                Coord2D(global_pos.x, global_pos.y),
+                block_config.boundary,
+                corner_decisions=block_config.corner_decisions,
             ).to_mutable_sets()
             self._compute_cout_from_logical_observables(
                 global_pos, block_config, logical_observables, ancilla_x2d, ancilla_z2d
@@ -525,7 +528,11 @@ class Canvas:
         """
         start, end = global_edge
         _, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.pipe(
-            self.config.d, start, end, block_config.boundary
+            self.config.d,
+            start,
+            end,
+            block_config.boundary,
+            corner_decisions=block_config.corner_decisions,
         ).to_mutable_sets()
 
         for layer_idx, layer_cfg in enumerate(block_config):
@@ -620,7 +627,11 @@ class Canvas:
         # Compute couts if logical_observables is specified
         if logical_observables is not None:
             _, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.pipe(
-                self.config.d, start, end, block_config.boundary
+                self.config.d,
+                start,
+                end,
+                block_config.boundary,
+                corner_decisions=block_config.corner_decisions,
             ).to_mutable_sets()
             self._compute_pipe_cout_from_logical_observables(
                 global_edge, block_config, logical_observables, ancilla_x2d, ancilla_z2d
