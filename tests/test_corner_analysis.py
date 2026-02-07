@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from lspattern.canvas_loader import CanvasSpec
+from lspattern.canvas_loader import CanvasCubeSpec, CanvasPipeSpec, CanvasSpec
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.corner_analysis import (
     ALL_CORNERS,
@@ -13,6 +13,7 @@ from lspattern.corner_analysis import (
     CornerAnalysisResult,
     CornerAncillaDecision,
     CornerPosition,
+    _check_corner_ancilla_parity,
     analyze_corner_ancillas,
     get_cube_corner_decisions,
     get_pipe_corner_decisions,
@@ -301,9 +302,6 @@ class TestCornerEvaluationLogic:
 
     def test_evaluate_corner_with_no_pipes(self) -> None:
         """Corners without pipes should not have ancillas added."""
-        from lspattern.canvas_loader import CanvasCubeSpec, CanvasSpec
-        from lspattern.corner_analysis import ALL_CORNERS, analyze_corner_ancillas
-
         cube = CanvasCubeSpec(
             position=Coord3D(0, 0, 0),
             block="test",
@@ -334,9 +332,6 @@ class TestCornerEvaluationLogic:
 
     def test_evaluate_corner_with_matching_zz_boundary(self) -> None:
         """Corner with matching ZZ boundaries should have Z ancilla (if parity matches)."""
-        from lspattern.canvas_loader import CanvasCubeSpec, CanvasPipeSpec, CanvasSpec
-        from lspattern.corner_analysis import analyze_corner_ancillas
-
         # Create L-patch like configuration
         cube = CanvasCubeSpec(
             position=Coord3D(0, 0, 0),
@@ -371,16 +366,13 @@ class TestCornerEvaluationLogic:
 
         result = analyze_corner_ancillas(spec, code_distance=3)
 
-        # Should have decisions for cubes with pipes
-        decisions = get_cube_corner_decisions(result, Coord3D(0, 0, 0))
+        # Should have decisions for cubes with pipes (just verify no error)
+        _ = get_cube_corner_decisions(result, Coord3D(0, 0, 0))
         # BOTTOM-LEFT corner: cube LEFT=Z, pipe LEFT=Z -> ZZ
         # The actual presence depends on parity condition
 
     def test_evaluate_corner_with_matching_xx_boundary(self) -> None:
         """Corner with matching XX boundaries should have X ancilla (if parity matches)."""
-        from lspattern.canvas_loader import CanvasCubeSpec, CanvasPipeSpec, CanvasSpec
-        from lspattern.corner_analysis import analyze_corner_ancillas
-
         cube = CanvasCubeSpec(
             position=Coord3D(0, 0, 0),
             block="test",
@@ -414,16 +406,13 @@ class TestCornerEvaluationLogic:
 
         result = analyze_corner_ancillas(spec, code_distance=3)
 
-        # The analysis should run without errors
-        decisions = get_cube_corner_decisions(result, Coord3D(0, 0, 0))
+        # The analysis should run without errors (just verify no error)
+        _ = get_cube_corner_decisions(result, Coord3D(0, 0, 0))
         # TOP-RIGHT corner: cube TOP=X, pipe TOP=X -> XX
         # Actual presence depends on parity
 
     def test_evaluate_corner_with_mixed_boundary_no_ancilla(self) -> None:
         """Corner with mixed XZ boundaries should not have ancilla."""
-        from lspattern.canvas_loader import CanvasCubeSpec, CanvasPipeSpec, CanvasSpec
-        from lspattern.corner_analysis import analyze_corner_ancillas
-
         cube = CanvasCubeSpec(
             position=Coord3D(0, 0, 0),
             block="test",
@@ -469,8 +458,6 @@ class TestCornerAncillaParityCondition:
 
     def test_x_ancilla_parity_condition(self) -> None:
         """X ancilla requires (x+y) % 4 == 0 at odd coordinates."""
-        from lspattern.corner_analysis import _check_corner_ancilla_parity
-
         # Coordinates at odd positions with (x+y) % 4 == 0 should satisfy X parity
         # (-1, -1): (-1 + -1) = -2, -2 % 4 == 2 in Python -> Z parity, not X
         assert not _check_corner_ancilla_parity(Coord2D(-1, -1), "x")
@@ -483,8 +470,6 @@ class TestCornerAncillaParityCondition:
 
     def test_z_ancilla_parity_condition(self) -> None:
         """Z ancilla requires (x+y) % 4 == 2 at odd coordinates."""
-        from lspattern.corner_analysis import _check_corner_ancilla_parity
-
         # Coordinates at odd positions with (x+y) % 4 == 2 should satisfy Z parity
         assert _check_corner_ancilla_parity(Coord2D(-1, -1), "z")  # -2 % 4 == 2, passes
         assert _check_corner_ancilla_parity(Coord2D(1, 1), "z")  # 2 % 4 == 2, passes
@@ -492,8 +477,6 @@ class TestCornerAncillaParityCondition:
 
     def test_even_coordinates_never_satisfy_parity(self) -> None:
         """Even coordinates never satisfy ancilla parity."""
-        from lspattern.corner_analysis import _check_corner_ancilla_parity
-
         # Even x or y coordinate should always return False
         assert not _check_corner_ancilla_parity(Coord2D(0, 1), "x")
         assert not _check_corner_ancilla_parity(Coord2D(0, 1), "z")
