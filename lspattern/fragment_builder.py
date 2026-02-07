@@ -317,10 +317,6 @@ def _build_layer1(  # noqa: C901
                 parity.add_syndrome_measurement(Coord2D(x, y), z, {coord})
                 if not is_pipe:
                     parity.add_remaining_parity(Coord2D(x, y), z, {coord})
-            elif is_pipe:
-                # Init layer for pipe: register remaining_parity only (no syndrome_meas)
-                # Cube's init layer does not register remaining_parity
-                parity.add_remaining_parity(Coord2D(x, y), z, {coord})
 
         scheduler.add_prep_at_time(layer_time, ancilla_coords)
         scheduler.add_meas_at_time(layer_time + ANCILLA_LENGTH + 1, ancilla_coords)
@@ -456,10 +452,6 @@ def _build_layer2(  # noqa: C901
                 parity.add_syndrome_measurement(Coord2D(x, y), z + 1, {coord})
                 if not is_pipe:
                     parity.add_remaining_parity(Coord2D(x, y), z + 1, {coord})
-            elif is_pipe:
-                # Init layer for pipe: register remaining_parity only (no syndrome_meas)
-                # Cube's init layer does not register remaining_parity
-                parity.add_remaining_parity(Coord2D(x, y), z + 1, {coord})
 
         scheduler.add_prep_at_time(layer_time + _PHYSICAL_CLOCK + ANCILLA_LENGTH, ancilla_coords)
         scheduler.add_meas_at_time(layer_time + _PHYSICAL_CLOCK + 2 * ANCILLA_LENGTH + 1, ancilla_coords)
@@ -518,7 +510,10 @@ def build_patch_cube_fragment(
     # Get 2D coordinates from layout builder using origin position
     # This gives us local coordinates starting from (0, 0)
     data2d, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.cube(
-        code_distance, Coord2D(0, 0), block_config.boundary
+        code_distance,
+        Coord2D(0, 0),
+        block_config.boundary,
+        corner_decisions=block_config.corner_decisions,
     ).to_mutable_sets()
 
     # Build graph layers (using local coordinates: offset_z=0, base_time=0)
@@ -605,7 +600,11 @@ def build_patch_pipe_fragment(
 
     # Get 2D coordinates from layout builder using local edge
     data2d, ancilla_x2d, ancilla_z2d = RotatedSurfaceCodeLayoutBuilder.pipe(
-        code_distance, local_start, local_end, block_config.boundary
+        code_distance,
+        local_start,
+        local_end,
+        block_config.boundary,
+        corner_decisions=block_config.corner_decisions,
     ).to_mutable_sets()
 
     # Remove the offset that pipe() already computed, since canvas.add_pipe will add it again

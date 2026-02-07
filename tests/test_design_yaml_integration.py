@@ -22,7 +22,6 @@ _CANVAS_YMLS = sorted(p.name for p in _DESIGN_DIR.glob("*.yml"))
 
 # Known failing canvases — to be fixed in future work.
 _KNOWN_FAILURES: dict[str, str] = {
-    "L_patch.yml": "non-deterministic detectors",
     "graph_block_canvas.yml": "non-deterministic observables",
     "patch_expansion_x.yml": "cycle detected in feedforward graph",
     "patch_expansion_z.yml": "non-deterministic detectors",

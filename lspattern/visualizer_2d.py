@@ -4,10 +4,20 @@ from typing import TYPE_CHECKING, TypedDict
 
 import matplotlib.pyplot as plt
 
-from lspattern.mytype import Coord3D, NodeRole
+from lspattern.canvas_loader import CanvasCubeSpec, CanvasPipeSpec, load_canvas_spec
+from lspattern.corner_analysis import (
+    CornerAncillaDecision,
+    CornerPosition,
+    analyze_corner_ancillas,
+    get_cube_corner_decisions,
+    get_pipe_corner_decisions,
+)
+from lspattern.layout import PatchCoordinates, RotatedSurfaceCodeLayoutBuilder
+from lspattern.mytype import Coord2D, Coord3D, NodeRole
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
+    from collections.abc import Iterable, Mapping, Sequence
+    from pathlib import Path
 
     from matplotlib.figure import Figure
 
@@ -230,3 +240,345 @@ def visualize_canvas_matplotlib_2d(
         ax.invert_yaxis()
 
     return fig
+
+
+# =============================================================================
+# Color map for 2D qubit coordinate types
+# =============================================================================
+
+_COORD_COLOR_MAP: dict[str, NodeStyleSpec] = {
+    "data": {"color": "white", "line_color": "black", "size": 100, "label": "Data"},
+    "ancilla_x": {"color": "green", "line_color": "darkgreen", "size": 80, "label": "X ancilla"},
+    "ancilla_z": {"color": "blue", "line_color": "darkblue", "size": 80, "label": "Z ancilla"},
+}
+
+
+# =============================================================================
+# Helper functions for layer visualization
+# =============================================================================
+
+
+def _collect_blocks_at_z(
+    cubes: Sequence[CanvasCubeSpec],
+    pipes: Sequence[CanvasPipeSpec],
+    target_z: int,
+) -> tuple[list[CanvasCubeSpec], list[CanvasPipeSpec]]:
+    """Collect cubes and pipes at a specific z-layer.
+
+    Parameters
+    ----------
+    cubes : Sequence[CanvasCubeSpec]
+        All cube specifications from the canvas.
+    pipes : Sequence[CanvasPipeSpec]
+        All pipe specifications from the canvas.
+    target_z : int
+        The patch z-coordinate to filter by.
+
+    Returns
+    -------
+    tuple[list[CanvasCubeSpec], list[CanvasPipeSpec]]
+        (cubes_at_z, pipes_at_z) - cubes and spatial pipes at the target z.
+    """
+    cubes_at_z = [c for c in cubes if c.position.z == target_z]
+    # Filter spatial pipes: both start.z and end.z should equal target_z
+    pipes_at_z = [p for p in pipes if p.start.z == target_z and p.end.z == target_z]
+    return cubes_at_z, pipes_at_z
+
+
+def _generate_cube_coordinates(
+    cube: CanvasCubeSpec,
+    code_distance: int,
+    corner_decisions: Mapping[CornerPosition, CornerAncillaDecision] | None = None,
+) -> PatchCoordinates:
+    """Generate PatchCoordinates for a cube.
+
+    Parameters
+    ----------
+    cube : CanvasCubeSpec
+        The cube specification.
+    code_distance : int
+        Code distance of the surface code.
+    corner_decisions : Mapping[CornerPosition, CornerAncillaDecision] | None, optional
+        Global corner ancilla decisions for this cube. If None, falls back to
+        local corner logic.
+
+    Returns
+    -------
+    PatchCoordinates
+        Coordinate sets for the cube.
+    """
+    global_pos = Coord2D(cube.position.x, cube.position.y)
+    return RotatedSurfaceCodeLayoutBuilder.cube(
+        code_distance, global_pos, cube.boundary, corner_decisions=corner_decisions
+    )
+
+
+def _generate_pipe_coordinates(
+    pipe: CanvasPipeSpec,
+    code_distance: int,
+    corner_decisions: Mapping[CornerPosition, CornerAncillaDecision] | None = None,
+) -> PatchCoordinates:
+    """Generate PatchCoordinates for a pipe.
+
+    Parameters
+    ----------
+    pipe : CanvasPipeSpec
+        The pipe specification.
+    code_distance : int
+        Code distance of the surface code.
+    corner_decisions : Mapping[CornerPosition, CornerAncillaDecision] | None, optional
+        Global corner ancilla decisions for this pipe. If None, falls back to
+        local corner logic.
+
+    Returns
+    -------
+    PatchCoordinates
+        Coordinate sets for the pipe.
+    """
+    return RotatedSurfaceCodeLayoutBuilder.pipe(
+        code_distance, pipe.start, pipe.end, pipe.boundary, corner_decisions=corner_decisions
+    )
+
+
+def _merge_patch_coordinates(coords_list: Sequence[PatchCoordinates]) -> PatchCoordinates:
+    """Merge multiple PatchCoordinates into one.
+
+    Parameters
+    ----------
+    coords_list : Sequence[PatchCoordinates]
+        Sequence of PatchCoordinates to merge.
+
+    Returns
+    -------
+    PatchCoordinates
+        Merged coordinate sets.
+    """
+    if not coords_list:
+        return PatchCoordinates(frozenset(), frozenset(), frozenset())
+
+    data: set[Coord2D] = set()
+    ancilla_x: set[Coord2D] = set()
+    ancilla_z: set[Coord2D] = set()
+
+    for coords in coords_list:
+        data.update(coords.data)
+        ancilla_x.update(coords.ancilla_x)
+        ancilla_z.update(coords.ancilla_z)
+
+    return PatchCoordinates(frozenset(data), frozenset(ancilla_x), frozenset(ancilla_z))
+
+
+# =============================================================================
+# Public visualization functions
+# =============================================================================
+
+
+def visualize_patch_coordinates_2d(
+    coords: PatchCoordinates,
+    *,
+    title: str = "Patch Coordinates",
+    figsize: tuple[int, int] = (10, 10),
+    show_grid: bool = True,
+) -> Figure:
+    """Visualize PatchCoordinates as a 2D scatter plot.
+
+    This is a lower-level function for direct PatchCoordinates visualization.
+    Useful for testing individual blocks.
+
+    Parameters
+    ----------
+    coords : PatchCoordinates
+        The coordinate sets to visualize.
+    title : str, optional
+        Title of the plot, by default "Patch Coordinates".
+    figsize : tuple[int, int], optional
+        Figure size in inches (width, height), by default (10, 10).
+    show_grid : bool, optional
+        Whether to show grid lines, by default True.
+
+    Returns
+    -------
+    Figure
+        Matplotlib Figure object ready for display or saving.
+
+    Examples
+    --------
+    >>> from lspattern.layout import RotatedSurfaceCodeLayoutBuilder
+    >>> from lspattern.consts import BoundarySide, EdgeSpecValue
+    >>> from lspattern.mytype import Coord2D
+    >>> boundary = {
+    ...     BoundarySide.TOP: EdgeSpecValue.X,
+    ...     BoundarySide.BOTTOM: EdgeSpecValue.X,
+    ...     BoundarySide.LEFT: EdgeSpecValue.Z,
+    ...     BoundarySide.RIGHT: EdgeSpecValue.Z,
+    ... }
+    >>> coords = RotatedSurfaceCodeLayoutBuilder.cube(3, Coord2D(0, 0), boundary)
+    >>> fig = visualize_patch_coordinates_2d(coords, title="Single Cube")
+    """
+    fig, ax = plt.subplots(figsize=figsize)
+
+    # Plot data qubits
+    if coords.data:
+        data_x = [c.x for c in coords.data]
+        data_y = [c.y for c in coords.data]
+        spec = _COORD_COLOR_MAP["data"]
+        ax.scatter(
+            data_x,
+            data_y,
+            c=spec["color"],
+            edgecolors=spec["line_color"],
+            s=spec["size"],
+            label=spec["label"],
+            alpha=0.9,
+            linewidths=1.5,
+            zorder=2,
+        )
+
+    # Plot X ancillas
+    if coords.ancilla_x:
+        ax_x = [c.x for c in coords.ancilla_x]
+        ax_y = [c.y for c in coords.ancilla_x]
+        spec = _COORD_COLOR_MAP["ancilla_x"]
+        ax.scatter(
+            ax_x,
+            ax_y,
+            c=spec["color"],
+            edgecolors=spec["line_color"],
+            s=spec["size"],
+            label=spec["label"],
+            alpha=0.9,
+            linewidths=1.5,
+            zorder=2,
+        )
+
+    # Plot Z ancillas
+    if coords.ancilla_z:
+        az_x = [c.x for c in coords.ancilla_z]
+        az_y = [c.y for c in coords.ancilla_z]
+        spec = _COORD_COLOR_MAP["ancilla_z"]
+        ax.scatter(
+            az_x,
+            az_y,
+            c=spec["color"],
+            edgecolors=spec["line_color"],
+            s=spec["size"],
+            label=spec["label"],
+            alpha=0.9,
+            linewidths=1.5,
+            zorder=2,
+        )
+
+    # Configure axes
+    ax.set_aspect("equal", "box")
+    ax.grid(show_grid, alpha=0.3)
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_title(title)
+
+    # Only show legend if there are labeled artists
+    handles, _labels = ax.get_legend_handles_labels()
+    if handles:
+        ax.legend(loc="best")
+
+    ax.invert_yaxis()
+
+    return fig
+
+
+def visualize_canvas_layout(
+    yaml_path: str | Path,
+    code_distance: int,
+    target_z: int,
+    *,
+    figsize: tuple[int, int] = (10, 10),
+    show_grid: bool = True,
+    show_boundary_labels: bool = True,
+) -> Figure:
+    """Visualize all cubes and pipes at a specific z-layer for boundary debugging.
+
+    This function loads a YAML canvas file and renders all blocks (cubes and
+    spatial pipes) at the specified patch z-coordinate in a single 2D figure.
+    Useful for debugging boundary conditions and qubit placements.
+
+    Parameters
+    ----------
+    yaml_path : str | Path
+        Path to the YAML canvas file.
+    code_distance : int
+        Code distance of the surface code.
+    target_z : int
+        Patch z-coordinate to visualize (as specified in YAML).
+    figsize : tuple[int, int], optional
+        Figure size in inches (width, height), by default (10, 10).
+    show_grid : bool, optional
+        Whether to show grid lines, by default True.
+    show_boundary_labels : bool, optional
+        Whether to show block boundary labels (currently unused, reserved for future),
+        by default True.
+
+    Returns
+    -------
+    Figure
+        Matplotlib Figure object ready for display or saving.
+
+    Examples
+    --------
+    >>> from lspattern.visualizer_2d import visualize_canvas_layout
+    >>> import matplotlib.pyplot as plt
+
+    >>> # Visualize all blocks at z=1
+    >>> fig = visualize_canvas_layout(
+    ...     "examples/design/cnot.yml",
+    ...     code_distance=3,
+    ...     target_z=1,
+    ... )
+    >>> plt.show()  # doctest: +SKIP
+
+    >>> # Visualize z=0 layer (init blocks)
+    >>> fig = visualize_canvas_layout(
+    ...     "examples/design/short_z_memory_canvas.yml",
+    ...     code_distance=3,
+    ...     target_z=0,
+    ... )
+    >>> plt.savefig("/tmp/layer_z0.png")  # doctest: +SKIP
+    """
+    # Silence unused parameter warning - reserved for future use
+    _ = show_boundary_labels
+
+    # Load canvas spec from YAML
+    spec = load_canvas_spec(yaml_path)
+
+    # Analyze corner ancillas globally
+    corner_analysis = analyze_corner_ancillas(spec, code_distance=code_distance)
+
+    # Collect blocks at target z
+    cubes_at_z, pipes_at_z = _collect_blocks_at_z(spec.cubes, spec.pipes, target_z)
+
+    # Generate coordinates for each block
+    all_coords: list[PatchCoordinates] = []
+
+    for cube in cubes_at_z:
+        cube_corner_decisions = get_cube_corner_decisions(corner_analysis, cube.position)
+        coords = _generate_cube_coordinates(cube, code_distance, cube_corner_decisions)
+        all_coords.append(coords)
+
+    for pipe in pipes_at_z:
+        pipe_corner_decisions = get_pipe_corner_decisions(corner_analysis, pipe.start, pipe.end)
+        coords = _generate_pipe_coordinates(pipe, code_distance, pipe_corner_decisions)
+        all_coords.append(coords)
+
+    # Merge all coordinates
+    merged = _merge_patch_coordinates(all_coords)
+
+    # Build title
+    num_cubes = len(cubes_at_z)
+    num_pipes = len(pipes_at_z)
+    title = f"Layer z={target_z}: {num_cubes} cube(s), {num_pipes} pipe(s)"
+
+    # Use the lower-level function to render
+    return visualize_patch_coordinates_2d(
+        merged,
+        title=title,
+        figsize=figsize,
+        show_grid=show_grid,
+    )
