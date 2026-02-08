@@ -161,13 +161,26 @@ def _register_init_layer_candidates(
     invert_ancilla_order: bool,
     layer_idx: int,
     sublayer: int,
+    cube_positions: set[Coord3D],
 ) -> None:
     key = InitFlowLayerKey(layer_idx, sublayer)
     ancilla_type = _ancilla_type_for_init_layer(sublayer, invert_ancilla_order)
     candidates = _candidate_sides(cube_boundary, ancilla_type)
+
+    # Exclude directions where the adjacent cube has a cube below (z-1).
+    # Init flow toward such a direction would target data qubits connected
+    # via temporal edges to z-1, causing zflow cycles.
+    to_exclude = set()
+    for side in candidates:
+        vec = _SIDE_TO_VEC[side]
+        neighbor = Coord3D(cube_position.x + vec.x, cube_position.y + vec.y, cube_position.z)
+        below_neighbor = Coord3D(neighbor.x, neighbor.y, neighbor.z - 1)
+        if below_neighbor in cube_positions:
+            to_exclude.add(side)
+    candidates -= to_exclude
+
     if not candidates:
-        msg = f"No candidate directions for cube {cube_position} layer{sublayer} init."
-        raise ValueError(msg)
+        return  # No valid directions; temporal flow from below handles this cube
     group_candidates.setdefault(key, {})[cube_position] = candidates
 
 
@@ -300,6 +313,8 @@ def analyze_init_flow_directions(
     block_cache: dict[str, BlockConfig] = {}
     merged_paths: tuple[Path | str, ...] = (*spec.search_paths, *extra_paths)
 
+    cube_positions = {cube.position for cube in spec.cubes}
+
     group_candidates: dict[InitFlowLayerKey, dict[Coord3D, set[BoundarySide]]] = {}
     for cube in spec.cubes:
         block_config = block_cache.get(cube.block)
@@ -315,11 +330,13 @@ def analyze_init_flow_directions(
         for layer_idx, layer_cfg in enumerate(block_config):
             if layer_cfg.layer1.init:
                 _register_init_layer_candidates(
-                    group_candidates, cube.position, cube.boundary, cube.invert_ancilla_order, layer_idx, _SUBLAYER_1
+                    group_candidates, cube.position, cube.boundary, cube.invert_ancilla_order, layer_idx, _SUBLAYER_1,
+                    cube_positions,
                 )
             if layer_cfg.layer2.init:
                 _register_init_layer_candidates(
-                    group_candidates, cube.position, cube.boundary, cube.invert_ancilla_order, layer_idx, _SUBLAYER_2
+                    group_candidates, cube.position, cube.boundary, cube.invert_ancilla_order, layer_idx, _SUBLAYER_2,
+                    cube_positions,
                 )
 
     for key, candidates in group_candidates.items():
