@@ -40,14 +40,20 @@ def _qubit_cell(
     }
 
 
-def _ancilla_cell() -> dict[str, Any]:
+def _ancilla_cell(
+    *,
+    top: str = "None",
+    bottom: str = "None",
+    left: str = "None",
+    right: str = "None",
+) -> dict[str, Any]:
     return {
         "patch_type": "Ancilla",
         "edges": {
-            "Top": "AncillaJoin",
-            "Bottom": "AncillaJoin",
-            "Left": "None",
-            "Right": "None",
+            "Top": top,
+            "Bottom": bottom,
+            "Left": left,
+            "Right": right,
         },
         "activity": {"activity_type": None},
         "text": "",
@@ -82,6 +88,19 @@ def _cube_entry(canvas: dict[str, Any], position: list[int]) -> dict[str, Any]:
         if entry.get("position") == position:
             return entry
     msg = f"Cube entry not found at position {position}"
+    raise AssertionError(msg)
+
+
+def _pipe_entry(canvas: dict[str, Any], start: list[int], end: list[int]) -> dict[str, Any]:
+    pipe = canvas["pipe"]
+    assert isinstance(pipe, list)
+    for entry in pipe:
+        assert isinstance(entry, dict)
+        if (entry.get("start") == start and entry.get("end") == end) or (
+            entry.get("start") == end and entry.get("end") == start
+        ):
+            return entry
+    msg = f"Pipe entry not found for edge {start} <-> {end}"
     raise AssertionError(msg)
 
 
@@ -145,6 +164,109 @@ def test_non_qubit_cells_ignored() -> None:
 def test_output_has_empty_pipe_section() -> None:
     slices = [[[_qubit_cell(qid=0)]]]
     canvas = _load_yaml(convert_slices_to_canvas_yaml(slices, name="pipe-empty"))
+    assert canvas["pipe"] == []
+
+
+def test_short_zz_ancilla_maps_to_shortx_and_generates_pipes() -> None:
+    slices = [
+        [[
+            _qubit_cell(qid=1, right="SolidStiched"),
+            _ancilla_cell(),
+            _qubit_cell(qid=2, left="SolidStiched"),
+        ]]
+    ]
+
+    canvas = _load_yaml(convert_slices_to_canvas_yaml(slices, name="ancilla-short-zz"))
+
+    assert _cube_entry(canvas, [1, 0, 0])["block"] == "ShortXMemoryBlock"
+    assert _cube_entry(canvas, [1, 0, 0])["boundary"] == "XXOO"
+    assert _cube_entry(canvas, [0, 0, 0])["boundary"] == "ZZXO"
+    assert _cube_entry(canvas, [2, 0, 0])["boundary"] == "ZZOX"
+
+    left_pipe = _pipe_entry(canvas, [0, 0, 0], [1, 0, 0])
+    right_pipe = _pipe_entry(canvas, [1, 0, 0], [2, 0, 0])
+    assert left_pipe["block"] == "ShortXMemoryBlock"
+    assert right_pipe["block"] == "ShortXMemoryBlock"
+    assert left_pipe["boundary"] == "XXOO"
+    assert right_pipe["boundary"] == "XXOO"
+
+
+def test_short_xx_ancilla_maps_to_shortz_and_generates_pipes() -> None:
+    slices = [
+        [[
+            _qubit_cell(qid=1, right="DashedStiched"),
+            _ancilla_cell(),
+            _qubit_cell(qid=2, left="DashedStiched"),
+        ]]
+    ]
+
+    canvas = _load_yaml(convert_slices_to_canvas_yaml(slices, name="ancilla-short-xx"))
+
+    assert _cube_entry(canvas, [1, 0, 0])["block"] == "ShortZMemoryBlock"
+    assert _cube_entry(canvas, [1, 0, 0])["boundary"] == "ZZOO"
+    assert _pipe_entry(canvas, [0, 0, 0], [1, 0, 0])["boundary"] == "ZZOO"
+    assert _pipe_entry(canvas, [1, 0, 0], [2, 0, 0])["boundary"] == "ZZOO"
+
+
+def test_long_lived_zz_ancilla_maps_to_init_memory_measure() -> None:
+    slices = [
+        [[
+            _qubit_cell(qid=1, right="SolidStiched"),
+            _ancilla_cell(),
+            _qubit_cell(qid=2, left="SolidStiched"),
+        ]],
+        [[
+            _qubit_cell(qid=1, right="SolidStiched"),
+            _ancilla_cell(),
+            _qubit_cell(qid=2, left="SolidStiched"),
+        ]],
+        [[
+            _qubit_cell(qid=1, right="SolidStiched"),
+            _ancilla_cell(),
+            _qubit_cell(qid=2, left="SolidStiched"),
+        ]],
+    ]
+
+    canvas = _load_yaml(convert_slices_to_canvas_yaml(slices, name="ancilla-long-zz"))
+
+    assert _cube_entry(canvas, [1, 0, 0])["block"] == "InitPlusBlock"
+    assert _cube_entry(canvas, [1, 0, 1])["block"] == "MemoryBlock"
+    assert _cube_entry(canvas, [1, 0, 2])["block"] == "MeasureXBlock"
+
+    pipe = canvas["pipe"]
+    assert isinstance(pipe, list)
+    assert len(pipe) == 6
+    expected_by_z = {0: "InitPlusBlock", 1: "MemoryBlock", 2: "MeasureXBlock"}
+    for z, expected_block in expected_by_z.items():
+        z_pipes = [entry for entry in pipe if entry["start"][2] == z and entry["end"][2] == z]
+        assert len(z_pipes) == 2
+        assert {entry["block"] for entry in z_pipes} == {expected_block}
+        assert {entry["boundary"] for entry in z_pipes} == {"XXOO"}
+
+
+def test_adjacent_ancilla_cells_generate_internal_pipe() -> None:
+    slices = [
+        [[
+            _qubit_cell(qid=1, right="SolidStiched"),
+            _ancilla_cell(right="AncillaJoin"),
+            _ancilla_cell(left="AncillaJoin"),
+            _qubit_cell(qid=2, left="SolidStiched"),
+        ]]
+    ]
+
+    canvas = _load_yaml(convert_slices_to_canvas_yaml(slices, name="ancilla-internal-pipe"))
+
+    assert _cube_entry(canvas, [1, 0, 0])["boundary"] == "XXOO"
+    assert _cube_entry(canvas, [2, 0, 0])["boundary"] == "XXOO"
+    assert _pipe_entry(canvas, [1, 0, 0], [2, 0, 0])["block"] == "ShortXMemoryBlock"
+    assert _pipe_entry(canvas, [1, 0, 0], [2, 0, 0])["boundary"] == "XXOO"
+    assert len(canvas["pipe"]) == 3
+
+
+def test_ancilla_without_two_stitched_endpoints_is_ignored() -> None:
+    slices = [[[_ancilla_cell()]]]
+    canvas = _load_yaml(convert_slices_to_canvas_yaml(slices, name="ancilla-ignored"))
+    assert canvas["cube"] == []
     assert canvas["pipe"] == []
 
 
