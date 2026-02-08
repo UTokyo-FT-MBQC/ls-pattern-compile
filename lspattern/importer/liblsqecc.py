@@ -623,18 +623,19 @@ def convert_slices_to_canvas_yaml(  # noqa: C901
             if block_a is None or block_b is None:
                 msg = f"Missing ancilla cube for internal pipe at z={z}: {anc_a_2d} - {anc_b_2d}"
                 raise LibLsQeccImportError(msg)
-            if block_a != block_b:
-                msg = (
-                    "Adjacent ancilla cubes have different block kinds at same time: "
-                    f"{anc_a_3d}={block_a}, {anc_b_3d}={block_b}"
-                )
-                raise LibLsQeccImportError(msg)
+
+            # Adjacent ancilla cells in the same bus may have different
+            # block kinds when their timelines differ (e.g., one cell
+            # lives for a single clock while a neighbor spans multiple).
+            # Use the block of the lexicographically smaller coordinate
+            # for deterministic pipe assignment.
+            pipe_block = block_a if anc_a_3d <= anc_b_3d else block_b
 
             _add_pipe(
                 pipes_by_key,
                 a=anc_a_3d,
                 b=anc_b_3d,
-                block=block_a,
+                block=pipe_block,
                 basis=component.basis,
             )
 
@@ -656,6 +657,40 @@ def convert_slices_to_canvas_yaml(  # noqa: C901
                 block=block,
                 basis=component.basis,
             )
+
+    # Detect direct qubit-to-qubit stitched connections (lattice surgery
+    # merges without an intermediate ancilla bus) and create pipes for
+    # them so that O boundaries are properly backed by pipe entries.
+    for z, slice_rows in enumerate(normalized):
+        height = len(slice_rows)
+        width = len(slice_rows[0]) if height > 0 else 0
+        for y, row in enumerate(slice_rows):
+            for x, cell in enumerate(row):
+                if not _is_qubit_cell(cell):
+                    continue
+                if cell is None:
+                    continue
+                edges = cell["edges"]
+                for side in ("Bottom", "Right"):
+                    kind = _stitched_kind(edges[side])
+                    if kind is None:
+                        continue
+                    nx, ny = _coord_side_to_neighbor((x, y), side)
+                    if not _in_bounds(nx, ny, width, height):
+                        continue
+                    neighbor = slice_rows[ny][nx]
+                    if not _is_qubit_cell(neighbor):
+                        continue
+                    if neighbor is None:
+                        continue
+                    opp_kind = _stitched_kind(neighbor["edges"][_OPPOSITE_SIDE[side]])
+                    if opp_kind is None or opp_kind != kind:
+                        continue
+                    basis = "ZZ" if kind == "solid" else "XX"
+                    block = _short_block_for_basis(basis)
+                    a_3d = (x, y, z)
+                    b_3d = (nx, ny, z)
+                    _add_pipe(pipes_by_key, a=a_3d, b=b_3d, block=block, basis=basis)
 
     connected_sides: dict[Coord3D, set[str]] = defaultdict(set)
     pipe_entries: list[dict[str, object]] = []
