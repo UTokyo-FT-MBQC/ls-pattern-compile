@@ -16,6 +16,14 @@ spec_name = "design/cnot.yml"
 code_distance = 3
 output_dir = Path("output")
 
+# Optional coordinate range filter (closed intervals). Use None for unbounded.
+x_min: int | None = None
+x_max: int | None = None
+y_min: int | None = None
+y_max: int | None = None
+z_min: int | None = None
+z_max: int | None = None
+
 # %%
 # Load canvas from YAML spec
 print(f"Loading canvas from '{spec_name}' (d={code_distance})...")
@@ -37,7 +45,16 @@ print(f"Logical observables: {len(canvas.logical_observables)}")
 # Preview JSON structure (first N lines)
 PREVIEW_LINES = 100
 print("\n=== GraphQOMB Studio JSON Preview ===")
-result = canvas_to_graphqomb_studio_dict(canvas, name=spec.name)
+result = canvas_to_graphqomb_studio_dict(
+    canvas,
+    name=spec.name,
+    x_min=x_min,
+    x_max=x_max,
+    y_min=y_min,
+    y_max=y_max,
+    z_min=z_min,
+    z_max=z_max,
+)
 json_str = json.dumps(result, indent=2)
 all_lines = json_str.split("\n")
 preview_lines = all_lines[:PREVIEW_LINES]
@@ -51,7 +68,17 @@ output_dir.mkdir(exist_ok=True)
 spec_stem = Path(spec_name).stem
 output_path = output_dir / f"{spec_stem}_d{code_distance}.json"
 
-export_canvas_to_graphqomb_studio(canvas, output_path, name=spec.name)
+export_canvas_to_graphqomb_studio(
+    canvas,
+    output_path,
+    name=spec.name,
+    x_min=x_min,
+    x_max=x_max,
+    y_min=y_min,
+    y_max=y_max,
+    z_min=z_min,
+    z_max=z_max,
+)
 print("\n=== Exported ===")
 print(f"Output: {output_path}")
 print(f"File size: {output_path.stat().st_size:,} bytes")

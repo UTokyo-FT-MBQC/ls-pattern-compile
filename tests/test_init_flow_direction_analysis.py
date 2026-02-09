@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from pathlib import Path
+from textwrap import dedent
+
 import pytest
 
-from lspattern.canvas_loader import CanvasCubeSpec, CanvasSpec
+from lspattern.canvas_loader import CanvasCubeSpec, CanvasPipeSpec, CanvasSpec
 from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.init_flow_analysis import (
     InitFlowLayerKey,
@@ -31,15 +34,36 @@ def _boundary(
     }
 
 
-def _spec_with_cubes(*cubes: CanvasCubeSpec) -> CanvasSpec:
+def _spec_with_cubes(
+    *cubes: CanvasCubeSpec,
+    pipes: tuple[CanvasPipeSpec, ...] = (),
+    search_paths: tuple[Path, ...] = (),
+) -> CanvasSpec:
     return CanvasSpec(
         name="test-canvas",
         description="",
         layout="rotated_surface_code",
         cubes=list(cubes),
-        pipes=[],
-        search_paths=(),
+        pipes=list(pipes),
+        search_paths=search_paths,
         logical_observables=(),
+    )
+
+
+def _pipe(
+    start: Coord3D,
+    end: Coord3D,
+    boundary: dict[BoundarySide, EdgeSpecValue],
+    *,
+    block: str = "memory_block.yml",
+) -> CanvasPipeSpec:
+    return CanvasPipeSpec(
+        start=start,
+        end=end,
+        block=block,
+        boundary=boundary,
+        logical_observables=None,
+        invert_ancilla_order=False,
     )
 
 
@@ -106,6 +130,153 @@ def test_init_flow_direction_avoids_opposing_adjacent() -> None:
     # TOP = (0, -1), BOTTOM = (0, +1) in the coordinate system
     assert directions.cube_directions(left_pos)[key] == Coord2D(0, -1)  # TOP
     assert directions.cube_directions(right_pos)[key] == Coord2D(0, +1)  # BOTTOM
+
+
+def test_init_flow_direction_excludes_side_with_same_slot_pipe_basis_non_null_at_physical_z_minus_1(
+    tmp_path: Path,
+) -> None:
+    delayed_init_block = dedent("""
+    name: DelayedInitBlock
+    description: init layer appears after one memory unit
+    layers:
+      - type: MemoryUnit
+        num_layers: 1
+      - type: InitPlusUnit
+        num_layers: 1
+    """)
+    (tmp_path / "delayed_init_block.yml").write_text(delayed_init_block, encoding="utf-8")
+
+    pos = Coord3D(0, 0, 1)
+    boundary = _boundary(
+        top=EdgeSpecValue.Z,
+        bottom=EdgeSpecValue.Z,
+        left=EdgeSpecValue.Z,
+        right=EdgeSpecValue.O,
+    )
+    pipe_boundary = _boundary(
+        top=EdgeSpecValue.X,
+        bottom=EdgeSpecValue.X,
+        left=EdgeSpecValue.Z,
+        right=EdgeSpecValue.Z,
+    )
+    spec = _spec_with_cubes(
+        CanvasCubeSpec(
+            position=pos,
+            block="delayed_init_block.yml",
+            boundary=boundary,
+            logical_observables=None,
+            invert_ancilla_order=False,
+        ),
+        pipes=(
+            _pipe(Coord3D(0, 0, 1), Coord3D(1, 0, 1), pipe_boundary),
+        ),
+        search_paths=(tmp_path,),
+    )
+
+    directions = analyze_init_flow_directions(spec, code_distance=3)
+    key = InitFlowLayerKey(1, 1)
+    assert key not in directions.cube_directions(pos)
+
+
+def test_init_flow_direction_excludes_side_with_lower_slot_pipe_basis_non_null_at_physical_z_minus_1() -> None:
+    pos = Coord3D(0, 0, 1)
+    boundary = _boundary(
+        top=EdgeSpecValue.Z,
+        bottom=EdgeSpecValue.Z,
+        left=EdgeSpecValue.Z,
+        right=EdgeSpecValue.O,
+    )
+    pipe_boundary = _boundary(
+        top=EdgeSpecValue.X,
+        bottom=EdgeSpecValue.X,
+        left=EdgeSpecValue.Z,
+        right=EdgeSpecValue.Z,
+    )
+    spec = _spec_with_cubes(
+        CanvasCubeSpec(
+            position=pos,
+            block="init_plus_block.yml",
+            boundary=boundary,
+            logical_observables=None,
+            invert_ancilla_order=False,
+        ),
+        pipes=(
+            # same-slot pipe exists but its z-1 slice basis is null at d=3
+            _pipe(Coord3D(0, 0, 1), Coord3D(1, 0, 1), pipe_boundary, block="measure_x_block.yml"),
+            # lower-slot pipe has non-null basis at the same physical z-1
+            _pipe(Coord3D(0, 0, 0), Coord3D(1, 0, 0), pipe_boundary, block="memory_block.yml"),
+        ),
+    )
+
+    directions = analyze_init_flow_directions(spec, code_distance=3)
+    key = InitFlowLayerKey(0, 1)
+    assert key not in directions.cube_directions(pos)
+
+
+def test_init_flow_direction_not_excluded_when_lower_slot_pipe_basis_null_at_physical_z_minus_1() -> None:
+    pos = Coord3D(0, 0, 1)
+    boundary = _boundary(
+        top=EdgeSpecValue.Z,
+        bottom=EdgeSpecValue.Z,
+        left=EdgeSpecValue.Z,
+        right=EdgeSpecValue.O,
+    )
+    pipe_boundary = _boundary(
+        top=EdgeSpecValue.X,
+        bottom=EdgeSpecValue.X,
+        left=EdgeSpecValue.Z,
+        right=EdgeSpecValue.Z,
+    )
+    spec = _spec_with_cubes(
+        CanvasCubeSpec(
+            position=pos,
+            block="init_plus_block.yml",
+            boundary=boundary,
+            logical_observables=None,
+            invert_ancilla_order=False,
+        ),
+        pipes=(
+            # lower-slot pipe exists but its local z=5 basis is null for measure_x_block at d=3
+            _pipe(Coord3D(0, 0, 0), Coord3D(1, 0, 0), pipe_boundary, block="measure_x_block.yml"),
+        ),
+    )
+
+    directions = analyze_init_flow_directions(spec, code_distance=3)
+    key = InitFlowLayerKey(0, 1)
+    assert directions.cube_directions(pos)[key] == Coord2D(1, 0)
+
+
+def test_init_flow_direction_not_excluded_by_other_side_lower_slot_pipe() -> None:
+    pos = Coord3D(0, 0, 1)
+    boundary = _boundary(
+        top=EdgeSpecValue.Z,
+        bottom=EdgeSpecValue.Z,
+        left=EdgeSpecValue.Z,
+        right=EdgeSpecValue.O,
+    )
+    pipe_boundary = _boundary(
+        top=EdgeSpecValue.X,
+        bottom=EdgeSpecValue.X,
+        left=EdgeSpecValue.Z,
+        right=EdgeSpecValue.Z,
+    )
+    spec = _spec_with_cubes(
+        CanvasCubeSpec(
+            position=pos,
+            block="init_plus_block.yml",
+            boundary=boundary,
+            logical_observables=None,
+            invert_ancilla_order=False,
+        ),
+        pipes=(
+            _pipe(Coord3D(0, 0, 1), Coord3D(1, 0, 1), pipe_boundary, block="measure_x_block.yml"),
+            _pipe(Coord3D(0, 0, 0), Coord3D(-1, 0, 0), pipe_boundary, block="memory_block.yml"),
+        ),
+    )
+
+    directions = analyze_init_flow_directions(spec, code_distance=3)
+    key = InitFlowLayerKey(0, 1)
+    assert directions.cube_directions(pos)[key] == Coord2D(1, 0)
 
 
 # =============================================================================

@@ -23,7 +23,7 @@ from lspattern.export import (
     canvas_to_graphqomb_studio_dict,
     export_canvas_to_graphqomb_studio,
 )
-from lspattern.mytype import Coord3D
+from lspattern.mytype import Coord2D, Coord3D
 
 
 @pytest.fixture
@@ -347,3 +347,85 @@ class TestCanvasToGraphqombStudioDict:
         # Should be parseable
         parsed = json.loads(json_str)
         assert parsed == result
+
+
+class TestRangeFilteredExport:
+    """Tests for coordinate-range filtered export behavior."""
+
+    def test_range_filters_nodes_edges_flow_schedule_observables(self, simple_canvas: Canvas) -> None:
+        """Filter keeps only in-range node-linked information."""
+        # Add an out-of-range source flow to verify source pruning.
+        simple_canvas.flow.add_flow(Coord3D(1, 0, 0), Coord3D(0, 0, 0))
+
+        result = canvas_to_graphqomb_studio_dict(simple_canvas, x_min=0, x_max=0)
+
+        node_ids = [node["id"] for node in result["nodes"]]
+        assert node_ids == ["n_0_0_0", "n_0_1_0"]
+
+        edges = result["edges"]
+        assert len(edges) == 1
+        assert edges[0]["id"] == "n_0_0_0-n_0_1_0"
+
+        assert result["flow"]["xflow"] == {"n_0_0_0": ["n_0_1_0"]}
+
+        observables = result["ftqc"]["logicalObservableGroup"]
+        assert observables["obs_X"] == ["n_0_0_0"]
+        assert observables["obs_Z"] == ["n_0_1_0"]
+
+        schedule = result["schedule"]
+        assert set(schedule["prepareTime"]) == {"n_0_0_0", "n_0_1_0"}
+        assert set(schedule["measureTime"]) == {"n_0_0_0", "n_0_1_0"}
+        assert schedule["prepareTime"]["n_0_0_0"] == 0
+        assert schedule["prepareTime"]["n_0_1_0"] == 0
+        assert schedule["measureTime"]["n_0_0_0"] == 2
+        assert schedule["measureTime"]["n_0_1_0"] == 2
+        assert schedule["entangleTime"] == {}
+
+        timeline = schedule["timeline"]
+        assert [entry["time"] for entry in timeline] == [0, 2]
+        time0 = next(entry for entry in timeline if entry["time"] == 0)
+        assert time0["prepareNodes"] == ["n_0_0_0", "n_0_1_0"]
+        assert time0["entangleEdges"] == []
+        assert time0["measureNodes"] == []
+        time2 = next(entry for entry in timeline if entry["time"] == 2)
+        assert time2["prepareNodes"] == []
+        assert time2["entangleEdges"] == []
+        assert time2["measureNodes"] == ["n_0_0_0", "n_0_1_0"]
+
+    def test_range_filters_detectors_and_drops_empty_groups(self, simple_canvas: Canvas) -> None:
+        """Detector groups are filtered by node range and empty groups are removed."""
+        coord_in = Coord3D(0, 0, 0)
+        coord_out = Coord3D(1, 0, 0)
+        parity = simple_canvas.parity_accumulator
+        parity.add_syndrome_measurement(Coord2D(0, 0), 0, [coord_in, coord_out])
+        parity.add_syndrome_measurement(Coord2D(1, 0), 0, [coord_out])
+
+        result = canvas_to_graphqomb_studio_dict(simple_canvas, x_min=0, x_max=0)
+        assert result["ftqc"]["parityCheckGroup"] == [["n_0_0_0"]]
+
+    def test_invalid_range_raises(self, simple_canvas: Canvas) -> None:
+        """Invalid min/max ordering raises ValueError."""
+        with pytest.raises(ValueError, match="x_min"):
+            canvas_to_graphqomb_studio_dict(simple_canvas, x_min=2, x_max=1)
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
+            output_path = Path(f.name)
+        try:
+            with pytest.raises(ValueError, match="y_min"):
+                export_canvas_to_graphqomb_studio(simple_canvas, output_path, y_min=3, y_max=2)
+        finally:
+            output_path.unlink(missing_ok=True)
+
+    def test_no_range_keeps_backward_compatibility(self, simple_canvas: Canvas) -> None:
+        """No range bounds preserves original output shape and content."""
+        baseline = canvas_to_graphqomb_studio_dict(simple_canvas)
+        explicit_none = canvas_to_graphqomb_studio_dict(
+            simple_canvas,
+            x_min=None,
+            x_max=None,
+            y_min=None,
+            y_max=None,
+            z_min=None,
+            z_max=None,
+        )
+        assert explicit_none == baseline

@@ -9,7 +9,7 @@ from lspattern.consts import BoundarySide, EdgeSpecValue
 from lspattern.mytype import Coord2D, Coord3D
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Callable, Mapping, Sequence
     from pathlib import Path
 
     from lspattern.canvas_loader import CanvasPipeSpec, CanvasSpec
@@ -95,6 +95,78 @@ def _adjacent_pairs(positions: set[Coord3D]) -> list[tuple[Coord3D, Coord3D, Bou
     return pairs
 
 
+def _physical_z(slot_z: int, code_distance: int, unit_layer_idx: int, sublayer: int) -> int:
+    if sublayer == _SUBLAYER_1:
+        sublayer_offset = 0
+    elif sublayer == _SUBLAYER_2:
+        sublayer_offset = 1
+    else:
+        msg = f"Invalid init sublayer: {sublayer}."
+        raise ValueError(msg)
+    return slot_z * 2 * code_distance + unit_layer_idx * 2 + sublayer_offset
+
+
+def _slice_basis_at_physical_z(
+    block_config: BlockConfig,
+    *,
+    slot_z: int,
+    code_distance: int,
+    physical_z: int,
+) -> object | None:
+    if getattr(block_config, "graph_spec", None) is not None:
+        return None
+
+    block_base = slot_z * 2 * code_distance
+    local_z = physical_z - block_base
+    if local_z < 0:
+        return None
+
+    unit_layer_idx = local_z // 2
+    if unit_layer_idx < 0 or unit_layer_idx >= len(block_config):
+        return None
+
+    layer_cfg = block_config[unit_layer_idx]
+    if local_z % 2 == 0:
+        return layer_cfg.layer1.basis
+    return layer_cfg.layer2.basis
+
+
+def _get_or_load_block_config(
+    block_name: str,
+    cache: dict[str, BlockConfig],
+    *,
+    load_block_config: Callable[[str], BlockConfig],
+) -> BlockConfig:
+    cfg = cache.get(block_name)
+    if cfg is None:
+        cfg = load_block_config(block_name)
+        cache[block_name] = cfg
+    return cfg
+
+
+def _pipe_slice_has_non_null_basis(
+    pipe: CanvasPipeSpec,
+    *,
+    slot_z: int,
+    code_distance: int,
+    physical_z: int,
+    pipe_block_cache: dict[str, BlockConfig],
+    load_block_config: Callable[[str], BlockConfig],
+) -> bool:
+    block_config = _get_or_load_block_config(
+        pipe.block,
+        pipe_block_cache,
+        load_block_config=load_block_config,
+    )
+    basis = _slice_basis_at_physical_z(
+        block_config,
+        slot_z=slot_z,
+        code_distance=code_distance,
+        physical_z=physical_z,
+    )
+    return basis is not None
+
+
 def _violates_pair(dir_a: BoundarySide, dir_b: BoundarySide, dir_a_to_b: BoundarySide) -> bool:
     if dir_a_to_b == BoundarySide.RIGHT:
         return dir_a == BoundarySide.RIGHT and dir_b == BoundarySide.LEFT
@@ -161,13 +233,58 @@ def _register_init_layer_candidates(
     invert_ancilla_order: bool,
     layer_idx: int,
     sublayer: int,
+    pipes: Sequence[CanvasPipeSpec],
+    code_distance: int,
+    pipe_block_cache: dict[str, BlockConfig],
+    load_block_config: Callable[[str], BlockConfig],
 ) -> None:
     key = InitFlowLayerKey(layer_idx, sublayer)
     ancilla_type = _ancilla_type_for_init_layer(sublayer, invert_ancilla_order)
     candidates = _candidate_sides(cube_boundary, ancilla_type)
+    physical_z = _physical_z(cube_position.z, code_distance, layer_idx, sublayer)
+    check_z = physical_z - 1
+
+    # Pipe-only exclusion rule:
+    # For O-boundary sides with adjacent pipes, exclude if physical_z-1
+    # corresponds to a non-null basis slice in either same-slot pipe
+    # or z-1-slot pipe for the same side.
+    to_exclude = set()
+    for side in candidates:
+        if cube_boundary[side] != EdgeSpecValue.O:
+            continue
+
+        same_slot_pipe = _find_adjacent_pipe(cube_position, side, pipes)
+        if same_slot_pipe is None:
+            continue
+        if _pipe_slice_has_non_null_basis(
+            same_slot_pipe,
+            slot_z=cube_position.z,
+            code_distance=code_distance,
+            physical_z=check_z,
+            pipe_block_cache=pipe_block_cache,
+            load_block_config=load_block_config,
+        ):
+            to_exclude.add(side)
+            continue
+
+        below_cube = Coord3D(cube_position.x, cube_position.y, cube_position.z - 1)
+        below_slot_pipe = _find_adjacent_pipe(below_cube, side, pipes)
+        if below_slot_pipe is None:
+            continue
+        if _pipe_slice_has_non_null_basis(
+            below_slot_pipe,
+            slot_z=below_cube.z,
+            code_distance=code_distance,
+            physical_z=check_z,
+            pipe_block_cache=pipe_block_cache,
+            load_block_config=load_block_config,
+        ):
+            to_exclude.add(side)
+
+    candidates -= to_exclude
+
     if not candidates:
-        msg = f"No candidate directions for cube {cube_position} layer{sublayer} init."
-        raise ValueError(msg)
+        return  # No valid directions; temporal flow from below handles this cube
     group_candidates.setdefault(key, {})[cube_position] = candidates
 
 
@@ -298,16 +415,23 @@ def analyze_init_flow_directions(
 
     directions = InitFlowDirections()
     block_cache: dict[str, BlockConfig] = {}
+    pipe_block_cache: dict[str, BlockConfig] = {}
     merged_paths: tuple[Path | str, ...] = (*spec.search_paths, *extra_paths)
+
+    def _load_block(block_name: str) -> BlockConfig:
+        return load_block_config_from_name(
+            block_name,
+            code_distance=code_distance,
+            extra_paths=merged_paths,
+        )
 
     group_candidates: dict[InitFlowLayerKey, dict[Coord3D, set[BoundarySide]]] = {}
     for cube in spec.cubes:
-        block_config = block_cache.get(cube.block)
-        if block_config is None:
-            block_config = load_block_config_from_name(
-                cube.block, code_distance=code_distance, extra_paths=merged_paths
-            )
-            block_cache[cube.block] = block_config
+        block_config = _get_or_load_block_config(
+            cube.block,
+            block_cache,
+            load_block_config=_load_block,
+        )
 
         if getattr(block_config, "graph_spec", None) is not None:
             continue
@@ -315,11 +439,29 @@ def analyze_init_flow_directions(
         for layer_idx, layer_cfg in enumerate(block_config):
             if layer_cfg.layer1.init:
                 _register_init_layer_candidates(
-                    group_candidates, cube.position, cube.boundary, cube.invert_ancilla_order, layer_idx, _SUBLAYER_1
+                    group_candidates,
+                    cube.position,
+                    cube.boundary,
+                    cube.invert_ancilla_order,
+                    layer_idx,
+                    _SUBLAYER_1,
+                    spec.pipes,
+                    code_distance,
+                    pipe_block_cache,
+                    _load_block,
                 )
             if layer_cfg.layer2.init:
                 _register_init_layer_candidates(
-                    group_candidates, cube.position, cube.boundary, cube.invert_ancilla_order, layer_idx, _SUBLAYER_2
+                    group_candidates,
+                    cube.position,
+                    cube.boundary,
+                    cube.invert_ancilla_order,
+                    layer_idx,
+                    _SUBLAYER_2,
+                    spec.pipes,
+                    code_distance,
+                    pipe_block_cache,
+                    _load_block,
                 )
 
     for key, candidates in group_candidates.items():

@@ -327,25 +327,25 @@ def _build_layer1(  # noqa: C901
             if init_flow_directions is not None:
                 move_vec = init_flow_directions.get(InitFlowLayerKey(layer_idx, 1))
             if move_vec is None:
-                msg = f"Missing init flow direction for layer1 (unit={layer_idx})."
-                raise ValueError(msg)
-            ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
-                code_distance,
-                Coord2D(0, 0),
-                boundary,
-                edge_spec,
-                move_vec,
-                adjacent_data=adjacent_pipe_data,
-            )
-            for src_2d, tgt_2d_set in ancilla_flow.items():
-                src_coord = Coord3D(src_2d.x, src_2d.y, z)
-                for tgt_2d in tgt_2d_set:
-                    tgt_coord = Coord3D(tgt_2d.x, tgt_2d.y, z)
-                    # Only check src_coord in nodes; tgt_coord may be in adjacent pipe
-                    # for cubes with O (open) boundaries
-                    if src_coord in nodes:
-                        _validate_flow_target(tgt_2d, tgt_coord, data2d, adjacent_pipe_data)
-                        flow.add_flow(src_coord, tgt_coord)
+                pass  # No init flow needed (e.g., cube below provides temporal flow)
+            else:
+                ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
+                    code_distance,
+                    Coord2D(0, 0),
+                    boundary,
+                    edge_spec,
+                    move_vec,
+                    adjacent_data=adjacent_pipe_data,
+                )
+                for src_2d, tgt_2d_set in ancilla_flow.items():
+                    src_coord = Coord3D(src_2d.x, src_2d.y, z)
+                    for tgt_2d in tgt_2d_set:
+                        tgt_coord = Coord3D(tgt_2d.x, tgt_2d.y, z)
+                        # Only check src_coord in nodes; tgt_coord may be in adjacent pipe
+                        # for cubes with O (open) boundaries
+                        if src_coord in nodes:
+                            _validate_flow_target(tgt_2d, tgt_coord, data2d, adjacent_pipe_data)
+                            flow.add_flow(src_coord, tgt_coord)
 
 
 def _build_layer2(  # noqa: C901
@@ -462,25 +462,25 @@ def _build_layer2(  # noqa: C901
             if init_flow_directions is not None:
                 move_vec = init_flow_directions.get(InitFlowLayerKey(layer_idx, 2))
             if move_vec is None:
-                msg = f"Missing init flow direction for layer2 (unit={layer_idx})."
-                raise ValueError(msg)
-            ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
-                code_distance,
-                Coord2D(0, 0),
-                boundary,
-                edge_spec,
-                move_vec,
-                adjacent_data=adjacent_pipe_data,
-            )
-            for src_2d, tgt_2d_set in ancilla_flow.items():
-                src_coord = Coord3D(src_2d.x, src_2d.y, z + 1)
-                for tgt_2d in tgt_2d_set:
-                    tgt_coord = Coord3D(tgt_2d.x, tgt_2d.y, z + 1)
-                    # Only check src_coord in nodes; tgt_coord may be in adjacent pipe
-                    # for cubes with O (open) boundaries
-                    if src_coord in nodes:
-                        _validate_flow_target(tgt_2d, tgt_coord, data2d, adjacent_pipe_data)
-                        flow.add_flow(src_coord, tgt_coord)
+                pass  # No init flow needed (e.g., cube below provides temporal flow)
+            else:
+                ancilla_flow = RotatedSurfaceCodeLayoutBuilder.construct_initial_ancilla_flow(
+                    code_distance,
+                    Coord2D(0, 0),
+                    boundary,
+                    edge_spec,
+                    move_vec,
+                    adjacent_data=adjacent_pipe_data,
+                )
+                for src_2d, tgt_2d_set in ancilla_flow.items():
+                    src_coord = Coord3D(src_2d.x, src_2d.y, z + 1)
+                    for tgt_2d in tgt_2d_set:
+                        tgt_coord = Coord3D(tgt_2d.x, tgt_2d.y, z + 1)
+                        # Only check src_coord in nodes; tgt_coord may be in adjacent pipe
+                        # for cubes with O (open) boundaries
+                        if src_coord in nodes:
+                            _validate_flow_target(tgt_2d, tgt_coord, data2d, adjacent_pipe_data)
+                            flow.add_flow(src_coord, tgt_coord)
 
 
 def build_patch_cube_fragment(

@@ -73,7 +73,92 @@ def _axis_to_string(axis: Axis) -> str:
     return "Z"
 
 
-def _convert_nodes(canvas: Canvas) -> list[dict[str, Any]]:
+def _validate_coordinate_range(
+    *,
+    x_min: int | None = None,
+    x_max: int | None = None,
+    y_min: int | None = None,
+    y_max: int | None = None,
+    z_min: int | None = None,
+    z_max: int | None = None,
+) -> None:
+    """Validate axis-aligned coordinate range bounds.
+
+    Raises
+    ------
+    ValueError
+        If any axis has min > max.
+    """
+    axis_bounds = (
+        ("x", x_min, x_max),
+        ("y", y_min, y_max),
+        ("z", z_min, z_max),
+    )
+    for axis_name, min_value, max_value in axis_bounds:
+        if min_value is not None and max_value is not None and min_value > max_value:
+            msg = (
+                f"Invalid coordinate range: {axis_name}_min ({min_value}) must be less than or equal to "
+                f"{axis_name}_max ({max_value})"
+            )
+            raise ValueError(msg)
+
+
+def _coord_in_range(
+    coord: Coord3D,
+    *,
+    x_min: int | None = None,
+    x_max: int | None = None,
+    y_min: int | None = None,
+    y_max: int | None = None,
+    z_min: int | None = None,
+    z_max: int | None = None,
+) -> bool:
+    """Return whether a coordinate is inside the closed axis-aligned range."""
+    return (
+        (x_min is None or coord.x >= x_min)
+        and (x_max is None or coord.x <= x_max)
+        and (y_min is None or coord.y >= y_min)
+        and (y_max is None or coord.y <= y_max)
+        and (z_min is None or coord.z >= z_min)
+        and (z_max is None or coord.z <= z_max)
+    )
+
+
+def _build_allowed_nodes(
+    canvas: Canvas,
+    *,
+    x_min: int | None = None,
+    x_max: int | None = None,
+    y_min: int | None = None,
+    y_max: int | None = None,
+    z_min: int | None = None,
+    z_max: int | None = None,
+) -> set[Coord3D]:
+    """Build the coordinate set that is kept by export range filtering."""
+    _validate_coordinate_range(
+        x_min=x_min,
+        x_max=x_max,
+        y_min=y_min,
+        y_max=y_max,
+        z_min=z_min,
+        z_max=z_max,
+    )
+    return {
+        coord
+        for coord in canvas.nodes
+        if _coord_in_range(
+            coord,
+            x_min=x_min,
+            x_max=x_max,
+            y_min=y_min,
+            y_max=y_max,
+            z_min=z_min,
+            z_max=z_max,
+        )
+    }
+
+
+def _convert_nodes(canvas: Canvas, allowed_nodes: set[Coord3D] | None = None) -> list[dict[str, Any]]:
     """Convert canvas nodes to GraphQOMB Studio format.
 
     Parameters
@@ -87,9 +172,11 @@ def _convert_nodes(canvas: Canvas) -> list[dict[str, Any]]:
         List of node dictionaries in GraphQOMB Studio format.
     """
     nodes = []
-    for coord in sorted(canvas.nodes):
+    coords = canvas.nodes if allowed_nodes is None else allowed_nodes
+    pauli_axes = canvas.pauli_axes
+    for coord in sorted(coords):
         node_id = _coord_to_node_id(coord)
-        axis = canvas.pauli_axes.get(coord, Axis.Z)
+        axis = pauli_axes.get(coord, Axis.Z)
         node_dict: dict[str, Any] = {
             "id": node_id,
             "coordinate": {"x": coord.x, "y": coord.y, "z": coord.z},
@@ -104,7 +191,7 @@ def _convert_nodes(canvas: Canvas) -> list[dict[str, Any]]:
     return nodes
 
 
-def _convert_edges(canvas: Canvas) -> list[dict[str, str]]:
+def _convert_edges(canvas: Canvas, allowed_nodes: set[Coord3D] | None = None) -> list[dict[str, str]]:
     """Convert canvas edges to GraphQOMB Studio format.
 
     Parameters
@@ -120,6 +207,8 @@ def _convert_edges(canvas: Canvas) -> list[dict[str, str]]:
     edges = []
     seen_ids: set[str] = set()
     for coord1, coord2 in canvas.edges:
+        if allowed_nodes is not None and (coord1 not in allowed_nodes or coord2 not in allowed_nodes):
+            continue
         source_id = _coord_to_node_id(coord1)
         target_id = _coord_to_node_id(coord2)
         edge_id = _normalize_edge_id(source_id, target_id)
@@ -134,7 +223,7 @@ def _convert_edges(canvas: Canvas) -> list[dict[str, str]]:
     return sorted(edges, key=operator.itemgetter("id"))
 
 
-def _convert_xflow(canvas: Canvas) -> dict[str, list[str]]:
+def _convert_xflow(canvas: Canvas, allowed_nodes: set[Coord3D] | None = None) -> dict[str, list[str]]:
     """Convert canvas flow to GraphQOMB Studio xflow format.
 
     Parameters
@@ -149,8 +238,14 @@ def _convert_xflow(canvas: Canvas) -> dict[str, list[str]]:
     """
     xflow: dict[str, list[str]] = {}
     for from_coord, to_coords in canvas.flow.flow.items():
+        if allowed_nodes is not None and from_coord not in allowed_nodes:
+            continue
         from_id = _coord_to_node_id(from_coord)
-        to_ids = sorted(_coord_to_node_id(c) for c in to_coords)
+        to_ids = sorted(
+            _coord_to_node_id(c)
+            for c in to_coords
+            if allowed_nodes is None or c in allowed_nodes
+        )
         if to_ids:
             xflow[from_id] = to_ids
     return xflow
@@ -159,6 +254,7 @@ def _convert_xflow(canvas: Canvas) -> dict[str, list[str]]:
 def _build_node_time_map(
     canvas: Canvas,
     time_dict: dict[int, set[Coord3D]],
+    allowed_nodes: set[Coord3D] | None = None,
 ) -> dict[str, int | None]:
     """Build a mapping from node IDs to their scheduled time.
 
@@ -174,16 +270,19 @@ def _build_node_time_map(
     dict[str, int | None]
         Mapping from node ID to scheduled time (or None if not scheduled).
     """
-    result: dict[str, int | None] = {_coord_to_node_id(c): None for c in canvas.nodes}
+    nodes_for_map = canvas.nodes if allowed_nodes is None else allowed_nodes
+    result: dict[str, int | None] = {_coord_to_node_id(c): None for c in nodes_for_map}
     for time, coords in time_dict.items():
         for coord in coords:
-            node_id = _coord_to_node_id(coord)
-            if node_id in result:
-                result[node_id] = time
+            if coord in nodes_for_map:
+                result[_coord_to_node_id(coord)] = time
     return result
 
 
-def _build_entangle_time_map(scheduler: CoordScheduleAccumulator) -> dict[str, int]:
+def _build_entangle_time_map(
+    scheduler: CoordScheduleAccumulator,
+    allowed_nodes: set[Coord3D] | None = None,
+) -> dict[str, int]:
     """Build a mapping from edge IDs to their entanglement time.
 
     Parameters
@@ -199,6 +298,8 @@ def _build_entangle_time_map(scheduler: CoordScheduleAccumulator) -> dict[str, i
     result: dict[str, int] = {}
     for time, edges in scheduler.entangle_time.items():
         for coord1, coord2 in edges:
+            if allowed_nodes is not None and (coord1 not in allowed_nodes or coord2 not in allowed_nodes):
+                continue
             source_id = _coord_to_node_id(coord1)
             target_id = _coord_to_node_id(coord2)
             edge_id = _normalize_edge_id(source_id, target_id)
@@ -206,7 +307,10 @@ def _build_entangle_time_map(scheduler: CoordScheduleAccumulator) -> dict[str, i
     return result
 
 
-def _build_timeline(scheduler: CoordScheduleAccumulator) -> list[dict[str, Any]]:
+def _build_timeline(
+    scheduler: CoordScheduleAccumulator,
+    allowed_nodes: set[Coord3D] | None = None,
+) -> list[dict[str, Any]]:
     """Build timeline array from scheduler data.
 
     Parameters
@@ -226,12 +330,23 @@ def _build_timeline(scheduler: CoordScheduleAccumulator) -> list[dict[str, Any]]
 
     timeline: list[dict[str, Any]] = []
     for time in sorted(all_times):
-        prep_nodes = sorted(_coord_to_node_id(c) for c in scheduler.prep_time.get(time, set()))
-        meas_nodes = sorted(_coord_to_node_id(c) for c in scheduler.meas_time.get(time, set()))
+        prep_nodes = sorted(
+            _coord_to_node_id(c)
+            for c in scheduler.prep_time.get(time, set())
+            if allowed_nodes is None or c in allowed_nodes
+        )
+        meas_nodes = sorted(
+            _coord_to_node_id(c)
+            for c in scheduler.meas_time.get(time, set())
+            if allowed_nodes is None or c in allowed_nodes
+        )
         entangle_edges = sorted(
             _normalize_edge_id(_coord_to_node_id(c1), _coord_to_node_id(c2))
             for c1, c2 in scheduler.entangle_time.get(time, set())
+            if allowed_nodes is None or (c1 in allowed_nodes and c2 in allowed_nodes)
         )
+        if not prep_nodes and not entangle_edges and not meas_nodes:
+            continue
         timeline.append(
             {
                 "time": time,
@@ -243,7 +358,7 @@ def _build_timeline(scheduler: CoordScheduleAccumulator) -> list[dict[str, Any]]
     return timeline
 
 
-def _convert_schedule(canvas: Canvas) -> dict[str, Any]:
+def _convert_schedule(canvas: Canvas, allowed_nodes: set[Coord3D] | None = None) -> dict[str, Any]:
     """Convert canvas scheduler to GraphQOMB Studio schedule format.
 
     Parameters
@@ -258,14 +373,14 @@ def _convert_schedule(canvas: Canvas) -> dict[str, Any]:
     """
     scheduler = canvas.scheduler
     return {
-        "prepareTime": _build_node_time_map(canvas, scheduler.prep_time),
-        "measureTime": _build_node_time_map(canvas, scheduler.meas_time),
-        "entangleTime": _build_entangle_time_map(scheduler),
-        "timeline": _build_timeline(scheduler),
+        "prepareTime": _build_node_time_map(canvas, scheduler.prep_time, allowed_nodes=allowed_nodes),
+        "measureTime": _build_node_time_map(canvas, scheduler.meas_time, allowed_nodes=allowed_nodes),
+        "entangleTime": _build_entangle_time_map(scheduler, allowed_nodes=allowed_nodes),
+        "timeline": _build_timeline(scheduler, allowed_nodes=allowed_nodes),
     }
 
 
-def _convert_detectors(canvas: Canvas) -> list[list[str]]:
+def _convert_detectors(canvas: Canvas, allowed_nodes: set[Coord3D] | None = None) -> list[list[str]]:
     """Convert canvas parity accumulator to detector groups.
 
     Parameters
@@ -281,13 +396,16 @@ def _convert_detectors(canvas: Canvas) -> list[list[str]]:
     detectors = construct_detector(canvas.parity_accumulator)
     result: list[list[str]] = []
     for _, coords in sorted(detectors.items()):
-        group = sorted(_coord_to_node_id(c) for c in coords)
+        filtered_coords = coords if allowed_nodes is None else {c for c in coords if c in allowed_nodes}
+        group = sorted(_coord_to_node_id(c) for c in filtered_coords)
         if group:
             result.append(group)
     return result
 
 
-def _convert_logical_observables(canvas: Canvas) -> dict[str, list[str]]:
+def _convert_logical_observables(
+    canvas: Canvas, allowed_nodes: set[Coord3D] | None = None
+) -> dict[str, list[str]]:
     """Convert canvas couts and pipe_couts to logical observable groups.
 
     Parameters
@@ -320,6 +438,10 @@ def _convert_logical_observables(canvas: Canvas) -> dict[str, list[str]]:
     result: dict[str, list[str]] = {}
     for label in sorted(merged.keys()):
         coords = merged[label]
+        if allowed_nodes is not None:
+            coords = {coord for coord in coords if coord in allowed_nodes}
+        if not coords:
+            continue
         result[label] = sorted(_coord_to_node_id(c) for c in coords)
 
     return result
@@ -329,6 +451,13 @@ def export_canvas_to_graphqomb_studio(
     canvas: Canvas,
     output_path: str | Path,
     name: str = "Exported from lspattern",
+    *,
+    x_min: int | None = None,
+    x_max: int | None = None,
+    y_min: int | None = None,
+    y_max: int | None = None,
+    z_min: int | None = None,
+    z_max: int | None = None,
 ) -> None:
     """Export Canvas to GraphQOMB Studio JSON format.
 
@@ -340,6 +469,9 @@ def export_canvas_to_graphqomb_studio(
         Path to write the JSON file.
     name : str
         Project name in the exported JSON.
+    x_min, x_max, y_min, y_max, z_min, z_max : int | None
+        Closed-range bounds for node coordinates to export. Unspecified bounds
+        are treated as unbounded.
 
     Examples
     --------
@@ -348,20 +480,29 @@ def export_canvas_to_graphqomb_studio(
     >>> canvas = Canvas(config)
     >>> export_canvas_to_graphqomb_studio(canvas, "output.json", name="My Project")
     """
+    allowed_nodes = _build_allowed_nodes(
+        canvas,
+        x_min=x_min,
+        x_max=x_max,
+        y_min=y_min,
+        y_max=y_max,
+        z_min=z_min,
+        z_max=z_max,
+    )
     project: dict[str, Any] = {
         "$schema": "graphqomb-studio/v1",
         "name": name,
-        "nodes": _convert_nodes(canvas),
-        "edges": _convert_edges(canvas),
+        "nodes": _convert_nodes(canvas, allowed_nodes=allowed_nodes),
+        "edges": _convert_edges(canvas, allowed_nodes=allowed_nodes),
         "flow": {
-            "xflow": _convert_xflow(canvas),
+            "xflow": _convert_xflow(canvas, allowed_nodes=allowed_nodes),
             "zflow": "auto",
         },
         "ftqc": {
-            "parityCheckGroup": _convert_detectors(canvas),
-            "logicalObservableGroup": _convert_logical_observables(canvas),
+            "parityCheckGroup": _convert_detectors(canvas, allowed_nodes=allowed_nodes),
+            "logicalObservableGroup": _convert_logical_observables(canvas, allowed_nodes=allowed_nodes),
         },
-        "schedule": _convert_schedule(canvas),
+        "schedule": _convert_schedule(canvas, allowed_nodes=allowed_nodes),
     }
 
     with Path(output_path).open("w", encoding="utf-8") as f:
@@ -371,6 +512,13 @@ def export_canvas_to_graphqomb_studio(
 def canvas_to_graphqomb_studio_dict(
     canvas: Canvas,
     name: str = "Exported from lspattern",
+    *,
+    x_min: int | None = None,
+    x_max: int | None = None,
+    y_min: int | None = None,
+    y_max: int | None = None,
+    z_min: int | None = None,
+    z_max: int | None = None,
 ) -> dict[str, Any]:
     """Convert Canvas to GraphQOMB Studio JSON dictionary.
 
@@ -382,24 +530,36 @@ def canvas_to_graphqomb_studio_dict(
         The canvas to convert.
     name : str
         Project name in the output dictionary.
+    x_min, x_max, y_min, y_max, z_min, z_max : int | None
+        Closed-range bounds for node coordinates to export. Unspecified bounds
+        are treated as unbounded.
 
     Returns
     -------
     dict[str, Any]
         The GraphQOMB Studio JSON dictionary.
     """
+    allowed_nodes = _build_allowed_nodes(
+        canvas,
+        x_min=x_min,
+        x_max=x_max,
+        y_min=y_min,
+        y_max=y_max,
+        z_min=z_min,
+        z_max=z_max,
+    )
     return {
         "$schema": "graphqomb-studio/v1",
         "name": name,
-        "nodes": _convert_nodes(canvas),
-        "edges": _convert_edges(canvas),
+        "nodes": _convert_nodes(canvas, allowed_nodes=allowed_nodes),
+        "edges": _convert_edges(canvas, allowed_nodes=allowed_nodes),
         "flow": {
-            "xflow": _convert_xflow(canvas),
+            "xflow": _convert_xflow(canvas, allowed_nodes=allowed_nodes),
             "zflow": "auto",
         },
         "ftqc": {
-            "parityCheckGroup": _convert_detectors(canvas),
-            "logicalObservableGroup": _convert_logical_observables(canvas),
+            "parityCheckGroup": _convert_detectors(canvas, allowed_nodes=allowed_nodes),
+            "logicalObservableGroup": _convert_logical_observables(canvas, allowed_nodes=allowed_nodes),
         },
-        "schedule": _convert_schedule(canvas),
+        "schedule": _convert_schedule(canvas, allowed_nodes=allowed_nodes),
     }

@@ -1,0 +1,64 @@
+name: 2 Block Patch Rotation Canvas
+description: Global config for rotated surface code based blocks
+
+layout: rotated_surface_code # required
+
+cube:
+  - position: [0, 0, 0]
+    block: InitPlusBlock
+    boundary: ZZXX
+  - position: [0, 0, 1]
+    block: MemoryBlock
+    boundary: ZZXO
+  - position: [1, 0, 1]
+    block: InitPlusBlock
+    boundary: ZXOZ
+  - position: [0, 0, 2]
+    block: MeasureXBlock
+    boundary: ZZXO
+    logical_observables: RL
+  - position: [1, 0, 2]
+    block: MemoryBlock
+    boundary: XXZZ
+  - position: [0, 0, 3]
+    block: InitPlusBlock
+    boundary: XXZO
+  - position: [1, 0, 3]
+    block: MemoryBlock
+    boundary: XXOZ
+  - position: [0, 0, 4]
+    block: MemoryBlock
+    boundary: XXZZ
+  - position: [1, 0, 4]
+    block: MeasureXBlock
+    boundary: XXOZ
+  - position: [0, 0, 5]
+    block: MeasureXBlock
+    boundary: XXZZ
+    logical_observables: TB
+
+pipe:
+  - start: [0, 0, 1]
+    end: [1, 0, 1]
+    block: InitPlusBlock
+    boundary: ZZOO
+    logical_observables: X
+  - start: [0, 0, 2]
+    end: [1, 0, 2]
+    block: MeasureXBlock
+    boundary: ZZOX
+    logical_observables: RL
+  - start: [0, 0, 3]
+    end: [1, 0, 3]
+    block: InitPlusBlock
+    boundary: XXOO
+    logical_observables: Z
+  - start: [0, 0, 4]
+    end: [1, 0, 4]
+    block: MeasureXBlock
+    boundary: XXZO
+
+
+logical_observables:
+  - cube: [[0, 0, 2], [0, 0, 5]]
+    pipe: [[[0, 0, 2], [1, 0, 2]], [[0, 0, 3], [1, 0, 3]]]

@@ -1,0 +1,9 @@
+name: MeasureXBulkBlock
+description: |
+  This block represents a measure X bulk block. The terminate timing is synchronized with short x memory block.
+
+layers: # list of layers in this block
+  - type: MemoryUnit
+    num_layers_from_distance: rest
+  - type: MeasureXUnit
+    num_layers: 1
