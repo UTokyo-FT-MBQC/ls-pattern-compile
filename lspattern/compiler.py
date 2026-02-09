@@ -13,6 +13,12 @@ from graphqomb.stim_compiler import stim_compile
 from lspattern.detector import construct_detector
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from graphqomb.graphstate import BaseGraphState
+    from graphqomb.noise_model import NoiseModel
+    from graphqomb.pattern import Pattern
+
     from lspattern.canvas import Canvas
     from lspattern.canvas_loader import CompositeLogicalObservableSpec
     from lspattern.mytype import Coord3D
@@ -76,11 +82,22 @@ def _collect_logical_observable_nodes(  # noqa: C901
     return nodes
 
 
-def compile_canvas_to_stim(
+def compile_canvas_to_pattern(
     canvas: Canvas,
-    p_depol_after_clifford: float,
-    p_before_meas_flip: float,
-) -> str:
+) -> tuple[Pattern, BaseGraphState, dict[Coord3D, int]]:
+    """Compile a canvas into a measurement pattern.
+
+    Parameters
+    ----------
+    canvas : Canvas
+        The canvas containing graph-state, flow, and scheduling data.
+
+    Returns
+    -------
+    tuple[Pattern, BaseGraphState, dict[Coord3D, int]]
+        The compiled pattern, the graph state, and the node map from
+        coordinates to node IDs.
+    """
     graph, node_map = GraphState.from_graph(
         nodes=canvas.nodes,
         edges=canvas.edges,
@@ -104,6 +121,39 @@ def compile_canvas_to_stim(
             detectors.append(frozenset(det_nodes))
     pattern = qompile(graph, flow, parity_check_group=detectors, scheduler=scheduler)
 
+    return pattern, graph, node_map
+
+
+def compile_canvas_to_stim(
+    canvas: Canvas,
+    p_depol_after_clifford: float | None = None,
+    p_before_meas_flip: float | None = None,
+    *,
+    noise_models: Sequence[NoiseModel] | None = None,
+) -> str:
+    """Compile a canvas into a stim circuit string.
+
+    Parameters
+    ----------
+    canvas : Canvas
+        The canvas containing graph-state, flow, and scheduling data.
+    p_depol_after_clifford : float | None, optional
+        Legacy depolarization error rate after Clifford gates.
+        Cannot be combined with ``noise_models``.
+    p_before_meas_flip : float | None, optional
+        Legacy bit-flip error rate before measurement.
+        Cannot be combined with ``noise_models``.
+    noise_models : collections.abc.Sequence[NoiseModel] | None, optional
+        Sequence of custom ``graphqomb`` noise models.
+        Use this to inject user-defined noise behaviors.
+
+    Returns
+    -------
+    str
+        The stim circuit as a string.
+    """
+    pattern, _graph, node_map = compile_canvas_to_pattern(canvas)
+
     # extract logical observables from canvas
     logical_observables_nodes: dict[int, set[int]] = {}
     for key, composite_logical_obs in enumerate(canvas.logical_observables):
@@ -115,5 +165,6 @@ def compile_canvas_to_stim(
         logical_observables_nodes,
         p_depol_after_clifford=p_depol_after_clifford,
         p_before_meas_flip=p_before_meas_flip,
+        noise_models=noise_models,
     )
     return result
