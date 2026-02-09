@@ -270,6 +270,39 @@ def test_ancilla_without_two_stitched_endpoints_is_ignored() -> None:
     assert canvas["pipe"] == []
 
 
+def test_rotation_component_inserts_right_rotation_template() -> None:
+    slices = [
+        [[None, _qubit_cell(qid=5, top="Dashed", bottom="Dashed", left="Solid", right="Solid")]],
+        [[_ancilla_cell(right="AncillaJoin"), _ancilla_cell(left="AncillaJoin")]],
+        [[_ancilla_cell(right="AncillaJoin"), _ancilla_cell(left="AncillaJoin")]],
+        [[_ancilla_cell(right="AncillaJoin"), _ancilla_cell(left="AncillaJoin")]],
+        [[None, _qubit_cell(qid=5)]],
+    ]
+
+    canvas = _load_yaml(convert_slices_to_canvas_yaml(slices, name="rotation-right"))
+
+    assert _cube_entry(canvas, [1, 0, 1])["block"] == "MemoryBlock"
+    assert _cube_entry(canvas, [1, 0, 1])["boundary"] == "XXOZ"
+    assert _cube_entry(canvas, [1, 0, 4])["block"] == "MemoryBlock"
+    assert _cube_entry(canvas, [0, 0, 4])["block"] == "MeasureXBlock"
+    assert _pipe_entry(canvas, [0, 0, 1], [1, 0, 1])["boundary"] == "XXOO"
+
+
+def test_rotation_component_boundary_swaps_xz_when_needed() -> None:
+    slices = [
+        [[None, _qubit_cell(qid=7)]],
+        [[_ancilla_cell(right="AncillaJoin"), _ancilla_cell(left="AncillaJoin")]],
+        [[_ancilla_cell(right="AncillaJoin"), _ancilla_cell(left="AncillaJoin")]],
+        [[_ancilla_cell(right="AncillaJoin"), _ancilla_cell(left="AncillaJoin")]],
+        [[None, _qubit_cell(qid=7)]],
+    ]
+
+    canvas = _load_yaml(convert_slices_to_canvas_yaml(slices, name="rotation-right-swapped"))
+
+    assert _cube_entry(canvas, [1, 0, 1])["boundary"] == "ZZOX"
+    assert _pipe_entry(canvas, [0, 0, 1], [1, 0, 1])["boundary"] == "ZZOO"
+
+
 def test_invalid_input_shape_raises() -> None:
     slices = [
         [[None], [None, None]],

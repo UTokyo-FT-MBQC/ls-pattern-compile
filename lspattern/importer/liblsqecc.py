@@ -7,6 +7,7 @@ import re
 from collections import defaultdict
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from functools import lru_cache
 from operator import itemgetter
 from pathlib import Path
 from typing import Any
@@ -32,6 +33,25 @@ _OPPOSITE_SIDE = {
     "Bottom": "Top",
     "Left": "Right",
     "Right": "Left",
+}
+_SIDE_INDEX = {side: idx for idx, side in enumerate(_BOUNDARY_KEYS)}
+_ROTATION_TEMPLATE_FILES = {
+    "left": "_patch_rotation2_left.yml",
+    "right": "_patch_rotation2_right.yml",
+    "top": "_patch_rotation2_top.yml",
+    "bottom": "_patch_rotation2_bottom.yml",
+}
+_ROTATION_INPUT_REL = {
+    "left": (0, 0),
+    "right": (1, 0),
+    "top": (0, 0),
+    "bottom": (0, 1),
+}
+_ROTATION_HELPER_REL = {
+    "left": (1, 0),
+    "right": (0, 0),
+    "top": (0, 1),
+    "bottom": (0, 0),
 }
 
 Coord2D = tuple[int, int]
@@ -73,11 +93,30 @@ class _AncillaComponent:
 
 
 @dataclass(frozen=True)
+class _AncillaComponentExtracted:
+    z: int
+    cells: frozenset[Coord2D]
+    ancilla_links: frozenset[tuple[Coord2D, Coord2D]]
+    qubit_links: frozenset[tuple[Coord2D, Coord2D]]
+    endpoint_stitch_kinds: tuple[tuple[Coord2D, frozenset[str]], ...]
+
+
+@dataclass(frozen=True)
 class _PipeInternal:
     start: Coord3D
     end: Coord3D
     block: str
     basis: str  # "ZZ" or "XX"
+
+
+@dataclass(frozen=True)
+class _RotationTemplate:
+    direction: str
+    input_rel: Coord2D
+    helper_rel: Coord2D
+    input_boundary_at_z0: str
+    cubes: tuple[tuple[Coord3D, str, str], ...]
+    pipes: tuple[tuple[Coord3D, Coord3D, str, str], ...]
 
 
 def _normalize_edge_value(edge: object, *, context: str) -> str:
@@ -448,11 +487,11 @@ def default_distillation_template(
     return cubes, pipes
 
 
-def _extract_valid_ancilla_components(  # noqa: C901
+def _extract_ancilla_components(  # noqa: C901
     slice_rows: list[list[Mapping[str, Any] | None]],
     *,
     z: int,
-) -> list[_AncillaComponent]:
+) -> list[_AncillaComponentExtracted]:
     height = len(slice_rows)
     width = len(slice_rows[0]) if height > 0 else 0
 
@@ -487,7 +526,7 @@ def _extract_valid_ancilla_components(  # noqa: C901
             if _is_ancilla_join(neighbor_edges[_OPPOSITE_SIDE[side]]):
                 adjacency[coord].add(neighbor)
 
-    components: list[_AncillaComponent] = []
+    components: list[_AncillaComponentExtracted] = []
     visited: set[Coord2D] = set()
 
     for start in sorted(ancilla_cells):
@@ -541,6 +580,32 @@ def _extract_valid_ancilla_components(  # noqa: C901
                 endpoint_stitch_kinds[qubit_coord].add(stitched_kind)
                 qubit_links.add((coord, qubit_coord))
 
+        frozen_endpoint_kinds = tuple(
+            sorted((coord, frozenset(kinds)) for coord, kinds in endpoint_stitch_kinds.items()),
+        )
+        components.append(
+            _AncillaComponentExtracted(
+                z=z,
+                cells=frozenset(cells),
+                ancilla_links=frozenset(ancilla_links),
+                qubit_links=frozenset(qubit_links),
+                endpoint_stitch_kinds=frozen_endpoint_kinds,
+            ),
+        )
+
+    return components
+
+
+def _extract_valid_ancilla_components(
+    slice_rows: list[list[Mapping[str, Any] | None]],
+    *,
+    z: int,
+) -> list[_AncillaComponent]:
+    extracted = _extract_ancilla_components(slice_rows, z=z)
+    components: list[_AncillaComponent] = []
+    for component in extracted:
+        endpoint_stitch_kinds = dict(component.endpoint_stitch_kinds)
+
         # Ignore non-measurement ancilla regions (e.g., distillation-side routing artifacts).
         if len(endpoint_stitch_kinds) != 2:  # noqa: PLR2004
             continue
@@ -549,18 +614,295 @@ def _extract_valid_ancilla_components(  # noqa: C901
         for kinds in endpoint_stitch_kinds.values():
             stitched_kinds.update(kinds)
 
-        basis = _basis_from_stitch_kinds(stitched_kinds, context=f"slice={z}, ancilla_component_start={start}")
+        basis = _basis_from_stitch_kinds(
+            stitched_kinds,
+            context=f"slice={z}, ancilla_component_start={next(iter(component.cells), None)}",
+        )
         components.append(
             _AncillaComponent(
-                z=z,
+                z=component.z,
                 basis=basis,
-                cells=frozenset(cells),
-                ancilla_links=frozenset(ancilla_links),
-                qubit_links=frozenset(qubit_links),
-            )
+                cells=component.cells,
+                ancilla_links=component.ancilla_links,
+                qubit_links=component.qubit_links,
+            ),
+        )
+    return components
+
+
+def _swap_xz_boundary(boundary: str) -> str:
+    trans = {"X": "Z", "Z": "X"}
+    return "".join(trans.get(ch, ch) for ch in boundary)
+
+
+def _side_from_to(a: Coord2D, b: Coord2D) -> str | None:
+    dx = b[0] - a[0]
+    dy = b[1] - a[1]
+    if dx == 1 and dy == 0:
+        return "Right"
+    if dx == -1 and dy == 0:
+        return "Left"
+    if dx == 0 and dy == 1:
+        return "Bottom"
+    if dx == 0 and dy == -1:
+        return "Top"
+    return None
+
+
+def _rotation_direction_from_input(input_coord: Coord2D, helper_coord: Coord2D) -> str | None:
+    if helper_coord[0] == input_coord[0] - 1 and helper_coord[1] == input_coord[1]:
+        return "right"
+    if helper_coord[0] == input_coord[0] + 1 and helper_coord[1] == input_coord[1]:
+        return "left"
+    if helper_coord[0] == input_coord[0] and helper_coord[1] == input_coord[1] - 1:
+        return "bottom"
+    if helper_coord[0] == input_coord[0] and helper_coord[1] == input_coord[1] + 1:
+        return "top"
+    return None
+
+
+def _can_match_rotation_boundary(
+    source_boundary: str,
+    template_boundary: str,
+    *,
+    join_side: str,
+    swap_xz: bool,
+) -> bool:
+    join_idx = _SIDE_INDEX[join_side]
+    candidate = _swap_xz_boundary(template_boundary) if swap_xz else template_boundary
+    for idx, (source_ch, cand_ch) in enumerate(zip(source_boundary, candidate, strict=True)):
+        if idx == join_idx:
+            continue
+        if source_ch in {"X", "Z"} and cand_ch in {"X", "Z"} and source_ch != cand_ch:
+            return False
+    return True
+
+
+@lru_cache(maxsize=1)
+def _load_rotation_templates() -> dict[str, _RotationTemplate]:
+    base_dir = Path(__file__).resolve().parents[2] / "examples" / "design" / "utils"
+    templates: dict[str, _RotationTemplate] = {}
+
+    for direction, filename in _ROTATION_TEMPLATE_FILES.items():
+        path = base_dir / filename
+        if not path.exists():
+            return {}
+
+        loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if not isinstance(loaded, Mapping):
+            msg = f"Rotation template must be a mapping: {path}"
+            raise LibLsQeccImportError(msg)
+
+        cube_raw = loaded.get("cube")
+        pipe_raw = loaded.get("pipe")
+        if not isinstance(cube_raw, list) or not isinstance(pipe_raw, list):
+            msg = f"Rotation template must define list-valued cube/pipe sections: {path}"
+            raise LibLsQeccImportError(msg)
+
+        cubes: list[tuple[Coord3D, str, str]] = []
+        pipes: list[tuple[Coord3D, Coord3D, str, str]] = []
+        for cube in cube_raw:
+            if not isinstance(cube, Mapping):
+                msg = f"Rotation template cube entry must be mapping: {path}"
+                raise LibLsQeccImportError(msg)
+            pos = cube.get("position")
+            block = cube.get("block")
+            boundary = cube.get("boundary")
+            if (
+                not isinstance(pos, list)
+                or len(pos) != 3  # noqa: PLR2004
+                or not all(isinstance(v, int) for v in pos)
+                or not isinstance(block, str)
+                or not isinstance(boundary, str)
+                or len(boundary) != 4  # noqa: PLR2004
+            ):
+                msg = f"Invalid cube entry in rotation template: {path}"
+                raise LibLsQeccImportError(msg)
+            cubes.append(((pos[0], pos[1], pos[2]), block, boundary))
+
+        for pipe in pipe_raw:
+            if not isinstance(pipe, Mapping):
+                msg = f"Rotation template pipe entry must be mapping: {path}"
+                raise LibLsQeccImportError(msg)
+            start = pipe.get("start")
+            end = pipe.get("end")
+            block = pipe.get("block")
+            boundary = pipe.get("boundary")
+            if (
+                not isinstance(start, list)
+                or len(start) != 3  # noqa: PLR2004
+                or not all(isinstance(v, int) for v in start)
+                or not isinstance(end, list)
+                or len(end) != 3  # noqa: PLR2004
+                or not all(isinstance(v, int) for v in end)
+                or not isinstance(block, str)
+                or not isinstance(boundary, str)
+                or len(boundary) != 4  # noqa: PLR2004
+            ):
+                msg = f"Invalid pipe entry in rotation template: {path}"
+                raise LibLsQeccImportError(msg)
+            pipes.append(((start[0], start[1], start[2]), (end[0], end[1], end[2]), block, boundary))
+
+        input_rel = _ROTATION_INPUT_REL[direction]
+        helper_rel = _ROTATION_HELPER_REL[direction]
+        input_boundary = None
+        for rel, _block, boundary in cubes:
+            if rel[2] == 0 and (rel[0], rel[1]) == input_rel:
+                input_boundary = boundary
+                break
+
+        if input_boundary is None:
+            msg = f"Rotation template missing input boundary cube at z=0: {path}"
+            raise LibLsQeccImportError(msg)
+
+        templates[direction] = _RotationTemplate(
+            direction=direction,
+            input_rel=input_rel,
+            helper_rel=helper_rel,
+            input_boundary_at_z0=input_boundary,
+            cubes=tuple(cubes),
+            pipes=tuple(pipes),
         )
 
-    return components
+    return templates
+
+
+def _detect_rotation_overrides(
+    normalized: list[list[list[Mapping[str, Any] | None]]],
+) -> tuple[dict[Coord3D, dict[str, object]], dict[tuple[Coord3D, Coord3D], dict[str, object]]]:
+    templates = _load_rotation_templates()
+    if not templates:
+        return {}, {}
+
+    components_per_slice: list[list[_AncillaComponentExtracted]] = []
+    for z, slice_rows in enumerate(normalized):
+        components_per_slice.append(_extract_ancilla_components(slice_rows, z=z))
+
+    candidate_zs_by_cells: dict[frozenset[Coord2D], list[int]] = defaultdict(list)
+    for z, components in enumerate(components_per_slice):
+        for component in components:
+            if len(component.endpoint_stitch_kinds) != 0:
+                continue
+            if len(component.cells) != 2:  # noqa: PLR2004
+                continue
+            if len(component.ancilla_links) != 1:
+                continue
+            candidate_zs_by_cells[component.cells].append(z)
+
+    cube_overrides: dict[Coord3D, dict[str, object]] = {}
+    pipe_overrides: dict[tuple[Coord3D, Coord3D], dict[str, object]] = {}
+
+    for cells, zs in candidate_zs_by_cells.items():
+        zs_sorted = sorted(zs)
+        if not zs_sorted:
+            continue
+
+        run_start = zs_sorted[0]
+        run_end = zs_sorted[0]
+
+        def process_run(start: int, end: int) -> None:
+            run_len = end - start + 1
+            if run_len != 3:  # noqa: PLR2004
+                return
+            if start <= 0:
+                return
+            z_after = end + 1
+            if z_after >= len(normalized):
+                return
+
+            coords = sorted(cells)
+            input_candidates: list[tuple[Coord2D, str]] = []
+            for coord in coords:
+                x, y = coord
+                prev_cell = normalized[start - 1][y][x]
+                after_cell = normalized[z_after][y][x]
+                if not _is_qubit_cell(prev_cell) or not _is_qubit_cell(after_cell):
+                    continue
+                if prev_cell is None or after_cell is None:
+                    continue
+
+                prev_id = _extract_qubit_id(prev_cell)
+                after_id = _extract_qubit_id(after_cell)
+                same_id = prev_id is not None and after_id is not None and prev_id == after_id
+                if not same_id:
+                    continue
+                source_boundary = _cell_boundary_string(prev_cell, z=start - 1, y=y, x=x)
+                input_candidates.append((coord, source_boundary))
+
+            if len(input_candidates) != 1:
+                return
+
+            input_coord, source_boundary = input_candidates[0]
+            helper_coord = coords[0] if coords[1] == input_coord else coords[1]
+            direction = _rotation_direction_from_input(input_coord, helper_coord)
+            if direction is None:
+                return
+
+            template = templates.get(direction)
+            if template is None:
+                return
+
+            join_side = _side_from_to(input_coord, helper_coord)
+            if join_side is None:
+                return
+
+            swap_xz: bool | None = None
+            for swap_candidate in (False, True):
+                if _can_match_rotation_boundary(
+                    source_boundary,
+                    template.input_boundary_at_z0,
+                    join_side=join_side,
+                    swap_xz=swap_candidate,
+                ):
+                    swap_xz = swap_candidate
+                    break
+
+            if swap_xz is None:
+                return
+
+            anchor_x = input_coord[0] - template.input_rel[0]
+            anchor_y = input_coord[1] - template.input_rel[1]
+            anchor_z = start
+
+            for rel_coord, block, boundary in template.cubes:
+                x = anchor_x + rel_coord[0]
+                y = anchor_y + rel_coord[1]
+                z = anchor_z + rel_coord[2]
+                if z < 0 or z >= len(normalized):
+                    return
+                if y < 0 or y >= len(normalized[z]):
+                    return
+                if x < 0 or x >= len(normalized[z][y]):
+                    return
+                adjusted_boundary = _swap_xz_boundary(boundary) if swap_xz else boundary
+                cube_overrides[(x, y, z)] = {
+                    "position": [x, y, z],
+                    "block": block,
+                    "boundary": adjusted_boundary,
+                }
+
+            for rel_start, rel_end, block, boundary in template.pipes:
+                start_abs = (anchor_x + rel_start[0], anchor_y + rel_start[1], anchor_z + rel_start[2])
+                end_abs = (anchor_x + rel_end[0], anchor_y + rel_end[1], anchor_z + rel_end[2])
+                key = _pipe_key(start_abs, end_abs)
+                adjusted_boundary = _swap_xz_boundary(boundary) if swap_xz else boundary
+                pipe_overrides[key] = {
+                    "start": [start_abs[0], start_abs[1], start_abs[2]],
+                    "end": [end_abs[0], end_abs[1], end_abs[2]],
+                    "block": block,
+                    "boundary": adjusted_boundary,
+                }
+
+        for z in zs_sorted[1:]:
+            if z == run_end + 1:
+                run_end = z
+                continue
+            process_run(run_start, run_end)
+            run_start = z
+            run_end = z
+        process_run(run_start, run_end)
+
+    return cube_overrides, pipe_overrides
 
 
 def _short_block_for_basis(basis: str) -> str:
@@ -730,6 +1072,7 @@ def convert_slices_to_canvas_yaml(  # noqa: C901
         raise LibLsQeccImportError(msg)
 
     normalized = _validate_and_normalize_slices(list(slices))
+    rotation_cube_overrides, rotation_pipe_overrides = _detect_rotation_overrides(normalized)
 
     cube_entries_by_coord: dict[Coord3D, dict[str, object]] = {}
     qubit_coords: set[Coord3D] = set()
@@ -912,6 +1255,21 @@ def convert_slices_to_canvas_yaml(  # noqa: C901
             boundary_chars[side] = "O"
 
         entry["boundary"] = _boundary_chars_to_string(boundary_chars)
+
+    for coord3, entry in rotation_cube_overrides.items():
+        cube_entries_by_coord[coord3] = entry
+
+    if rotation_pipe_overrides:
+        pipe_entries_by_key = {
+            _pipe_key(
+                tuple(entry["start"]),  # type: ignore[arg-type]
+                tuple(entry["end"]),  # type: ignore[arg-type]
+            ): entry
+            for entry in pipe_entries
+        }
+        for key, entry in rotation_pipe_overrides.items():
+            pipe_entries_by_key[key] = entry
+        pipe_entries = list(pipe_entries_by_key.values())
 
     cube_entries = list(cube_entries_by_coord.values())
     cube_entries.sort(key=_cube_sort_key)
