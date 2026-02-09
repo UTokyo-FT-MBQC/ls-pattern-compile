@@ -95,10 +95,13 @@ def compile_canvas_to_pattern(
         The compiled pattern, the underlying graph state, and the
         coordinate-to-node-index mapping.
     """
+    # Cache pauli_axes to avoid repeated dict copies (property returns dict() each time)
+    pauli_axes = canvas.pauli_axes
+
     graph, node_map = GraphState.from_graph(
         nodes=canvas.nodes,
         edges=canvas.edges,
-        meas_bases={node: AxisMeasBasis(canvas.pauli_axes[node], Sign.PLUS) for node in canvas.nodes},
+        meas_bases={node: AxisMeasBasis(pauli_axes[node], Sign.PLUS) for node in canvas.nodes},
     )
 
     flow = canvas.flow.to_node_flow(node_map)
