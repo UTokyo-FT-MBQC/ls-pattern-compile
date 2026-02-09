@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import operator
-from typing import TYPE_CHECKING, TypedDict
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Protocol, TypedDict, cast
 
 import plotly.graph_objects as go
 
@@ -12,9 +13,16 @@ if TYPE_CHECKING:
 
     from graphqomb.common import Axis
 
-    from lspattern.canvas import Canvas
-
 type NodeIndex = int | Coord3D
+
+
+class CanvasLike(Protocol):
+    """Structural protocol for canvas-like objects used by visualizers."""
+
+    nodes: set[Coord3D]
+    edges: set[tuple[Coord3D, Coord3D]]
+    coord2role: dict[Coord3D, NodeRole]
+    pauli_axes: dict[Coord3D, Axis | None]
 
 
 class NodeStyleSpec(TypedDict):
@@ -208,16 +216,40 @@ def _build_plotly_scene(
     return scene
 
 
+def _validate_positive_float(value: float, *, name: str) -> float:
+    """Validate that a value is a strictly positive float."""
+
+    numeric = float(value)
+    if numeric <= 0:
+        msg = f"{name} must be positive."
+        raise ValueError(msg)
+    return numeric
+
+
+def _validate_alpha(value: float, *, name: str) -> float:
+    """Validate opacity-like values in [0, 1]."""
+
+    numeric = float(value)
+    if not 0.0 <= numeric <= 1.0:
+        msg = f"{name} must be between 0.0 and 1.0."
+        raise ValueError(msg)
+    return numeric
+
+
 def visualize_canvas_plotly(
-    canvas: Canvas,
+    canvas: CanvasLike,
     *,
     show_edges: bool = True,
     edge_width: float = 3.0,
+    edge_width_scale: float = 1.0,
     edge_color: str = "rgba(60, 60, 60, 0.7)",
+    node_size_scale: float = 1.0,
+    node_alpha: float = 0.9,
     highlight_nodes: Iterable[Coord3D] | None = None,
     highlight_color: str = "red",
     highlight_line_color: str = "darkred",
-    highlight_size: int = 11,
+    highlight_size: float = 11.0,
+    highlight_alpha: float = 0.98,
     width: int = 900,
     height: int = 700,
     reverse_axes: bool = True,
@@ -237,8 +269,16 @@ def visualize_canvas_plotly(
         Whether to display edges between nodes, by default True.
     edge_width : float, optional
         Width of edge lines in pixels, by default 3.0.
+    edge_width_scale : float, optional
+        Global multiplier for `edge_width`. Must be positive. Default 1.0.
     edge_color : str, optional
         RGBA color string for edges, by default "rgba(60, 60, 60, 0.7)".
+    node_size_scale : float, optional
+        Global marker-size multiplier for all node traces. Must be positive.
+        Default 1.0.
+    node_alpha : float, optional
+        Marker opacity for non-highlighted nodes. Must be in [0.0, 1.0].
+        Default 0.9.
     highlight_nodes : Iterable[Coord3D] | None, optional
         Optional iterable of node coordinates to emphasize. Highlighted nodes are
         drawn in red on top of the regular markers. Default None.
@@ -246,8 +286,11 @@ def visualize_canvas_plotly(
         Fill color for highlighted nodes. Default "red".
     highlight_line_color : str, optional
         Outline color for highlighted nodes. Default "darkred".
-    highlight_size : int, optional
+    highlight_size : float, optional
         Marker size for highlighted nodes. Default 11.
+    highlight_alpha : float, optional
+        Marker opacity for highlighted nodes. Must be in [0.0, 1.0].
+        Default 0.98.
     width : int, optional
         Figure width in pixels, by default 900.
     height : int, optional
@@ -270,6 +313,10 @@ def visualize_canvas_plotly(
     >>> fig = visualize_canvas_plotly(canvas)
     >>> fig.show()
     """
+    node_size_scale_value = _validate_positive_float(node_size_scale, name="node_size_scale")
+    edge_width_scale_value = _validate_positive_float(edge_width_scale, name="edge_width_scale")
+    node_alpha_value = _validate_alpha(node_alpha, name="node_alpha")
+    highlight_alpha_value = _validate_alpha(highlight_alpha, name="highlight_alpha")
 
     nodes = canvas.nodes
     coord2role = canvas.coord2role
@@ -291,10 +338,10 @@ def visualize_canvas_plotly(
                 z=pts["z"],
                 mode="markers",
                 marker={
-                    "size": spec["size"],
+                    "size": spec["size"] * node_size_scale_value,
                     "color": spec["color"],
                     "line": {"color": spec["line_color"], "width": 1.5},
-                    "opacity": 0.9,
+                    "opacity": node_alpha_value,
                 },
                 name=spec["label"],
                 text=[_node_hover_label(c, spec["label"], pauli_axes.get(c)) for c in coords],
@@ -313,10 +360,10 @@ def visualize_canvas_plotly(
                     z=[c.z for c in highlight_coords],
                     mode="markers",
                     marker={
-                        "size": highlight_size,
+                        "size": float(highlight_size) * node_size_scale_value,
                         "color": highlight_color,
                         "line": {"color": highlight_line_color, "width": 2},
-                        "opacity": 0.98,
+                        "opacity": highlight_alpha_value,
                         "symbol": "diamond",
                     },
                     name="Highlighted",
@@ -336,7 +383,7 @@ def visualize_canvas_plotly(
                     y=edge_y,
                     z=edge_z,
                     mode="lines",
-                    line={"color": edge_color, "width": edge_width},
+                    line={"color": edge_color, "width": edge_width * edge_width_scale_value},
                     name="Edges",
                     showlegend=False,
                     hoverinfo="none",
@@ -357,10 +404,108 @@ def visualize_canvas_plotly(
     return fig
 
 
+def render_canvas_z_window_plotly_figure(
+    canvas: CanvasLike,
+    *,
+    current_z: int,
+    z_window: int = 6,
+    node_size_scale: float = 1.0,
+    edge_width_scale: float = 1.0,
+    tail_alpha: float = 0.25,
+    current_alpha: float = 1.0,
+    highlight_size_scale: float = 1.4,
+    edge_color: str = "rgba(60, 60, 60, 0.7)",
+    width: int = 900,
+    height: int = 700,
+    reverse_axes: bool = True,
+    aspect_ratio: tuple[float, float, float] | None = None,
+) -> go.Figure:
+    """Render one z-sweep frame with a sliding z-window and current-layer highlight.
+
+    Parameters
+    ----------
+    canvas : Canvas
+        Canvas to render.
+    current_z : int
+        Current z-layer to highlight.
+    z_window : int, optional
+        Number of recent z-layers to keep visible, by default 6.
+    node_size_scale : float, optional
+        Global node marker size multiplier, by default 1.0.
+    edge_width_scale : float, optional
+        Global edge width multiplier, by default 1.0.
+    tail_alpha : float, optional
+        Opacity used for non-highlighted nodes in the visible z-window,
+        by default 0.25.
+    current_alpha : float, optional
+        Opacity used for highlighted current-layer nodes, by default 1.0.
+    highlight_size_scale : float, optional
+        Multiplier applied to the base highlight marker size, by default 1.4.
+    edge_color : str, optional
+        Edge color string, by default "rgba(60, 60, 60, 0.7)".
+    width : int, optional
+        Figure width in pixels, by default 900.
+    height : int, optional
+        Figure height in pixels, by default 700.
+    reverse_axes : bool, optional
+        Whether to reverse X/Y axes, by default True.
+    aspect_ratio : tuple[float, float, float] | None, optional
+        Manual display scaling ratio for X/Y/Z axes.
+
+    Returns
+    -------
+    go.Figure
+        Plotly figure for a single z-window frame.
+    """
+    if z_window < 1:
+        msg = "z_window must be at least 1."
+        raise ValueError(msg)
+
+    highlight_size_scale_value = _validate_positive_float(highlight_size_scale, name="highlight_size_scale")
+
+    z_min = int(current_z) - z_window + 1
+    visible_nodes = {node for node in canvas.nodes if z_min <= node.z <= current_z}
+    current_layer_nodes = {node for node in visible_nodes if node.z == current_z}
+    visible_edges = {
+        (start, end)
+        for start, end in canvas.edges
+        if start in visible_nodes and end in visible_nodes
+    }
+
+    window_canvas = cast(
+        "CanvasLike",
+        SimpleNamespace(
+        nodes=visible_nodes,
+        edges=visible_edges,
+        coord2role=canvas.coord2role,
+        pauli_axes=canvas.pauli_axes,
+        ),
+    )
+    highlight_size = max(11.0 * highlight_size_scale_value, 1.0)
+
+    fig = visualize_canvas_plotly(
+        window_canvas,
+        show_edges=True,
+        edge_width_scale=edge_width_scale,
+        edge_color=edge_color,
+        node_size_scale=node_size_scale,
+        node_alpha=tail_alpha,
+        highlight_nodes=current_layer_nodes,
+        highlight_size=highlight_size,
+        highlight_alpha=current_alpha,
+        width=width,
+        height=height,
+        reverse_axes=reverse_axes,
+        aspect_ratio=aspect_ratio,
+    )
+    fig.update_layout(title=f"Canvas Z-Sweep (z={current_z})")
+    return fig
+
+
 def visualize_detectors_plotly(
     detectors: Mapping[Coord3D, Iterable[NodeIndex]],
     *,
-    canvas: Canvas | None = None,
+    canvas: CanvasLike | None = None,
     show_canvas_nodes: bool = True,
     show_canvas_edges: bool = True,
     show_node_indices_on_hover: bool = True,

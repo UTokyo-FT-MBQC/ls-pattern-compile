@@ -8,7 +8,11 @@ from typing import Any
 import pytest
 
 from lspattern.mytype import Coord3D, NodeRole
-from lspattern.visualizer import visualize_canvas_plotly, visualize_detectors_plotly
+from lspattern.visualizer import (
+    render_canvas_z_window_plotly_figure,
+    visualize_canvas_plotly,
+    visualize_detectors_plotly,
+)
 
 
 @dataclass
@@ -67,3 +71,60 @@ class TestVisualizeDetectorsPlotlyAspectRatio:
         assert fig.layout.scene.aspectratio.x == 1.0
         assert fig.layout.scene.aspectratio.y == 1.0
         assert fig.layout.scene.aspectratio.z == 0.1
+
+
+class TestVisualizeCanvasPlotlySizing:
+    """Tests for node/edge size scaling in visualize_canvas_plotly."""
+
+    def test_node_and_edge_scale_are_applied(self) -> None:
+        fig = visualize_canvas_plotly(
+            _make_dummy_canvas(),
+            node_size_scale=2.0,
+            edge_width_scale=1.5,
+        )
+
+        data_trace = next(trace for trace in fig.data if trace.name == "Data")
+        edge_trace = next(trace for trace in fig.data if trace.mode == "lines")
+        assert data_trace.marker.size == pytest.approx(16.0)
+        assert edge_trace.line.width == pytest.approx(4.5)
+
+    def test_non_positive_node_size_scale_raises(self) -> None:
+        with pytest.raises(ValueError, match="node_size_scale"):
+            visualize_canvas_plotly(_make_dummy_canvas(), node_size_scale=0.0)
+
+
+class TestRenderCanvasZWindowPlotlyFigure:
+    """Tests for sliding-window frame rendering helper."""
+
+    def test_current_layer_is_highlighted_and_tail_is_dimmed(self) -> None:
+        a = Coord3D(0, 0, 0)
+        b = Coord3D(1, 0, 1)
+        canvas = DummyCanvas(
+            nodes={a, b},
+            edges={(a, b)},
+            coord2role={a: NodeRole.DATA, b: NodeRole.ANCILLA_X},
+            pauli_axes={},
+        )
+
+        fig = render_canvas_z_window_plotly_figure(
+            canvas,
+            current_z=1,
+            z_window=2,
+            node_size_scale=2.0,
+            edge_width_scale=2.0,
+            tail_alpha=0.2,
+            current_alpha=0.95,
+            highlight_size_scale=1.5,
+        )
+
+        data_trace = next(trace for trace in fig.data if trace.name == "Data")
+        highlight_trace = next(trace for trace in fig.data if trace.name == "Highlighted")
+        edge_trace = next(trace for trace in fig.data if trace.mode == "lines")
+        assert data_trace.marker.opacity == pytest.approx(0.2)
+        assert highlight_trace.marker.opacity == pytest.approx(0.95)
+        assert highlight_trace.marker.size == pytest.approx(33.0)
+        assert edge_trace.line.width == pytest.approx(6.0)
+
+    def test_invalid_z_window_raises(self) -> None:
+        with pytest.raises(ValueError, match="z_window"):
+            render_canvas_z_window_plotly_figure(_make_dummy_canvas(), current_z=0, z_window=0)
