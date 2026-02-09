@@ -17,7 +17,7 @@ from lspattern.importer.liblsqecc import (
 # Configuration - Edit these values
 # =============================================================================
 input_json = Path(
-    "/home/masato/projects/mbqc/FTQC-compiler-survey/mf/e2edemo/output/adder_n4_slices.json"
+    "path2json"
 )  # Path to liblsqecc slices JSON
 output_dir = Path(__file__).parent / "output"
 
