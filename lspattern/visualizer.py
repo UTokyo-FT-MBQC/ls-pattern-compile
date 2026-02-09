@@ -169,6 +169,45 @@ def _format_node_labels(
     return labels
 
 
+def _build_plotly_scene(
+    *,
+    reverse_axes: bool,
+    aspect_ratio: tuple[float, float, float] | None,
+) -> dict[str, object]:
+    """Build 3D scene configuration with optional manual axis scaling."""
+
+    scene: dict[str, object] = {
+        "xaxis_title": "X",
+        "yaxis_title": "Y",
+        "zaxis_title": "Z",
+    }
+
+    if aspect_ratio is None:
+        scene["aspectmode"] = "data"
+    else:
+        try:
+            x_scale, y_scale, z_scale = aspect_ratio
+            x = float(x_scale)
+            y = float(y_scale)
+            z = float(z_scale)
+        except (TypeError, ValueError) as exc:
+            msg = "aspect_ratio must be a tuple of three positive numbers."
+            raise ValueError(msg) from exc
+
+        if x <= 0 or y <= 0 or z <= 0:
+            msg = "aspect_ratio values must be positive."
+            raise ValueError(msg)
+
+        scene["aspectmode"] = "manual"
+        scene["aspectratio"] = {"x": x, "y": y, "z": z}
+
+    if reverse_axes:
+        scene["xaxis"] = {"autorange": "reversed"}
+        scene["yaxis"] = {"autorange": "reversed"}
+
+    return scene
+
+
 def visualize_canvas_plotly(
     canvas: Canvas,
     *,
@@ -182,6 +221,7 @@ def visualize_canvas_plotly(
     width: int = 900,
     height: int = 700,
     reverse_axes: bool = True,
+    aspect_ratio: tuple[float, float, float] | None = None,
 ) -> go.Figure:
     """Create an interactive 3D visualization of a Canvas using Plotly.
 
@@ -215,6 +255,10 @@ def visualize_canvas_plotly(
     reverse_axes : bool, optional
         Reverse X and Y axes to match quantum circuit layout convention,
         by default True.
+    aspect_ratio : tuple[float, float, float] | None, optional
+        Manual display scaling ratio for X/Y/Z axes. For example,
+        ``(1.0, 1.0, 0.25)`` visually compresses Z. If None, Plotly
+        auto-scales with ``aspectmode="data"`` (default).
 
     Returns
     -------
@@ -299,15 +343,7 @@ def visualize_canvas_plotly(
                 )
             )
 
-    scene: dict[str, object] = {
-        "xaxis_title": "X",
-        "yaxis_title": "Y",
-        "zaxis_title": "Z",
-        "aspectmode": "data",
-    }
-    if reverse_axes:
-        scene["xaxis"] = {"autorange": "reversed"}
-        scene["yaxis"] = {"autorange": "reversed"}
+    scene = _build_plotly_scene(reverse_axes=reverse_axes, aspect_ratio=aspect_ratio)
 
     fig.update_layout(
         scene=scene,
@@ -321,7 +357,7 @@ def visualize_canvas_plotly(
     return fig
 
 
-def visualize_detectors_plotly(  # noqa: C901
+def visualize_detectors_plotly(
     detectors: Mapping[Coord3D, Iterable[NodeIndex]],
     *,
     canvas: Canvas | None = None,
@@ -341,6 +377,7 @@ def visualize_detectors_plotly(  # noqa: C901
     width: int = 900,
     height: int = 700,
     reverse_axes: bool = True,
+    aspect_ratio: tuple[float, float, float] | None = None,
 ) -> go.Figure:
     """Visualize detectors in 3D with Plotly and optionally show involved node indices on hover.
 
@@ -386,6 +423,10 @@ def visualize_detectors_plotly(  # noqa: C901
         Figure height in pixels. Default 700.
     reverse_axes : bool, optional
         Reverse X/Y axes to mimic circuit-style layout. Default True.
+    aspect_ratio : tuple[float, float, float] | None, optional
+        Manual display scaling ratio for X/Y/Z axes. For example,
+        ``(1.0, 1.0, 0.25)`` visually compresses Z. If None, Plotly
+        auto-scales with ``aspectmode="data"`` (default).
 
     Returns
     -------
@@ -500,15 +541,7 @@ def visualize_detectors_plotly(  # noqa: C901
         )
     )
 
-    scene: dict[str, object] = {
-        "xaxis_title": "X",
-        "yaxis_title": "Y",
-        "zaxis_title": "Z",
-        "aspectmode": "data",
-    }
-    if reverse_axes:
-        scene["xaxis"] = {"autorange": "reversed"}
-        scene["yaxis"] = {"autorange": "reversed"}
+    scene = _build_plotly_scene(reverse_axes=reverse_axes, aspect_ratio=aspect_ratio)
 
     fig.update_layout(
         scene=scene,
