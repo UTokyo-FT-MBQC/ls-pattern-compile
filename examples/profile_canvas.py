@@ -23,14 +23,14 @@ from lspattern.visualizer_2d import visualize_canvas_matplotlib_2d
 # =============================================================================
 # Configuration - Edit these values
 # =============================================================================
-input_yaml = Path(__file__).parent / "output" / "adder_n4_slices.yml"
+input_yaml = Path(__file__).parent / "design" / "distillation_canvas.yml"
 code_distance = 3
 output_dir = Path(__file__).parent / "output"
 
 # Visualization options
 enable_3d_viz = True  # Set to False to skip 3D visualization
 slice_z: int | None = 60  # Z coordinate for 2D slice (None to skip)
-aspect_ratio = (5, 5, 10)  # Plotly 3D aspect ratio
+aspect_ratio: tuple[int, int, int] | None  = None  # Plotly 3D aspect ratio
 
 # =============================================================================
 

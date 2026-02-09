@@ -1,0 +1,698 @@
+name: 15-to-1 MSD Canvas
+description: Global config for rotated surface code based blocks
+
+layout: rotated_surface_code # required
+
+cube:
+  # layer 0
+  - position: [2, 0, 0]
+    block: InitPlusBlock
+    boundary: XXZZ
+  - position: [3, 0, 0]
+    block: InitPlusBlock
+    boundary: XXZZ
+  - position: [2, 2, 0]
+    block: InitPlusBlock
+    boundary: XXZZ
+  - position: [3, 2, 0]
+    block: InitPlusBlock
+    boundary: XXZZ
+  # layer 1
+  - position: [2, 0, 1]
+    block: MemoryBlock
+    boundary: XOZZ
+  - position: [3, 0, 1]
+    block: MemoryBlock
+    boundary: XOZZ
+  - position: [2, 2, 1]
+    block: MemoryBlock
+    boundary: OXZZ
+  - position: [3, 2, 1]
+    block: MemoryBlock
+    boundary: XXZZ
+  - position: [0, 1, 1]
+    block: ShortXMemoryBlock
+    boundary: ZOZO
+  - position: [0, 2, 1]
+    block: ShortXMemoryBlock
+    boundary: OXZZ
+  - position: [1, 1, 1]
+    block: ShortXMemoryBlock
+    boundary: ZOOO
+  - position: [1, 2, 1]
+    block: InitPlusBlock
+    boundary: OXZZ
+  - position: [2, 1, 1]
+    block: ShortXMemoryBlock
+    boundary: OOOO
+  - position: [3, 1, 1]
+    block: ShortXMemoryBlock
+    boundary: OZOO
+  - position: [4, 1, 1]
+    block: InitPlusBlock
+    boundary: ZZOX
+  # layer 2
+  - position: [2, 0, 2]
+    block: MemoryBlock
+    boundary: XOZZ
+  - position: [3, 0, 2]
+    block: MemoryBlock
+    boundary: XXZZ
+  - position: [2, 2, 2]
+    block: MemoryBlock
+    boundary: OXZZ
+  - position: [3, 2, 2]
+    block: MemoryBlock
+    boundary: OXZZ
+  - position: [0, 1, 2]
+    block: ShortXMemoryBlock
+    boundary: ZOZO
+  - position: [0, 2, 2]
+    block: ShortXMemoryBlock
+    boundary: OXZZ
+  - position: [1, 1, 2]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - position: [1, 2, 2]
+    block: MeasureXBlock # Y fixup
+    boundary: XXZZ
+  - position: [2, 1, 2]
+    block: ShortXMemoryBlock
+    boundary: OOOO
+  - position: [3, 1, 2]
+    block: ShortXMemoryBlock
+    boundary: ZOOX
+  - position: [4, 1, 2]
+    block: MemoryBlock
+    boundary: ZZXX
+  # layer 3
+  - position: [2, 0, 3]
+    block: MemoryBlock
+    boundary: XOZZ
+  - position: [3, 0, 3]
+    block: MemoryBlock
+    boundary: XOZZ
+  - position: [2, 2, 3]
+    block: MemoryBlock
+    boundary: XXZZ
+  - position: [3, 2, 3]
+    block: MemoryBlock
+    boundary: OXZZ
+  - position: [0, 1, 3]
+    block: ShortXMemoryBlock
+    boundary: ZOZO
+  - position: [0, 2, 3]
+    block: ShortXMemoryBlock
+    boundary: XXZZ
+  - position: [1, 1, 3]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - position: [2, 1, 3]
+    block: ShortXMemoryBlock
+    boundary: OZOO
+  - position: [3, 1, 3]
+    block: ShortXMemoryBlock
+    boundary: ZOOX
+  - position: [4, 1, 3]
+    block: MemoryBlock
+    boundary: ZZXX
+  # layer 4
+  - position: [2, 0, 4]
+    block: MemoryBlock
+    boundary: XXZZ
+  - position: [3, 0, 4]
+    block: MemoryBlock
+    boundary: XOZZ
+  - position: [2, 2, 4]
+    block: MemoryBlock
+    boundary: OXZZ
+  - position: [3, 2, 4]
+    block: MemoryBlock
+    boundary: OXZZ
+  - position: [0, 1, 4]
+    block: ShortXMemoryBlock
+    boundary: ZOZO
+  - position: [0, 2, 4]
+    block: ShortXMemoryBlock
+    boundary: XXZZ
+  - position: [1, 1, 4]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - position: [2, 1, 4]
+    block: ShortXMemoryBlock
+    boundary: ZOOO
+  - position: [3, 1, 4]
+    block: ShortXMemoryBlock
+    boundary: ZOOX
+  - position: [4, 1, 4]
+    block: MeasureXBlock # Y fixup
+    boundary: ZZXX
+    # layer 5
+  - position: [2, 0, 5]
+    block: MemoryBlock
+    boundary: XOZZ
+  - position: [3, 0, 5]
+    block: MemoryBlock
+    boundary: XOZZ
+  - position: [2, 2, 5]
+    block: MemoryBlock
+    boundary: OXZZ
+  - position: [3, 2, 5]
+    block: MemoryBlock
+    boundary: OXZZ
+  - position: [0, 1, 5]
+    block: ShortXMemoryBlock
+    boundary: ZOZO
+  - position: [0, 2, 5]
+    block: ShortXMemoryBlock
+    boundary: XXZZ
+  - position: [1, 1, 5]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - position: [2, 1, 5]
+    block: ShortXMemoryBlock
+    boundary: OOOO
+  - position: [3, 1, 5]
+    block: ShortXMemoryBlock
+    boundary: ZOOO
+  - position: [4, 1, 5]
+    block: InitPlusBlock
+    boundary: ZZOX
+    # layer 6
+  - position: [2, 0, 6]
+    block: MemoryBlock
+    boundary: XXZZ
+  - position: [3, 0, 6]
+    block: MemoryBlock
+    boundary: XOZZ
+  - position: [2, 2, 6]
+    block: MemoryBlock
+    boundary: XXZZ
+  - position: [3, 2, 6]
+    block: MemoryBlock
+    boundary: OXZZ
+  - position: [0, 1, 6]
+    block: ShortXMemoryBlock
+    boundary: ZOZO
+  - position: [0, 2, 6]
+    block: ShortXMemoryBlock
+    boundary: XXZZ
+  - position: [1, 1, 6]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - position: [2, 1, 6]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - position: [3, 1, 6]
+    block: ShortXMemoryBlock
+    boundary: ZOOO
+  - position: [4, 1, 6]
+    block: MemoryBlock
+    boundary: ZZOX
+    # layer 7
+  - position: [2, 0, 7]
+    block: MemoryBlock
+    boundary: XXZZ
+  - position: [3, 0, 7]
+    block: MemoryBlock
+    boundary: XXZZ
+  - position: [2, 2, 7]
+    block: MemoryBlock
+    boundary: OXZZ
+  - position: [3, 2, 7]
+    block: MemoryBlock
+    boundary: OXZZ
+  - position: [0, 1, 7]
+    block: ShortXMemoryBlock
+    boundary: ZOZO
+  - position: [0, 2, 7]
+    block: ShortXMemoryBlock
+    boundary: XXZZ
+  - position: [1, 1, 7]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - position: [2, 1, 7]
+    block: ShortXMemoryBlock
+    boundary: ZOOO
+  - position: [3, 1, 7]
+    block: ShortXMemoryBlock
+    boundary: ZOOO
+  - position: [4, 1, 7]
+    block: MemoryBlock
+    boundary: ZZOX
+    # layer 8
+  - position: [2, 0, 8]
+    block: MemoryBlock
+    boundary: XOZZ
+  - position: [3, 0, 8]
+    block: MemoryBlock
+    boundary: XXZZ
+  - position: [2, 2, 8]
+    block: MemoryBlock
+    boundary: XXZZ
+  - position: [3, 2, 8]
+    block: MeasureXBulkBlock
+    boundary: OXZZ
+  - position: [0, 1, 8]
+    block: ShortXMemoryBlock
+    boundary: ZOZO
+  - position: [0, 2, 8]
+    block: ShortXMemoryBlock
+    boundary: XXZZ
+  - position: [1, 1, 8]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - position: [2, 1, 8]
+    block: ShortXMemoryBlock
+    boundary: OZOO
+  - position: [3, 1, 8]
+    block: ShortXMemoryBlock
+    boundary: ZOOO
+  - position: [4, 1, 8]
+    block: MemoryBlock
+    boundary: ZZOX
+    # layer 9
+  - position: [2, 0, 9]
+    block: MemoryBlock
+    boundary: XXZZ
+  - position: [3, 0, 9]
+    block: MemoryBlock
+    boundary: XOZZ
+  - position: [2, 2, 9]
+    block: MemoryBlock
+    boundary: OXZZ
+  - position: [0, 1, 9]
+    block: ShortXMemoryBlock
+    boundary: ZOZO
+  - position: [0, 2, 9]
+    block: ShortXMemoryBlock
+    boundary: XXZZ
+  - position: [1, 1, 9]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - position: [2, 1, 9]
+    block: ShortXMemoryBlock
+    boundary: ZOOO
+  - position: [3, 1, 9]
+    block: ShortXMemoryBlock
+    boundary: OZOO
+  - position: [4, 1, 9]
+    block: MemoryBlock
+    boundary: ZZOX
+    # layer 10
+  - position: [2, 0, 10]
+    block: MemoryBlock
+    boundary: XOZZ
+  - position: [3, 0, 10]
+    block: MeasureXBulkBlock
+    boundary: XOZZ
+  - position: [2, 2, 10]
+    block: MemoryBlock
+    boundary: XXZZ
+  - position: [0, 1, 10]
+    block: ShortXMemoryBlock
+    boundary: ZOZO
+  - position: [0, 2, 10]
+    block: ShortXMemoryBlock
+    boundary: XXZZ
+  - position: [1, 1, 10]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - position: [2, 1, 10]
+    block: ShortXMemoryBlock
+    boundary: OZOO
+  - position: [3, 1, 10]
+    block: ShortXMemoryBlock
+    boundary: OZOO
+  - position: [4, 1, 10]
+    block: MemoryBlock
+    boundary: ZZOX
+  # layer 11
+  - position: [2, 0, 11]
+    block: MeasureXBulkBlock
+    boundary: XOZZ
+  - position: [2, 2, 11]
+    block: MeasureXBulkBlock
+    boundary: OXZZ
+  - position: [0, 1, 11]
+    block: ShortXMemoryBlock
+    boundary: ZOZO
+  - position: [0, 2, 11]
+    block: ShortXMemoryBlock
+    boundary: XXZZ
+  - position: [1, 1, 11]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - position: [2, 1, 11]
+    block: ShortXMemoryBlock
+    boundary: OOOO
+  - position: [3, 1, 11]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - position: [4, 1, 11]
+    block: MemoryBlock
+    boundary: ZZOX
+
+  - position: [4, 1, 12]
+    block: MeasureXBlock
+    boundary: ZZXX
+
+pipe:
+  # layer 1
+  - start: [0, 1, 1]
+    end: [0, 2, 1]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [0, 1, 1]
+    end: [1, 1, 1]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [1, 1, 1]
+    end: [1, 2, 1]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [1, 1, 1]
+    end: [2, 1, 1]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [2, 0, 1]
+    end: [2, 1, 1]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [2, 1, 1]
+    end: [2, 2, 1]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [2, 1, 1]
+    end: [3, 1, 1]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [3, 0, 1]
+    end: [3, 1, 1]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [3, 1, 1]
+    end: [4, 1, 1]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+    # layer 2
+  - start: [0, 1, 2]
+    end: [0, 2, 2]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [0, 1, 2]
+    end: [1, 1, 2]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [1, 1, 2]
+    end: [2, 1, 2]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [2, 0, 2]
+    end: [2, 1, 2]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [2, 1, 2]
+    end: [2, 2, 2]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [2, 1, 2]
+    end: [3, 1, 2]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [3, 1, 2]
+    end: [3, 2, 2]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  # layer 3
+  - start: [0, 1, 3]
+    end: [0, 2, 3]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [0, 1, 3]
+    end: [1, 1, 3]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [1, 1, 3]
+    end: [2, 1, 3]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [2, 0, 3]
+    end: [2, 1, 3]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [3, 0, 3]
+    end: [3, 1, 3]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [2, 1, 3]
+    end: [3, 1, 3]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [3, 1, 3]
+    end: [3, 2, 3]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  # layer 4
+  - start: [0, 1, 4]
+    end: [0, 2, 4]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [0, 1, 4]
+    end: [1, 1, 4]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [1, 1, 4]
+    end: [2, 1, 4]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [2, 1, 4]
+    end: [2, 2, 4]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [3, 0, 4]
+    end: [3, 1, 4]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [2, 1, 4]
+    end: [3, 1, 4]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [3, 1, 4]
+    end: [3, 2, 4]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  # layer 5
+  - start: [0, 1, 5]
+    end: [0, 2, 5]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [0, 1, 5]
+    end: [1, 1, 5]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [1, 1, 5]
+    end: [2, 1, 5]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [2, 0, 5]
+    end: [2, 1, 5]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [2, 1, 5]
+    end: [2, 2, 5]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [3, 0, 5]
+    end: [3, 1, 5]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [2, 1, 5]
+    end: [3, 1, 5]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [3, 1, 5]
+    end: [3, 2, 5]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [3, 1, 5]
+    end: [4, 1, 5]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+    # layer 6
+  - start: [0, 1, 6]
+    end: [0, 2, 6]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [0, 1, 6]
+    end: [1, 1, 6]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [1, 1, 6]
+    end: [2, 1, 6]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [3, 0, 6]
+    end: [3, 1, 6]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [2, 1, 6]
+    end: [3, 1, 6]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [3, 1, 6]
+    end: [3, 2, 6]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [3, 1, 6]
+    end: [4, 1, 6]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+    # layer 7
+  - start: [0, 1, 7]
+    end: [0, 2, 7]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [0, 1, 7]
+    end: [1, 1, 7]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [1, 1, 7]
+    end: [2, 1, 7]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [2, 1, 7]
+    end: [2, 2, 7]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [2, 1, 7]
+    end: [3, 1, 7]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [3, 1, 7]
+    end: [3, 2, 7]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [3, 1, 7]
+    end: [4, 1, 7]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+    # layer 8
+  - start: [0, 1, 8]
+    end: [0, 2, 8]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [0, 1, 8]
+    end: [1, 1, 8]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [1, 1, 8]
+    end: [2, 1, 8]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [2, 0, 8]
+    end: [2, 1, 8]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [2, 1, 8]
+    end: [3, 1, 8]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [3, 1, 8]
+    end: [3, 2, 8]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [3, 1, 8]
+    end: [4, 1, 8]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+    # layer 9
+  - start: [0, 1, 9]
+    end: [0, 2, 9]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [0, 1, 9]
+    end: [1, 1, 9]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [1, 1, 9]
+    end: [2, 1, 9]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [2, 1, 9]
+    end: [2, 2, 9]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [2, 1, 9]
+    end: [3, 1, 9]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [3, 0, 9]
+    end: [3, 1, 9]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [3, 1, 9]
+    end: [4, 1, 9]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  # layer 10
+  - start: [0, 1, 10]
+    end: [0, 2, 10]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [0, 1, 10]
+    end: [1, 1, 10]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [1, 1, 10]
+    end: [2, 1, 10]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [2, 0, 10]
+    end: [2, 1, 10]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [2, 1, 10]
+    end: [3, 1, 10]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [3, 0, 10]
+    end: [3, 1, 10]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [3, 1, 10]
+    end: [4, 1, 10]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+    # layer 11
+  - start: [0, 1, 11]
+    end: [0, 2, 11]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [0, 1, 11]
+    end: [1, 1, 11]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [1, 1, 11]
+    end: [2, 1, 11]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [2, 0, 11]
+    end: [2, 1, 11]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [2, 1, 11]
+    end: [2, 2, 11]
+    block: ShortXMemoryBlock
+    boundary: OOZZ
+  - start: [2, 1, 11]
+    end: [3, 1, 11]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+  - start: [3, 1, 11]
+    end: [4, 1, 11]
+    block: ShortXMemoryBlock
+    boundary: ZZOO
+
+
+logical_observables: null
