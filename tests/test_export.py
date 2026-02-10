@@ -10,6 +10,7 @@ import pytest
 from graphqomb.common import Axis
 
 from lspattern.canvas import Canvas, CanvasConfig
+from lspattern.canvas_loader import CompositeLogicalObservableSpec, CubeObservableRef, PipeObservableRef
 from lspattern.export import (
     _axis_to_string,
     _convert_detectors,
@@ -67,6 +68,10 @@ def simple_canvas() -> Canvas:
 
     # Add couts (logical observables)
     canvas.couts[Coord3D(0, 0, 0)] = {"obs_X": {coords[0], coords[1]}, "obs_Z": {coords[2], coords[3]}}
+    canvas.logical_observables = (
+        CompositeLogicalObservableSpec(cubes=(CubeObservableRef(position=Coord3D(0, 0, 0), label="obs_X"),), pipes=()),
+        CompositeLogicalObservableSpec(cubes=(CubeObservableRef(position=Coord3D(0, 0, 0), label="obs_Z"),), pipes=()),
+    )
 
     return canvas
 
@@ -272,10 +277,31 @@ class TestConvertLogicalObservables:
     def test_simple_canvas_observables(self, simple_canvas: Canvas) -> None:
         """Test logical observable conversion for simple canvas."""
         observables = _convert_logical_observables(simple_canvas)
-        assert "obs_X" in observables
-        assert "obs_Z" in observables
-        assert sorted(observables["obs_X"]) == ["n_0_0_0", "n_1_0_0"]
-        assert sorted(observables["obs_Z"]) == ["n_0_1_0", "n_1_1_0"]
+        assert "obs_0" in observables
+        assert "obs_1" in observables
+        assert sorted(observables["obs_0"]) == ["n_0_0_0", "n_1_0_0"]
+        assert sorted(observables["obs_1"]) == ["n_0_1_0", "n_1_1_0"]
+
+    def test_uses_only_canvas_level_logical_observables(self, simple_canvas: Canvas) -> None:
+        """Per-cube couts are not exported unless referenced by canvas.logical_observables."""
+        simple_canvas.logical_observables = ()
+        observables = _convert_logical_observables(simple_canvas)
+        assert observables == {}
+
+    def test_pipe_reference_observable(self, simple_canvas: Canvas) -> None:
+        """Pipe-referenced composite observables are exported."""
+        start = Coord3D(0, 0, 0)
+        end = Coord3D(1, 0, 0)
+        simple_canvas.pipe_couts[start, end] = {"obs_pipe": {Coord3D(0, 0, 0), Coord3D(0, 1, 0)}}
+        simple_canvas.logical_observables = (
+            CompositeLogicalObservableSpec(
+                cubes=(),
+                pipes=(PipeObservableRef(start=start, end=end, label="obs_pipe"),),
+            ),
+        )
+
+        observables = _convert_logical_observables(simple_canvas)
+        assert observables["obs_0"] == ["n_0_0_0", "n_0_1_0"]
 
 
 class TestExportCanvasToGraphqombStudio:
@@ -369,8 +395,8 @@ class TestRangeFilteredExport:
         assert result["flow"]["xflow"] == {"n_0_0_0": ["n_0_1_0"]}
 
         observables = result["ftqc"]["logicalObservableGroup"]
-        assert observables["obs_X"] == ["n_0_0_0"]
-        assert observables["obs_Z"] == ["n_0_1_0"]
+        assert observables["obs_0"] == ["n_0_0_0"]
+        assert observables["obs_1"] == ["n_0_1_0"]
 
         schedule = result["schedule"]
         assert set(schedule["prepareTime"]) == {"n_0_0_0", "n_0_1_0"}

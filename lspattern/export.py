@@ -14,6 +14,7 @@ from lspattern.detector import construct_detector
 if TYPE_CHECKING:
     from lspattern.accumulator import CoordScheduleAccumulator
     from lspattern.canvas import Canvas
+    from lspattern.canvas_loader import CompositeLogicalObservableSpec
     from lspattern.mytype import Coord3D
 
 
@@ -406,7 +407,7 @@ def _convert_detectors(canvas: Canvas, allowed_nodes: set[Coord3D] | None = None
 def _convert_logical_observables(
     canvas: Canvas, allowed_nodes: set[Coord3D] | None = None
 ) -> dict[str, list[str]]:
-    """Convert canvas couts and pipe_couts to logical observable groups.
+    """Convert composite logical observables to GraphQOMB Studio groups.
 
     Parameters
     ----------
@@ -418,33 +419,61 @@ def _convert_logical_observables(
     dict[str, list[str]]
         Dictionary mapping observable labels to lists of node IDs.
     """
-    merged: dict[str, set[Coord3D]] = {}
-
-    # Merge cube couts
-    for label_map in canvas.couts.values():
-        for label, coords in label_map.items():
-            if label not in merged:
-                merged[label] = set()
-            merged[label].update(coords)
-
-    # Merge pipe couts
-    for label_map in canvas.pipe_couts.values():
-        for label, coords in label_map.items():
-            if label not in merged:
-                merged[label] = set()
-            merged[label].update(coords)
-
-    # Convert to output format
     result: dict[str, list[str]] = {}
-    for label in sorted(merged.keys()):
-        coords = merged[label]
+    for idx, composite_obs in enumerate(canvas.logical_observables):
+        nodes = _collect_composite_logical_observable_nodes(canvas, composite_obs)
         if allowed_nodes is not None:
-            coords = {coord for coord in coords if coord in allowed_nodes}
-        if not coords:
+            nodes = {coord for coord in nodes if coord in allowed_nodes}
+        if not nodes:
             continue
-        result[label] = sorted(_coord_to_node_id(c) for c in coords)
+        result[f"obs_{idx}"] = sorted(_coord_to_node_id(c) for c in nodes)
 
     return result
+
+
+def _collect_composite_logical_observable_nodes(  # noqa: C901
+    canvas: Canvas,
+    composite_obs: CompositeLogicalObservableSpec,
+) -> set[Coord3D]:
+    """Collect node coordinates referenced by one composite observable."""
+    nodes: set[Coord3D] = set()
+
+    for cube_ref in composite_obs.cubes:
+        if cube_ref.position not in canvas.couts:
+            msg = f"Cube {cube_ref.position} not found in canvas.couts. Available cubes: {sorted(canvas.couts.keys())}"
+            raise KeyError(msg)
+        cube_couts = canvas.couts[cube_ref.position]
+        if cube_ref.label is not None:
+            if cube_ref.label not in cube_couts:
+                msg = (
+                    f"Label '{cube_ref.label}' not found in cube {cube_ref.position}. "
+                    f"Available labels: {sorted(cube_couts.keys())}"
+                )
+                raise KeyError(msg)
+            nodes |= cube_couts[cube_ref.label]
+        else:
+            for coords in cube_couts.values():
+                nodes |= coords
+
+    for pipe_ref in composite_obs.pipes:
+        pipe_key = (pipe_ref.start, pipe_ref.end)
+        if pipe_key not in canvas.pipe_couts:
+            msg = f"Pipe {pipe_key} not found in canvas.pipe_couts. Available pipes: {sorted(canvas.pipe_couts.keys())}"
+            raise KeyError(msg)
+        pipe_couts = canvas.pipe_couts[pipe_key]
+        if pipe_ref.label is not None:
+            if pipe_ref.label not in pipe_couts:
+                msg = (
+                    f"Label '{pipe_ref.label}' not found in pipe {pipe_key}. "
+                    f"Available labels: {sorted(pipe_couts.keys())}"
+                )
+                raise KeyError(msg)
+            nodes |= pipe_couts[pipe_ref.label]
+        else:
+            for coords in pipe_couts.values():
+                nodes |= coords
+
+    return nodes
 
 
 def export_canvas_to_graphqomb_studio(
