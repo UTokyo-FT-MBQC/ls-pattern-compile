@@ -113,6 +113,44 @@ def _figure_to_rgb_array(
     return cast("NDArray[np.uint8]", scaled.astype(np.uint8))
 
 
+def _add_progress_bar_overlay(
+    fig: go.Figure,
+    *,
+    progress: float,
+) -> None:
+    """Draw a visual progress bar in figure paper coordinates."""
+
+    clamped = min(max(float(progress), 0.0), 1.0)
+    x_start = 0.05
+    x_end = 0.95
+    y_bottom = 0.02
+    y_top = 0.045
+    bar_width = x_end - x_start
+
+    fig.add_shape(
+        type="rect",
+        xref="paper",
+        yref="paper",
+        x0=x_start,
+        x1=x_end,
+        y0=y_bottom,
+        y1=y_top,
+        line={"width": 0},
+        fillcolor="rgba(0, 0, 0, 0.20)",
+    )
+    fig.add_shape(
+        type="rect",
+        xref="paper",
+        yref="paper",
+        x0=x_start,
+        x1=x_start + (bar_width * clamped),
+        y0=y_bottom,
+        y1=y_top,
+        line={"width": 0},
+        fillcolor="rgba(0, 120, 255, 0.95)",
+    )
+
+
 def export_canvas_z_sweep_3d_mp4(
     canvas: CanvasLike,
     output_path: str | Path,
@@ -122,15 +160,22 @@ def export_canvas_z_sweep_3d_mp4(
     node_size_scale: float = 1.0,
     edge_width_scale: float = 1.0,
     tail_alpha: float = 0.25,
+    non_current_alpha: float | None = None,
     current_alpha: float = 1.0,
-    highlight_size_scale: float = 1.4,
+    highlight_size_scale: float = 1.0,
+    highlight_current_layer: bool = False,
     width: int = 1280,
     height: int = 720,
     reverse_axes: bool = True,
     aspect_ratio: tuple[float, float, float] | None = None,
+    lock_view: bool = True,
+    axis_padding: float = 1.0,
+    camera_eye: tuple[float, float, float] | None = (1.8, 1.8, 0.9),
+    projection_type: str = "orthographic",
     codec: str = "libx264",
     crf: int = 20,
     preset: str = "medium",
+    show_progress_bar: bool = False,
 ) -> Path:
     """Export a 3D z-sweep MP4 movie from z=0 up to max-z.
 
@@ -151,6 +196,10 @@ def export_canvas_z_sweep_3d_mp4(
     edge_width_scale_value = _validate_positive_float(edge_width_scale, name="edge_width_scale")
     highlight_size_scale_value = _validate_positive_float(highlight_size_scale, name="highlight_size_scale")
     tail_alpha_value = _validate_alpha(tail_alpha, name="tail_alpha")
+    if non_current_alpha is None:
+        non_current_alpha_value = tail_alpha_value
+    else:
+        non_current_alpha_value = _validate_alpha(non_current_alpha, name="non_current_alpha")
     current_alpha_value = _validate_alpha(current_alpha, name="current_alpha")
 
     if crf < 0:
@@ -173,8 +222,9 @@ def export_canvas_z_sweep_3d_mp4(
         ffmpeg_params=ffmpeg_params,
     )
 
+    total_frames = len(z_values)
     try:
-        for current_z in z_values:
+        for frame_index, current_z in enumerate(z_values, start=1):
             fig = render_canvas_z_window_plotly_figure(
                 canvas,
                 current_z=current_z,
@@ -182,13 +232,21 @@ def export_canvas_z_sweep_3d_mp4(
                 node_size_scale=node_size_scale_value,
                 edge_width_scale=edge_width_scale_value,
                 tail_alpha=tail_alpha_value,
+                non_current_alpha=non_current_alpha_value,
                 current_alpha=current_alpha_value,
                 highlight_size_scale=highlight_size_scale_value,
+                highlight_current_layer=highlight_current_layer,
                 width=width_value,
                 height=height_value,
                 reverse_axes=reverse_axes,
                 aspect_ratio=aspect_ratio,
+                lock_view=lock_view,
+                axis_padding=axis_padding,
+                camera_eye=camera_eye,
+                projection_type=projection_type,
             )
+            if show_progress_bar:
+                _add_progress_bar_overlay(fig, progress=frame_index / total_frames)
             frame = _figure_to_rgb_array(fig, width=width_value, height=height_value)
             writer.append_data(frame)
     finally:

@@ -113,6 +113,84 @@ def test_export_sweeps_all_z_layers(monkeypatch: pytest.MonkeyPatch, tmp_path: P
     assert imageio_stub.kwargs["ffmpeg_params"] == ["-crf", "18", "-preset", "fast"]
 
 
+def test_export_adds_progress_bar_when_enabled(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    canvas = _make_dummy_canvas()
+    writer = _DummyWriter()
+    imageio_stub = _DummyImageIOModule(writer)
+    bar_ranges: list[tuple[float, float]] = []
+
+    def fake_render(
+        _canvas: DummyCanvas,
+        *,
+        current_z: int,
+        **_kwargs: object,
+    ) -> go.Figure:
+        _ = current_z
+        return go.Figure()
+
+    def fake_frame(fig: go.Figure, *, width: int, height: int) -> np.ndarray[Any, np.dtype[np.uint8]]:
+        _ = (width, height)
+        shapes = tuple(fig.layout.shapes) if fig.layout.shapes is not None else ()
+        assert len(shapes) == 2
+        background, progress = shapes
+        assert float(background.x0) == pytest.approx(0.05)
+        assert float(background.x1) == pytest.approx(0.95)
+        assert float(background.y0) == pytest.approx(0.02)
+        assert float(background.y1) == pytest.approx(0.045)
+        assert float(progress.x0) == pytest.approx(0.05)
+        bar_ranges.append((float(progress.x0), float(progress.x1)))
+        return np.zeros((4, 8, 3), dtype=np.uint8)
+
+    monkeypatch.setattr(video_3d, "_get_imageio_v2", lambda: imageio_stub)
+    monkeypatch.setattr(video_3d, "render_canvas_z_window_plotly_figure", fake_render)
+    monkeypatch.setattr(video_3d, "_figure_to_rgb_array", fake_frame)
+
+    video_3d.export_canvas_z_sweep_3d_mp4(
+        canvas,
+        tmp_path / "movie.mp4",
+        width=8,
+        height=4,
+        show_progress_bar=True,
+    )
+
+    assert len(bar_ranges) == 3
+    assert [start for start, _ in bar_ranges] == pytest.approx([0.05, 0.05, 0.05])
+    assert [end for _, end in bar_ranges] == pytest.approx([0.35, 0.65, 0.95])
+
+
+def test_export_does_not_add_progress_bar_by_default(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    canvas = _make_dummy_canvas()
+    writer = _DummyWriter()
+    imageio_stub = _DummyImageIOModule(writer)
+
+    def fake_render(
+        _canvas: DummyCanvas,
+        *,
+        current_z: int,
+        **_kwargs: object,
+    ) -> go.Figure:
+        _ = current_z
+        return go.Figure()
+
+    def fake_frame(fig: go.Figure, *, width: int, height: int) -> np.ndarray[Any, np.dtype[np.uint8]]:
+        _ = (width, height)
+        assert not fig.layout.shapes
+        return np.zeros((4, 8, 3), dtype=np.uint8)
+
+    monkeypatch.setattr(video_3d, "_get_imageio_v2", lambda: imageio_stub)
+    monkeypatch.setattr(video_3d, "render_canvas_z_window_plotly_figure", fake_render)
+    monkeypatch.setattr(video_3d, "_figure_to_rgb_array", fake_frame)
+
+    video_3d.export_canvas_z_sweep_3d_mp4(
+        canvas,
+        tmp_path / "movie.mp4",
+        width=8,
+        height=4,
+    )
+
+    assert len(writer.frames) == 3
+
+
 @pytest.mark.parametrize(
     ("invalid_call", "match"),
     [
@@ -139,6 +217,10 @@ def test_export_sweeps_all_z_layers(monkeypatch: pytest.MonkeyPatch, tmp_path: P
         (
             lambda canvas, path: video_3d.export_canvas_z_sweep_3d_mp4(canvas, path, current_alpha=-0.1),
             "current_alpha",
+        ),
+        (
+            lambda canvas, path: video_3d.export_canvas_z_sweep_3d_mp4(canvas, path, non_current_alpha=1.1),
+            "non_current_alpha",
         ),
         (
             lambda canvas, path: video_3d.export_canvas_z_sweep_3d_mp4(canvas, path, width=0),

@@ -184,36 +184,49 @@ def _build_plotly_scene(
 ) -> dict[str, object]:
     """Build 3D scene configuration with optional manual axis scaling."""
 
+    manual_aspect = _normalize_manual_aspect_ratio(aspect_ratio)
+
     scene: dict[str, object] = {
         "xaxis_title": "X",
         "yaxis_title": "Y",
         "zaxis_title": "Z",
     }
 
-    if aspect_ratio is None:
+    if manual_aspect is None:
         scene["aspectmode"] = "data"
     else:
-        try:
-            x_scale, y_scale, z_scale = aspect_ratio
-            x = float(x_scale)
-            y = float(y_scale)
-            z = float(z_scale)
-        except (TypeError, ValueError) as exc:
-            msg = "aspect_ratio must be a tuple of three positive numbers."
-            raise ValueError(msg) from exc
-
-        if x <= 0 or y <= 0 or z <= 0:
-            msg = "aspect_ratio values must be positive."
-            raise ValueError(msg)
-
         scene["aspectmode"] = "manual"
-        scene["aspectratio"] = {"x": x, "y": y, "z": z}
+        scene["aspectratio"] = manual_aspect
 
     if reverse_axes:
         scene["xaxis"] = {"autorange": "reversed"}
         scene["yaxis"] = {"autorange": "reversed"}
 
     return scene
+
+
+def _normalize_manual_aspect_ratio(
+    aspect_ratio: tuple[float, float, float] | None,
+) -> dict[str, float] | None:
+    """Normalize optional aspect ratio tuple into Plotly-compatible mapping."""
+
+    if aspect_ratio is None:
+        return None
+
+    try:
+        x_scale, y_scale, z_scale = aspect_ratio
+        x = float(x_scale)
+        y = float(y_scale)
+        z = float(z_scale)
+    except (TypeError, ValueError) as exc:
+        msg = "aspect_ratio must be a tuple of three positive numbers."
+        raise ValueError(msg) from exc
+
+    if x <= 0 or y <= 0 or z <= 0:
+        msg = "aspect_ratio values must be positive."
+        raise ValueError(msg)
+
+    return {"x": x, "y": y, "z": z}
 
 
 def _validate_positive_float(value: float, *, name: str) -> float:
@@ -234,6 +247,80 @@ def _validate_alpha(value: float, *, name: str) -> float:
         msg = f"{name} must be between 0.0 and 1.0."
         raise ValueError(msg)
     return numeric
+
+
+def _validate_non_negative_float(value: float, *, name: str) -> float:
+    """Validate that a numeric value is non-negative."""
+
+    numeric = float(value)
+    if numeric < 0:
+        msg = f"{name} must be non-negative."
+        raise ValueError(msg)
+    return numeric
+
+
+def _validate_projection_type(value: str) -> str:
+    """Validate camera projection type used by Plotly."""
+
+    projection = str(value).strip().lower()
+    if projection not in {"perspective", "orthographic"}:
+        msg = "projection_type must be either 'perspective' or 'orthographic'."
+        raise ValueError(msg)
+    return projection
+
+
+def _compute_axis_range(
+    values: list[float],
+    *,
+    reverse: bool,
+    padding: float,
+) -> tuple[float, float]:
+    """Compute a fixed axis range with optional padding and reversal."""
+
+    low = min(values) - padding
+    high = max(values) + padding
+    if low == high:
+        low -= 0.5
+        high += 0.5
+    return (high, low) if reverse else (low, high)
+
+
+def _compute_window_z_axis_range(
+    *,
+    current_z: int,
+    z_window: int,
+    padding: float,
+) -> tuple[float, float]:
+    """Compute a z-axis range centered on the current sliding z-window."""
+
+    low = float(int(current_z) - int(z_window) + 1) - padding
+    high = float(int(current_z)) + padding
+    if low == high:
+        low -= 0.5
+        high += 0.5
+    return (low, high)
+
+
+def _compute_scene_axis_ranges(
+    nodes: set[Coord3D],
+    *,
+    reverse_axes: bool,
+    padding: float,
+) -> tuple[tuple[float, float], tuple[float, float], tuple[float, float]]:
+    """Compute deterministic x/y/z axis ranges from full-canvas nodes."""
+
+    if not nodes:
+        msg = "Cannot compute scene ranges from an empty canvas."
+        raise ValueError(msg)
+
+    x_values = [float(node.x) for node in nodes]
+    y_values = [float(node.y) for node in nodes]
+    z_values = [float(node.z) for node in nodes]
+    return (
+        _compute_axis_range(x_values, reverse=reverse_axes, padding=padding),
+        _compute_axis_range(y_values, reverse=reverse_axes, padding=padding),
+        _compute_axis_range(z_values, reverse=False, padding=padding),
+    )
 
 
 def visualize_canvas_plotly(
@@ -412,15 +499,21 @@ def render_canvas_z_window_plotly_figure(
     node_size_scale: float = 1.0,
     edge_width_scale: float = 1.0,
     tail_alpha: float = 0.25,
+    non_current_alpha: float | None = None,
     current_alpha: float = 1.0,
-    highlight_size_scale: float = 1.4,
+    highlight_size_scale: float = 1.0,
+    highlight_current_layer: bool = False,
     edge_color: str = "rgba(60, 60, 60, 0.7)",
     width: int = 900,
     height: int = 700,
     reverse_axes: bool = True,
     aspect_ratio: tuple[float, float, float] | None = None,
+    lock_view: bool = True,
+    axis_padding: float = 1.0,
+    camera_eye: tuple[float, float, float] | None = (1.8, 1.8, 0.9),
+    projection_type: str = "orthographic",
 ) -> go.Figure:
-    """Render one z-sweep frame with a sliding z-window and current-layer highlight.
+    """Render one z-sweep frame with a sliding z-window.
 
     Parameters
     ----------
@@ -437,10 +530,17 @@ def render_canvas_z_window_plotly_figure(
     tail_alpha : float, optional
         Opacity used for non-highlighted nodes in the visible z-window,
         by default 0.25.
+    non_current_alpha : float | None, optional
+        Explicit opacity for nodes outside ``current_z``. When provided, this
+        value overrides ``tail_alpha``. Must be in [0.0, 1.0].
     current_alpha : float, optional
-        Opacity used for highlighted current-layer nodes, by default 1.0.
+        Opacity used for highlighted current-layer nodes when
+        ``highlight_current_layer`` is True, by default 1.0.
     highlight_size_scale : float, optional
-        Multiplier applied to the base highlight marker size, by default 1.4.
+        Multiplier applied to the regular node size baseline when
+        ``highlight_current_layer`` is True, by default 1.0.
+    highlight_current_layer : bool, optional
+        Whether to highlight the current z-layer. Default False.
     edge_color : str, optional
         Edge color string, by default "rgba(60, 60, 60, 0.7)".
     width : int, optional
@@ -451,6 +551,18 @@ def render_canvas_z_window_plotly_figure(
         Whether to reverse X/Y axes, by default True.
     aspect_ratio : tuple[float, float, float] | None, optional
         Manual display scaling ratio for X/Y/Z axes.
+    lock_view : bool, optional
+        Keep camera view and axis ranges fixed across frames. X/Y use full-canvas
+        ranges, while Z uses the current sliding ``z_window`` range, by default True.
+    axis_padding : float, optional
+        Extra margin added to fixed axis ranges when ``lock_view`` is True.
+        Must be non-negative. Default 1.0.
+    camera_eye : tuple[float, float, float] | None, optional
+        Fixed Plotly camera eye when ``lock_view`` is True.
+        Set to None to keep Plotly default camera.
+    projection_type : str, optional
+        Plotly camera projection type. Use ``"orthographic"`` to suppress
+        perspective size changes over depth. Default ``"orthographic"``.
 
     Returns
     -------
@@ -461,11 +573,16 @@ def render_canvas_z_window_plotly_figure(
         msg = "z_window must be at least 1."
         raise ValueError(msg)
 
-    highlight_size_scale_value = _validate_positive_float(highlight_size_scale, name="highlight_size_scale")
+    tail_alpha_value = _validate_alpha(tail_alpha, name="tail_alpha")
+    if non_current_alpha is None:
+        non_current_alpha_value = tail_alpha_value
+    else:
+        non_current_alpha_value = _validate_alpha(non_current_alpha, name="non_current_alpha")
+    axis_padding_value = _validate_non_negative_float(axis_padding, name="axis_padding")
+    projection_type_value = _validate_projection_type(projection_type)
 
     z_min = int(current_z) - z_window + 1
     visible_nodes = {node for node in canvas.nodes if z_min <= node.z <= current_z}
-    current_layer_nodes = {node for node in visible_nodes if node.z == current_z}
     visible_edges = {
         (start, end)
         for start, end in canvas.edges
@@ -481,23 +598,83 @@ def render_canvas_z_window_plotly_figure(
         pauli_axes=canvas.pauli_axes,
         ),
     )
-    highlight_size = max(11.0 * highlight_size_scale_value, 1.0)
 
-    fig = visualize_canvas_plotly(
-        window_canvas,
-        show_edges=True,
-        edge_width_scale=edge_width_scale,
-        edge_color=edge_color,
-        node_size_scale=node_size_scale,
-        node_alpha=tail_alpha,
-        highlight_nodes=current_layer_nodes,
-        highlight_size=highlight_size,
-        highlight_alpha=current_alpha,
-        width=width,
-        height=height,
-        reverse_axes=reverse_axes,
-        aspect_ratio=aspect_ratio,
-    )
+    if highlight_current_layer:
+        highlight_size_scale_value = _validate_positive_float(highlight_size_scale, name="highlight_size_scale")
+        current_layer_nodes = {node for node in visible_nodes if node.z == current_z}
+        base_highlight_size = max(spec["size"] for spec in _COLOR_MAP.values())
+        highlight_size = max(float(base_highlight_size) * highlight_size_scale_value, 1.0)
+        fig = visualize_canvas_plotly(
+            window_canvas,
+            show_edges=True,
+            edge_width_scale=edge_width_scale,
+            edge_color=edge_color,
+            node_size_scale=node_size_scale,
+            node_alpha=non_current_alpha_value,
+            highlight_nodes=current_layer_nodes,
+            highlight_size=highlight_size,
+            highlight_alpha=current_alpha,
+            width=width,
+            height=height,
+            reverse_axes=reverse_axes,
+            aspect_ratio=aspect_ratio,
+        )
+    else:
+        fig = visualize_canvas_plotly(
+            window_canvas,
+            show_edges=True,
+            edge_width_scale=edge_width_scale,
+            edge_color=edge_color,
+            node_size_scale=node_size_scale,
+            node_alpha=non_current_alpha_value,
+            width=width,
+            height=height,
+            reverse_axes=reverse_axes,
+            aspect_ratio=aspect_ratio,
+        )
+
+    if lock_view:
+        x_range, y_range, _ = _compute_scene_axis_ranges(
+            canvas.nodes,
+            reverse_axes=reverse_axes,
+            padding=axis_padding_value,
+        )
+        z_range = _compute_window_z_axis_range(
+            current_z=current_z,
+            z_window=z_window,
+            padding=axis_padding_value,
+        )
+        x_span = abs(x_range[1] - x_range[0])
+        y_span = abs(y_range[1] - y_range[0])
+        z_span = abs(z_range[1] - z_range[0])
+        manual_aspect = _normalize_manual_aspect_ratio(aspect_ratio)
+        if manual_aspect is None:
+            max_span = max(x_span, y_span, z_span)
+            aspect_ratio_fixed = {"x": x_span / max_span, "y": y_span / max_span, "z": z_span / max_span}
+        else:
+            aspect_ratio_fixed = manual_aspect
+        scene_update: dict[str, object] = {
+            "xaxis": {"range": [x_range[0], x_range[1]], "autorange": False},
+            "yaxis": {"range": [y_range[0], y_range[1]], "autorange": False},
+            "zaxis": {"range": [z_range[0], z_range[1]], "autorange": False},
+            "aspectmode": "manual",
+            "aspectratio": aspect_ratio_fixed,
+        }
+        camera_update: dict[str, object] = {
+            "projection": {"type": projection_type_value},
+            "center": {"x": 0.0, "y": 0.0, "z": 0.0},
+            "up": {"x": 0.0, "y": 0.0, "z": 1.0},
+        }
+        if camera_eye is not None:
+            try:
+                eye_x, eye_y, eye_z = camera_eye
+            except (TypeError, ValueError) as exc:
+                msg = "camera_eye must be a tuple of three numbers or None."
+                raise ValueError(msg) from exc
+            camera_update["eye"] = {"x": float(eye_x), "y": float(eye_y), "z": float(eye_z)}
+        scene_update["camera"] = camera_update
+        fig.update_layout(scene=scene_update)
+
     fig.update_layout(title=f"Canvas Z-Sweep (z={current_z})")
     return fig
 
