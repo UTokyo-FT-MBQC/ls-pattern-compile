@@ -1,0 +1,35 @@
+# Profile table configuration for Matplotlib output.
+
+# Metrics to display in the table.
+# Available keys:
+#   commands_no_tick  - Number of commands excluding TICK
+#   max_space         - Maximum number of active qubits
+#   depth             - Total depth (number of TICKs)
+#   depth_m           - Measurement depth
+#   active_volume     - Active volume (max_space * depth)
+#   volume            - Total volume
+#   throughput        - Throughput
+#   idle_qubits       - Number of idle qubits
+#   idle_min          - Minimum idle time
+#   idle_mean         - Mean idle time
+#   idle_max          - Maximum idle time
+metrics:
+  - key: commands_no_tick
+    label: "Commands"
+  - key: max_space
+    label: "Max space"
+  - key: depth_m
+    label: "Depth (M)"
+  - key: active_volume
+    label: "Active volume"
+
+# Figure style
+style:
+  figsize: [10.0, 3.0]
+  dpi: 200
+  fontsize: 14
+  row_height: 2          # scale factor for row height
+  header_bg: "#4472C4"
+  header_fg: "white"
+  cell_bg: "#D9E2F3"
+  title_fontsize: 16

@@ -6,6 +6,7 @@ This script loads a canvas YAML file and performs:
 3. 2D slice visualization (optional)
 4. Flow cycle check (debug)
 5. Compile to Pattern and show profile
+6. Export pattern to .ptn
 """
 
 # %%
@@ -13,6 +14,10 @@ from __future__ import annotations
 
 from pathlib import Path
 from statistics import mean
+
+import yaml
+from graphqomb.command import M
+from graphqomb.ptn_format import dump as dump_ptn
 
 from lspattern.canvas_loader import load_canvas
 from lspattern.compiler import compile_canvas_to_pattern
@@ -24,15 +29,14 @@ from lspattern.visualizer_2d import visualize_canvas_matplotlib_2d
 # Configuration - Edit these values
 # =============================================================================
 input_yaml = Path(__file__).parent / "design" / "distillation_canvas.yml"
-code_distance = 3
+code_distance = 5
 output_dir = Path(__file__).parent / "output"
+profile_table_config = Path(__file__).parent / "profile_table_config.yml"
 
 # Visualization options
-enable_3d_viz = True  # Set to False to skip 3D visualization
+enable_3d_viz = False  # Set to False to skip 3D visualization
 slice_z: int | None = 60  # Z coordinate for 2D slice (None to skip)
 aspect_ratio: tuple[int, int, int] | None  = None  # Plotly 3D aspect ratio
-
-# =============================================================================
 
 # Ensure output directory exists
 output_dir.mkdir(parents=True, exist_ok=True)
@@ -123,10 +127,12 @@ try:
 except ValueError:
     throughput = None
 
+measurement_depth = pattern.depth_of((M,))
 pattern_profile = {
     "commands": len(pattern),
     "max_space": pattern.max_space,
     "depth": pattern.depth,
+    "depth_m": measurement_depth,
     "active_volume": pattern.active_volume,
     "volume": pattern.volume,
     "throughput": throughput,
@@ -139,6 +145,76 @@ pattern_profile = {
 print("Pattern profile:")
 for key, value in pattern_profile.items():
     print(f"  {key}: {value}")
+print()
+
+# %%
+# Step 5b: Generate profile summary table (Matplotlib)
+import matplotlib.pyplot as plt
+
+commands_no_tick = len(pattern) - pattern.depth
+all_metrics = {
+    "commands_no_tick": commands_no_tick,
+    "max_space": pattern.max_space,
+    "depth": pattern.depth,
+    "depth_m": measurement_depth,
+    "active_volume": pattern.active_volume,
+    "volume": pattern.volume,
+    "throughput": throughput,
+    "idle_qubits": len(idle_values),
+    "idle_min": min(idle_values) if idle_values else 0,
+    "idle_mean": mean(idle_values) if idle_values else 0.0,
+    "idle_max": max(idle_values) if idle_values else 0,
+}
+
+with open(profile_table_config) as f:
+    table_cfg = yaml.safe_load(f)
+
+metric_entries = table_cfg["metrics"]
+style = table_cfg.get("style", {})
+
+col_labels = [m["label"] for m in metric_entries]
+cell_values = [f"{all_metrics[m['key']]:,}" for m in metric_entries]
+
+figsize = style.get("figsize", [5.0, 1.5])
+fig_table, ax = plt.subplots(figsize=figsize)
+ax.axis("off")
+
+tbl = ax.table(
+    cellText=[cell_values],
+    colLabels=col_labels,
+    loc="center",
+    cellLoc="center",
+)
+tbl.auto_set_font_size(False)
+tbl.set_fontsize(style.get("fontsize", 11))
+tbl.scale(1.0, style.get("row_height", 1.6))
+
+header_bg = style.get("header_bg", "#4472C4")
+header_fg = style.get("header_fg", "white")
+cell_bg = style.get("cell_bg", "#D9E2F3")
+for j in range(len(col_labels)):
+    tbl[0, j].set_facecolor(header_bg)
+    tbl[0, j].set_text_props(color=header_fg, fontweight="bold")
+    tbl[1, j].set_facecolor(cell_bg)
+
+fig_table.suptitle(
+    f"{spec.name} (d={code_distance})",
+    fontsize=style.get("title_fontsize", 12),
+    fontweight="bold",
+)
+fig_table.tight_layout()
+
+table_path = output_dir / f"{input_yaml.stem}_profile_table.png"
+fig_table.savefig(table_path, dpi=style.get("dpi", 200), bbox_inches="tight")
+print(f"  Saved profile table: {table_path}")
+fig_table.show()
+
+# %%
+print("Step 6: Exporting pattern to .ptn...")
+ptn_path = output_dir / f"{input_yaml.stem}.ptn"
+dump_ptn(pattern, ptn_path)
+print(f"  M-command depth: {measurement_depth}")
+print(f"  Saved pattern: {ptn_path}")
 print()
 
 # %%
