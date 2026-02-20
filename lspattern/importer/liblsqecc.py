@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 from collections import defaultdict
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from operator import itemgetter
@@ -58,29 +58,10 @@ Coord2D = tuple[int, int]
 Coord3D = tuple[int, int, int]
 
 _DISTILLATION_PATCH_TYPE = "DistillationQubit"
-_MAGIC_STATE_RE = re.compile(r"Time to next magic state:(\d+)")
 
 
 class LibLsQeccImportError(RuntimeError):
     """Raised when liblsqecc slices cannot be converted into canvas YAML."""
-
-
-@dataclass(frozen=True)
-class DistillationFactory:
-    """A rectangular distillation factory region detected from slices."""
-
-    origin: Coord2D
-    width: int
-    height: int
-    z_period: int
-    outer_ring: frozenset[Coord2D]
-    inner_cells: frozenset[Coord2D]
-
-
-DistillationTemplateFn = Callable[
-    ["DistillationFactory", int],
-    tuple[list[dict[str, object]], list[dict[str, object]]],
-]
 
 
 @dataclass(frozen=True)
@@ -174,6 +155,18 @@ def _is_distillation_cell(cell: Mapping[str, Any] | None) -> bool:
     return cell is not None and cell.get("patch_type") == _DISTILLATION_PATCH_TYPE
 
 
+def _is_qubit_like_cell(
+    cell: Mapping[str, Any] | None,
+    *,
+    treat_distillation_as_qubit: bool,
+) -> bool:
+    if _is_qubit_cell(cell):
+        return True
+    if not treat_distillation_as_qubit:
+        return False
+    return _is_distillation_cell(cell)
+
+
 def _is_ancilla_cell(cell: Mapping[str, Any] | None) -> bool:
     return cell is not None and cell.get("patch_type") == _ANCILLA_PATCH_TYPE
 
@@ -186,8 +179,13 @@ def _is_measurement_cell(cell: Mapping[str, Any]) -> bool:
     return activity.get("activity_type") == _MEASUREMENT_ACTIVITY
 
 
-def _is_init_cell(current: Mapping[str, Any], previous: Mapping[str, Any] | None) -> bool:
-    if not _is_qubit_cell(previous):
+def _is_init_cell(
+    current: Mapping[str, Any],
+    previous: Mapping[str, Any] | None,
+    *,
+    treat_distillation_as_qubit: bool,
+) -> bool:
+    if not _is_qubit_like_cell(previous, treat_distillation_as_qubit=treat_distillation_as_qubit):
         return True
 
     current_id = _extract_qubit_id(current)
@@ -338,159 +336,11 @@ def _basis_from_stitch_kinds(kinds: set[str], *, context: str) -> str:
     raise LibLsQeccImportError(msg)
 
 
-def _detect_distillation_factories(  # noqa: C901
-    normalized: list[list[list[Mapping[str, Any] | None]]],
-) -> list[DistillationFactory]:
-    """Detect distillation factory regions from the first slice via connected-component analysis."""
-    if not normalized:
-        return []
-    first_slice = normalized[0]
-
-    # Collect distillation cell coordinates from z=0.
-    distill_coords: set[Coord2D] = set()
-    distill_cells: dict[Coord2D, Mapping[str, Any]] = {}
-    for y, row in enumerate(first_slice):
-        for x, cell in enumerate(row):
-            if _is_distillation_cell(cell):
-                distill_coords.add((x, y))
-                if cell is not None:
-                    distill_cells[(x, y)] = cell
-
-    if not distill_coords:
-        return []
-
-    # 4-connected component analysis.
-    visited: set[Coord2D] = set()
-    components: list[set[Coord2D]] = []
-    for start in sorted(distill_coords):
-        if start in visited:
-            continue
-        stack = [start]
-        component: set[Coord2D] = set()
-        while stack:
-            current = stack.pop()
-            if current in visited:
-                continue
-            visited.add(current)
-            component.add(current)
-            cx, cy = current
-            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                neighbor = (cx + dx, cy + dy)
-                if neighbor in distill_coords and neighbor not in visited:
-                    stack.append(neighbor)
-        components.append(component)
-
-    factories: list[DistillationFactory] = []
-    for comp in components:
-        xs = [c[0] for c in comp]
-        ys = [c[1] for c in comp]
-        min_x, max_x = min(xs), max(xs)
-        min_y, max_y = min(ys), max(ys)
-        origin: Coord2D = (min_x, min_y)
-        width = max_x - min_x + 1
-        height = max_y - min_y + 1
-
-        # Classify cells: active (any non-None edge) vs inactive (all None edges).
-        outer_ring: set[Coord2D] = set()
-        inner_cells: set[Coord2D] = set()
-        for coord in comp:
-            cell = distill_cells.get(coord)
-            if cell is None:
-                inner_cells.add((coord[0] - min_x, coord[1] - min_y))
-                continue
-            edges = cell.get("edges")
-            if isinstance(edges, Mapping):
-                has_active = any(
-                    isinstance(edges.get(k), str) and edges.get(k, "").strip().lower() != "none"
-                    for k in _BOUNDARY_KEYS
-                )
-            else:
-                has_active = False
-            rel = (coord[0] - min_x, coord[1] - min_y)
-            if has_active:
-                outer_ring.add(rel)
-            else:
-                inner_cells.add(rel)
-
-        # Detect z_period from "Time to next magic state:N" text.
-        z_period = 0
-        for coord in comp:
-            cell = distill_cells.get(coord)
-            if cell is None:
-                continue
-            text = cell.get("text")
-            if not isinstance(text, str):
-                continue
-            match = _MAGIC_STATE_RE.search(text)
-            if match is not None:
-                n = int(match.group(1))
-                if n > z_period:
-                    z_period = n
-        if z_period == 0:
-            # Scan later slices for this factory's origin cell.
-            for z in range(1, len(normalized)):
-                slice_rows = normalized[z]
-                ox, oy = origin
-                if oy < len(slice_rows) and ox < len(slice_rows[oy]):
-                    cell = slice_rows[oy][ox]
-                    if cell is not None and isinstance(cell.get("text"), str):
-                        m = _MAGIC_STATE_RE.search(cell["text"])
-                        if m is not None:
-                            n = int(m.group(1))
-                            if n > z_period:
-                                z_period = n
-            if z_period == 0:
-                z_period = 1  # Fallback: treat as period 1
-
-        factories.append(
-            DistillationFactory(
-                origin=origin,
-                width=width,
-                height=height,
-                z_period=z_period,
-                outer_ring=frozenset(outer_ring),
-                inner_cells=frozenset(inner_cells),
-            )
-        )
-
-    return factories
-
-
-def default_distillation_template(
-    factory: DistillationFactory,
-    total_slices: int,
-) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
-    """Placeholder distillation template. Edit to customize."""
-    cubes: list[dict[str, object]] = []
-    pipes: list[dict[str, object]] = []
-    ox, oy = factory.origin
-    transposed = factory.width > factory.height  # 5x3
-
-    for round_start in range(0, total_slices, factory.z_period):
-        for dz in range(factory.z_period):
-            z = round_start + dz
-            if z >= total_slices:
-                break
-            if dz == 0:
-                block = "InitZeroBlock"
-            elif dz == factory.z_period - 1:
-                block = "MeasureZBlock"
-            else:
-                block = "MemoryBlock"
-            for dx, dy in sorted(factory.outer_ring):
-                rx, ry = (dy, dx) if transposed else (dx, dy)
-                cubes.append({
-                    "position": [ox + rx, oy + ry, z],
-                    "block": block,
-                    "boundary": "XXZZ",
-                })
-    return cubes, pipes
-
-
 def _extract_ancilla_components(  # noqa: C901
     slice_rows: list[list[Mapping[str, Any] | None]],
     *,
     z: int,
+    treat_distillation_as_qubit: bool,
 ) -> list[_AncillaComponentExtracted]:
     height = len(slice_rows)
     width = len(slice_rows[0]) if height > 0 else 0
@@ -561,7 +411,7 @@ def _extract_ancilla_components(  # noqa: C901
                 if not _in_bounds(nx, ny, width, height):
                     continue
                 neighbor_cell = slice_rows[ny][nx]
-                if not _is_qubit_cell(neighbor_cell):
+                if not _is_qubit_like_cell(neighbor_cell, treat_distillation_as_qubit=treat_distillation_as_qubit):
                     continue
                 if neighbor_cell is None:
                     msg = f"Internal error: qubit cell unexpectedly None at slice={z}, row={ny}, col={nx}"
@@ -600,8 +450,13 @@ def _extract_valid_ancilla_components(
     slice_rows: list[list[Mapping[str, Any] | None]],
     *,
     z: int,
+    treat_distillation_as_qubit: bool,
 ) -> list[_AncillaComponent]:
-    extracted = _extract_ancilla_components(slice_rows, z=z)
+    extracted = _extract_ancilla_components(
+        slice_rows,
+        z=z,
+        treat_distillation_as_qubit=treat_distillation_as_qubit,
+    )
     components: list[_AncillaComponent] = []
     for component in extracted:
         endpoint_stitch_kinds = dict(component.endpoint_stitch_kinds)
@@ -679,7 +534,7 @@ def _can_match_rotation_boundary(
 
 
 @lru_cache(maxsize=1)
-def _load_rotation_templates() -> dict[str, _RotationTemplate]:
+def _load_rotation_templates() -> dict[str, _RotationTemplate]:  # noqa: C901
     base_dir = Path(__file__).resolve().parents[2] / "examples" / "design" / "utils"
     templates: dict[str, _RotationTemplate] = {}
 
@@ -767,8 +622,10 @@ def _load_rotation_templates() -> dict[str, _RotationTemplate]:
     return templates
 
 
-def _detect_rotation_overrides(
+def _detect_rotation_overrides(  # noqa: C901
     normalized: list[list[list[Mapping[str, Any] | None]]],
+    *,
+    treat_distillation_as_qubit: bool,
 ) -> tuple[dict[Coord3D, dict[str, object]], dict[tuple[Coord3D, Coord3D], dict[str, object]]]:
     templates = _load_rotation_templates()
     if not templates:
@@ -776,7 +633,13 @@ def _detect_rotation_overrides(
 
     components_per_slice: list[list[_AncillaComponentExtracted]] = []
     for z, slice_rows in enumerate(normalized):
-        components_per_slice.append(_extract_ancilla_components(slice_rows, z=z))
+        components_per_slice.append(
+            _extract_ancilla_components(
+                slice_rows,
+                z=z,
+                treat_distillation_as_qubit=treat_distillation_as_qubit,
+            )
+        )
 
     candidate_zs_by_cells: dict[frozenset[Coord2D], list[int]] = defaultdict(list)
     for z, components in enumerate(components_per_slice):
@@ -800,7 +663,7 @@ def _detect_rotation_overrides(
         run_start = zs_sorted[0]
         run_end = zs_sorted[0]
 
-        def process_run(start: int, end: int) -> None:
+        def process_run(start: int, end: int, cells_in_run: frozenset[Coord2D] = cells) -> None:  # noqa: C901
             run_len = end - start + 1
             if run_len != 3:  # noqa: PLR2004
                 return
@@ -810,13 +673,21 @@ def _detect_rotation_overrides(
             if z_after >= len(normalized):
                 return
 
-            coords = sorted(cells)
+            coords = sorted(cells_in_run)
             input_candidates: list[tuple[Coord2D, str]] = []
             for coord in coords:
                 x, y = coord
                 prev_cell = normalized[start - 1][y][x]
                 after_cell = normalized[z_after][y][x]
-                if not _is_qubit_cell(prev_cell) or not _is_qubit_cell(after_cell):
+                prev_is_qubit_like = _is_qubit_like_cell(
+                    prev_cell,
+                    treat_distillation_as_qubit=treat_distillation_as_qubit,
+                )
+                after_is_qubit_like = _is_qubit_like_cell(
+                    after_cell,
+                    treat_distillation_as_qubit=treat_distillation_as_qubit,
+                )
+                if not (prev_is_qubit_like and after_is_qubit_like):
                     continue
                 if prev_cell is None or after_cell is None:
                     continue
@@ -875,7 +746,7 @@ def _detect_rotation_overrides(
                 if x < 0 or x >= len(normalized[z][y]):
                     return
                 adjusted_boundary = _swap_xz_boundary(boundary) if swap_xz else boundary
-                cube_overrides[(x, y, z)] = {
+                cube_overrides[x, y, z] = {
                     "position": [x, y, z],
                     "block": block,
                     "boundary": adjusted_boundary,
@@ -1064,7 +935,7 @@ def convert_slices_to_canvas_yaml(  # noqa: C901
     *,
     name: str,
     description: str | None = None,
-    distillation_template: DistillationTemplateFn | None = None,
+    treat_distillation_as_qubit: bool = True,
 ) -> str:
     """Convert liblsqecc slices JSON content to lspattern canvas YAML text."""
     if not name.strip():
@@ -1072,7 +943,10 @@ def convert_slices_to_canvas_yaml(  # noqa: C901
         raise LibLsQeccImportError(msg)
 
     normalized = _validate_and_normalize_slices(list(slices))
-    rotation_cube_overrides, rotation_pipe_overrides = _detect_rotation_overrides(normalized)
+    rotation_cube_overrides, rotation_pipe_overrides = _detect_rotation_overrides(
+        normalized,
+        treat_distillation_as_qubit=treat_distillation_as_qubit,
+    )
 
     cube_entries_by_coord: dict[Coord3D, dict[str, object]] = {}
     qubit_coords: set[Coord3D] = set()
@@ -1081,7 +955,7 @@ def convert_slices_to_canvas_yaml(  # noqa: C901
     for z, slice_rows in enumerate(normalized):
         for y, row in enumerate(slice_rows):
             for x, cell in enumerate(row):
-                if not _is_qubit_cell(cell):
+                if not _is_qubit_like_cell(cell, treat_distillation_as_qubit=treat_distillation_as_qubit):
                     continue
                 if cell is None:
                     continue
@@ -1090,7 +964,11 @@ def convert_slices_to_canvas_yaml(  # noqa: C901
                 if previous_slice is not None:
                     previous_cell = previous_slice[y][x]
 
-                is_init = _is_init_cell(cell, previous_cell)
+                is_init = _is_init_cell(
+                    cell,
+                    previous_cell,
+                    treat_distillation_as_qubit=treat_distillation_as_qubit,
+                )
                 is_measure = _is_measurement_cell(cell)
 
                 if is_init:
@@ -1111,7 +989,13 @@ def convert_slices_to_canvas_yaml(  # noqa: C901
 
     ancilla_components: list[_AncillaComponent] = []
     for z, slice_rows in enumerate(normalized):
-        ancilla_components.extend(_extract_valid_ancilla_components(slice_rows, z=z))
+        ancilla_components.extend(
+            _extract_valid_ancilla_components(
+                slice_rows,
+                z=z,
+                treat_distillation_as_qubit=treat_distillation_as_qubit,
+            )
+        )
 
     ancilla_block_by_coord, ancilla_basis_by_coord = _build_ancilla_blocks(ancilla_components)
 
@@ -1184,7 +1068,7 @@ def convert_slices_to_canvas_yaml(  # noqa: C901
         width = len(slice_rows[0]) if height > 0 else 0
         for y, row in enumerate(slice_rows):
             for x, cell in enumerate(row):
-                if not _is_qubit_cell(cell):
+                if not _is_qubit_like_cell(cell, treat_distillation_as_qubit=treat_distillation_as_qubit):
                     continue
                 if cell is None:
                     continue
@@ -1197,7 +1081,7 @@ def convert_slices_to_canvas_yaml(  # noqa: C901
                     if not _in_bounds(nx, ny, width, height):
                         continue
                     neighbor = slice_rows[ny][nx]
-                    if not _is_qubit_cell(neighbor):
+                    if not _is_qubit_like_cell(neighbor, treat_distillation_as_qubit=treat_distillation_as_qubit):
                         continue
                     if neighbor is None:
                         continue
@@ -1256,8 +1140,7 @@ def convert_slices_to_canvas_yaml(  # noqa: C901
 
         entry["boundary"] = _boundary_chars_to_string(boundary_chars)
 
-    for coord3, entry in rotation_cube_overrides.items():
-        cube_entries_by_coord[coord3] = entry
+    cube_entries_by_coord.update(rotation_cube_overrides)
 
     if rotation_pipe_overrides:
         pipe_entries_by_key = {
@@ -1267,22 +1150,12 @@ def convert_slices_to_canvas_yaml(  # noqa: C901
             ): entry
             for entry in pipe_entries
         }
-        for key, entry in rotation_pipe_overrides.items():
-            pipe_entries_by_key[key] = entry
+        pipe_entries_by_key.update(rotation_pipe_overrides)
         pipe_entries = list(pipe_entries_by_key.values())
 
     cube_entries = list(cube_entries_by_coord.values())
     cube_entries.sort(key=_cube_sort_key)
     pipe_entries.sort(key=_pipe_sort_key)
-
-    if distillation_template is not None:
-        factories = _detect_distillation_factories(normalized)
-        for factory in factories:
-            dist_cubes, dist_pipes = distillation_template(factory, len(normalized))
-            cube_entries.extend(dist_cubes)
-            pipe_entries.extend(dist_pipes)
-        cube_entries.sort(key=_cube_sort_key)
-        pipe_entries.sort(key=_pipe_sort_key)
 
     canvas_dict = {
         "name": name,
@@ -1300,7 +1173,7 @@ def convert_slices_file_to_canvas_yaml(
     *,
     name: str | None = None,
     description: str | None = None,
-    distillation_template: DistillationTemplateFn | None = None,
+    treat_distillation_as_qubit: bool = True,
 ) -> str:
     """Convert a liblsqecc slices JSON file into lspattern canvas YAML text."""
     input_path = Path(input_json)
@@ -1315,7 +1188,10 @@ def convert_slices_file_to_canvas_yaml(
 
     canvas_name = name or input_path.stem
     yaml_text = convert_slices_to_canvas_yaml(
-        raw, name=canvas_name, description=description, distillation_template=distillation_template,
+        raw,
+        name=canvas_name,
+        description=description,
+        treat_distillation_as_qubit=treat_distillation_as_qubit,
     )
 
     if output_yml is not None:

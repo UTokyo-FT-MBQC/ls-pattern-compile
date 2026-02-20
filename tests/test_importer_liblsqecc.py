@@ -61,16 +61,31 @@ def _ancilla_cell(
 
 
 def _distillation_cell() -> dict[str, Any]:
+    return _distillation_cell_with()
+
+
+def _distillation_cell_with(
+    *,
+    qid: int | None = None,
+    top: str = "None",
+    bottom: str = "None",
+    left: str = "None",
+    right: str = "None",
+    measurement: bool = False,
+    text: str | None = None,
+) -> dict[str, Any]:
+    if text is None:
+        text = f"Id: {qid}" if qid is not None else ""
     return {
         "patch_type": "DistillationQubit",
         "edges": {
-            "Top": "None",
-            "Bottom": "None",
-            "Left": "None",
-            "Right": "None",
+            "Top": top,
+            "Bottom": bottom,
+            "Left": left,
+            "Right": right,
         },
-        "activity": {"activity_type": None},
-        "text": "",
+        "activity": {"activity_type": "Measurement" if measurement else None},
+        "text": text,
     }
 
 
@@ -152,13 +167,49 @@ def test_boundary_stitched_edges_become_open_boundary() -> None:
     assert _cube_entry(canvas, [0, 0, 0])["boundary"] == "ZOOX"
 
 
-def test_non_qubit_cells_ignored() -> None:
+def test_distillation_cells_treated_as_qubits_by_default() -> None:
     slices = [
         [[_distillation_cell(), _ancilla_cell(), _qubit_cell(qid=9)]],
     ]
     canvas = _load_yaml(convert_slices_to_canvas_yaml(slices, name="ignore"))
+    assert len(canvas["cube"]) == 2
+    assert _cube_entry(canvas, [0, 0, 0])["block"] == "InitZeroBlock"
+    assert _cube_entry(canvas, [2, 0, 0])["block"] == "InitZeroBlock"
+
+
+def test_distillation_cells_can_be_ignored_with_flag() -> None:
+    slices = [
+        [[_distillation_cell(), _ancilla_cell(), _qubit_cell(qid=9)]],
+    ]
+    canvas = _load_yaml(convert_slices_to_canvas_yaml(slices, name="ignore-flag", treat_distillation_as_qubit=False))
     assert len(canvas["cube"]) == 1
     assert _cube_entry(canvas, [2, 0, 0])["block"] == "InitZeroBlock"
+
+
+def test_distillation_boundary_is_generated_from_edges() -> None:
+    slices = [[[_distillation_cell_with(top="Solid", bottom="Dashed", left="None", right="None")]]]
+    canvas = _load_yaml(convert_slices_to_canvas_yaml(slices, name="distill-boundary"))
+    assert _cube_entry(canvas, [0, 0, 0])["boundary"] == "ZXOO"
+
+
+def test_distillation_and_qubit_stitched_connection_generates_pipe() -> None:
+    slices = [[[
+        _distillation_cell_with(right="SolidStiched"),
+        _qubit_cell(qid=12, left="SolidStiched"),
+    ]]]
+    canvas = _load_yaml(convert_slices_to_canvas_yaml(slices, name="distill-stitched"))
+    assert _pipe_entry(canvas, [0, 0, 0], [1, 0, 0])["block"] == "ShortXMemoryBlock"
+    assert _pipe_entry(canvas, [0, 0, 0], [1, 0, 0])["boundary"] == "XXOO"
+
+
+def test_distillation_without_id_stays_memory_after_first_slice() -> None:
+    slices = [
+        [[_distillation_cell_with()]],
+        [[_distillation_cell_with()]],
+    ]
+    canvas = _load_yaml(convert_slices_to_canvas_yaml(slices, name="distill-no-id"))
+    assert _cube_entry(canvas, [0, 0, 0])["block"] == "InitZeroBlock"
+    assert _cube_entry(canvas, [0, 0, 1])["block"] == "MemoryBlock"
 
 
 def test_output_has_empty_pipe_section() -> None:
@@ -301,6 +352,21 @@ def test_rotation_component_boundary_swaps_xz_when_needed() -> None:
 
     assert _cube_entry(canvas, [1, 0, 1])["boundary"] == "ZZOX"
     assert _pipe_entry(canvas, [0, 0, 1], [1, 0, 1])["boundary"] == "ZZOO"
+
+
+def test_rotation_component_detects_distillation_cells_when_enabled() -> None:
+    slices = [
+        [[None, _distillation_cell_with(qid=7)]],
+        [[_ancilla_cell(right="AncillaJoin"), _ancilla_cell(left="AncillaJoin")]],
+        [[_ancilla_cell(right="AncillaJoin"), _ancilla_cell(left="AncillaJoin")]],
+        [[_ancilla_cell(right="AncillaJoin"), _ancilla_cell(left="AncillaJoin")]],
+        [[None, _distillation_cell_with(qid=7)]],
+    ]
+
+    canvas = _load_yaml(convert_slices_to_canvas_yaml(slices, name="rotation-right-distillation"))
+
+    assert _cube_entry(canvas, [1, 0, 1])["boundary"] == "XXOZ"
+    assert _pipe_entry(canvas, [0, 0, 1], [1, 0, 1])["boundary"] == "XXOO"
 
 
 def test_invalid_input_shape_raises() -> None:

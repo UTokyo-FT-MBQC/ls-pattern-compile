@@ -10,14 +10,13 @@ from pathlib import Path
 
 from lspattern.importer.liblsqecc import (
     convert_slices_file_to_canvas_yaml,
-    default_distillation_template,
 )
 
 # =============================================================================
 # Configuration - Edit these values
 # =============================================================================
 input_json = Path(
-    "path2json"
+    "/home/masato/git-repos/pyzx-mbqc/FTQC-compiler-survey/mf/e2edemo/output/adder_n4_slices_crop_x5-11_y5-11.json"
 )  # Path to liblsqecc slices JSON
 output_dir = Path(__file__).parent / "output"
 
@@ -38,7 +37,6 @@ yaml_text = convert_slices_file_to_canvas_yaml(
     yaml_path,
     name=input_json.stem,
     description=f"Imported from {input_json.name}",
-    distillation_template=default_distillation_template,
 )
 
 print(f"  Generated YAML: {yaml_path}")
