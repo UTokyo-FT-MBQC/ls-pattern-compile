@@ -12,8 +12,8 @@ from lspattern.export import canvas_to_graphqomb_studio_dict, export_canvas_to_g
 # =============================================================================
 # Configuration - modify these parameters as needed
 # =============================================================================
-spec_name = "design/cnot.yml"
-code_distance = 3
+spec_name = "/home/masato/git-repos/pyzx-mbqc/SimulatorTeamWS/mf/cnot_lspattern/design/cnot_XIXX.yml"
+code_distance = 7
 output_dir = Path("output")
 
 # Optional coordinate range filter (closed intervals). Use None for unbounded.

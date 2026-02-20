@@ -25,9 +25,9 @@ from lspattern.visualizer_2d import (
 # =============================================================================
 # Configuration - Edit these values
 # =============================================================================
-spec_name = "design/L_patch.yml"
+spec_name = "/home/masato/git-repos/pyzx-mbqc/ls-pattern-compile/examples/output/adder_n4_slices_crop_x5-10_y5-11.yml"
 code_distance = 3
-target_z = 1
+target_z = 2
 
 # =============================================================================
 
