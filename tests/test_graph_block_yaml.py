@@ -3,8 +3,12 @@
 from pathlib import Path
 from textwrap import dedent
 
+import pytest
+from graphqomb.graphstate import GraphState
+from graphqomb.scheduler import Scheduler
+
 from lspattern.canvas_loader import load_canvas
-from lspattern.compiler import compile_canvas_to_stim
+from lspattern.compiler import _delay_measurements_for_flow, compile_canvas_to_stim
 from lspattern.mytype import Coord2D, Coord3D
 
 
@@ -14,6 +18,34 @@ def _write_yaml(path: Path, content: str) -> None:
 
 def _write_json(path: Path, content: str) -> None:
     path.write_text(dedent(content).strip() + "\n", encoding="utf-8")
+
+
+def test_delay_measurements_for_flow_splits_equal_time_dependencies() -> None:
+    graph, node_map = GraphState.from_graph(
+        nodes=["input", "middle", "output"],
+        edges=[("input", "middle"), ("middle", "output")],
+        inputs=["input"],
+        outputs=["output"],
+    )
+    input_node = node_map["input"]
+    middle_node = node_map["middle"]
+    output_node = node_map["output"]
+
+    flow = {input_node: {middle_node}, middle_node: {output_node}}
+    scheduler = Scheduler(graph, flow)
+    scheduler.manual_schedule(
+        prepare_time={middle_node: 0, output_node: 0},
+        measure_time={input_node: 1, middle_node: 1},
+    )
+
+    with pytest.raises(ValueError, match="DAG violation"):
+        scheduler.validate_schedule()
+
+    _delay_measurements_for_flow(scheduler)
+
+    assert scheduler.measure_time[input_node] == 1
+    assert scheduler.measure_time[middle_node] == 2
+    scheduler.validate_schedule()
 
 
 def test_load_canvas_with_graph_block(tmp_path: Path) -> None:
