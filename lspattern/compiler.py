@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from graphlib import TopologicalSorter
 from typing import TYPE_CHECKING
 
 from graphqomb.common import AxisMeasBasis, Sign
 from graphqomb.graphstate import GraphState
+from graphqomb.noise_model import DepolarizingNoiseModel, MeasurementFlipNoiseModel
 from graphqomb.qompiler import qompile
 from graphqomb.scheduler import Scheduler
 from graphqomb.stim_compiler import stim_compile
@@ -76,6 +78,29 @@ def _collect_logical_observable_nodes(  # noqa: C901
     return nodes
 
 
+def _delay_measurements_for_flow(scheduler: Scheduler) -> None:
+    """Delay equal-time measurements until the manual schedule satisfies flow causality."""
+    predecessors: dict[int, set[int]] = {node: set() for node in scheduler.measure_time}
+    for source, successors in scheduler.dag.items():
+        if source not in scheduler.measure_time:
+            continue
+        for successor in successors:
+            if successor in scheduler.measure_time:
+                predecessors[successor].add(source)
+
+    for node in TopologicalSorter(predecessors).static_order():
+        measure_time = scheduler.measure_time[node]
+        if measure_time is None:
+            continue
+
+        min_measure_time = measure_time
+        for predecessor in predecessors[node]:
+            predecessor_time = scheduler.measure_time[predecessor]
+            if predecessor_time is not None and predecessor_time >= min_measure_time:
+                min_measure_time = predecessor_time + 1
+        scheduler.measure_time[node] = min_measure_time
+
+
 def compile_canvas_to_stim(
     canvas: Canvas,
     p_depol_after_clifford: float,
@@ -94,6 +119,8 @@ def compile_canvas_to_stim(
     prep_time, meas_time, entangle_time = canvas.scheduler.to_node_schedule(node_map)
     scheduler = Scheduler(graph, flow)
     scheduler.manual_schedule(prep_time, meas_time, entangle_time)
+    _delay_measurements_for_flow(scheduler)
+    scheduler.validate_schedule()
 
     # construct detectors
     coord2detectors = construct_detector(canvas.parity_accumulator)
@@ -102,7 +129,6 @@ def compile_canvas_to_stim(
         det_nodes = {node_map[coord] for coord in det_coords if coord in node_map}
         if det_nodes:
             detectors.append(frozenset(det_nodes))
-    pattern = qompile(graph, flow, parity_check_group=detectors, scheduler=scheduler)
 
     # extract logical observables from canvas
     logical_observables_nodes: dict[int, set[int]] = {}
@@ -110,10 +136,19 @@ def compile_canvas_to_stim(
         nodes = _collect_logical_observable_nodes(canvas, composite_logical_obs)
         logical_observables_nodes[key] = {node_map[coord] for coord in nodes}
 
+    pattern = qompile(
+        graph,
+        flow,
+        parity_check_group=detectors,
+        logical_observables=logical_observables_nodes,
+        scheduler=scheduler,
+    )
+
     result: str = stim_compile(
         pattern,
-        logical_observables_nodes,
-        p_depol_after_clifford=p_depol_after_clifford,
-        p_before_meas_flip=p_before_meas_flip,
+        noise_models=[
+            DepolarizingNoiseModel(p1=p_depol_after_clifford),
+            MeasurementFlipNoiseModel(p=p_before_meas_flip),
+        ],
     )
     return result
