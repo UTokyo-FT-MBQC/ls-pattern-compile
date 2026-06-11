@@ -15,6 +15,8 @@ from graphqomb.stim_compiler import stim_compile
 from lspattern.detector import construct_detector
 
 if TYPE_CHECKING:
+    from graphqomb.pattern import Pattern
+
     from lspattern.canvas import Canvas
     from lspattern.canvas_loader import CompositeLogicalObservableSpec
     from lspattern.mytype import Coord3D
@@ -101,15 +103,13 @@ def _delay_measurements_for_flow(scheduler: Scheduler) -> None:
         scheduler.measure_time[node] = min_measure_time
 
 
-def compile_canvas_to_stim(
-    canvas: Canvas,
-    p_depol_after_clifford: float,
-    p_before_meas_flip: float,
-) -> str:
+def compile_canvas_to_pattern(canvas: Canvas) -> Pattern:
+    """Compile a canvas into a GraphQOMB measurement pattern."""
     graph, node_map = GraphState.from_graph(
-        nodes=canvas.nodes,
-        edges=canvas.edges,
+        nodes=sorted(canvas.nodes),
+        edges=sorted(canvas.edges),
         meas_bases={node: AxisMeasBasis(canvas.pauli_axes[node], Sign.PLUS) for node in canvas.nodes},
+        coordinates={node: (node.x, node.y, node.z) for node in canvas.nodes},
     )
 
     flow = canvas.flow.to_node_flow(node_map)
@@ -136,13 +136,21 @@ def compile_canvas_to_stim(
         nodes = _collect_logical_observable_nodes(canvas, composite_logical_obs)
         logical_observables_nodes[key] = {node_map[coord] for coord in nodes}
 
-    pattern = qompile(
+    return qompile(
         graph,
         flow,
         parity_check_group=detectors,
         logical_observables=logical_observables_nodes,
         scheduler=scheduler,
     )
+
+
+def compile_canvas_to_stim(
+    canvas: Canvas,
+    p_depol_after_clifford: float,
+    p_before_meas_flip: float,
+) -> str:
+    pattern = compile_canvas_to_pattern(canvas)
 
     result: str = stim_compile(
         pattern,

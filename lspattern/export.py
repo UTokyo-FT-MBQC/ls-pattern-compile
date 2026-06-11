@@ -8,7 +8,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from graphqomb.common import Axis
+from graphqomb.ptn_format import dump as dump_ptn
 
+from lspattern.compiler import compile_canvas_to_pattern
 from lspattern.detector import construct_detector
 
 if TYPE_CHECKING:
@@ -366,6 +368,20 @@ def export_canvas_to_graphqomb_studio(
 
     with Path(output_path).open("w", encoding="utf-8") as f:
         json.dump(project, f, indent=2)
+
+
+def export_canvas_to_ptn(canvas: Canvas, output_path: str | Path) -> None:
+    """Export a Canvas to GraphQOMB's .ptn pattern format.
+
+    Parameters
+    ----------
+    canvas : Canvas
+        The canvas to compile and export.
+    output_path : str | Path
+        Path to write the .ptn file.
+    """
+    pattern = compile_canvas_to_pattern(canvas)
+    dump_ptn(pattern, output_path)
 
 
 def canvas_to_graphqomb_studio_dict(

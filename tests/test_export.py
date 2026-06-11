@@ -7,7 +7,9 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from graphqomb.command import N
 from graphqomb.common import Axis
+from graphqomb.ptn_format import load
 
 from lspattern.canvas import Canvas, CanvasConfig
 from lspattern.export import (
@@ -22,6 +24,7 @@ from lspattern.export import (
     _normalize_edge_id,
     canvas_to_graphqomb_studio_dict,
     export_canvas_to_graphqomb_studio,
+    export_canvas_to_ptn,
 )
 from lspattern.mytype import Coord3D
 
@@ -313,6 +316,30 @@ class TestExportCanvasToGraphqombStudio:
             assert Path(output_path).exists()
         finally:
             Path(output_path).unlink(missing_ok=True)
+
+
+class TestExportCanvasToPtn:
+    """Tests for export_canvas_to_ptn function."""
+
+    def test_export_creates_loadable_ptn(self, simple_canvas: Canvas, tmp_path: Path) -> None:
+        """Test that export creates a GraphQOMB-loadable .ptn file."""
+        output_path = tmp_path / "simple.ptn"
+
+        export_canvas_to_ptn(simple_canvas, output_path)
+        pattern = load(output_path)
+
+        assert output_path.exists()
+        assert pattern.pauli_frame.xflow
+        assert len(pattern.commands) > 0
+        assert any(isinstance(cmd, N) and cmd.coordinate == (0, 0, 0) for cmd in pattern.commands)
+
+    def test_export_with_string_path(self, simple_canvas: Canvas, tmp_path: Path) -> None:
+        """Test .ptn export with string path."""
+        output_path = tmp_path / "simple_string_path.ptn"
+
+        export_canvas_to_ptn(simple_canvas, str(output_path))
+
+        assert output_path.exists()
 
 
 class TestCanvasToGraphqombStudioDict:
