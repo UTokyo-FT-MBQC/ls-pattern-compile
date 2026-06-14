@@ -8,7 +8,7 @@ customizable titles.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,6 +25,37 @@ if TYPE_CHECKING:
 
     from matplotlib.axes import Axes
     from matplotlib.figure import Figure
+
+type LegendLocation = (
+    Literal[
+        "best",
+        "upper right",
+        "upper left",
+        "lower left",
+        "lower right",
+        "right",
+        "center left",
+        "center right",
+        "lower center",
+        "upper center",
+        "center",
+        "outside upper left",
+        "outside upper center",
+        "outside upper right",
+        "outside right upper",
+        "outside right center",
+        "outside right lower",
+        "outside lower right",
+        "outside lower center",
+        "outside lower left",
+        "outside left lower",
+        "outside left center",
+        "outside left upper",
+    ]
+    | tuple[float, float]
+    | int
+    | None
+)
 
 
 def _default_x_func(stat: sinter.TaskStats) -> float:
@@ -55,7 +86,7 @@ class PlotConfig:
         Y-axis scale ('log' or 'linear').
     figsize : tuple[float, float]
         Figure size in inches.
-    legend_loc : str
+    legend_loc : LegendLocation
         Legend location.
     show_fitting_curve : bool
         Whether to show fitting curves.
@@ -71,7 +102,7 @@ class PlotConfig:
     xscale: str = "log"
     yscale: str = "log"
     figsize: tuple[float, float] = (10, 8)
-    legend_loc: str = "best"
+    legend_loc: LegendLocation = "best"
     show_fitting_curve: bool = False
     show_fitting_params: bool = True
     color_by_distance: bool = True
