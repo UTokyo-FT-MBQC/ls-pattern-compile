@@ -165,8 +165,8 @@ def compile_canvas_to_pattern(canvas: Canvas) -> Pattern:
     # extract logical observables from canvas
     logical_observables_nodes: dict[int, set[int]] = {}
     for key, composite_logical_obs in enumerate(canvas.logical_observables):
-        nodes = _collect_logical_observable_nodes(canvas, composite_logical_obs)
-        logical_observables_nodes[key] = {node_map[coord] for coord in nodes}
+        observable_coords = _collect_logical_observable_nodes(canvas, composite_logical_obs)
+        logical_observables_nodes[key] = {node_map[coord] for coord in observable_coords}
 
     return qompile(
         graph,
