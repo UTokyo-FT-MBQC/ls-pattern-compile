@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from graphqomb.common import AxisMeasBasis, Sign
 from graphqomb.graphstate import GraphState
 from graphqomb.noise_model import DepolarizingNoiseModel, MeasurementFlipNoiseModel
+from graphqomb.ptn_format import dump as dump_ptn
 from graphqomb.qompiler import qompile
 from graphqomb.scheduler import Scheduler
 from graphqomb.stim_compiler import stim_compile
@@ -15,6 +16,10 @@ from graphqomb.stim_compiler import stim_compile
 from lspattern.detector import construct_detector
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
+    from graphqomb.pattern import Pattern
+
     from lspattern.canvas import Canvas
     from lspattern.canvas_loader import CompositeLogicalObservableSpec
     from lspattern.mytype import Coord3D
@@ -106,10 +111,37 @@ def compile_canvas_to_stim(
     p_depol_after_clifford: float,
     p_before_meas_flip: float,
 ) -> str:
+    pattern = compile_canvas_to_pattern(canvas)
+    result: str = stim_compile(
+        pattern,
+        emit_qubit_coords=False,
+        noise_models=[
+            DepolarizingNoiseModel(p1=p_depol_after_clifford),
+            MeasurementFlipNoiseModel(p=p_before_meas_flip),
+        ],
+    )
+    return result
+
+
+def compile_canvas_to_pattern(canvas: Canvas) -> Pattern:
+    """Compile a canvas into a GraphQOMB measurement pattern.
+
+    Parameters
+    ----------
+    canvas : Canvas
+        The canvas to compile.
+
+    Returns
+    -------
+    Pattern
+        The compiled GraphQOMB measurement pattern.
+    """
+    nodes = sorted(canvas.nodes)
     graph, node_map = GraphState.from_graph(
-        nodes=canvas.nodes,
-        edges=canvas.edges,
-        meas_bases={node: AxisMeasBasis(canvas.pauli_axes[node], Sign.PLUS) for node in canvas.nodes},
+        nodes=nodes,
+        edges=sorted(canvas.edges),
+        meas_bases={node: AxisMeasBasis(canvas.pauli_axes[node], Sign.PLUS) for node in nodes},
+        coordinates={node: tuple(float(value) for value in node) for node in nodes},
     )
 
     flow = canvas.flow.to_node_flow(node_map)
@@ -125,7 +157,7 @@ def compile_canvas_to_stim(
     # construct detectors
     coord2detectors = construct_detector(canvas.parity_accumulator)
     detectors: list[frozenset[int]] = []
-    for det_coords in coord2detectors.values():
+    for _, det_coords in sorted(coord2detectors.items()):
         det_nodes = {node_map[coord] for coord in det_coords if coord in node_map}
         if det_nodes:
             detectors.append(frozenset(det_nodes))
@@ -133,10 +165,10 @@ def compile_canvas_to_stim(
     # extract logical observables from canvas
     logical_observables_nodes: dict[int, set[int]] = {}
     for key, composite_logical_obs in enumerate(canvas.logical_observables):
-        nodes = _collect_logical_observable_nodes(canvas, composite_logical_obs)
-        logical_observables_nodes[key] = {node_map[coord] for coord in nodes}
+        observable_coords = _collect_logical_observable_nodes(canvas, composite_logical_obs)
+        logical_observables_nodes[key] = {node_map[coord] for coord in observable_coords}
 
-    pattern = qompile(
+    return qompile(
         graph,
         flow,
         parity_check_group=detectors,
@@ -144,11 +176,15 @@ def compile_canvas_to_stim(
         scheduler=scheduler,
     )
 
-    result: str = stim_compile(
-        pattern,
-        noise_models=[
-            DepolarizingNoiseModel(p1=p_depol_after_clifford),
-            MeasurementFlipNoiseModel(p=p_before_meas_flip),
-        ],
-    )
-    return result
+
+def export_canvas_to_ptn(canvas: Canvas, output_path: str | Path) -> None:
+    """Export a canvas to GraphQOMB's human-readable .ptn format.
+
+    Parameters
+    ----------
+    canvas : Canvas
+        The canvas to compile and export.
+    output_path : str | Path
+        Path to write the .ptn file.
+    """
+    dump_ptn(compile_canvas_to_pattern(canvas), output_path)
