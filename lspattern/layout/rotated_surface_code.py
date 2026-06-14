@@ -156,7 +156,33 @@ class RotatedSurfaceCodeLayout(TopologicalCodeLayoutBuilder):
         """
         offset = self.cube_offset(code_distance, global_pos)
         bounds = self.cube_bounds(code_distance, offset)
+        return self._cube_with_bounds(bounds, boundary, corner_decisions=corner_decisions)
 
+    def cube_at_offset(
+        self,
+        code_distance: int,
+        offset: Coord2D,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+        *,
+        corner_decisions: Mapping[CornerPosition, CornerAncillaDecision] | None = None,
+    ) -> PatchCoordinates:
+        """Build complete cube layout coordinates at a physical 2D offset."""
+        bounds = self.cube_bounds(code_distance, Coord2D(0, 0))
+        coords = self._cube_with_bounds(bounds, boundary, corner_decisions=corner_decisions)
+        return PatchCoordinates(
+            data=frozenset(Coord2D(coord.x + offset.x, coord.y + offset.y) for coord in coords.data),
+            ancilla_x=frozenset(Coord2D(coord.x + offset.x, coord.y + offset.y) for coord in coords.ancilla_x),
+            ancilla_z=frozenset(Coord2D(coord.x + offset.x, coord.y + offset.y) for coord in coords.ancilla_z),
+        )
+
+    def _cube_with_bounds(
+        self,
+        bounds: PatchBounds,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+        *,
+        corner_decisions: Mapping[CornerPosition, CornerAncillaDecision] | None = None,
+    ) -> PatchCoordinates:
+        """Build complete cube layout coordinates inside explicit bounds."""
         # Generate components
         bulk = generate_checkerboard_coords(bounds)
         corner_data_remove = self._get_corner_data_to_remove(bounds, boundary)
@@ -1361,6 +1387,17 @@ class RotatedSurfaceCodeLayoutBuilder:
             Complete coordinate sets for the cube.
         """
         return _default_layout.cube(code_distance, global_pos, boundary, corner_decisions=corner_decisions)
+
+    @staticmethod
+    def cube_at_offset(
+        code_distance: int,
+        offset: Coord2D,
+        boundary: Mapping[BoundarySide, EdgeSpecValue],
+        *,
+        corner_decisions: Mapping[CornerPosition, CornerAncillaDecision] | None = None,
+    ) -> PatchCoordinates:
+        """Build complete cube layout coordinates at a physical 2D offset."""
+        return _default_layout.cube_at_offset(code_distance, offset, boundary, corner_decisions=corner_decisions)
 
     @staticmethod
     def pipe(

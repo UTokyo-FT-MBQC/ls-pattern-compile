@@ -73,6 +73,14 @@ class TestPatchCoordinates:
 class TestBuilderCube:
     """Tests for RotatedSurfaceCodeLayoutBuilder.cube static method."""
 
+    @staticmethod
+    def _translate_coords(coords: PatchCoordinates, offset: Coord2D) -> PatchCoordinates:
+        return PatchCoordinates(
+            data=frozenset(Coord2D(coord.x + offset.x, coord.y + offset.y) for coord in coords.data),
+            ancilla_x=frozenset(Coord2D(coord.x + offset.x, coord.y + offset.y) for coord in coords.ancilla_x),
+            ancilla_z=frozenset(Coord2D(coord.x + offset.x, coord.y + offset.y) for coord in coords.ancilla_z),
+        )
+
     def test_cube_basic(self) -> None:
         """Test basic cube layout generation."""
         boundary = {
@@ -154,6 +162,21 @@ class TestBuilderCube:
 
         assert isinstance(coords, PatchCoordinates)
         assert len(coords.data) > 0
+
+    def test_cube_at_offset_matches_translated_origin_cube(self) -> None:
+        """Test arbitrary physical offsets without slot spacing."""
+        boundary = {
+            BoundarySide.TOP: EdgeSpecValue.X,
+            BoundarySide.BOTTOM: EdgeSpecValue.X,
+            BoundarySide.LEFT: EdgeSpecValue.Z,
+            BoundarySide.RIGHT: EdgeSpecValue.Z,
+        }
+        offset = Coord2D(7, -3)
+
+        origin = Builder.cube(code_distance=3, global_pos=Coord2D(0, 0), boundary=boundary)
+        shifted = Builder.cube_at_offset(code_distance=3, offset=offset, boundary=boundary)
+
+        assert shifted == self._translate_coords(origin, offset)
 
 
 # =============================================================================
