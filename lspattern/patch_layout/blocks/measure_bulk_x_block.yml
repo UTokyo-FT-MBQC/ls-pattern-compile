@@ -1,0 +1,11 @@
+name: MeasureBulkXBlock
+description: |
+  This block represents a X measure bulk block.
+  Components: MemoryUnit, MeasureXUnit
+  Used by:
+
+layers: # list of layers in this block
+  - type: MemoryUnit
+    num_layers_from_distance: rest
+  - type: MeasureXUnit
+    num_layers: 1
